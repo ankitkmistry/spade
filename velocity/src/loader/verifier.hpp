@@ -1,15 +1,15 @@
-#ifndef SOURCE_LOADER_VERIFIER_HPP_
-#define SOURCE_LOADER_VERIFIER_HPP_
+#pragma once
 
 #include "../utils/common.hpp"
 #include "../utils/exceptions.hpp"
 
-namespace spade {
-/**
- * Represents the bytecode verifier
- */
+namespace spade
+{
+    /**
+     * Represents the bytecode verifier
+     */
     class Verifier {
-    private:
+      private:
         const ElpInfo elp;
         const string path;
 
@@ -37,9 +37,11 @@ namespace spade {
 
         void checkCp(CpInfo info);
 
-        CorruptFileError corrupt() const { return CorruptFileError(path); }
+        CorruptFileError corrupt() const {
+            return CorruptFileError(path);
+        }
 
-    public:
+      public:
         Verifier(const ElpInfo elp, const string path) : elp(elp), path(path) {}
 
         /**
@@ -50,6 +52,4 @@ namespace spade {
          */
         void verify();
     };
-}
-
-#endif /* SOURCE_LOADER_VERIFIER_HPP_ */
+}    // namespace spade

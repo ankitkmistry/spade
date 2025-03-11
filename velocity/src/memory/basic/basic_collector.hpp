@@ -1,5 +1,4 @@
-#ifndef VELOCITY_MEMORY_BASIC_COLLECTOR_HPP
-#define VELOCITY_MEMORY_BASIC_COLLECTOR_HPP
+#pragma once
 
 #include "../../callable/frame.hpp"
 #include "../../ee/thread.hpp"
@@ -33,5 +32,3 @@ namespace spade::basic
         void gc();
     };
 }    // namespace spade::basic
-
-#endif    // VELOCITY_MEMORY_BASIC_COLLECTOR_HPP

@@ -1,5 +1,4 @@
-#ifndef VELOCITY_LOADER_HPP
-#define VELOCITY_LOADER_HPP
+#pragma once
 
 #include "../callable/method.hpp"
 #include "../callable/table.hpp"
@@ -68,7 +67,7 @@ namespace spade
          * @param count the size of the constant pool
          * @return the constant pool as a vector
          */
-        const vector<Obj *> &readConstPool(const CpInfo *constantPool, uint16 count);
+        vector<Obj *> readConstPool(const CpInfo *constantPool, uint16 count);
 
 
         /**
@@ -78,7 +77,7 @@ namespace spade
          */
         Obj *readCp(const CpInfo &cpInfo);
 
-        static string readUTF8(const __UTF8 &value);
+        static string readUTF8(const _UTF8 &value);
 
         /**
          * Reads the meta info of the object
@@ -92,7 +91,9 @@ namespace spade
          * @return the signature specified by the \p index from the constant pool
          *         of the current module
          */
-        Sign getSign(cpidx index) const { return {getConstantPool()[index]->toString()}; }
+        Sign getSign(cpidx index) const {
+            return {getConstantPool()[index]->toString()};
+        }
 
         /**
          * Searches the type specified by \p param in the globals table.
@@ -116,11 +117,17 @@ namespace spade
          */
         Type *resolveType(const string &sign, const Type &type);
 
-        ObjModule *getCurrentModule() const { return current; }
+        ObjModule *getCurrentModule() const {
+            return current;
+        }
 
-        const vector<Obj *> &getConstantPool() const { return getCurrentModule()->getConstantPool(); }
+        const vector<Obj *> &getConstantPool() const {
+            return getCurrentModule()->getConstantPool();
+        }
 
-        CorruptFileError corrupt() const { return CorruptFileError(getCurrentModule()->getAbsolutePath()); }
+        CorruptFileError corrupt() const {
+            return CorruptFileError(getCurrentModule()->getAbsolutePath());
+        }
 
         Obj *makeObj(const string &typeSign, const Sign &objSign, Type *type) const;
 
@@ -130,6 +137,4 @@ namespace spade
 
         fs::path getLoadPath();
     };
-} // namespace spade
-
-#endif // VELOCITY_LOADER_HPP
+}    // namespace spade

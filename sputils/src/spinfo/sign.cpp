@@ -1,6 +1,8 @@
 #include "sign.hpp"
-#include "../spimp/exceptions.hpp"
+#include "../spimp/error.hpp"
 #include "../spimp/utils.hpp"
+
+using namespace spade;
 
 const Sign Sign::EMPTY = Sign("");
 
@@ -51,7 +53,8 @@ class SignParser {
         // Check params
         if (match('(')) {
             vector<SignParam> params;
-            if (peek() != ')') params = paramsElement();
+            if (peek() != ')')
+                params = paramsElement();
             check(')');
             return {name, Sign::Kind::METHOD, list, params};
         }
@@ -121,7 +124,8 @@ class SignParser {
         } while (peek() == '.');
         if (match('(')) {
             vector<SignParam> params;
-            if (peek() != ')') params = paramsElement();
+            if (peek() != ')')
+                params = paramsElement();
             check(')');
             return {SignParam::Kind::CALLBACK, Sign(elements), params};
         }
@@ -140,15 +144,16 @@ class SignParser {
     }
 
     char peek() const {
-        if (i >= text.size()) throw err::SignatureError(text);
+        if (i >= text.size())
+            throw SignatureError(text);
         int j = i;
-        for (; j < text.size() && isspace(text[j]); ++j)
-            ;
+        for (; j < text.size() && isspace(text[j]); ++j);
         return text[j];
     }
 
     char advance() {
-        if (i >= text.size()) throw err::SignatureError(text);
+        if (i >= text.size())
+            throw SignatureError(text);
         while (isspace(text[i])) i++;
         return text[i++];
     }
@@ -179,7 +184,9 @@ class SignParser {
         return text.substr(start, i - start);
     }
 
-    err::SignatureError error(const string &msg) const { return {text, msg}; }
+    SignatureError error(const string &msg) const {
+        return {text, msg};
+    }
 };
 
 Sign::Sign(const string &text) {
@@ -202,6 +209,8 @@ string SignParam::toString() const {
             }
             return name.toString() + join(paramStrs, ", ");
         }
+        default:
+            throw Unreachable();
     }
 }
 
@@ -268,13 +277,17 @@ string Sign::toString() const {
     return str;
 }
 
-Sign::Kind Sign::getKind() const { return elements.back().getKind(); }
+Sign::Kind Sign::getKind() const {
+    return elements.back().getKind();
+}
 
 Sign Sign::getParentModule() const {
-    if (getKind() == Kind::MODULE) return Sign(slice(elements, 0, -1));
+    if (getKind() == Kind::MODULE)
+        return Sign(slice(elements, 0, -1));
     int i = 0;
     for (const auto &element: elements) {
-        if (element.getKind() != Kind::MODULE) break;
+        if (element.getKind() != Kind::MODULE)
+            break;
         i++;
     }
     return Sign(slice(elements, 0, i + 1));
@@ -293,11 +306,17 @@ Sign Sign::getParentClass() const {
     return EMPTY;
 }
 
-const vector<string> &Sign::getTypeParams() const { return elements.back().getTypeParams(); }
+const vector<string> &Sign::getTypeParams() const {
+    return elements.back().getTypeParams();
+}
 
-const vector<SignParam> &Sign::getParams() const { return elements.back().getParams(); }
+const vector<SignParam> &Sign::getParams() const {
+    return elements.back().getParams();
+}
 
-string Sign::getName() const { return elements.back().toString(); }
+string Sign::getName() const {
+    return elements.back().toString();
+}
 
 Sign Sign::operator|(const Sign &sign) const {
     SignParser parser{toString() + sign.toString()};

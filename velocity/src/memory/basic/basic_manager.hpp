@@ -1,5 +1,4 @@
-#ifndef VELOCITY_MEMORY_BASIC_MANAGER_HPP
-#define VELOCITY_MEMORY_BASIC_MANAGER_HPP
+#pragma once
 
 #include "../manager.hpp"
 #include "../memory.hpp"
@@ -13,12 +12,10 @@ namespace spade::basic
     };
 
     class BasicMemoryManager : public MemoryManager {
-        friend class BasicCollector;
-
+      public:
         LNode *head = null;
         LNode *last = null;
 
-      public:
         BasicMemoryManager(SpadeVM *vm = null) : MemoryManager(vm) {}
 
         void *allocate(size_t size) override;
@@ -29,6 +26,4 @@ namespace spade::basic
 
         void collectGarbage() override;
     };
-} // namespace spade::basic
-
-#endif // VELOCITY_MEMORY_BASIC_MANAGER_HPP
+}    // namespace spade::basic

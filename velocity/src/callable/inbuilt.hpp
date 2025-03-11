@@ -1,12 +1,8 @@
-#ifndef VELOCITY_INBUILT_HPP
-#define VELOCITY_INBUILT_HPP
+#pragma once
 
 #include "callable.hpp"
 
 namespace spade
 {
-    class ObjInbuilt : public ObjCallable {
-    };
+    class ObjInbuilt : public ObjCallable {};
 }    // namespace spade
-
-#endif    // VELOCITY_INBUILT_HPP

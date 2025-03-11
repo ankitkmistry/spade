@@ -1,6 +1,7 @@
 #include "typeparam.hpp"
 
-namespace spade {
+namespace spade
+{
     Type::Kind TypeParam::getKind() const {
         checkPlaceholder();
         return placeholder->getKind();
@@ -63,30 +64,31 @@ namespace spade {
     }
 
     void TypeParam::checkPlaceholder() const {
-        if (placeholder == null) throw IllegalTypeParamAccessError(sign.toString());
+        if (placeholder == null)
+            throw IllegalTypeParamAccessError(sign.toString());
     }
 
-    Obj *TypeParam::getMember(const string& name) const {
+    Obj *TypeParam::getMember(const string &name) const {
         checkPlaceholder();
         return placeholder->getMember(name);
     }
 
-    void TypeParam::setMember(const string& name, Obj *value) {
+    void TypeParam::setMember(const string &name, Obj *value) {
         checkPlaceholder();
         placeholder->setMember(name, value);
     }
 
-    ObjMethod *TypeParam::getSuperClassMethod(const string& sign) {
+    ObjMethod *TypeParam::getSuperClassMethod(const string &sign) {
         checkPlaceholder();
         return placeholder->getSuperClassMethod(sign);
     }
 
-    Obj *TypeParam::getStaticMember(const string& name) const {
+    Obj *TypeParam::getStaticMember(const string &name) const {
         checkPlaceholder();
         return placeholder->getStaticMember(name);
     }
 
-    void TypeParam::setStaticMember(const string& name, Obj *value) {
+    void TypeParam::setStaticMember(const string &name, Obj *value) {
         checkPlaceholder();
         placeholder->setStaticMember(name, value);
     }
@@ -95,12 +97,14 @@ namespace spade {
         checkPlaceholder();
         return placeholder->getReified(args, count);
     }
-    TypeParam *TypeParam::getTypeParam(const string& name) const {
+
+    TypeParam *TypeParam::getTypeParam(const string &name) const {
         checkPlaceholder();
         return placeholder->getTypeParam(name);
     }
-    NamedRef *TypeParam::captureTypeParam(const string& name) {
+
+    NamedRef *TypeParam::captureTypeParam(const string &name) {
         checkPlaceholder();
         return placeholder->captureTypeParam(name);
     }
-}// namespace spade
+}    // namespace spade

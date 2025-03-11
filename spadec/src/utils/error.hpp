@@ -1,38 +1,10 @@
-#ifndef KITE_ERROR_HPP
-#define KITE_ERROR_HPP
+#pragma once
 
-#include <stdexcept>
-
-#include "log.hpp"
+#include <sputils.hpp>
 #include "parser/ast.hpp"
 
 namespace spade
 {
-    /**
-     * The base error class
-     */
-    class SpadeError : public std::runtime_error {
-      public:
-        explicit SpadeError(const string &msg) : runtime_error(msg) {}
-    };
-
-    class CastError : public SpadeError {
-      private:
-        string from, to;
-
-      public:
-        CastError(const string &from, const string &to)
-            : SpadeError(std::format("cannot cast type '{}' to type '{}'", from, to)), from(from), to(to) {}
-
-        const string &get_from() const {
-            return from;
-        }
-
-        const string &get_to() const {
-            return to;
-        }
-    };
-
     class FileOpenError : public SpadeError {
       public:
         explicit FileOpenError(const string &filename) : SpadeError(std::format("failed to open file: {}", filename)) {}
@@ -90,5 +62,3 @@ namespace spade
                             import->get_col_end()) {}
     };
 }    // namespace spade
-
-#endif    // KITE_ERROR_HPP

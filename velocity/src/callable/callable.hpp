@@ -1,5 +1,4 @@
-#ifndef VELOCITY_CALLABLE_HPP
-#define VELOCITY_CALLABLE_HPP
+#pragma once
 
 #include "../objects/obj.hpp"
 #include "../objects/type.hpp"
@@ -8,12 +7,7 @@ namespace spade
 {
     class ObjCallable : public Obj {
       public:
-        enum class Kind {
-            FUNCTION,
-            METHOD,
-            CONSTRUCTOR,
-            FOREIGN
-        };
+        enum class Kind { FUNCTION, METHOD, CONSTRUCTOR, FOREIGN };
 
       protected:
         Kind kind;
@@ -21,8 +15,7 @@ namespace spade
         void validateCallSite();
 
       public:
-        ObjCallable(const Sign &sign, Kind kind, Type *type, ObjModule *module = null)
-            : Obj(sign, type, module), kind(kind) {}
+        ObjCallable(const Sign &sign, Kind kind, Type *type, ObjModule *module = null) : Obj(sign, type, module), kind(kind) {}
 
         /**
          * Calls this method with \p args on the current thread
@@ -30,7 +23,7 @@ namespace spade
          * @param method the method to be called
          * @param args arguments of the method
          */
-        virtual void call(const vector<Obj *>& args) = 0;
+        virtual void call(const vector<Obj *> &args) = 0;
 
         /**
          * Calls this method with \p args on the current thread
@@ -51,12 +44,14 @@ namespace spade
          * @param args the method to be called
          * @return the return value of the function
          */
-        Obj *invoke(vector<Obj *> args);
+        Obj *invoke(const vector<Obj *> &args);
 
-        Kind getKind() const { return kind; }
+        Kind getKind() const {
+            return kind;
+        }
 
-        bool truth() const override { return true; }
+        bool truth() const override {
+            return true;
+        }
     };
 }    // namespace spade
-
-#endif    // VELOCITY_CALLABLE_HPP

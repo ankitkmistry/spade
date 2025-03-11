@@ -1,15 +1,15 @@
-#ifndef VELOCITY_FLOAT_HPP
-#define VELOCITY_FLOAT_HPP
+#pragma once
 
 #include "inbuilt_types.hpp"
 
-namespace spade {
+namespace spade
+{
     class ObjFloat : public ObjNumber {
-    private:
+      private:
         double val;
-    public:
-        ObjFloat(double val, ObjModule *module = null)
-                : ObjNumber(Sign("float"), module), val(val) {}
+
+      public:
+        ObjFloat(double val, ObjModule *module = null) : ObjNumber(Sign("float"), module), val(val) {}
 
         Obj *copy() override;
 
@@ -31,8 +31,8 @@ namespace spade {
 
         Obj *operator/(const ObjNumber *n) const override;
 
-        double value() const { return val; }
+        double value() const {
+            return val;
+        }
     };
-}
-
-#endif //VELOCITY_FLOAT_HPP
+}    // namespace spade

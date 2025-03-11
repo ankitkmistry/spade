@@ -144,7 +144,7 @@ static const Info OPCODE_TABLE[] = {
 
 static_assert(static_cast<size_t>(Opcode::NUM_OPCODES) == std::size(OPCODE_TABLE), "update opcode table");
 
-string OpcodeInfo::toString(Opcode opcode) { return OPCODE_TABLE[static_cast<int>(opcode)].name; }
+string OpcodeInfo::to_string(Opcode opcode) { return OPCODE_TABLE[static_cast<int>(opcode)].name; }
 
 uint8_t OpcodeInfo::getParams(Opcode opcode) { return OPCODE_TABLE[static_cast<int>(opcode)].params; }
 

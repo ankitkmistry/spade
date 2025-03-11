@@ -1,8 +1,10 @@
-#include <math.h>
+#include <cmath>
+
 #include "int.hpp"
 #include "float.hpp"
 
-namespace spade {
+namespace spade
+{
     Obj *ObjInt::copy() {
         return (Obj *) this;
     }
@@ -48,8 +50,9 @@ namespace spade {
     }
 
     int32 ObjInt::compare(const Obj *rhs) const {
-        if (!is<const ObjInt *>(rhs))return 0;
-        return val - cast<const ObjInt *>(rhs)->val;
+        if (!is<const ObjInt>(rhs))
+            return 0;
+        return val - cast<const ObjInt>(rhs)->val;
     }
 
     Obj *ObjInt::operator-() const {
@@ -57,22 +60,22 @@ namespace spade {
     }
 
     Obj *ObjInt::power(const ObjNumber *n) const {
-        return halloc<ObjFloat>(info.manager, pow(val, cast<const ObjInt *>(n)->val));
+        return halloc<ObjFloat>(info.manager, std::pow(val, cast<const ObjInt>(n)->val));
     }
 
     Obj *ObjInt::operator+(const ObjNumber *n) const {
-        return halloc<ObjInt>(info.manager, val + cast<const ObjInt *>(n)->val);
+        return halloc<ObjInt>(info.manager, val + cast<const ObjInt>(n)->val);
     }
 
     Obj *ObjInt::operator-(const ObjNumber *n) const {
-        return halloc<ObjInt>(info.manager, val - cast<const ObjInt *>(n)->val);
+        return halloc<ObjInt>(info.manager, val - cast<const ObjInt>(n)->val);
     }
 
     Obj *ObjInt::operator*(const ObjNumber *n) const {
-        return halloc<ObjInt>(info.manager, val * cast<const ObjInt *>(n)->val);
+        return halloc<ObjInt>(info.manager, val * cast<const ObjInt>(n)->val);
     }
 
     Obj *ObjInt::operator/(const ObjNumber *n) const {
-        return halloc<ObjInt>(info.manager, val / cast<const ObjInt *>(n)->val);
+        return halloc<ObjInt>(info.manager, val / cast<const ObjInt>(n)->val);
     }
-}
+}    // namespace spade

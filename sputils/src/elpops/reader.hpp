@@ -1,90 +1,98 @@
 #pragma once
 
-#include "../spimp/exceptions.hpp"
+#include "spimp/error.hpp"
 #include "elpdef.hpp"
 
 #include <fstream>
 
-class ElpReader {
-  private:
-    uint32_t index = 0;
-    std::ifstream file;
-    string path;
+namespace spade
+{
+    class ElpReader {
+      private:
+        uint32_t index = 0;
+        std::ifstream file;
+        string path;
 
-    MetaInfo readMetaInfo();
+        MetaInfo read_meta_info();
 
-    ObjInfo readObjInfo();
+        ObjInfo read_obj_info();
 
-    ClassInfo readClassInfo();
+        ClassInfo read_class_info();
 
-    FieldInfo readFieldInfo();
+        FieldInfo read_field_info();
 
-    TypeParamInfo readTypeParamInfo();
+        TypeParamInfo read_type_param_info();
 
-    MethodInfo readMethodInfo();
+        MethodInfo read_method_info();
 
-    MethodInfo::LineInfo readLineInfo();
+        MethodInfo::LineInfo read_line_info();
 
-    MethodInfo::ExceptionTableInfo readExceptionInfo();
+        MethodInfo::ExceptionTableInfo read_exception_info();
 
-    MethodInfo::LocalInfo readLocalInfo();
+        MethodInfo::LocalInfo read_local_info();
 
-    MethodInfo::ArgInfo readArgInfo();
+        MethodInfo::ArgInfo read_arg_info();
 
-    MethodInfo::MatchInfo readMatchInfo();
+        MethodInfo::MatchInfo read_match_info();
 
-    MethodInfo::MatchInfo::CaseInfo readCaseInfo();
+        MethodInfo::MatchInfo::CaseInfo read_case_info();
 
-    GlobalInfo readGlobalInfo();
+        GlobalInfo read_global_info();
 
-    CpInfo readCpInfo();
+        CpInfo read_cp_info();
 
-    __Container readContainer();
+        _Container read_container();
 
-    __UTF8 readUTF8();
+        _UTF8 read_utf8();
 
-    uint8_t readByte() {
-        index++;
-        return static_cast<uint8_t>(file.get());
-    }
+        uint8_t read_byte() {
+            index++;
+            return static_cast<uint8_t>(file.get());
+        }
 
-    uint16_t readShort() {
-        uint16_t a = readByte();
-        uint8_t b = readByte();
-        return a << 8 | b;
-    }
+        uint16_t read_short() {
+            uint16_t a = read_byte();
+            uint8_t b = read_byte();
+            return a << 8 | b;
+        }
 
-    uint32_t readInt() {
-        uint32_t a = readShort();
-        uint16_t b = readShort();
-        return a << 16 | b;
-    }
+        uint32_t read_int() {
+            uint32_t a = read_short();
+            uint16_t b = read_short();
+            return a << 16 | b;
+        }
 
-    uint64_t readLong() {
-        uint64_t a = readInt();
-        uint32_t b = readInt();
-        return a << 32 | b;
-    }
+        uint64_t read_long() {
+            uint64_t a = read_int();
+            uint32_t b = read_int();
+            return a << 32 | b;
+        }
 
-    [[noreturn]] void corruptFileError() const { throw err::CorruptFileError(path); }
+        [[noreturn]] void corrupt_file_error() const {
+            throw CorruptFileError(path);
+        }
 
-  public:
-    explicit ElpReader(const string &path) : file(path, std::ios::in | std::ios::binary) {
-        if (!file.is_open()) throw err::FileNotFoundError(path);
-    }
+      public:
+        explicit ElpReader(const string &path) : file(path, std::ios::in | std::ios::binary) {
+            if (!file.is_open())
+                throw FileNotFoundError(path);
+        }
 
-    ElpReader(const ElpReader &other) = delete;
-    ElpReader(ElpReader &&other) noexcept = default;
-    ElpReader &operator=(const ElpReader &other) = delete;
-    ElpReader &operator=(ElpReader &&other) noexcept = default;
-    ~ElpReader() = default;
+        ElpReader(const ElpReader &other) = delete;
+        ElpReader(ElpReader &&other) noexcept = default;
+        ElpReader &operator=(const ElpReader &other) = delete;
+        ElpReader &operator=(ElpReader &&other) noexcept = default;
+        ~ElpReader() = default;
 
-    /**
-     * This function parses the file associated with this reader
-     * and returns the bytecode data
-     * @return The bytecode data in the form of ElpInfo
-     */
-    ElpInfo read();
+        /**
+         * This function parses the file associated with this reader
+         * and returns the bytecode data
+         * @return The bytecode data in the form of ElpInfo
+         */
+        ElpInfo read();
 
-    const string &getPath() const { return path; }
-};
+        const string &getPath() const {
+            return path;
+        }
+    };
+}    // namespace spade

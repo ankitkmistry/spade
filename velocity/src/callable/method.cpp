@@ -34,7 +34,9 @@ namespace spade
             throw ArgumentError(sign.toString(),
                                 std::format("too many arguments, expected {} got {}", newFrame.getArgs().count(), args.size()));
         }
-        for (int i = 0; i < newFrame.getArgs().count(); i++) { newFrame.getArgs().set(i, args[i]); }
+        for (int i = 0; i < newFrame.getArgs().count(); i++) {
+            newFrame.getArgs().set(i, args[i]);
+        }
         thread->getState()->pushFrame(newFrame);
     }
 
@@ -42,7 +44,9 @@ namespace spade
         validateCallSite();
         Thread *thread = Thread::current();
         auto newFrame = frameTemplate->initialize();
-        for (int i = 0; i < newFrame.getArgs().count(); i++) { newFrame.getArgs().set(i, args[i]); }
+        for (int i = 0; i < newFrame.getArgs().count(); i++) {
+            newFrame.getArgs().set(i, args[i]);
+        }
         thread->getState()->pushFrame(newFrame);
     }
 
@@ -52,9 +56,11 @@ namespace spade
     }
 
     ObjMethod *ObjMethod::returnReified(const Table<Type *> &tParams) const {
-        auto method = cast<ObjMethod *>(copy());
+        auto method = cast<ObjMethod>(const_cast<ObjMethod *>(this)->copy());
         auto params = method->getTypeParams();
-        for (auto [name, typeParam]: params) { cast<TypeParam *>(typeParam->getValue())->setPlaceholder(tParams.at(name)); }
+        for (auto [name, typeParam]: params) {
+            cast<TypeParam>(typeParam->getValue())->setPlaceholder(tParams.at(name));
+        }
         return method;
     }
 
@@ -65,7 +71,9 @@ namespace spade
         }
 
         Table<Type *> typeArgs;
-        for (int i = 0; i < count; ++i) { typeArgs[getSign().getTypeParams()[i]] = (cast<Type *>(args[i])); }
+        for (int i = 0; i < count; ++i) {
+            typeArgs[getSign().getTypeParams()[i]] = (cast<Type>(args[i]));
+        }
 
         map<Table<Type *>, ObjMethod *> table;
         ObjMethod *reifiedMethod;
@@ -97,7 +105,8 @@ namespace spade
     }
 
     void ObjMethod::setSelf(Obj *self) {
-        if (frameTemplate->getLocals().count() == 0) return;
+        if (frameTemplate->getLocals().count() == 0)
+            return;
         auto local = frameTemplate->getLocals().getLocal(0);
         local->setValue(self);
         local->setNoCopy(true);
@@ -105,9 +114,11 @@ namespace spade
 
     TypeParam *ObjMethod::getTypeParam(const string &name) const {
         try {
-            return cast<TypeParam *>(typeParams.at(name)->getValue());
+            return cast<TypeParam>(typeParams.at(name)->getValue());
         } catch (const std::out_of_range &) {
-            if (type != null) { return type->getTypeParam(name); }
+            if (type != null) {
+                return type->getTypeParam(name);
+            }
             throw IllegalAccessError(std::format("cannot find type param {} in {}", name, toString()));
         }
     }
@@ -116,8 +127,10 @@ namespace spade
         try {
             return typeParams.at(name);
         } catch (const std::out_of_range &) {
-            if (type != null) { return type->captureTypeParam(name); }
+            if (type != null) {
+                return type->captureTypeParam(name);
+            }
             throw IllegalAccessError(std::format("cannot find type param {} in {}", name, toString()));
         }
     }
-} // namespace spade
+}    // namespace spade

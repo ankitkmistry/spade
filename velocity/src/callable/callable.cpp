@@ -3,7 +3,7 @@
 
 namespace spade
 {
-    Obj *ObjCallable::invoke(vector<Obj *> args) {
+    Obj *ObjCallable::invoke(const vector<Obj *> &args) {
         Thread *thread = Thread::current();
         call(args);
         return thread->getState()->getVM()->run(thread);
@@ -14,4 +14,4 @@ namespace spade
             throw IllegalAccessError(std::format("invalid call site, cannot call {}", toString()));
         }
     }
-} // namespace spade
+}    // namespace spade

@@ -1,5 +1,4 @@
-#ifndef VELOCITY_FRAME_TEMPLATE_HPP
-#define VELOCITY_FRAME_TEMPLATE_HPP
+#pragma once
 
 #include "../objects/obj.hpp"
 #include "../objects/typeparam.hpp"
@@ -41,40 +40,72 @@ namespace spade
         Frame initialize();
         FrameTemplate *copy();
 
-        uint32 getCodeCount() const { return codeCount; }
+        uint32 getCodeCount() const {
+            return codeCount;
+        }
 
-        uint8 *getCode() const { return code; }
+        uint8 *getCode() const {
+            return code;
+        }
 
-        uint32 getMaxStack() const { return maxStack; }
+        uint32 getMaxStack() const {
+            return maxStack;
+        }
 
-        const ArgsTable &getArgs() const { return args; }
+        const ArgsTable &getArgs() const {
+            return args;
+        }
 
-        const LocalsTable &getLocals() const { return locals; }
+        const LocalsTable &getLocals() const {
+            return locals;
+        }
 
-        const ExceptionTable &getExceptions() const { return exceptions; }
+        const ExceptionTable &getExceptions() const {
+            return exceptions;
+        }
 
-        const LineNumberTable &getLines() const { return lines; }
+        const LineNumberTable &getLines() const {
+            return lines;
+        }
 
-        const vector<ObjMethod *> &getLambdas() const { return lambdas; }
+        const vector<ObjMethod *> &getLambdas() const {
+            return lambdas;
+        }
 
-        const vector<MatchTable> &getMatches() const { return matches; }
+        const vector<MatchTable> &getMatches() const {
+            return matches;
+        }
 
-        ArgsTable &getArgs() { return args; }
+        ArgsTable &getArgs() {
+            return args;
+        }
 
-        LocalsTable &getLocals() { return locals; }
+        LocalsTable &getLocals() {
+            return locals;
+        }
 
-        ExceptionTable &getExceptions() { return exceptions; }
+        ExceptionTable &getExceptions() {
+            return exceptions;
+        }
 
-        LineNumberTable &getLines() { return lines; }
+        LineNumberTable &getLines() {
+            return lines;
+        }
 
-        vector<ObjMethod *> &getLambdas() { return lambdas; }
+        vector<ObjMethod *> &getLambdas() {
+            return lambdas;
+        }
 
-        vector<MatchTable> &getMatches() { return matches; }
+        vector<MatchTable> &getMatches() {
+            return matches;
+        }
 
-        ObjMethod *getMethod() const { return method; }
+        ObjMethod *getMethod() const {
+            return method;
+        }
 
-        void setMethod(ObjMethod *method_) { method = method_; }
+        void setMethod(ObjMethod *method_) {
+            method = method_;
+        }
     };
-} // namespace spade
-
-#endif // VELOCITY_FRAME_TEMPLATE_HPP
+}    // namespace spade

@@ -1,11 +1,10 @@
-#ifndef SPUTILS_SPUTILS_HPP
-#define SPUTILS_SPUTILS_HPP
+#pragma once
 
 // Important header files
 
 #include "spimp/common.hpp"
-#include "spimp/exceptions.hpp"
-#include "spimp/format.hpp"
+#include "spimp/error.hpp"
+#include "spimp/log.hpp"
 #include "spimp/utils.hpp"
 
 // Header files related to elp operations
@@ -18,5 +17,3 @@
 
 #include "spinfo/opcode.hpp"
 #include "spinfo/sign.hpp"
-
-#endif  // SPUTILS_SPUTILS_HPP

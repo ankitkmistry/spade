@@ -19,6 +19,9 @@ LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+# Set cmake module path
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+
 # Target: sputils
 # It is the central utility library used by all other targets
 file(GLOB_RECURSE SPUTILS_SRCS sputils/src/*.cpp)
@@ -26,6 +29,11 @@ file(GLOB_RECURSE SPUTILS_INCLUDES sputils/src/*.hpp)
 
 add_library(sputils STATIC ${SPUTILS_SRCS} ${SPUTILS_INCLUDES})
 target_include_directories(sputils PUBLIC sputils/src)
+
+if (WIN32)
+	find_package(DbgHelp REQUIRED)
+	target_link_libraries(sputils ${DBGHELP_LIBRARIES})
+endif()
 
 # Target: velocity
 # It is the implementation of the Spade Virtual Machine (VM) for Spade.

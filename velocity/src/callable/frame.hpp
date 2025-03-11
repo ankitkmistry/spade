@@ -1,5 +1,4 @@
-#ifndef VELOCITY_FRAME_HPP
-#define VELOCITY_FRAME_HPP
+#pragma once
 
 #include "../objects/obj.hpp"
 #include "../utils/common.hpp"
@@ -63,64 +62,88 @@ namespace spade
         /**
          * @return The arguments table
          */
-        ArgsTable &getArgs() { return args; }
+        ArgsTable &getArgs() {
+            return args;
+        }
 
         /**
          * @return The locals table
          */
-        LocalsTable &getLocals() { return locals; }
+        LocalsTable &getLocals() {
+            return locals;
+        }
 
         /**
          * @return The exceptions table
          */
-        ExceptionTable &getExceptions() { return exceptions; }
+        ExceptionTable &getExceptions() {
+            return exceptions;
+        }
 
         /**
          * @return The arguments table
          */
-        const ArgsTable &getArgs() const { return args; }
+        const ArgsTable &getArgs() const {
+            return args;
+        }
 
         /**
          * @return The locals table
          */
-        const LocalsTable &getLocals() const { return locals; }
+        const LocalsTable &getLocals() const {
+            return locals;
+        }
 
         /**
          * @return The exceptions table
          */
-        const ExceptionTable &getExceptions() const { return exceptions; }
+        const ExceptionTable &getExceptions() const {
+            return exceptions;
+        }
 
         /**
          * @return The line number table
          */
-        const LineNumberTable &getLines() const { return lines; }
+        const LineNumberTable &getLines() const {
+            return lines;
+        }
 
         /**
          * @return The array of lambda functions
          */
-        const vector<ObjMethod *> &getLambdas() const { return lambdas; }
+        const vector<ObjMethod *> &getLambdas() const {
+            return lambdas;
+        }
 
         /**
          * @return The array of check statements
          */
-        const vector<MatchTable> &getMatches() const { return matches; }
+        const vector<MatchTable> &getMatches() const {
+            return matches;
+        }
 
         /**
          * @return The method associated with the this frameTemplate
          */
-        ObjMethod *getMethod() const { return method; }
+        ObjMethod *getMethod() const {
+            return method;
+        }
 
         /**
          * Sets the ip of this frameTemplate to ip
          * @param newIp the new ip value
          */
-        void setIp(uint8 *newIp) { ip = newIp; }
+        void setIp(uint8 *newIp) {
+            ip = newIp;
+        }
 
         /**
          * Sets the method associated with this frameTemplate
          * @param met the method value
          */
-        void setMethod(ObjMethod *met) { method = met; }
+        void setMethod(ObjMethod *met) {
+            method = met;
+        }
 
         /**
          * @return The number of items on the stack
@@ -133,5 +156,3 @@ namespace spade
         uint32 getCodeCount() const;
     };
 }    // namespace spade
-
-#endif    // VELOCITY_FRAME_HPP

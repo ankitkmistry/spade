@@ -1,15 +1,15 @@
-#ifndef VELOCITY_INT_HPP
-#define VELOCITY_INT_HPP
+#pragma once
 
 #include "inbuilt_types.hpp"
 
-namespace spade {
+namespace spade
+{
     class ObjInt : public ObjNumber {
-    private:
+      private:
         int64 val;
-    public:
-        ObjInt(int64 val, ObjModule *module = null)
-                : ObjNumber(Sign("int"), module), val(val) {}
+
+      public:
+        ObjInt(int64 val, ObjModule *module = null) : ObjNumber(Sign("int"), module), val(val) {}
 
         Obj *copy() override;
 
@@ -47,8 +47,8 @@ namespace spade {
 
         ObjInt *unsignedRightShift(const ObjInt &n) const;
 
-        int64 value() const { return val; }
+        int64 value() const {
+            return val;
+        }
     };
-}
-
-#endif //VELOCITY_INT_HPP
+}    // namespace spade

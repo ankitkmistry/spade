@@ -1,5 +1,4 @@
-#ifndef VELOCITY_TYPEPARAM_HPP
-#define VELOCITY_TYPEPARAM_HPP
+#pragma once
 
 #include "type.hpp"
 
@@ -62,5 +61,3 @@ namespace spade
         Obj *copy() override;
     };
 } // namespace spade
-
-#endif // VELOCITY_TYPEPARAM_HPP

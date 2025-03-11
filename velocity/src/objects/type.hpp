@@ -1,5 +1,4 @@
-#ifndef VELOCITY_TYPE_HPP
-#define VELOCITY_TYPE_HPP
+#pragma once
 
 #include "obj.hpp"
 
@@ -99,5 +98,3 @@ namespace spade
         static Type *SENTINEL_(const string &sign, MemoryManager *manager);
     };
 } // namespace spade
-
-#endif // VELOCITY_TYPE_HPP

@@ -1,5 +1,4 @@
-#ifndef OOP_OBJECTS_HPP_
-#define OOP_OBJECTS_HPP_
+#pragma once
 
 #include "../memory/manager.hpp"
 #include "../utils/common.hpp"
@@ -16,15 +15,23 @@ namespace spade
 
         static ObjBool *value(bool b, MemoryManager *manager = null);
 
-        bool truth() const override { return b; }
+        bool truth() const override {
+            return b;
+        }
 
-        string toString() const override { return b ? "true" : "false"; }
+        string toString() const override {
+            return b ? "true" : "false";
+        }
 
-        Obj *copy() override { return (Obj *) this; }
+        Obj *copy() override {
+            return (Obj *) this;
+        }
 
         int32 compare(const Obj *rhs) const override;
 
-        ObjBool *operator!() const { return halloc<ObjBool>(info.manager, !b, module); }
+        ObjBool *operator!() const {
+            return halloc<ObjBool>(info.manager, !b, module);
+        }
     };
 
     class ObjChar : public ComparableObj {
@@ -34,11 +41,17 @@ namespace spade
       public:
         ObjChar(const char c, ObjModule *module = null) : ComparableObj(Sign("char"), null, module), c(c) {}
 
-        bool truth() const override { return c != '\0'; }
+        bool truth() const override {
+            return c != '\0';
+        }
 
-        string toString() const override { return string({c}); }
+        string toString() const override {
+            return string({c});
+        }
 
-        Obj *copy() override { return (Obj *) this; }
+        Obj *copy() override {
+            return (Obj *) this;
+        }
 
         int32 compare(const Obj *rhs) const override;
     };
@@ -49,11 +62,17 @@ namespace spade
 
         static ObjNull *value(MemoryManager *manager = null);
 
-        bool truth() const override { return false; }
+        bool truth() const override {
+            return false;
+        }
 
-        string toString() const override { return "null"; }
+        string toString() const override {
+            return "null";
+        }
 
-        Obj *copy() override { return (Obj *) this; }
+        Obj *copy() override {
+            return (Obj *) this;
+        }
 
         int32 compare(const Obj *rhs) const override;
     };
@@ -67,11 +86,17 @@ namespace spade
 
         ObjString(uint8 *bytes, uint16 len, ObjModule *module = null);
 
-        bool truth() const override { return !str.empty(); }
+        bool truth() const override {
+            return !str.empty();
+        }
 
-        string toString() const override { return str; }
+        string toString() const override {
+            return str;
+        }
 
-        Obj *copy() override { return (Obj *) this; }
+        Obj *copy() override {
+            return (Obj *) this;
+        }
 
         int32 compare(const Obj *rhs) const override;
     };
@@ -93,9 +118,13 @@ namespace spade
 
         void set(int64 i, Obj *value);
 
-        uint16 count() const { return length; }
+        uint16 count() const {
+            return length;
+        }
 
-        bool truth() const override { return length != 0; }
+        bool truth() const override {
+            return length != 0;
+        }
 
         string toString() const override;
 
@@ -121,5 +150,4 @@ namespace spade
 
         virtual Obj *operator/(const ObjNumber *n) const = 0;
     };
-} // namespace spade
-#endif /* OOP_OBJECTS_HPP_ */
+}    // namespace spade

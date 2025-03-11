@@ -1,5 +1,4 @@
-#ifndef VELOCITY_FRAME_TABLE_HPP
-#define VELOCITY_FRAME_TABLE_HPP
+#pragma once
 
 #include "../objects/inbuilt_types.hpp"
 #include "../objects/obj.hpp"
@@ -26,37 +25,51 @@ namespace spade
          * Sets the value of the named ref
          * @param val
          */
-        void setValue(Obj *val) { value = val; }
+        void setValue(Obj *val) {
+            value = val;
+        }
 
         /**
          * @return The value of the named ref
          */
-        Obj *getValue() const { return value; }
+        Obj *getValue() const {
+            return value;
+        }
 
         /**
          * @return if the named ref is not copyable
          */
-        bool isNoCopy() const { return noCopy; }
+        bool isNoCopy() const {
+            return noCopy;
+        }
 
         /**
          * @param noCopy_ sets the named ref not copyable or not
          */
-        void setNoCopy(bool noCopy_) { noCopy = noCopy_; }
+        void setNoCopy(bool noCopy_) {
+            noCopy = noCopy_;
+        }
 
         /**
          * @return The name attached to the named ref
          */
-        const string &getName() const { return name; }
+        const string &getName() const {
+            return name;
+        }
 
         /**
          * @return The metadata associated to the named ref
          */
-        const Table<string> &getMeta() const { return meta; }
+        const Table<string> &getMeta() const {
+            return meta;
+        }
 
         /**
          * @return The string representation of the named ref
          */
-        string toString() const { return name; }
+        string toString() const {
+            return name;
+        }
     };
 
     /**
@@ -81,37 +94,53 @@ namespace spade
         /**
          * @return The starting point <i>(of the try statement in code)</i>
          */
-        uint32 getFrom() const { return from; }
+        uint32 getFrom() const {
+            return from;
+        }
 
         /**
          * @return The ending point <i>(of the try statement in code)</i>
          */
-        uint32 getTo() const { return to; }
+        uint32 getTo() const {
+            return to;
+        }
 
         /**
          * @return The target point <i>(or the starting of the catch block)</i>
          */
-        uint32 getTarget() const { return target; }
+        uint32 getTarget() const {
+            return target;
+        }
 
         /**
          * @return The object representing the type of the exception
          */
-        Type *getType() const { return type; }
+        Type *getType() const {
+            return type;
+        }
 
         /**
          * Sets the exception object of the exception handle
          * @param type_ the exception type object
          */
-        void setType(Type *type_) { type = type_; }
+        void setType(Type *type_) {
+            type = type_;
+        }
 
         /**
          * @return The metadata associated to the node
          */
-        Table<string> getMeta() const { return meta; }
+        Table<string> getMeta() const {
+            return meta;
+        }
 
-        static Exception NO_EXCEPTION() { return {0, 0, 0, null, {}}; }
+        static Exception NO_EXCEPTION() {
+            return {0, 0, 0, null, {}};
+        }
 
-        static bool IS_NO_EXCEPTION(const Exception &exception) { return exception.type == null; }
+        static bool IS_NO_EXCEPTION(const Exception &exception) {
+            return exception.type == null;
+        }
     };
 
     /**
@@ -134,12 +163,16 @@ namespace spade
         /**
          * @return The value to be matched
          */
-        Obj *getValue() const { return value; }
+        Obj *getValue() const {
+            return value;
+        }
 
         /**
          * @return The destination location in the code
          */
-        uint32 getLocation() const { return location; }
+        uint32 getLocation() const {
+            return location;
+        }
     };
 
     /**
@@ -178,25 +211,33 @@ namespace spade
          * Adds a new argument at the end of the table
          * @param arg the argument to be added
          */
-        void addArg(NamedRef *arg) { args.push_back(arg); }
+        void addArg(NamedRef *arg) {
+            args.push_back(arg);
+        }
 
         /**
          * @return The argument at index i
          * @param i the argument index
          */
-        NamedRef *getArg(uint8 i) const { return args[i]; }
+        NamedRef *getArg(uint8 i) const {
+            return args[i];
+        }
 
         ArgsTable copy() const;
 
         /**
          * @return The total number of arguments present
          */
-        uint8 count() const { return args.size() & 0xff; }
+        uint8 count() const {
+            return args.size() & 0xff;
+        }
 
         /**
          * @return The string representation of the table
          */
-        string toString() const { return "(" + listToString(args) + ")"; }
+        string toString() const {
+            return "(" + listToString(args) + ")";
+        }
     };
 
     /**
@@ -224,7 +265,9 @@ namespace spade
         /**
          * @return The index of the locals table starting from which closures are stored up to the end of the table
          */
-        uint16 getClosureStart() const { return closureStart; }
+        uint16 getClosureStart() const {
+            return closureStart;
+        }
 
         /**
          * Sets the value of the local at index i to val.
@@ -244,13 +287,17 @@ namespace spade
          * Adds a new local at the end of the table
          * @param local the local to be added
          */
-        void addLocal(NamedRef *local) { locals.push_back(local); }
+        void addLocal(NamedRef *local) {
+            locals.push_back(local);
+        }
 
         /**
          * Adds a new closure at the end of the table
          * @param closure the closure to be added
          */
-        void addClosure(NamedRef *closure) { closures.push_back(closure); }
+        void addClosure(NamedRef *closure) {
+            closures.push_back(closure);
+        }
 
         /**
          * @return The local at index i
@@ -269,12 +316,16 @@ namespace spade
         /**
          * @return The total number of locals and closures present
          */
-        uint16 count() const { return locals.size() + closures.size() & 0xffff; }
+        uint16 count() const {
+            return locals.size() + closures.size() & 0xffff;
+        }
 
         /**
          * @return The string representation of the table
          */
-        string toString() const { return "(" + listToString(locals) + ")"; }
+        string toString() const {
+            return "(" + listToString(locals) + ")";
+        }
     };
 
     class ExceptionTable {
@@ -297,25 +348,31 @@ namespace spade
          * Adds a new exception at the end of the table
          * @param exception the exception to be added
          */
-        void addException(const Exception &exception) { exceptions.push_back(exception); }
+        void addException(const Exception &exception) {
+            exceptions.push_back(exception);
+        }
 
         /**
          * @return The exception at index i
          * @param i the exception index
          */
-        const Exception &get(int i) const { return exceptions[i]; }
+        const Exception &get(int i) const {
+            return exceptions[i];
+        }
 
         /**
          * @return The total number of exceptions
          */
-        uint8 count() const { return exceptions.size() & 0xff; }
+        uint8 count() const {
+            return exceptions.size() & 0xff;
+        }
 
         /**
          * @return The exception that catches the program execution at pc and a throwable of type
          * @param pc the program counter
          * @param type the type of the throwable
          */
-        Exception getTarget(uint32 pc, Type *type) const;
+        Exception getTarget(uint32 pc, const Type *type) const;
     };
 
     /**
@@ -354,7 +411,9 @@ namespace spade
          */
         uint64 getSourceLine(uint32 byteLine) const;
 
-        const vector<LineInfo> &getLineInfos() const { return lineInfos; }
+        const vector<LineInfo> &getLineInfos() const {
+            return lineInfos;
+        }
     };
 
     /**
@@ -379,17 +438,23 @@ namespace spade
         /**
          * @return The array of check cases
          */
-        const vector<Case> &getCases() const { return cases; }
+        const vector<Case> &getCases() const {
+            return cases;
+        }
 
         /**
          * @return The default location of the check table <i>(starting of the default block)</i>
          */
-        uint32 getDefaultLocation() const { return defaultLocation; }
+        uint32 getDefaultLocation() const {
+            return defaultLocation;
+        }
 
         /**
          * @return The number of the check cases
          */
-        size_t count() const { return cases.size(); }
+        size_t count() const {
+            return cases.size();
+        }
 
         /**
          * This function takes value and serially checks all the cases
@@ -404,6 +469,4 @@ namespace spade
          */
         uint32 perform(Obj *value) const;
     };
-} // namespace spade
-
-#endif // VELOCITY_FRAME_TABLE_HPP
+}    // namespace spade

@@ -17,6 +17,14 @@ namespace spade
         SymbolPath &operator=(SymbolPath &&other) noexcept = default;
         ~SymbolPath() = default;
 
+        bool operator==(const SymbolPath &other) const {
+            return elements == other.elements;
+        }
+
+        bool operator!=(const SymbolPath &other) const {
+            return elements != other.elements;
+        }
+
         SymbolPath operator/(const string &element) const {
             SymbolPath path(*this);
             path.elements.push_back(element);
@@ -58,7 +66,18 @@ namespace spade
                                    [](const string &a, const string &b) { return a + (a.empty() ? "" : ".") + b; });
         }
     };
+}    // namespace spade
 
+template<>
+class std::hash<spade::SymbolPath> {
+  public:
+    size_t operator()(const spade::SymbolPath &path) const {
+        return std::hash<std::string>{}(path.to_string());
+    }
+};
+
+namespace spade
+{
     class Analyzer {
         fs::path root_path;
         std::unordered_map<SymbolPath, std::shared_ptr<ast::AstNode>> symbol_table;

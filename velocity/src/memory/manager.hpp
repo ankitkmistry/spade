@@ -1,5 +1,4 @@
-#ifndef VELOCITY_MANAGER_HPP
-#define VELOCITY_MANAGER_HPP
+#pragma once
 
 #include "../utils/common.hpp"
 
@@ -55,5 +54,3 @@ namespace spade
         static MemoryManager *current();
     };
 } // namespace spade
-
-#endif // VELOCITY_MANAGER_HPP

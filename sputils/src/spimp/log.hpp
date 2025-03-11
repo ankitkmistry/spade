@@ -3,7 +3,8 @@
 #include <iostream>
 #include <source_location>
 #include <chrono>
-#include "utils/common.hpp"
+#include <functional>
+#include "spimp/common.hpp"
 
 namespace spade
 {

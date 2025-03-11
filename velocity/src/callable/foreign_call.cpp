@@ -13,32 +13,38 @@ namespace spade
                 result = library->call<Obj *>(name);
                 break;
             case 1:
-                if (self == null) result = library->call<Obj *>(name, args[0]);
+                if (self == null)
+                    result = library->call<Obj *>(name, args[0]);
                 else
                     result = library->call<Obj *>(name, self, args[0]);
                 break;
             case 2:
-                if (self == null) result = library->call<Obj *>(name, args[0], args[1]);
+                if (self == null)
+                    result = library->call<Obj *>(name, args[0], args[1]);
                 else
                     result = library->call<Obj *>(name, self, args[0], args[1]);
                 break;
             case 3:
-                if (self == null) result = library->call<Obj *>(name, args[0], args[1], args[2]);
+                if (self == null)
+                    result = library->call<Obj *>(name, args[0], args[1], args[2]);
                 else
                     result = library->call<Obj *>(name, self, args[0], args[1], args[2]);
                 break;
             case 4:
-                if (self == null) result = library->call<Obj *>(name, args[0], args[1], args[2], args[3]);
+                if (self == null)
+                    result = library->call<Obj *>(name, args[0], args[1], args[2], args[3]);
                 else
                     result = library->call<Obj *>(name, self, args[0], args[1], args[2], args[3]);
                 break;
             case 5:
-                if (self == null) result = library->call<Obj *>(name, args[0], args[1], args[2], args[3], args[4]);
+                if (self == null)
+                    result = library->call<Obj *>(name, args[0], args[1], args[2], args[3], args[4]);
                 else
                     result = library->call<Obj *>(name, self, args[0], args[1], args[2], args[3], args[4]);
                 break;
             case 6:
-                if (self == null) result = library->call<Obj *>(name, args[0], args[1], args[2], args[3], args[4], args[5]);
+                if (self == null)
+                    result = library->call<Obj *>(name, args[0], args[1], args[2], args[3], args[4], args[5]);
                 else
                     result = library->call<Obj *>(name, self, args[0], args[1], args[2], args[3], args[4], args[5]);
                 break;
@@ -8625,4 +8631,4 @@ namespace spade
 
         thread->getState()->push(result);
     }
-}
+}    // namespace spade

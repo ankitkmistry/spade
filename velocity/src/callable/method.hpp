@@ -1,5 +1,4 @@
-#ifndef VELOCITY_METHOD_HPP
-#define VELOCITY_METHOD_HPP
+#pragma once
 
 #include "callable.hpp"
 #include "frame_template.hpp"
@@ -12,13 +11,13 @@ namespace spade
         FrameTemplate *frameTemplate;
         Table<NamedRef *> typeParams;
 
-        ObjMethod *returnReified(const Table<Type *>& tParams) const;
+        ObjMethod *returnReified(const Table<Type *> &tParams) const;
 
       public:
         ObjMethod(const Sign &sign, Kind kind, FrameTemplate *frame, Type *type, const Table<NamedRef *> &typeParams,
                   ObjModule *module = null);
 
-        void call(const vector<Obj *>& args) override;
+        void call(const vector<Obj *> &args) override;
 
         void call(Obj **args) override;
 
@@ -51,22 +50,26 @@ namespace spade
          * @param count count of type args
          * @return the reified type
          */
-        ObjMethod *getReified(const vector<Type *>& args) const;
+        ObjMethod *getReified(const vector<Type *> &args) const;
 
-        TypeParam *getTypeParam(const string& name) const;
+        TypeParam *getTypeParam(const string &name) const;
 
         Obj *copy() override;
 
         string toString() const override;
 
-        const FrameTemplate *getFrameTemplate() const { return frameTemplate; }
+        const FrameTemplate *getFrameTemplate() const {
+            return frameTemplate;
+        }
 
-        const Table<NamedRef *> &getTypeParams() const { return typeParams; }
+        const Table<NamedRef *> &getTypeParams() const {
+            return typeParams;
+        }
 
-        Table<NamedRef *> &getTypeParams() { return typeParams; }
+        Table<NamedRef *> &getTypeParams() {
+            return typeParams;
+        }
 
-        NamedRef *captureTypeParam(const string& name) const;
+        NamedRef *captureTypeParam(const string &name) const;
     };
-} // namespace spade
-
-#endif // VELOCITY_METHOD_HPP
+}    // namespace spade

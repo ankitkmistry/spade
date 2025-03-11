@@ -1,10 +1,10 @@
-#ifndef OOP_OBJ_HPP_
-#define OOP_OBJ_HPP_
+#pragma once
 
 #include "../utils/common.hpp"
 #include "../memory/memory.hpp"
 
-namespace spade {
+namespace spade
+{
     class Type;
 
     class TypeParam;
@@ -82,26 +82,35 @@ namespace spade {
     };
 
     class MemberSlot {
-    private:
+      private:
         Obj *value;
         Flags flags;
-    public:
+
+      public:
         MemberSlot(Obj *value = null, Flags flags = Flags{0}) : value(value), flags(flags) {}
 
-        Obj *getValue() const { return value; }
+        Obj *getValue() const {
+            return value;
+        }
 
-        Obj *&getValue() { return value; }
+        Obj *&getValue() {
+            return value;
+        }
 
-        void setValue(Obj *value_) { value = value_; }
+        void setValue(Obj *value_) {
+            value = value_;
+        }
 
-        const Flags &getFlags() const { return flags; }
+        const Flags &getFlags() const {
+            return flags;
+        }
     };
 
-/**
- * The abstract description of an object in the virtual machine
- */
+    /**
+     * The abstract description of an object in the virtual machine
+     */
     class Obj : public Collectible {
-    protected:
+      protected:
         /// Module where this object belongs to
         ObjModule *module;
         /// Signature of the object
@@ -120,9 +129,9 @@ namespace spade {
          * @param old_ old type parameters
          * @param new_ new type parameters
          */
-        static void reify(Obj **pObj, const Table<NamedRef *>&old_, const Table<NamedRef *>& new_);
+        static void reify(Obj **pObj, const Table<NamedRef *> &old_, const Table<NamedRef *> &new_);
 
-    public:
+      public:
         /**
          * Creates a deep copy of \p obj.
          * This function is more safe than Obj::copy as this prevents
@@ -151,7 +160,9 @@ namespace spade {
         /**
          * @return the corresponding truth value of the object
          */
-        virtual bool truth() const { return true; }
+        virtual bool truth() const {
+            return true;
+        }
 
         /**
          * @return a string representation of this object for VM context only
@@ -161,40 +172,52 @@ namespace spade {
         /**
          * @return the encapsulating module of the object
          */
-        virtual ObjModule *getModule() const { return module; }
+        virtual ObjModule *getModule() const {
+            return module;
+        }
 
         /**
          * @return the signature of the object
          */
-        virtual const Sign &getSign() const { return sign; }
+        virtual const Sign &getSign() const {
+            return sign;
+        }
 
         /**
          * @return the type of the object
          */
-        virtual Type *getType() const { return type; }
+        virtual Type *getType() const {
+            return type;
+        }
 
         /**
          * Sets the type of the object
          * @param destType the destination type
          */
-        void setType(Type *destType) { this->type = destType; }
+        void setType(Type *destType) {
+            this->type = destType;
+        }
 
         /**
          * @return the members of this object
          */
-        virtual const Table<MemberSlot> &getMemberSlots() const { return memberSlots; }
+        virtual const Table<MemberSlot> &getMemberSlots() const {
+            return memberSlots;
+        }
 
         /**
          * @return the members of this object
          */
-        virtual Table<MemberSlot> &getMemberSlots() { return memberSlots; }
+        virtual Table<MemberSlot> &getMemberSlots() {
+            return memberSlots;
+        }
 
         /**
          * @throws IllegalAccessError if the member cannot be found
          * @param name the name of the member
          * @return the member of this object, the member can be static also
          */
-        virtual Obj *getMember(const string& name) const;
+        virtual Obj *getMember(const string &name) const;
 
         /**
          * Sets the member of this object with \p name and sets it to \p value.
@@ -202,14 +225,14 @@ namespace spade {
          * @param name name of the member
          * @param value value to be set to
          */
-        virtual void setMember(const string& name, Obj *value);
+        virtual void setMember(const string &name, Obj *value);
 
         /**
          * @throws IllegalAccessError if the superclass method cannot be found
          * @param mSign complete signature of the method
          * @return the method of the superclass has been overrode by this object
          */
-        virtual ObjMethod *getSuperClassMethod(const string& mSign);
+        virtual ObjMethod *getSuperClassMethod(const string &mSign);
 
         /**
          * @return the meta information of the object
@@ -219,14 +242,13 @@ namespace spade {
 
     class ObjBool;
 
-/**
- * The abstract description of a comparable object in the virtual machine.
- * Simple comparison operations can be performed on this kind of object
- */
+    /**
+     * The abstract description of a comparable object in the virtual machine.
+     * Simple comparison operations can be performed on this kind of object
+     */
     class ComparableObj : public Obj {
-    public:
-        ComparableObj(Sign sign, Type *type, ObjModule *module)
-                : Obj(sign, type, module) {}
+      public:
+        ComparableObj(Sign sign, Type *type, ObjModule *module) : Obj(sign, type, module) {}
 
         /**
          * Performs comparison between two objects
@@ -249,6 +271,4 @@ namespace spade {
 
         ObjBool *operator!=(const Obj *rhs) const;
     };
-}
-
-#endif /* OOP_OBJ_HPP_ */
+}    // namespace spade

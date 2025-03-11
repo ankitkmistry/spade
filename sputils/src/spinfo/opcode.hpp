@@ -295,7 +295,7 @@ class OpcodeInfo {
      * @param opcode
      * @return string representation of the opcode
      */
-    static string toString(Opcode opcode);
+    static string to_string(Opcode opcode);
 
     /**
      * @param opcode

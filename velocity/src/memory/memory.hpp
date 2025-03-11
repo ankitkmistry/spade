@@ -1,5 +1,4 @@
-#ifndef VELOCITY_MEMORY_HPP
-#define VELOCITY_MEMORY_HPP
+#pragma once
 
 #include "../utils/exceptions.hpp"
 #include "manager.hpp"
@@ -21,9 +20,13 @@ namespace spade
 
         virtual ~Collectible() = default;
 
-        const MemoryInfo &getInfo() const { return info; }
+        const MemoryInfo &getInfo() const {
+            return info;
+        }
 
-        MemoryInfo &getInfo() { return info; }
+        MemoryInfo &getInfo() {
+            return info;
+        }
     };
 
     /**
@@ -68,5 +71,3 @@ namespace spade
         manager->deallocate(obj);
     }
 }    // namespace spade
-
-#endif    // VELOCITY_MEMORY_HPP

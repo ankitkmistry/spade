@@ -4,10 +4,10 @@
 #include "import.hpp"
 
 #include <iostream>
+#include <sputils.hpp>
 
 #include "parser.hpp"
 #include "lexer/lexer.hpp"
-#include "utils/log.hpp"
 
 namespace spade
 {
@@ -22,13 +22,15 @@ namespace spade
             nodes[path] = sp_import;
         }
         for (const auto &path: import_paths) {
-            if (resolved.contains(path)) break;
+            if (resolved.contains(path))
+                break;
             if (!exists(path))
                 throw ImportError(std::format("cannot find dependency '{}'", path.generic_string()), nodes[path]);
             if (!is_regular_file(path))
                 throw ImportError(std::format("dependency is not a file: '{}'", path.generic_string()), nodes[path]);
             std::ifstream in(path);
-            if (!in) throw FileOpenError(path.generic_string());
+            if (!in)
+                throw FileOpenError(path.generic_string());
             std::stringstream ss;
             ss << in.rdbuf();
             Lexer lexer(ss.str());

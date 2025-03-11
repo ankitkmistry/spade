@@ -1,5 +1,4 @@
-#ifndef VELOCITY_MODULE_HPP
-#define VELOCITY_MODULE_HPP
+#pragma once
 
 #include "../callable/method.hpp"
 
@@ -24,7 +23,8 @@ namespace spade
         ObjMethod *init = null;
 
       public:
-        ObjModule(const Sign &sign, const fs::path &path, const vector<Obj *> &constantPool, const ElpInfo &elp);
+        ObjModule(const Sign &sign, const fs::path &path, const vector<Obj *> &constantPool, const vector<string> &dependencies,
+                  const ElpInfo &elp);
 
         static ObjModule *current();
 
@@ -32,21 +32,37 @@ namespace spade
 
         string getModuleName() const;
 
-        State getState() const { return state; }
+        State getState() const {
+            return state;
+        }
 
-        void setState(State state_) { state = state_; }
+        void setState(State state_) {
+            state = state_;
+        }
 
-        const fs::path &getPath() const { return path; }
+        const fs::path &getPath() const {
+            return path;
+        }
 
-        ElpInfo getElp() const { return elp; }
+        ElpInfo getElp() const {
+            return elp;
+        }
 
-        const vector<Obj *> &getConstantPool() const { return constantPool; }
+        const vector<Obj *> &getConstantPool() const {
+            return constantPool;
+        }
 
-        const vector<string> &getDependencies() const { return dependencies; }
+        const vector<string> &getDependencies() const {
+            return dependencies;
+        }
 
-        ObjMethod *getInit() const { return init; }
+        ObjMethod *getInit() const {
+            return init;
+        }
 
-        void setInit(ObjMethod *init_) { init = init_; }
+        void setInit(ObjMethod *init_) {
+            init = init_;
+        }
 
         Obj *copy() override;
 
@@ -54,6 +70,4 @@ namespace spade
 
         string toString() const override;
     };
-} // namespace spade
-
-#endif // VELOCITY_MODULE_HPP
+}    // namespace spade

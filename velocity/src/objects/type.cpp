@@ -22,14 +22,20 @@ namespace spade
         return newType;
     }
 
-    bool Type::truth() const { return true; }
+    bool Type::truth() const {
+        return true;
+    }
 
-    string Type::toString() const { return std::format("<{} '{}'>", kindNames[static_cast<int>(kind)], sign.toString()); }
+    string Type::toString() const {
+        return std::format("<{} '{}'>", kindNames[static_cast<int>(kind)], sign.toString());
+    }
 
     Obj *Type::getStaticMember(const string &name) const {
         try {
             auto slot = getMemberSlots().at(name);
-            if (slot.getFlags().isStatic()) { return slot.getValue(); }
+            if (slot.getFlags().isStatic()) {
+                return slot.getValue();
+            }
         } catch (const std::out_of_range &) {}
 
         Obj *obj = null;
@@ -37,16 +43,21 @@ namespace spade
         for (auto super: getSupers() | std::views::values) {
             try {
                 obj = super->getStaticMember(name);
-            } catch (const IllegalAccessError &) { obj = null; }
+            } catch (const IllegalAccessError &) {
+                obj = null;
+            }
         }
-        if (obj == null) { throw IllegalAccessError(std::format("cannot find static member: {} in {}", name, toString())); }
+        if (obj == null) {
+            throw IllegalAccessError(std::format("cannot find static member: {} in {}", name, toString()));
+        }
         return obj;
     }
 
     void Type::setStaticMember(const string &name, Obj *value) {
         try {
             auto &slot = getMemberSlots().at(name);
-            if (slot.getFlags().isStatic()) slot.setValue(value);
+            if (slot.getFlags().isStatic())
+                slot.setValue(value);
             return;
         } catch (const std::out_of_range &) {}
 
@@ -55,7 +66,9 @@ namespace spade
             try {
                 super->setStaticMember(name, value);
                 return;
-            } catch (const IllegalAccessError &) { continue; }
+            } catch (const IllegalAccessError &) {
+                continue;
+            }
         }
         throw IllegalAccessError(std::format("cannot find static member: {} in {}", name, toString()));
     }
@@ -66,10 +79,10 @@ namespace spade
     }
 
     Type *Type::returnReified(const Table<Type *> &typeParams) {
-        auto type = cast<Type *>(copy());
+        auto type = cast<Type>(copy());
         auto params = type->getTypeParams();
         for (const auto &[name, typeParam]: params) {
-            cast<TypeParam *>(typeParam->getValue())->setPlaceholder(typeParams.at(name));
+            cast<TypeParam>(typeParam->getValue())->setPlaceholder(typeParams.at(name));
         }
         return type;
     }
@@ -88,7 +101,9 @@ namespace spade
         }
 
         Table<Type *> typeArgs;
-        for (int i = 0; i < count; ++i) { typeArgs[getSign().getTypeParams()[i]] = cast<Type *>(args[i]); }
+        for (int i = 0; i < count; ++i) {
+            typeArgs[getSign().getTypeParams()[i]] = cast<Type>(args[i]);
+        }
 
         map<Table<Type *>, Type *> table;
         Type *reifiedType;
@@ -121,7 +136,7 @@ namespace spade
 
     TypeParam *Type::getTypeParam(const string &name) const {
         try {
-            return cast<TypeParam *>(typeParams.at(name)->getValue());
+            return cast<TypeParam>(typeParams.at(name)->getValue());
         } catch (const std::out_of_range &) {
             throw IllegalAccessError(std::format("cannot find type param {} in {}", name, toString()));
         }
@@ -134,4 +149,4 @@ namespace spade
             throw IllegalAccessError(std::format("cannot find type param {} in {}", name, toString()));
         }
     }
-} // namespace spade
+}    // namespace spade

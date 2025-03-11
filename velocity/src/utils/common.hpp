@@ -1,5 +1,4 @@
-#ifndef SOURCE_UTILS_COMMON_HPP_
-#define SOURCE_UTILS_COMMON_HPP_
+#pragma once
 
 #include "constants.hpp"
 #include <cstddef>
@@ -19,7 +18,6 @@
 #include <format>
 #include <sputils.hpp>
 
-// TODO: For debug only
 #include <iostream>
 
 #define null (nullptr)
@@ -43,12 +41,34 @@ namespace spade
     using int64 = std::int64_t;
 
     template<class T>
-    using Table = std::unordered_map<string, T>;
+    using Table = std::unordered_map<string, T, std::hash<string>, std::equal_to<string>>;
 
-    template<typename T>
-    concept StringConvertible = requires(T t) {
-        { t.toString() } -> std::same_as<string>;
-    };
-} // namespace spade
+    class Type;
+}    // namespace spade
 
-#endif /* SOURCE_UTILS_COMMON_HPP_ */
+/*
+ * This is to fix an annoying build error
+ */
+template<>
+class std::less<spade::Table<spade::Type *>> {
+    using self = spade::Table<spade::Type *>;
+
+  public:
+    bool operator()(const self &lhs, const self &rhs) const {
+        if (lhs.size() != rhs.size()) {
+            return lhs.size() < rhs.size();
+        } else {
+            auto lIt = lhs.begin();
+            auto rIt = rhs.begin();
+            while (lIt != lhs.end()) {
+                if (lIt->first != rIt->first)
+                    return lIt->first < rIt->first;
+                if (lIt->second != rIt->second)
+                    return lIt->second < rIt->second;
+                lIt++;
+                rIt++;
+            }
+            return false;
+        }
+    }
+};

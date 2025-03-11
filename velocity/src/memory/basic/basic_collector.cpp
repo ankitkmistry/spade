@@ -87,12 +87,14 @@ namespace spade::basic
     }
 
     void BasicCollector::mark(Collectible *collectible) {
-        if (collectible == null) return;
-        if (collectible->getInfo().marked) return;
+        if (collectible == null)
+            return;
+        if (collectible->getInfo().marked)
+            return;
         collectible->getInfo().marked = true;
         grayMaterial.push_back(collectible);
-        if (is<Obj *>(collectible)) {
-            auto obj = cast<Obj *>(collectible);
+        if (is<Obj>(collectible)) {
+            auto obj = cast<Obj>(collectible);
             mark(obj->getModule());
             mark((Obj *) obj->getType());
         }
@@ -100,14 +102,14 @@ namespace spade::basic
 
     void BasicCollector::traceReferences() {
         for (auto material: grayMaterial) {
-            if (is<ObjArray *>(material)) {
-                auto array = cast<ObjArray *>(material);
+            if (is<ObjArray>(material)) {
+                auto array = cast<ObjArray>(material);
                 array->foreach ([&](auto val) {
                     // mark every value of the array
                     mark(val);
                 });
-            } else if (is<ObjMethod *>(material)) {
-                auto method = cast<ObjMethod *>(material);
+            } else if (is<ObjMethod>(material)) {
+                auto method = cast<ObjMethod>(material);
                 const FrameTemplate *frameTemplate = method->getFrameTemplate();
                 // mark args
                 for (int i = 0; i < frameTemplate->getArgs().count(); ++i) {
@@ -153,8 +155,8 @@ namespace spade::basic
                     mark(typeParam);
                     mark(typeParam->getValue());
                 }
-            } else if (is<Type *>(material)) {
-                auto type = cast<Type *>(material);
+            } else if (is<Type>(material)) {
+                auto type = cast<Type>(material);
                 for (auto [name, typeParam]: type->getTypeParams()) {
                     // mark every type param
                     mark((Obj *) typeParam);
@@ -167,14 +169,14 @@ namespace spade::basic
                     // mark every member
                     mark(member.getValue());
                 }
-            } else if (is<Obj *>(material)) {
-                auto obj = cast<Obj *>(material);
+            } else if (is<Obj>(material)) {
+                auto obj = cast<Obj>(material);
                 for (auto [name, member]: obj->getMemberSlots()) {
                     // mark every member
                     mark(member.getValue());
                 }
             } else {
-                auto ref = cast<NamedRef *>(material);
+                auto ref = cast<NamedRef>(material);
                 mark(ref->getValue());
             }
         }
@@ -193,7 +195,8 @@ namespace spade::basic
             } else {
                 auto unreached = current;
                 current = current->next;
-                if (previous != null) previous->next = current;
+                if (previous != null)
+                    previous->next = current;
                 hfree(unreached->data);
                 manager->deallocate(unreached);
             }
