@@ -54,7 +54,7 @@ static void print_error(const CompilerError &err, const fs::path &path) {
 void compile() {
     fs::path file_path;
     try {
-        file_path = R"(D:\Programming (Ankit)\Projects\spade\spadec\src\test.sp)";
+        file_path = R"(D:\Programming\Projects\spade\spadec\res\test.sp)";
         std::vector<std::shared_ptr<ast::Module>> modules;
         {
             std::ifstream in(file_path);
@@ -71,10 +71,10 @@ void compile() {
             Analyzer analyzer;
             analyzer.analyze(modules);
         }
-        for (const auto &module: modules) {
-            ast::Printer printer{module};
-            std::cout << printer << '\n';
-        }
+        // for (const auto &module: modules) {
+        //     ast::Printer printer{module};
+        //     std::cout << printer << '\n';
+        // }
     } catch (const CompilerError &err) {
         print_error(err, file_path);
     }

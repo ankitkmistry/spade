@@ -1,4 +1,5 @@
 #include "parser.hpp"
+#include "lexer/token.hpp"
 
 namespace spade
 {
@@ -134,7 +135,7 @@ namespace spade
     }
 
     std::shared_ptr<ast::Declaration> Parser::compound_decl() {
-        auto token = expect(TokenType::CLASS, TokenType::INTERFACE, TokenType::ANNOTATION);
+        auto token = expect(TokenType::CLASS, TokenType::ENUM, TokenType::INTERFACE, TokenType::ANNOTATION);
         auto name = expect(TokenType::IDENTIFIER);
         std::vector<std::shared_ptr<ast::decl::TypeParam>> type_params;
         std::vector<std::shared_ptr<ast::decl::Constraint>> constraints;
@@ -153,7 +154,7 @@ namespace spade
         std::vector<std::shared_ptr<ast::Declaration>> members;
         std::vector<std::shared_ptr<ast::decl::Enumerator>> enumerators;
         if (match(TokenType::LBRACE)) {
-            while (peek()->get_type() == TokenType::IDENTIFIER) enumerators.push_back(enumerator());
+            while (peek()->get_type() == TokenType::IDENTIFIER) enumerators = enumerator_list();
             while (peek()->get_type() != TokenType::RBRACE) members.push_back(member_decl());
             expect(TokenType::RBRACE);
         }

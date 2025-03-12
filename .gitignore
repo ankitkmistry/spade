@@ -434,3 +434,5 @@ FodyWeavers.xsd
 
 out
 build
+.kdev4
+*.kdev4

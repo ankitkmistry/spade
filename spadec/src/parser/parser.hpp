@@ -1,6 +1,5 @@
 #pragma once
 
-#include "utils/utils.hpp"
 #include "ast.hpp"
 #include "lexer/lexer.hpp"
 
@@ -24,7 +23,8 @@ namespace spade
             string result;
             for (int i = 0; i < list.size(); ++i) {
                 result += TokenInfo::get_repr(list[i]);
-                if (i < list.size() - 1) result += ", ";
+                if (i < list.size() - 1)
+                    result += ", ";
             }
             return result;
         }
@@ -38,13 +38,15 @@ namespace spade
         std::shared_ptr<Token> match(T... types) {
             const std::vector<TokenType> ts = {types...};
             for (auto t: ts) {
-                if (peek()->get_type() == t) return advance();
+                if (peek()->get_type() == t)
+                    return advance();
             }
             return null;
         }
 
         std::shared_ptr<Token> match(const string &text) {
-            if (peek()->get_text() == text) return advance();
+            if (peek()->get_text() == text)
+                return advance();
             return null;
         }
 
@@ -53,7 +55,8 @@ namespace spade
         std::shared_ptr<Token> expect(T... types) {
             const std::vector<TokenType> ts = {types...};
             for (auto t: ts) {
-                if (peek()->get_type() == t) return advance();
+                if (peek()->get_type() == t)
+                    return advance();
             }
             throw error(std::format("expected {}", make_expected_string(types...)));
         }
@@ -176,7 +179,14 @@ namespace spade
         std::vector<std::shared_ptr<ast::type::TypeBuilderMember>> type_builder_member_list();
 
       public:
-        explicit Parser(const fs::path &file_path, Lexer *lexer) : file_path(file_path), lexer(lexer) {}
+        /**
+         * Construct a new Parser object
+         * @param file_path the absolute path to the file
+         * @param lexer pointer to the token source
+         */
+        explicit Parser(const fs::path &file_path, Lexer *lexer) : file_path(file_path), lexer(lexer) {
+            assert(file_path.is_absolute());
+        }
 
         Parser(const Parser &other) = default;
         Parser(Parser &&other) noexcept = default;

@@ -57,8 +57,15 @@ namespace spade
 
     class ImportError : public CompilerError {
       public:
-        explicit ImportError(const string &msg, const std::shared_ptr<ast::Import> &import)
+        ImportError(const string &msg, const std::shared_ptr<ast::Import> &import)
             : CompilerError(msg, import->get_line_start(), import->get_col_start(), import->get_line_end(),
                             import->get_col_end()) {}
+    };
+
+    class AnalyzerError : public CompilerError {
+      public:
+        template<ast::HasLineInfo T>
+        AnalyzerError(const string &msg, T node)
+            : CompilerError(msg, node->get_line_start(), node->get_col_start(), node->get_line_end(), node->get_col_end()) {}
     };
 }    // namespace spade

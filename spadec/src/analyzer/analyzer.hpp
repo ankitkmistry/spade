@@ -2,7 +2,7 @@
 
 #include <numeric>
 
-#include "parser/ast.hpp"
+#include "../parser/ast.hpp"
 
 namespace spade
 {
@@ -79,10 +79,7 @@ class std::hash<spade::SymbolPath> {
 namespace spade
 {
     class Analyzer {
-        fs::path root_path;
-        std::unordered_map<SymbolPath, std::shared_ptr<ast::AstNode>> symbol_table;
-
-        void set_root_path(const std::vector<std::shared_ptr<ast::Module>> &modules);
+        std::unordered_map<SymbolPath, ast::AstNode *> symbol_table;
 
       public:
         void analyze(const std::vector<std::shared_ptr<ast::Module>> &modules);

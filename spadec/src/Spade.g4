@@ -24,7 +24,7 @@ parent: reference ('[' typeArgs ']')?;
 typeParams: typeParam (',' typeParam)* ','?;
 typeParam: (OUT | IN)? IDENTIFIER ('=' type)?;
 
-compoundDecl: (CLASS | INTERFACE | ANNOTATION) IDENTIFIER 
+compoundDecl: (CLASS | ENUM | INTERFACE | ANNOTATION) IDENTIFIER 
               ('[' typeParams ']' ('where' constaintList)?)? 
               (':' parentList)? 
           ('{' enumList memberDecl* '}')?;
