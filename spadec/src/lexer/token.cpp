@@ -48,6 +48,9 @@ namespace spade
              "static", TokenType::STATIC,
              },
             {
+             "override", TokenType::OVERRIDE,
+             },
+            {
              "private", TokenType::PRIVATE,
              },
             {

@@ -37,16 +37,32 @@ static void print_error(const CompilerError &err, const fs::path &path) {
         std::getline(in, line);
         if (err.get_line_start() <= i && i <= err.get_line_end()) {
             std::cout << std::format("{: {}d} | {}\n", i, max_digits, line);
-            std::cout << string(max_digits + 4, ' ');
-            if (i == err.get_line_start() && i == err.get_line_end())
+            std::cout << std::format("{} | ", string(max_digits + 1, ' '), line);
+
+            if (i == err.get_line_start() && i == err.get_line_end()) {
                 for (int j = 1; j <= line.size(); ++j)
-                    std::cout << (err.get_col_start() <= j && j <= err.get_col_end() ? '^' : ' ');
-            else if (i == err.get_line_start())
-                for (int j = 1; j <= line.size(); ++j) std::cout << (err.get_col_start() <= j ? '^' : ' ');
-            else if (i == err.get_line_end())
-                for (int j = 1; j <= line.size(); ++j) std::cout << (j <= err.get_col_end() ? '^' : ' ');
-            else
-                std::cout << string(line.size(), '^');
+                    if (err.get_col_start() <= j && j <= err.get_col_end())
+                        std::cout << (isspace(line[j - 1]) ? line[j - 1] : '^');
+                    else
+                        std::cout << (isspace(line[j - 1]) ? line[j - 1] : ' ');
+            } else if (i == err.get_line_start()) {
+                for (int j = 1; j <= line.size(); ++j)
+                    if (err.get_col_start() <= j)
+                        std::cout << (isspace(line[j - 1]) ? line[j - 1] : '^');
+                    else
+                        std::cout << (isspace(line[j - 1]) ? line[j - 1] : ' ');
+            } else if (i == err.get_line_end()) {
+                for (int j = 1; j <= line.size(); ++j)
+                    if (j <= err.get_col_end())
+                        std::cout << (isspace(line[j - 1]) ? line[j - 1] : '^');
+                    else
+                        std::cout << (isspace(line[j - 1]) ? line[j - 1] : ' ');
+            } else {
+                for (int j = 1; j <= line.size(); ++j) {
+                    std::cout << (isspace(line[j - 1]) ? line[j - 1] : '^');
+                }
+            }
+            std::cout << '\n';
         }
     }
 }
@@ -58,7 +74,8 @@ void compile() {
         std::vector<std::shared_ptr<ast::Module>> modules;
         {
             std::ifstream in(file_path);
-            if (!in) throw FileOpenError(file_path.string());
+            if (!in)
+                throw FileOpenError(file_path.string());
             std::stringstream buffer;
             buffer << in.rdbuf();
             Lexer lexer(buffer.str());
@@ -71,10 +88,10 @@ void compile() {
             Analyzer analyzer;
             analyzer.analyze(modules);
         }
-        // for (const auto &module: modules) {
-        //     ast::Printer printer{module};
-        //     std::cout << printer << '\n';
-        // }
+        for (const auto &module: modules) {
+            ast::Printer printer{module};
+            std::cout << printer << '\n';
+        }
     } catch (const CompilerError &err) {
         print_error(err, file_path);
     }
@@ -85,16 +102,19 @@ void repl() {
         std::stringstream code;
         std::cout << ">>> ";
         while (true) {
-            if (!code.str().empty()) std::cout << "... ";
+            if (!code.str().empty())
+                std::cout << "... ";
             string line;
             std::getline(std::cin, line);
             if (!line.empty() && line.back() == ';') {
-                if (line.size() > 1) code << line.substr(0, line.size() - 1) << '\n';
+                if (line.size() > 1)
+                    code << line.substr(0, line.size() - 1) << '\n';
                 break;
             }
             code << line << '\n';
         }
-        if (code.str() == "exit" || code.str() == "quit") return;
+        if (code.str() == "exit" || code.str() == "quit")
+            return;
         Lexer lexer(code.str());
         Parser parser("", &lexer);
         auto tree = parser.parse();

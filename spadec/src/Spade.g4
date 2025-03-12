@@ -40,7 +40,7 @@ memberDecl: modifiers (
               | compoundDecl except ANNOTATION
            ) sep;
 
-modifiers: (ABSTRACT | FINAL | STATIC | PRIVATE | INTERNAL | PROTECTED | PUBLIC)*;
+modifiers: (ABSTRACT | FINAL | STATIC | OVERRIDE | PRIVATE | INTERNAL | PROTECTED | PUBLIC)*;
 
 initDecl: INIT '(' params? ')' definition;
 
@@ -197,6 +197,7 @@ VAR: 'var';
 ABSTRACT: 'abstract';
 FINAL: 'final';
 STATIC: 'static';
+OVERRIDE: 'override';
 // Accessors
 PRIVATE: 'private';
 PROTECTED: 'protected';

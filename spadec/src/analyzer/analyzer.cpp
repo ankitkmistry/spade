@@ -1,7 +1,9 @@
+#include <algorithm>
 #include <iostream>
 #include <numeric>
 #include <stack>
 #include <stdexcept>
+#include <unordered_map>
 
 #include "analyzer.hpp"
 #include "lexer/token.hpp"
@@ -126,6 +128,156 @@ namespace spade
 
         void visit(ast::decl::Params &node) override {}
 
+        void check_modifiers(ast::AstNode *node, const std::vector<std::shared_ptr<Token>> &modifiers) {
+            std::unordered_map<TokenType, size_t> modifier_counts = {
+                    {TokenType::ABSTRACT,  0},
+                    {TokenType::FINAL,     0},
+                    {TokenType::STATIC,    0},
+                    {TokenType::OVERRIDE,  0},
+                    {TokenType::PRIVATE,   0},
+                    {TokenType::INTERNAL,  0},
+                    {TokenType::PROTECTED, 0},
+                    {TokenType::PUBLIC,    0},
+            };
+            // Get the count of each modifier
+            for (const auto &modifier: modifiers) {
+                try {
+                    modifier_counts.at(modifier->get_type())++;
+                } catch (const std::out_of_range &) {
+                    throw Unreachable();    // surely some parser error
+                }
+            }
+            // Check for duplicate modifiers
+            for (const auto &[modifier, count]: modifier_counts) {
+                if (count > 1) {
+                    throw AnalyzerError(std::format("duplicate modifier: {}", TokenInfo::get_repr(modifier)), node);
+                }
+            }
+            // Check for conflicting modifiers
+            const auto CHECK_EXCLUSIVE = [&](TokenType a, TokenType b) {
+                if (modifier_counts[a] + modifier_counts[b] > 1) {
+                    throw AnalyzerError(
+                            std::format("{} and {} are mutually exclusive", TokenInfo::get_repr(a), TokenInfo::get_repr(b)),
+                            node);
+                }
+            };
+
+            CHECK_EXCLUSIVE(TokenType::ABSTRACT, TokenType::FINAL);
+            CHECK_EXCLUSIVE(TokenType::STATIC, TokenType::OVERRIDE);
+            CHECK_EXCLUSIVE(TokenType::ABSTRACT, TokenType::PRIVATE);
+            CHECK_EXCLUSIVE(TokenType::FINAL, TokenType::PRIVATE);
+            CHECK_EXCLUSIVE(TokenType::OVERRIDE, TokenType::PRIVATE);
+
+            if (modifier_counts[TokenType::PRIVATE] + modifier_counts[TokenType::PROTECTED] +
+                        modifier_counts[TokenType::INTERNAL] + modifier_counts[TokenType::PUBLIC] >
+                1) {
+                throw AnalyzerError("access modifiers are mutually exclusive", node);
+            }
+
+            if (modifier_counts[TokenType::ABSTRACT] + modifier_counts[TokenType::STATIC] > 1) {
+                try {
+                    if (cast<ast::decl::Compound>(node)->get_token()->get_type() == TokenType::CLASS &&
+                        cast<ast::decl::Compound>(symbols.at(path_stack.top()))->get_token()->get_type() == TokenType::CLASS) {
+                    } else
+                        throw AnalyzerError("'abstract' and 'static' are mutually exclusive", node);
+                } catch (const CastError &) {
+                    throw AnalyzerError("'abstract' and 'static' are mutually exclusive", node);
+                } catch (const std::out_of_range &) {
+                    throw Unreachable();    // not a folder module expected a file module
+                }
+            }
+
+            // Module level declaration specific checks
+            try {
+                if (is<ast::Module>(symbols.at(path_stack.top()))) {
+                    if (modifier_counts[TokenType::STATIC] > 0)
+                        throw AnalyzerError("module level declarations cannot be 'static'", node);
+                    else if (modifier_counts[TokenType::OVERRIDE] > 0)
+                        throw AnalyzerError("module level declarations cannot be 'override'", node);
+
+                    if (is<ast::decl::Function>(node)) {
+                        if (modifier_counts[TokenType::ABSTRACT] > 0)
+                            throw AnalyzerError("global functions cannot be 'abstract'", node);
+                    }
+                }
+            } catch (const std::out_of_range &) {
+                throw Unreachable();    // not a folder module expected a file module
+            }
+            // Variable specific checks
+            if (is<ast::decl::Variable>(node)) {
+                if (modifier_counts[TokenType::ABSTRACT] > 0)
+                    throw AnalyzerError("variables/constants cannot be 'abstract'", node);
+                else if (modifier_counts[TokenType::FINAL] > 0)
+                    throw AnalyzerError("variables/constants cannot be 'final'", node);
+                else if (modifier_counts[TokenType::OVERRIDE] > 0)
+                    throw AnalyzerError("variables/constants cannot be 'override'", node);
+            }
+            // Compound declaration specific checks
+            try {
+                switch (cast<ast::decl::Compound>(node)->get_token()->get_type()) {
+                    case TokenType::CLASS:
+                        break;
+                    case TokenType::ENUM:
+                        if (modifier_counts[TokenType::ABSTRACT] > 0)
+                            throw AnalyzerError("enums cannot be 'abstract'", node);
+                        break;
+                    case TokenType::INTERFACE:
+                        if (modifier_counts[TokenType::ABSTRACT] > 0)
+                            throw AnalyzerError("interfaces cannot be 'abstract'", node);
+                        break;
+                    case TokenType::ANNOTATION:
+                        if (modifier_counts[TokenType::ABSTRACT] > 0)
+                            throw AnalyzerError("annotations cannot be 'abstract'", node);
+                        break;
+                    default:
+                        throw Unreachable();    // surely some parser error
+                }
+            } catch (const CastError &) {
+            } catch (const std::out_of_range &) {
+                throw Unreachable();    // not a folder module expected a file module
+            }
+            // Parent class/compound specific checks
+            try {
+                switch (cast<ast::decl::Compound>(symbols.at(path_stack.top()))->get_token()->get_type()) {
+                    case TokenType::CLASS:
+                        break;
+                    case TokenType::ENUM:
+                        if (modifier_counts[TokenType::ABSTRACT] > 0)
+                            throw AnalyzerError("'abstract' members are not allowed in enums", node);
+                        else if (modifier_counts[TokenType::FINAL] > 0)
+                            throw AnalyzerError("'final' members are not allowed in enums", node);
+                        break;
+                    case TokenType::INTERFACE:
+                        if (modifier_counts[TokenType::ABSTRACT] > 0)
+                            throw AnalyzerError("'abstract' members are not allowed in interfaces", node);
+                        else if (modifier_counts[TokenType::FINAL] > 0 && modifier_counts[TokenType::STATIC] == 0)
+                            throw AnalyzerError("'final' members are not allowed in interfaces (but final static is allowed)",
+                                                node);
+                        break;
+                    case TokenType::ANNOTATION:
+                        if (modifier_counts[TokenType::ABSTRACT] > 0)
+                            throw AnalyzerError("'abstract' members are not allowed in annotations", node);
+                        break;
+                    default:
+                        throw Unreachable();    // surely some parser error
+                }
+            } catch (const CastError &) {
+            } catch (const std::out_of_range &) {
+                throw Unreachable();    // not a folder module expected a file module
+            }
+            // Constructor specific checks
+            if (is<ast::decl::Init>(node)) {
+                if (modifier_counts[TokenType::ABSTRACT] > 0)
+                    throw AnalyzerError("constructor cannot be 'abstract'", node);
+                else if (modifier_counts[TokenType::STATIC] > 0)
+                    throw AnalyzerError("constructor cannot be 'static'", node);
+                else if (modifier_counts[TokenType::STATIC] > 0)
+                    throw AnalyzerError("constructor cannot be 'final'", node);
+                else if (modifier_counts[TokenType::OVERRIDE] > 0)
+                    throw AnalyzerError("constructor cannot be 'override'", node);
+            }
+        }
+
         string build_type_params_string(const std::vector<std::shared_ptr<ast::decl::TypeParam>> &type_params) {
             return std::accumulate(type_params.begin(), type_params.end(), string(),
                                    [](const string &a, const std::shared_ptr<ast::decl::TypeParam> &b) {
@@ -169,6 +321,7 @@ namespace spade
         }
 
         void visit(ast::decl::Function &node) override {
+            check_modifiers(&node, node.get_modifiers());
             if (path_stack.empty()) {
                 throw Unreachable();    // surely some parser error
             }
@@ -180,10 +333,17 @@ namespace spade
         }
 
         void visit(ast::decl::Variable &node) override {
+            check_modifiers(&node, node.get_modifiers());
             if (!path_stack.empty()) {
                 try {
+                    // constants and static variables are allowed in interfaces
                     if (cast<ast::decl::Compound>(symbols.at(path_stack.top()))->get_token()->get_type() ==
-                        TokenType::INTERFACE)
+                                TokenType::INTERFACE &&
+                        node.get_token()->get_type() != TokenType::CONST &&
+                        std::find_if(node.get_modifiers().begin(), node.get_modifiers().end(),
+                                     [](const std::shared_ptr<Token> &modifier) {
+                                         return modifier->get_type() == TokenType::STATIC;
+                                     }) == node.get_modifiers().end())
                         throw AnalyzerError("fields are not allowed in interfaces", &node);
                 } catch (const CastError &) {
                     if (!is<ast::Module>(symbols.at(path_stack.top())))
@@ -204,6 +364,7 @@ namespace spade
         }
 
         void visit(ast::decl::Init &node) override {
+            check_modifiers(&node, node.get_modifiers());
             if (!path_stack.empty()) {
                 try {
                     if (cast<ast::decl::Compound>(symbols.at(path_stack.top()))->get_token()->get_type() ==
@@ -227,6 +388,8 @@ namespace spade
         void visit(ast::decl::Parent &node) override {}
 
         void visit(ast::decl::Enumerator &node) override {
+            if (!node.get_modifiers().empty())
+                throw Unreachable();    // surely some parser error
             if (!path_stack.empty()) {
                 try {
                     if (cast<ast::decl::Compound>(symbols.at(path_stack.top()))->get_token()->get_type() != TokenType::ENUM)
@@ -258,12 +421,16 @@ namespace spade
         }
 
         void visit(ast::decl::Compound &node) override {
+            check_modifiers(&node, node.get_modifiers());
             if (!path_stack.empty()) {
                 try {
                     switch (cast<ast::decl::Compound>(symbols.at(path_stack.top()))->get_token()->get_type()) {
                         case TokenType::CLASS:
+                            break;
                         case TokenType::ENUM:
-                            if (node.get_token()->get_type() == TokenType::ANNOTATION)
+                            if (node.get_token()->get_type() == TokenType::ENUM)
+                                throw AnalyzerError("nested enums are not allowed", &node);
+                            else if (node.get_token()->get_type() == TokenType::ANNOTATION)
                                 throw AnalyzerError("annotations are not allowed in enums", &node);
                             break;
                             break;

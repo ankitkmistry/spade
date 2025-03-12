@@ -114,6 +114,7 @@ namespace spade
         std::shared_ptr<ast::Declaration> decl;
         switch (peek()->get_type()) {
             case TokenType::VAR:
+            case TokenType::CONST:
                 decl = variable_decl();
                 break;
             case TokenType::FUN:
@@ -127,7 +128,7 @@ namespace spade
                 break;
             default:
                 throw error(std::format("expected {}",
-                                        make_expected_string(TokenType::VAR, TokenType::FUN, TokenType::CLASS,
+                                        make_expected_string(TokenType::VAR, TokenType::CONST, TokenType::FUN, TokenType::CLASS,
                                                              TokenType::INTERFACE, TokenType::ENUM, TokenType::ANNOTATION)));
         }
         decl->set_modifiers(mods);
@@ -167,6 +168,7 @@ namespace spade
         std::shared_ptr<ast::Declaration> decl;
         switch (peek()->get_type()) {
             case TokenType::VAR:
+            case TokenType::CONST:
                 decl = variable_decl();
                 break;
             case TokenType::FUN:
@@ -182,8 +184,8 @@ namespace spade
                 break;
             default:
                 throw error(std::format("expected {}",
-                                        make_expected_string(TokenType::VAR, TokenType::FUN, TokenType::INIT, TokenType::CLASS,
-                                                             TokenType::INTERFACE, TokenType::ENUM)));
+                                        make_expected_string(TokenType::VAR, TokenType::CONST, TokenType::FUN, TokenType::INIT,
+                                                             TokenType::CLASS, TokenType::INTERFACE, TokenType::ENUM)));
         }
         decl->set_modifiers(mods);
         return decl;
@@ -250,8 +252,8 @@ namespace spade
 
     std::vector<std::shared_ptr<Token>> Parser::modifiers() {
         std::vector<std::shared_ptr<Token>> mods;
-        while (match(TokenType::ABSTRACT, TokenType::FINAL, TokenType::STATIC, TokenType::PRIVATE, TokenType::INTERNAL,
-                     TokenType::PROTECTED, TokenType::PUBLIC)) {
+        while (match(TokenType::ABSTRACT, TokenType::FINAL, TokenType::STATIC, TokenType::OVERRIDE, TokenType::PRIVATE,
+                     TokenType::INTERNAL, TokenType::PROTECTED, TokenType::PUBLIC)) {
             mods.push_back(current());
         }
         return mods;

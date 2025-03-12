@@ -61,6 +61,7 @@ namespace spade
         ABSTRACT,
         FINAL,
         STATIC,
+        OVERRIDE,
         // Accessors
         PRIVATE,
         PROTECTED,
@@ -195,7 +196,8 @@ namespace spade
         int get_line_end() const {
             int res = line;
             for (auto c: text) {
-                if (c == '\n') res++;
+                if (c == '\n')
+                    res++;
             }
             return res;
         }
@@ -203,7 +205,8 @@ namespace spade
         int get_col_end() const {
             int res = col;
             for (auto c: text) {
-                if (c == '\n') res = 0;
+                if (c == '\n')
+                    res = 0;
                 else
                     res++;
             }
