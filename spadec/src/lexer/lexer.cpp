@@ -4,17 +4,20 @@
 namespace spade
 {
     int Lexer::current() const {
-        if (end - 1 >= length()) return EOF;
+        if (end - 1 >= length())
+            return EOF;
         return data[end - 1];
     }
 
     int Lexer::peek() const {
-        if (end >= length()) return EOF;
+        if (end >= length())
+            return EOF;
         return data[end];
     }
 
     int Lexer::advance() {
-        if (end >= length()) return EOF;
+        if (end >= length())
+            return EOF;
         return data[end++];
     }
 
@@ -42,7 +45,7 @@ namespace spade
     }
 
     LexerError Lexer::make_error(const string &msg) const {
-        return {msg, line, col};
+        return {msg, file_path, line, col};
     }
 
     static bool is_binary_digit(int c) {
@@ -67,13 +70,15 @@ namespace spade
         while (true) {
             if (validator(c = peek()) || (allow_underscore && c == '_')) {
                 advance();
-                if (!allow_underscore) allow_underscore = true;
+                if (!allow_underscore)
+                    allow_underscore = true;
             } else
                 break;
         }
         if (match(exp1) || match(exp2)) {
             if (match('+') || match('-')) {
-                if (!is_decimal_digit(peek())) throw make_error("expected decimal digit");
+                if (!is_decimal_digit(peek()))
+                    throw make_error("expected decimal digit");
                 while (is_decimal_digit(c = peek())) advance();
             } else {
                 throw make_error("expected '+', '-'");
@@ -103,36 +108,45 @@ namespace spade
                 case ']':
                     return get_token(TokenType::RBRACKET);
                 case '<':
-                    if (match('<')) return get_token(TokenType::LT);
-                    if (match('=')) return get_token(TokenType::LE);
+                    if (match('<'))
+                        return get_token(TokenType::LT);
+                    if (match('='))
+                        return get_token(TokenType::LE);
                     return get_token(TokenType::LT);
                 case '>':
                     if (match('>')) {
-                        if (match('>')) return get_token(TokenType::URSHIFT);
+                        if (match('>'))
+                            return get_token(TokenType::URSHIFT);
                         return get_token(TokenType::RSHIFT);
                     }
-                    if (match('=')) return get_token(TokenType::GE);
+                    if (match('='))
+                        return get_token(TokenType::GE);
                     return get_token(TokenType::GT);
                 case '!':
-                    if (match('=')) return get_token(TokenType::NE);
+                    if (match('='))
+                        return get_token(TokenType::NE);
                     return get_token(TokenType::BANG);
                 case '?':
-                    if (match('?')) return get_token(TokenType::ELVIS);
+                    if (match('?'))
+                        return get_token(TokenType::ELVIS);
                     return get_token(TokenType::HOOK);
                 case '~':
                     return get_token(TokenType::TILDE);
                 case '+':
                     return get_token(TokenType::PLUS);
                 case '-':
-                    if (match('>')) return get_token(TokenType::ARROW);
+                    if (match('>'))
+                        return get_token(TokenType::ARROW);
                     return get_token(TokenType::DASH);
                 case '*':
-                    if (match('*')) return get_token(TokenType::STAR_STAR);
+                    if (match('*'))
+                        return get_token(TokenType::STAR_STAR);
                     return get_token(TokenType::STAR);
                 case '/': {
                     if (match('*')) {
                         while (true) {
-                            if (match('*') && match('/')) break;
+                            if (match('*') && match('/'))
+                                break;
                             advance();
                         }
                     } else
@@ -152,31 +166,39 @@ namespace spade
                 case ',':
                     return get_token(TokenType::COMMA);
                 case '=':
-                    if (match('=')) return get_token(TokenType::EQ);
+                    if (match('='))
+                        return get_token(TokenType::EQ);
                     return get_token(TokenType::EQUAL);
                 case ':':
                     return get_token(TokenType::COLON);
                 // String
                 case '"':
                     while (true) {
-                        if (peek() == EOF) throw make_error("expected '\"'");
-                        if (match('\\')) advance();
-                        if (match('"')) break;
+                        if (peek() == EOF)
+                            throw make_error("expected '\"'");
+                        if (match('\\'))
+                            advance();
+                        if (match('"'))
+                            break;
                         advance();
                     }
                     return get_token(TokenType::STRING);
                 case '\'':
                     while (true) {
-                        if (peek() == EOF) throw make_error("expected '''");
-                        if (match('\\')) advance();
-                        if (match('\'')) break;
+                        if (peek() == EOF)
+                            throw make_error("expected '''");
+                        if (match('\\'))
+                            advance();
+                        if (match('\''))
+                            break;
                         advance();
                     }
                     return get_token(TokenType::STRING);
                 // Whitespace
                 case '#':
                     while (peek() != '\n') {
-                        if (peek() == EOF) return get_token(TokenType::END_OF_FILE);
+                        if (peek() == EOF)
+                            return get_token(TokenType::END_OF_FILE);
                         advance();
                     }
                     break;
@@ -205,10 +227,12 @@ namespace spade
                     if (is_decimal_digit(c)) {
                         if (c == '0') {
                             if (match('b') || match('B')) {
-                                if (!is_binary_digit(peek())) throw make_error("expected binary digit");
+                                if (!is_binary_digit(peek()))
+                                    throw make_error("expected binary digit");
                                 while (is_binary_digit(c = peek()) || c == '_') advance();
                             } else if (match('x') || match('X')) {
-                                if (!is_hex_digit(peek())) throw make_error("expected hexadecimal digit");
+                                if (!is_hex_digit(peek()))
+                                    throw make_error("expected hexadecimal digit");
                                 while (is_hex_digit(c = peek()) || c == '_') advance();
                                 if (match('.')) {
                                     complete_float_part(is_hex_digit, 'p', 'P');

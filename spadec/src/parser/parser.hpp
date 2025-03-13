@@ -61,7 +61,7 @@ namespace spade
             throw error(std::format("expected {}", make_expected_string(types...)));
         }
 
-        static ParserError error(const string &msg, const std::shared_ptr<Token> &token);
+        ParserError error(const string &msg, const std::shared_ptr<Token> &token);
         ParserError error(const string &msg);
 
         template<typename R, typename C1, typename C2>

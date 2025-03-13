@@ -24,16 +24,18 @@ namespace spade
         for (const auto &path: import_paths) {
             if (resolved.contains(path))
                 break;
-            if (!exists(path))
-                throw ImportError(std::format("cannot find dependency '{}'", path.generic_string()), nodes[path]);
-            if (!is_regular_file(path))
-                throw ImportError(std::format("dependency is not a file: '{}'", path.generic_string()), nodes[path]);
+            if (!fs::exists(path))
+                throw ImportError(std::format("cannot find dependency '{}'", path.generic_string()), module->get_file_path(),
+                                  nodes[path]);
+            if (!fs::is_regular_file(path))
+                throw ImportError(std::format("dependency is not a file: '{}'", path.generic_string()), module->get_file_path(),
+                                  nodes[path]);
             std::ifstream in(path);
             if (!in)
                 throw FileOpenError(path.generic_string());
             std::stringstream ss;
             ss << in.rdbuf();
-            Lexer lexer(ss.str());
+            Lexer lexer(path, ss.str());
             Parser parser(path, &lexer);
             auto mod = parser.parse();
             resolve_imports(mod);

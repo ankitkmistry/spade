@@ -7,12 +7,14 @@
 namespace spade::ast
 {
     void Printer::start_level() {
-        if (!ss.str().empty() && ss.str().back() != '\n') ss << '\n';
+        if (!ss.str().empty() && ss.str().back() != '\n')
+            ss << '\n';
         level++;
     }
 
     void Printer::end_level() {
-        if (!ss.str().empty() && ss.str().back() != '\n') ss << '\n';
+        if (!ss.str().empty() && ss.str().back() != '\n')
+            ss << '\n';
         level--;
     }
 
@@ -24,7 +26,8 @@ namespace spade::ast
     void Printer::print(const std::shared_ptr<Token> &token, const string &name) {
         start_level();
         ss << leading_conv(level);
-        if (!name.empty()) ss << name << ": ";
+        if (!name.empty())
+            ss << name << ": ";
         ss << (token ? token->to_string() : "null");
         end_level();
     }
@@ -32,8 +35,10 @@ namespace spade::ast
     void Printer::print(const std::shared_ptr<AstNode> &node, const string &name) {
         start_level();
         ss << leading_conv(level);
-        if (!name.empty()) ss << name << ": ";
-        if (!node) ss << "null";
+        if (!name.empty())
+            ss << name << ": ";
+        if (!node)
+            ss << "null";
         else
             node->accept(this);
         end_level();
@@ -45,7 +50,8 @@ namespace spade::ast
         int i = 0;
         for (const auto &elm: node.get_path()) {
             ss << elm->get_text();
-            if (i < node.get_path().size() - 1) ss << ".";
+            if (i < node.get_path().size() - 1)
+                ss << ".";
             i++;
         }
         ss << "'";
@@ -360,6 +366,8 @@ namespace spade::ast
         ss << "decl::Function";
         print(node.get_modifiers(), "modifiers");
         print(node.get_name(), "name");
+        print(node.get_type_params(), "type_params");
+        print(node.get_constraints(), "constraints");
         print(node.get_params(), "params");
         print(node.get_return_type(), "return_type");
         print(node.get_definition(), "definition");

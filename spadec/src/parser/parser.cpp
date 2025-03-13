@@ -55,7 +55,7 @@ namespace spade
             } else
                 col_end++;
         }
-        return {msg, line_start, col_start, line_end, col_end};
+        return {msg, file_path, line_start, col_start, line_end, col_end};
     }
 
     ParserError Parser::error(const string &msg) {
@@ -263,8 +263,8 @@ namespace spade
         std::shared_ptr<Token> variance;
         if (match("out") || match(TokenType::IN))
             variance = current();
-        else
-            throw error("expected 'out', 'in");
+        // else
+        //     throw error("expected 'out', 'in");
         auto name = expect(TokenType::IDENTIFIER);
         std::shared_ptr<ast::Type> default_type;
         if (match(TokenType::EQUAL))

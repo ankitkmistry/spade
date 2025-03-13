@@ -128,6 +128,49 @@ namespace spade
 
         void visit(ast::decl::Params &node) override {}
 
+        template<class ADAPTER>
+        typename ADAPTER::container_type &get_container(ADAPTER &a) {
+            struct hack : ADAPTER {
+                static typename ADAPTER::container_type &get(ADAPTER &a) {
+                    return a.*&hack::c;
+                }
+            };
+
+            return hack::get(a);
+        }
+
+        AnalyzerError error(const string &msg, ast::AstNode *node) {
+            auto path_stack = get_container(this->path_stack);
+            fs::path path;
+            for (auto itr = path_stack.rbegin(); itr != path_stack.rend(); ++itr) {
+                try {
+                    if (auto ptr = dynamic_cast<ast::Module *>(symbols.at(*itr)); ptr) {
+                        path = ptr->get_file_path();
+                        break;
+                    }
+                } catch (const std::out_of_range &) {
+                    continue;
+                }
+            }
+            return AnalyzerError(msg, path, node);
+        }
+
+        SymbolPath add_symbol(string name, ast::AstNode *node) {
+            if (path_stack.empty()) {
+                throw Unreachable();    // surely some parser error
+            }
+            SymbolPath path(path_stack.top() / name);
+            if (symbols.find(path) == symbols.end())
+                symbols[path] = node;
+            else {
+                throw ErrorGroup<AnalyzerError>(
+                        std::pair(ErrorType::ERROR, error(std::format("redeclaration of '{}'", path.to_string()), node)),
+                        std::pair(ErrorType::NOTE,
+                                  error(std::format("already declared here", path.to_string()), symbols[path])));
+            }
+            return path;
+        }
+
         void check_modifiers(ast::AstNode *node, const std::vector<std::shared_ptr<Token>> &modifiers) {
             std::unordered_map<TokenType, size_t> modifier_counts = {
                     {TokenType::ABSTRACT,  0},
@@ -150,15 +193,14 @@ namespace spade
             // Check for duplicate modifiers
             for (const auto &[modifier, count]: modifier_counts) {
                 if (count > 1) {
-                    throw AnalyzerError(std::format("duplicate modifier: {}", TokenInfo::get_repr(modifier)), node);
+                    throw error(std::format("duplicate modifier: {}", TokenInfo::get_repr(modifier)), node);
                 }
             }
             // Check for conflicting modifiers
-            const auto CHECK_EXCLUSIVE = [&](TokenType a, TokenType b) {
+            const auto CHECK_EXCLUSIVE = [&](const TokenType a, const TokenType b) {
                 if (modifier_counts[a] + modifier_counts[b] > 1) {
-                    throw AnalyzerError(
-                            std::format("{} and {} are mutually exclusive", TokenInfo::get_repr(a), TokenInfo::get_repr(b)),
-                            node);
+                    throw error(std::format("{} and {} are mutually exclusive", TokenInfo::get_repr(a), TokenInfo::get_repr(b)),
+                                node);
                 }
             };
 
@@ -171,7 +213,7 @@ namespace spade
             if (modifier_counts[TokenType::PRIVATE] + modifier_counts[TokenType::PROTECTED] +
                         modifier_counts[TokenType::INTERNAL] + modifier_counts[TokenType::PUBLIC] >
                 1) {
-                throw AnalyzerError("access modifiers are mutually exclusive", node);
+                throw error("access modifiers are mutually exclusive", node);
             }
 
             if (modifier_counts[TokenType::ABSTRACT] + modifier_counts[TokenType::STATIC] > 1) {
@@ -179,9 +221,9 @@ namespace spade
                     if (cast<ast::decl::Compound>(node)->get_token()->get_type() == TokenType::CLASS &&
                         cast<ast::decl::Compound>(symbols.at(path_stack.top()))->get_token()->get_type() == TokenType::CLASS) {
                     } else
-                        throw AnalyzerError("'abstract' and 'static' are mutually exclusive", node);
+                        throw error("'abstract' and 'static' are mutually exclusive", node);
                 } catch (const CastError &) {
-                    throw AnalyzerError("'abstract' and 'static' are mutually exclusive", node);
+                    throw error("'abstract' and 'static' are mutually exclusive", node);
                 } catch (const std::out_of_range &) {
                     throw Unreachable();    // not a folder module expected a file module
                 }
@@ -191,13 +233,13 @@ namespace spade
             try {
                 if (is<ast::Module>(symbols.at(path_stack.top()))) {
                     if (modifier_counts[TokenType::STATIC] > 0)
-                        throw AnalyzerError("module level declarations cannot be 'static'", node);
-                    else if (modifier_counts[TokenType::OVERRIDE] > 0)
-                        throw AnalyzerError("module level declarations cannot be 'override'", node);
+                        throw error("module level declarations cannot be 'static'", node);
+                    if (modifier_counts[TokenType::OVERRIDE] > 0)
+                        throw error("module level declarations cannot be 'override'", node);
 
                     if (is<ast::decl::Function>(node)) {
                         if (modifier_counts[TokenType::ABSTRACT] > 0)
-                            throw AnalyzerError("global functions cannot be 'abstract'", node);
+                            throw error("global functions cannot be 'abstract'", node);
                     }
                 }
             } catch (const std::out_of_range &) {
@@ -206,11 +248,11 @@ namespace spade
             // Variable specific checks
             if (is<ast::decl::Variable>(node)) {
                 if (modifier_counts[TokenType::ABSTRACT] > 0)
-                    throw AnalyzerError("variables/constants cannot be 'abstract'", node);
-                else if (modifier_counts[TokenType::FINAL] > 0)
-                    throw AnalyzerError("variables/constants cannot be 'final'", node);
-                else if (modifier_counts[TokenType::OVERRIDE] > 0)
-                    throw AnalyzerError("variables/constants cannot be 'override'", node);
+                    throw error("variables/constants cannot be 'abstract'", node);
+                if (modifier_counts[TokenType::FINAL] > 0)
+                    throw error("variables/constants cannot be 'final'", node);
+                if (modifier_counts[TokenType::OVERRIDE] > 0)
+                    throw error("variables/constants cannot be 'override'", node);
             }
             // Compound declaration specific checks
             try {
@@ -219,15 +261,15 @@ namespace spade
                         break;
                     case TokenType::ENUM:
                         if (modifier_counts[TokenType::ABSTRACT] > 0)
-                            throw AnalyzerError("enums cannot be 'abstract'", node);
+                            throw error("enums cannot be 'abstract'", node);
                         break;
                     case TokenType::INTERFACE:
                         if (modifier_counts[TokenType::ABSTRACT] > 0)
-                            throw AnalyzerError("interfaces cannot be 'abstract'", node);
+                            throw error("interfaces cannot be 'abstract'", node);
                         break;
                     case TokenType::ANNOTATION:
                         if (modifier_counts[TokenType::ABSTRACT] > 0)
-                            throw AnalyzerError("annotations cannot be 'abstract'", node);
+                            throw error("annotations cannot be 'abstract'", node);
                         break;
                     default:
                         throw Unreachable();    // surely some parser error
@@ -243,20 +285,19 @@ namespace spade
                         break;
                     case TokenType::ENUM:
                         if (modifier_counts[TokenType::ABSTRACT] > 0)
-                            throw AnalyzerError("'abstract' members are not allowed in enums", node);
-                        else if (modifier_counts[TokenType::FINAL] > 0)
-                            throw AnalyzerError("'final' members are not allowed in enums", node);
+                            throw error("'abstract' members are not allowed in enums", node);
+                        if (modifier_counts[TokenType::FINAL] > 0)
+                            throw error("'final' members are not allowed in enums", node);
                         break;
                     case TokenType::INTERFACE:
                         if (modifier_counts[TokenType::ABSTRACT] > 0)
-                            throw AnalyzerError("'abstract' members are not allowed in interfaces", node);
-                        else if (modifier_counts[TokenType::FINAL] > 0 && modifier_counts[TokenType::STATIC] == 0)
-                            throw AnalyzerError("'final' members are not allowed in interfaces (but final static is allowed)",
-                                                node);
+                            throw error("'abstract' members are not allowed in interfaces", node);
+                        if (modifier_counts[TokenType::FINAL] > 0 && modifier_counts[TokenType::STATIC] == 0)
+                            throw error("'final' members are not allowed in interfaces (but final static is allowed)", node);
                         break;
                     case TokenType::ANNOTATION:
                         if (modifier_counts[TokenType::ABSTRACT] > 0)
-                            throw AnalyzerError("'abstract' members are not allowed in annotations", node);
+                            throw error("'abstract' members are not allowed in annotations", node);
                         break;
                     default:
                         throw Unreachable();    // surely some parser error
@@ -268,13 +309,13 @@ namespace spade
             // Constructor specific checks
             if (is<ast::decl::Init>(node)) {
                 if (modifier_counts[TokenType::ABSTRACT] > 0)
-                    throw AnalyzerError("constructor cannot be 'abstract'", node);
-                else if (modifier_counts[TokenType::STATIC] > 0)
-                    throw AnalyzerError("constructor cannot be 'static'", node);
-                else if (modifier_counts[TokenType::STATIC] > 0)
-                    throw AnalyzerError("constructor cannot be 'final'", node);
-                else if (modifier_counts[TokenType::OVERRIDE] > 0)
-                    throw AnalyzerError("constructor cannot be 'override'", node);
+                    throw error("constructor cannot be 'abstract'", node);
+                if (modifier_counts[TokenType::STATIC] > 0)
+                    throw error("constructor cannot be 'static'", node);
+                if (modifier_counts[TokenType::STATIC] > 0)
+                    throw error("constructor cannot be 'final'", node);
+                if (modifier_counts[TokenType::OVERRIDE] > 0)
+                    throw error("constructor cannot be 'override'", node);
             }
         }
 
@@ -326,8 +367,9 @@ namespace spade
                 throw Unreachable();    // surely some parser error
             }
 
-            SymbolPath path(path_stack.top() / build_function_name(node));
-            symbols[path] = &node;
+            // SymbolPath path(path_stack.top() / build_function_name(node));
+            // symbols[path] = &node;
+            add_symbol(build_function_name(node), &node);
             // path_stack.push(path);
             // path_stack.pop();
         }
@@ -344,7 +386,7 @@ namespace spade
                                      [](const std::shared_ptr<Token> &modifier) {
                                          return modifier->get_type() == TokenType::STATIC;
                                      }) == node.get_modifiers().end())
-                        throw AnalyzerError("fields are not allowed in interfaces", &node);
+                        throw error("fields are not allowed in interfaces", &node);
                 } catch (const CastError &) {
                     if (!is<ast::Module>(symbols.at(path_stack.top())))
                         throw Unreachable();    // surely some parser error
@@ -355,8 +397,7 @@ namespace spade
                 throw Unreachable();    // surely some parser error
             }
 
-            SymbolPath path(path_stack.top() / node.get_name()->get_text());
-            symbols[path] = &node;
+            add_symbol(node.get_name()->get_text(), &node);
         }
 
         string build_init_name(const ast::decl::Init &node) {
@@ -369,7 +410,7 @@ namespace spade
                 try {
                     if (cast<ast::decl::Compound>(symbols.at(path_stack.top()))->get_token()->get_type() ==
                         TokenType::INTERFACE)
-                        throw AnalyzerError("constructors are not allowed in interfaces", &node);
+                        throw error("constructors are not allowed in interfaces", &node);
                 } catch (const CastError &) {
                     throw Unreachable();    // surely some parser error
                 } catch (const std::out_of_range &) {
@@ -379,8 +420,7 @@ namespace spade
                 throw Unreachable();    // surely some parser error
             }
 
-            SymbolPath path(path_stack.top() / build_init_name(node));
-            symbols[path] = &node;
+            add_symbol(build_init_name(node), &node);
             // path_stack.push(path);
             // path_stack.pop();
         }
@@ -393,7 +433,7 @@ namespace spade
             if (!path_stack.empty()) {
                 try {
                     if (cast<ast::decl::Compound>(symbols.at(path_stack.top()))->get_token()->get_type() != TokenType::ENUM)
-                        throw AnalyzerError("enumerators are allowed in enums only", &node);
+                        throw error("enumerators are allowed in enums only", &node);
                 } catch (const CastError &) {
                     throw Unreachable();    // surely some parser error
                 } catch (const std::out_of_range &) {
@@ -403,8 +443,7 @@ namespace spade
                 throw Unreachable();    // surely some parser error
             }
 
-            SymbolPath path(path_stack.top() / node.get_name()->get_text());
-            symbols[path] = &node;
+            add_symbol(node.get_name()->get_text(), &node);
             // path_stack.push(path);
             // path_stack.pop();
         }
@@ -429,26 +468,26 @@ namespace spade
                             break;
                         case TokenType::ENUM:
                             if (node.get_token()->get_type() == TokenType::ENUM)
-                                throw AnalyzerError("nested enums are not allowed", &node);
-                            else if (node.get_token()->get_type() == TokenType::ANNOTATION)
-                                throw AnalyzerError("annotations are not allowed in enums", &node);
+                                throw error("nested enums are not allowed", &node);
+                            if (node.get_token()->get_type() == TokenType::ANNOTATION)
+                                throw error("annotations are not allowed in enums", &node);
                             break;
                             break;
                         case TokenType::INTERFACE:
                             if (node.get_token()->get_type() == TokenType::CLASS)
-                                throw AnalyzerError("classes are not allowed in interfaces", &node);
-                            else if (node.get_token()->get_type() == TokenType::ENUM)
-                                throw AnalyzerError("enums are not allowed in interfaces", &node);
-                            else if (node.get_token()->get_type() == TokenType::ANNOTATION)
-                                throw AnalyzerError("annotations are not allowed in interfaces", &node);
+                                throw error("classes are not allowed in interfaces", &node);
+                            if (node.get_token()->get_type() == TokenType::ENUM)
+                                throw error("enums are not allowed in interfaces", &node);
+                            if (node.get_token()->get_type() == TokenType::ANNOTATION)
+                                throw error("annotations are not allowed in interfaces", &node);
                             break;
                         case TokenType::ANNOTATION:
                             if (node.get_token()->get_type() == TokenType::CLASS)
-                                throw AnalyzerError("classes are not allowed in annotations", &node);
-                            else if (node.get_token()->get_type() == TokenType::ENUM)
-                                throw AnalyzerError("enums are not allowed in annotations", &node);
-                            else if (node.get_token()->get_type() == TokenType::ANNOTATION)
-                                throw AnalyzerError("annotations are not allowed in annotations", &node);
+                                throw error("classes are not allowed in annotations", &node);
+                            if (node.get_token()->get_type() == TokenType::ENUM)
+                                throw error("enums are not allowed in annotations", &node);
+                            if (node.get_token()->get_type() == TokenType::ANNOTATION)
+                                throw error("annotations are not allowed in annotations", &node);
                             break;
                         default:
                             throw Unreachable();    // surely some parser error
@@ -463,8 +502,7 @@ namespace spade
                 throw Unreachable();    // surely some parser error
             }
 
-            SymbolPath path(path_stack.top() / build_compound_name(node));
-            symbols[path] = &node;
+            SymbolPath path = add_symbol(build_compound_name(node), &node);
             path_stack.push(path);
             for (auto enumerator: node.get_enumerators()) {
                 enumerator->accept(this);
@@ -481,7 +519,7 @@ namespace spade
             if (!path_stack.empty()) {
                 try {
                     if (!is<ast::Module>(symbols.at(path_stack.top())))
-                        throw AnalyzerError("modules are allowed in modules only", &node);
+                        throw Unreachable();    // surely some parser error (modules are allowed in modules only)
                 } catch (const std::out_of_range &) {}
             }
 
@@ -496,14 +534,14 @@ namespace spade
 
         const std::unordered_map<SymbolPath, ast::AstNode *> &build() {
             for (auto module: modules) {
-                {    // Also add the folders to the path stack for indexing
-                    auto path = module->get_file_path().parent_path();
-                    auto p_itr = path.begin();
-                    for (auto rp_itr = root_path.begin(); rp_itr != root_path.end(); ++p_itr, ++rp_itr);
-                    for (; p_itr != path.end(); ++p_itr) {
-                        path_stack.emplace((path_stack.empty() ? SymbolPath() : path_stack.top()) / p_itr->stem().string());
-                    }
+                // Also add the folders to the path stack for indexing
+                auto path = module->get_file_path().parent_path();
+                auto p_itr = path.begin();
+                for (auto rp_itr = root_path.begin(); rp_itr != root_path.end(); ++p_itr, ++rp_itr);
+                for (; p_itr != path.end(); ++p_itr) {
+                    path_stack.emplace((path_stack.empty() ? SymbolPath() : path_stack.top()) / p_itr->stem().string());
                 }
+                // Traverse the module
                 module->accept(this);
             }
             return symbols;

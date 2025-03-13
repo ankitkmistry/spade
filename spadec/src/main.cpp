@@ -1,4 +1,5 @@
 #include <clocale>
+#include <filesystem>
 #include <iostream>
 #include <fstream>
 
@@ -7,6 +8,7 @@
 #include "parser/import.hpp"
 #include "parser/parser.hpp"
 #include "parser/printer.hpp"
+#include "spimp/utils.hpp"
 #include "utils/error.hpp"
 
 using namespace spade;
@@ -25,46 +27,73 @@ static int num_digits(int x) {
                             : 10;
 }
 
-static void print_error(const CompilerError &err, const fs::path &path) {
-    std::vector<string> lines;
+static void print_code(const fs::path &path, const CompilerError &err, bool underline, char underline_char) {
     std::ifstream in(path);
     int max_digits = num_digits(err.get_line_end());
-    std::cout << std::format("error [{}:{}]->[{}:{}]: {}\n", err.get_line_start(), err.get_col_start(), err.get_line_end(),
-                             err.get_col_end(), err.what());
-    std::cout << std::format("in file: {}\n", path.generic_string());
     for (int i = 1; !in.eof(); i++) {
         string line;
         std::getline(in, line);
         if (err.get_line_start() <= i && i <= err.get_line_end()) {
-            std::cout << std::format("{: {}d} | {}\n", i, max_digits, line);
-            std::cout << std::format("{} | ", string(max_digits + 1, ' '), line);
+            std::cout << std::format(" {} | {}\n", pad_right(std::to_string(i), max_digits), line);
+            if (underline) {
+                std::cout << std::format(" {} | ", string(max_digits, ' '), line);
 
-            if (i == err.get_line_start() && i == err.get_line_end()) {
-                for (int j = 1; j <= line.size(); ++j)
-                    if (err.get_col_start() <= j && j <= err.get_col_end())
-                        std::cout << (isspace(line[j - 1]) ? line[j - 1] : '^');
-                    else
-                        std::cout << (isspace(line[j - 1]) ? line[j - 1] : ' ');
-            } else if (i == err.get_line_start()) {
-                for (int j = 1; j <= line.size(); ++j)
-                    if (err.get_col_start() <= j)
-                        std::cout << (isspace(line[j - 1]) ? line[j - 1] : '^');
-                    else
-                        std::cout << (isspace(line[j - 1]) ? line[j - 1] : ' ');
-            } else if (i == err.get_line_end()) {
-                for (int j = 1; j <= line.size(); ++j)
-                    if (j <= err.get_col_end())
-                        std::cout << (isspace(line[j - 1]) ? line[j - 1] : '^');
-                    else
-                        std::cout << (isspace(line[j - 1]) ? line[j - 1] : ' ');
-            } else {
-                for (int j = 1; j <= line.size(); ++j) {
-                    std::cout << (isspace(line[j - 1]) ? line[j - 1] : '^');
+                if (i == err.get_line_start() && i == err.get_line_end()) {
+                    for (int j = 1; j <= line.size(); ++j)
+                        if (err.get_col_start() <= j && j <= err.get_col_end())
+                            std::cout << (isspace(line[j - 1]) ? line[j - 1] : underline_char);
+                        else
+                            std::cout << (isspace(line[j - 1]) ? line[j - 1] : ' ');
+                } else if (i == err.get_line_start()) {
+                    for (int j = 1; j <= line.size(); ++j)
+                        if (err.get_col_start() <= j)
+                            std::cout << (isspace(line[j - 1]) ? line[j - 1] : underline_char);
+                        else
+                            std::cout << (isspace(line[j - 1]) ? line[j - 1] : ' ');
+                } else if (i == err.get_line_end()) {
+                    for (int j = 1; j <= line.size(); ++j)
+                        if (j <= err.get_col_end())
+                            std::cout << (isspace(line[j - 1]) ? line[j - 1] : underline_char);
+                        else
+                            std::cout << (isspace(line[j - 1]) ? line[j - 1] : ' ');
+                } else {
+                    for (int j = 1; j <= line.size(); ++j) {
+                        std::cout << (isspace(line[j - 1]) ? line[j - 1] : underline_char);
+                    }
                 }
+                std::cout << '\n';
             }
-            std::cout << '\n';
         }
     }
+}
+
+static void print_error(ErrorType type, const CompilerError &err) {
+    std::vector<string> lines;
+    fs::path path = err.get_file_path();
+    string error_type_str;
+    bool underline;
+    char underline_char;
+    switch (type) {
+        case ErrorType::ERROR:
+            error_type_str = "error";
+            underline = true;
+            underline_char = '^';
+            break;
+        case ErrorType::WARNING:
+            error_type_str = "warning";
+            underline = true;
+            underline_char = '~';
+            break;
+        case ErrorType::NOTE:
+            error_type_str = "note";
+            underline = false;
+            underline_char = ' ';
+            break;
+    }
+    std::cout << std::format("{} [{}:{}]->[{}:{}]: {}\n", error_type_str, err.get_line_start(), err.get_col_start(),
+                             err.get_line_end(), err.get_col_end(), err.what());
+    std::cout << std::format("in file: {}\n", path.generic_string());
+    print_code(path, err, underline, underline_char);
 }
 
 void compile() {
@@ -78,7 +107,7 @@ void compile() {
                 throw FileOpenError(file_path.string());
             std::stringstream buffer;
             buffer << in.rdbuf();
-            Lexer lexer(buffer.str());
+            Lexer lexer(file_path, buffer.str());
             Parser parser(file_path, &lexer);
             auto tree = parser.parse();
             ImportResolver resolver(file_path.parent_path(), tree);
@@ -92,8 +121,12 @@ void compile() {
             ast::Printer printer{module};
             std::cout << printer << '\n';
         }
+    } catch (const ErrorGroup<AnalyzerError> err_grp) {
+        for (const auto &[type, err]: err_grp.get_errors()) {
+            print_error(type, err);
+        }
     } catch (const CompilerError &err) {
-        print_error(err, file_path);
+        print_error(ErrorType::ERROR, err);
     }
 }
 
@@ -115,7 +148,7 @@ void repl() {
         }
         if (code.str() == "exit" || code.str() == "quit")
             return;
-        Lexer lexer(code.str());
+        Lexer lexer("", code.str());
         Parser parser("", &lexer);
         auto tree = parser.parse();
         ast::Printer printer{tree};

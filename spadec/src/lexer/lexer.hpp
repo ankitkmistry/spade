@@ -8,6 +8,7 @@ namespace spade
 {
     class Lexer final {
       private:
+        fs::path file_path;
         string data;
         int start = 0;
         int end = 0;
@@ -28,7 +29,7 @@ namespace spade
         void complete_float_part(const std::function<bool(int)> &validator, char exp1, char exp2);
 
       public:
-        explicit Lexer(string data) : data(std::move(data)) {}
+        explicit Lexer(const fs::path &file_path, const string &data) : file_path(file_path), data(data) {}
 
         std::shared_ptr<Token> next_token();
         void pushback_token(const std::shared_ptr<Token> &token);
