@@ -13,7 +13,23 @@ interface Foo {
 	public fun build() {
 		self.bar(Color.RED)
 	}
-	public final static fun bar(color: Color)
+	private final static fun bar(color: Color, filter: (object{red:float,blue:float,green:float,alpha:float},bool) -> Color){
+		absolute
+		barb
+		barb
+		barb
+		barb
+		b
+
+		barb
+		barb
+		barb
+		barb
+
+		barb
+		bar
+		barb
+	}
 }
 
 abstract class A : Foo {

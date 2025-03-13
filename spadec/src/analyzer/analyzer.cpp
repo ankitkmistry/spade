@@ -46,23 +46,89 @@ namespace spade
         SymbolTableBuilder &operator=(SymbolTableBuilder &&other) noexcept = default;
         ~SymbolTableBuilder() override = default;
 
-        void visit(ast::Reference &node) override {}
+        string _res_type_signature;
 
-        void visit(ast::type::Reference &node) override {}
+        void visit(ast::Reference &node) override {
+            // _res_type_signature = "";
+            _res_type_signature = std::accumulate(node.get_path().begin(), node.get_path().end(), string(),
+                                                  [](const string &a, const std::shared_ptr<Token> &b) {
+                                                      return a + (a.empty() ? "" : ".") + b->get_text();
+                                                  });
+        }
 
-        void visit(ast::type::Function &node) override {}
+        void visit(ast::type::Reference &node) override {
+            // _res_type_signature = "";
+            node.get_reference()->accept(this);
+            string result = _res_type_signature;
+            if (!node.get_type_args().empty()) {
+                result += "[";
+                result += std::accumulate(node.get_type_args().begin(), node.get_type_args().end(), string(),
+                                          [&](const string &a, const std::shared_ptr<ast::Type> &b) {
+                                              b->accept(this);
+                                              return a + (a.empty() ? "" : ",") + _res_type_signature;
+                                          });
+                result += "]";
+            }
+            _res_type_signature = result;
+        }
 
-        void visit(ast::type::TypeLiteral &node) override {}
+        void visit(ast::type::Function &node) override {
+            _res_type_signature = "";
+            string result = "(";
+            result += std::accumulate(node.get_param_types().begin(), node.get_param_types().end(), string(),
+                                      [&](const string &a, const std::shared_ptr<ast::Type> &b) {
+                                          b->accept(this);
+                                          return a + (a.empty() ? "" : ",") + _res_type_signature;
+                                      });
+            result += ")->";
+            node.get_return_type()->accept(this);
+            result += _res_type_signature;
+            _res_type_signature = result;
+        }
 
-        void visit(ast::type::TypeOf &node) override {}
+        void visit(ast::type::TypeLiteral &node) override {
+            _res_type_signature = "type";
+        }
 
-        void visit(ast::type::BinaryOp &node) override {}
+        void visit(ast::type::TypeOf &node) override {
+            // TODO: Fix typeof
+            _res_type_signature = "typeof";
+        }
 
-        void visit(ast::type::Nullable &node) override {}
+        void visit(ast::type::BinaryOp &node) override {
+            _res_type_signature = "";
+            node.get_left()->accept(this);
+            string result = _res_type_signature;
+            result += node.get_op()->get_text();
+            node.get_right()->accept(this);
+            result += _res_type_signature;
+            _res_type_signature = result;
+        }
 
-        void visit(ast::type::TypeBuilder &node) override {}
+        void visit(ast::type::Nullable &node) override {
+            _res_type_signature = "";
+            node.get_type()->accept(this);
+            _res_type_signature += "?";
+        }
 
-        void visit(ast::type::TypeBuilderMember &node) override {}
+        void visit(ast::type::TypeBuilder &node) override {
+            _res_type_signature = "";
+            string result = "object{";
+            result += std::accumulate(node.get_members().begin(), node.get_members().end(), string(),
+                                      [&](const string &a, const std::shared_ptr<ast::type::TypeBuilderMember> &b) {
+                                          b->accept(this);
+                                          return a + (a.empty() ? "" : ",") + _res_type_signature;
+                                      });
+            result += "}";
+            _res_type_signature = result;
+        }
+
+        void visit(ast::type::TypeBuilderMember &node) override {
+            _res_type_signature = "";
+            string result = node.get_name()->get_text() + ":";
+            node.get_type()->accept(this);
+            _res_type_signature = result + _res_type_signature;
+        }
 
         void visit(ast::expr::Constant &node) override {}
 
@@ -345,18 +411,20 @@ namespace spade
             if (!params)
                 return "";
             string param_string;
-            // TODO: Add absolute path for types
             param_string = std::accumulate(params->get_pos_only().begin(), params->get_pos_only().end(), param_string,
-                                           [](const string &a, const std::shared_ptr<ast::decl::Param> &b) {
-                                               return a + (a.empty() ? "" : ",") + b->get_name()->get_text();
+                                           [&](const string &a, const std::shared_ptr<ast::decl::Param> &b) {
+                                               b->get_type()->accept(this);
+                                               return a + (a.empty() ? "" : ",") + _res_type_signature;
                                            });
             param_string = std::accumulate(params->get_pos_kwd().begin(), params->get_pos_kwd().end(), param_string,
-                                           [](const string &a, const std::shared_ptr<ast::decl::Param> &b) {
-                                               return a + (a.empty() ? "" : ",") + b->get_name()->get_text();
+                                           [&](const string &a, const std::shared_ptr<ast::decl::Param> &b) {
+                                               b->get_type()->accept(this);
+                                               return a + (a.empty() ? "" : ",") + _res_type_signature;
                                            });
             param_string = std::accumulate(params->get_kwd_only().begin(), params->get_kwd_only().end(), param_string,
-                                           [](const string &a, const std::shared_ptr<ast::decl::Param> &b) {
-                                               return a + (a.empty() ? "" : ",") + b->get_name()->get_text();
+                                           [&](const string &a, const std::shared_ptr<ast::decl::Param> &b) {
+                                               b->get_type()->accept(this);
+                                               return a + (a.empty() ? "" : ",") + _res_type_signature;
                                            });
             return param_string;
         }
@@ -365,9 +433,9 @@ namespace spade
             std::stringstream ss;
             ss << node.get_name()->get_text();
             if (auto type_params = node.get_type_params(); !type_params.empty()) {
-                ss << '<';
+                ss << '[';
                 ss << build_type_params_string(node.get_type_params());
-                ss << '>';
+                ss << ']';
             }
             auto params = node.get_params();
             ss << '(';
@@ -467,9 +535,9 @@ namespace spade
             std::stringstream ss;
             ss << node.get_name()->get_text();
             if (auto type_params = node.get_type_params(); !type_params.empty()) {
-                ss << '<';
+                ss << '[';
                 ss << build_type_params_string(type_params);
-                ss << '>';
+                ss << ']';
             }
             return ss.str();
         }

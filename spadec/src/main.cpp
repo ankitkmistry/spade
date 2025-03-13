@@ -27,38 +27,53 @@ static int num_digits(int x) {
                             : 10;
 }
 
-static void print_code(const fs::path &path, const CompilerError &err, bool underline, char underline_char) {
+static void print_code(const fs::path &path, const CompilerError &err, bool underline, char underline_char, int max_lines) {
     std::ifstream in(path);
     int max_digits = num_digits(err.get_line_end());
-    for (int i = 1; !in.eof(); i++) {
-        string line;
-        std::getline(in, line);
-        if (err.get_line_start() <= i && i <= err.get_line_end()) {
-            std::cout << std::format(" {} | {}\n", pad_right(std::to_string(i), max_digits), line);
-            if (underline) {
-                std::cout << std::format(" {} | ", string(max_digits, ' '), line);
 
-                if (i == err.get_line_start() && i == err.get_line_end()) {
-                    for (int j = 1; j <= line.size(); ++j)
-                        if (err.get_col_start() <= j && j <= err.get_col_end())
-                            std::cout << (isspace(line[j - 1]) ? line[j - 1] : underline_char);
+    int num_lines = err.get_line_end() - err.get_line_start() + 1;
+    bool snip = num_lines > max_lines;
+    int snip_start = -1, snip_end = -1;
+    if (snip) {
+        snip_start = err.get_line_start() + std::floor(max_lines / 2);
+        snip_end = err.get_line_end() - std::ceil(max_lines / 2);
+    }
+
+    string line;
+    for (int lineno = 1; !in.eof(); lineno++) {
+        std::getline(in, line);
+        if (err.get_line_start() <= lineno && lineno <= err.get_line_end()) {
+            if (snip && snip_start <= lineno && lineno <= snip_end) {
+                std::cout << std::format(" {} | ... <snipped {} lines of code> ...\n", string(max_digits, ' '),
+                                         snip_end - snip_start + 1);
+                for (; lineno <= snip_end; lineno++) std::getline(in, line);    // snip
+            }
+
+            std::cout << std::format(" {} | {}\n", pad_right(std::to_string(lineno), max_digits), line);
+            if (underline) {
+                std::cout << std::format(" {} | ", string(max_digits, ' '));
+
+                if (lineno == err.get_line_start() && lineno == err.get_line_end()) {
+                    for (int col = 1; col <= line.size(); ++col)
+                        if (err.get_col_start() <= col && col <= err.get_col_end())
+                            std::cout << (isspace(line[col - 1]) ? line[col - 1] : underline_char);
                         else
-                            std::cout << (isspace(line[j - 1]) ? line[j - 1] : ' ');
-                } else if (i == err.get_line_start()) {
-                    for (int j = 1; j <= line.size(); ++j)
-                        if (err.get_col_start() <= j)
-                            std::cout << (isspace(line[j - 1]) ? line[j - 1] : underline_char);
+                            std::cout << (isspace(line[col - 1]) ? line[col - 1] : ' ');
+                } else if (lineno == err.get_line_start()) {
+                    for (int col = 1; col <= line.size(); ++col)
+                        if (err.get_col_start() <= col)
+                            std::cout << (isspace(line[col - 1]) ? line[col - 1] : underline_char);
                         else
-                            std::cout << (isspace(line[j - 1]) ? line[j - 1] : ' ');
-                } else if (i == err.get_line_end()) {
-                    for (int j = 1; j <= line.size(); ++j)
-                        if (j <= err.get_col_end())
-                            std::cout << (isspace(line[j - 1]) ? line[j - 1] : underline_char);
+                            std::cout << (isspace(line[col - 1]) ? line[col - 1] : ' ');
+                } else if (lineno == err.get_line_end()) {
+                    for (int col = 1; col <= line.size(); ++col)
+                        if (col <= err.get_col_end())
+                            std::cout << (isspace(line[col - 1]) ? line[col - 1] : underline_char);
                         else
-                            std::cout << (isspace(line[j - 1]) ? line[j - 1] : ' ');
+                            std::cout << (isspace(line[col - 1]) ? line[col - 1] : ' ');
                 } else {
-                    for (int j = 1; j <= line.size(); ++j) {
-                        std::cout << (isspace(line[j - 1]) ? line[j - 1] : underline_char);
+                    for (int col = 1; col <= line.size(); ++col) {
+                        std::cout << (isspace(line[col - 1]) ? line[col - 1] : underline_char);
                     }
                 }
                 std::cout << '\n';
@@ -93,7 +108,7 @@ static void print_error(ErrorType type, const CompilerError &err) {
     std::cout << std::format("{} [{}:{}]->[{}:{}]: {}\n", error_type_str, err.get_line_start(), err.get_col_start(),
                              err.get_line_end(), err.get_col_end(), err.what());
     std::cout << std::format("in file: {}\n", path.generic_string());
-    print_code(path, err, underline, underline_char);
+    print_code(path, err, underline, underline_char, 6);
 }
 
 void compile() {
@@ -117,10 +132,10 @@ void compile() {
             Analyzer analyzer;
             analyzer.analyze(modules);
         }
-        for (const auto &module: modules) {
-            ast::Printer printer{module};
-            std::cout << printer << '\n';
-        }
+        // for (const auto &module: modules) {
+        //     ast::Printer printer{module};
+        //     std::cout << printer << '\n';
+        // }
     } catch (const ErrorGroup<AnalyzerError> err_grp) {
         for (const auto &[type, err]: err_grp.get_errors()) {
             print_error(type, err);
