@@ -51,7 +51,7 @@ namespace spade
             return elements.empty();
         }
 
-        string get_name() {
+        string get_name() const {
             return elements.empty() ? "" : elements.back();
         }
 

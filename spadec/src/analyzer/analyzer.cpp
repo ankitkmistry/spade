@@ -155,14 +155,29 @@ namespace spade
             return AnalyzerError(msg, path, node);
         }
 
+        string deparenthesize(string str) {
+            return str.substr(0, str.find_first_of('('));
+        }
+
         SymbolPath add_symbol(string name, ast::AstNode *node) {
             if (path_stack.empty()) {
                 throw Unreachable();    // surely some parser error
             }
             SymbolPath path(path_stack.top() / name);
-            if (symbols.find(path) == symbols.end())
+            if (symbols.find(path) == symbols.end()) {
+                if (!is<ast::type::Function>(node)) {
+                    for (const auto &[symbol_path, symbol]: symbols) {
+                        if (is<ast::decl::Function>(symbol) && deparenthesize(symbol_path.get_name()) == name) {
+                            throw ErrorGroup<AnalyzerError>(
+                                    std::pair(ErrorType::ERROR,
+                                              error(std::format("redeclaration of '{}'", path.to_string()), node)),
+                                    std::pair(ErrorType::NOTE,
+                                              error(std::format("already declared here", path.to_string()), symbol)));
+                        }
+                    }
+                }
                 symbols[path] = node;
-            else {
+            } else {
                 throw ErrorGroup<AnalyzerError>(
                         std::pair(ErrorType::ERROR, error(std::format("redeclaration of '{}'", path.to_string()), node)),
                         std::pair(ErrorType::NOTE,
@@ -562,7 +577,7 @@ namespace spade
         SymbolTableBuilder builder(modules);
         symbol_table = builder.build();
         for (const auto &[path, _]: symbol_table) {
-            std::cout << path.to_string() << '\n';
+            std::cout << "symbol: " << path.to_string() << '\n';
         }
     }
 }    // namespace spade

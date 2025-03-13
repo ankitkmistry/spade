@@ -6,8 +6,7 @@ enum Color {
 	static var value: int
 }
 
-var Color
-=1
+#var Color=1
 
 interface Foo {
 	static var size = 0
@@ -22,7 +21,5 @@ abstract class A : Foo {
 }
 
 fun main() { 
-	var init_fn = Foo.init
-	var foo = init_fn()
-	foo.bar()
+	print("hello, world! my name is aashita")
 }
