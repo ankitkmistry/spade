@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <iostream>
+#include <memory>
 #include <numeric>
 #include <stack>
 #include <stdexcept>
@@ -8,6 +9,7 @@
 #include "analyzer.hpp"
 #include "lexer/token.hpp"
 #include "parser/ast.hpp"
+#include "scope.hpp"
 #include "spimp/error.hpp"
 #include "utils/error.hpp"
 
@@ -221,7 +223,7 @@ namespace spade
             return AnalyzerError(msg, path, node);
         }
 
-        string deparenthesize(string str) {
+        string deparenthesize(const string &str) {
             return str.substr(0, str.find_first_of('('));
         }
 
@@ -277,19 +279,21 @@ namespace spade
                     throw error(std::format("duplicate modifier: {}", TokenInfo::get_repr(modifier)), node);
                 }
             }
-            // Check for conflicting modifiers
-            const auto CHECK_EXCLUSIVE = [&](const TokenType a, const TokenType b) {
-                if (modifier_counts[a] + modifier_counts[b] > 1) {
-                    throw error(std::format("{} and {} are mutually exclusive", TokenInfo::get_repr(a), TokenInfo::get_repr(b)),
-                                node);
-                }
-            };
+
+#define CHECK_EXCLUSIVE(a, b)                                                                                                  \
+    do {                                                                                                                       \
+        if (modifier_counts[a] + modifier_counts[b] > 1)                                                                       \
+            throw error(std::format("{} and {} are mutually exclusive", TokenInfo::get_repr(a), TokenInfo::get_repr(b)),       \
+                        node);                                                                                                 \
+    } while (false)
 
             CHECK_EXCLUSIVE(TokenType::ABSTRACT, TokenType::FINAL);
             CHECK_EXCLUSIVE(TokenType::STATIC, TokenType::OVERRIDE);
             CHECK_EXCLUSIVE(TokenType::ABSTRACT, TokenType::PRIVATE);
             CHECK_EXCLUSIVE(TokenType::FINAL, TokenType::PRIVATE);
             CHECK_EXCLUSIVE(TokenType::OVERRIDE, TokenType::PRIVATE);
+
+#undef CHECK_EXCLUSIVE
 
             if (modifier_counts[TokenType::PRIVATE] + modifier_counts[TokenType::PROTECTED] +
                         modifier_counts[TokenType::INTERNAL] + modifier_counts[TokenType::PUBLIC] >
@@ -339,18 +343,28 @@ namespace spade
             try {
                 switch (cast<ast::decl::Compound>(node)->get_token()->get_type()) {
                     case TokenType::CLASS:
+                        if (modifier_counts[TokenType::OVERRIDE] > 0)
+                            throw error("classes cannot be 'override'", node);
                         break;
                     case TokenType::ENUM:
                         if (modifier_counts[TokenType::ABSTRACT] > 0)
                             throw error("enums cannot be 'abstract'", node);
+                        if (modifier_counts[TokenType::OVERRIDE] > 0)
+                            throw error("enums cannot be 'override'", node);
                         break;
                     case TokenType::INTERFACE:
                         if (modifier_counts[TokenType::ABSTRACT] > 0)
                             throw error("interfaces cannot be 'abstract'", node);
+                        if (modifier_counts[TokenType::OVERRIDE] > 0)
+                            throw error("interfaces cannot be 'override'", node);
+                        if (modifier_counts[TokenType::FINAL] > 0)
+                            throw error("interfaces cannot be 'final'", node);
                         break;
                     case TokenType::ANNOTATION:
                         if (modifier_counts[TokenType::ABSTRACT] > 0)
                             throw error("annotations cannot be 'abstract'", node);
+                        if (modifier_counts[TokenType::OVERRIDE] > 0)
+                            throw error("annotations cannot be 'override'", node);
                         break;
                     default:
                         throw Unreachable();    // surely some parser error
@@ -373,6 +387,8 @@ namespace spade
                     case TokenType::INTERFACE:
                         if (modifier_counts[TokenType::ABSTRACT] > 0)
                             throw error("'abstract' members are not allowed in interfaces", node);
+                        if (modifier_counts[TokenType::OVERRIDE] > 0)
+                            throw error("'override' members are not allowed in interfaces", node);
                         if (modifier_counts[TokenType::FINAL] > 0 && modifier_counts[TokenType::STATIC] == 0)
                             throw error("'final' members are not allowed in interfaces (but final static is allowed)", node);
                         break;
@@ -642,10 +658,127 @@ namespace spade
     void Analyzer::analyze(const std::vector<std::shared_ptr<ast::Module>> &modules) {
         if (modules.empty())
             return;
+        // Build symbol table
         SymbolTableBuilder builder(modules);
         symbol_table = builder.build();
         for (const auto &[path, _]: symbol_table) {
             std::cout << "symbol: " << path.to_string() << '\n';
         }
+        // Start analysis
+        for (auto module: modules) {
+            module->accept(this);
+        }
+    }
+
+    void Analyzer::visit(ast::Reference &node) {}
+
+    void Analyzer::visit(ast::type::Reference &node) {}
+
+    void Analyzer::visit(ast::type::Function &node) {}
+
+    void Analyzer::visit(ast::type::TypeLiteral &node) {}
+
+    void Analyzer::visit(ast::type::TypeOf &node) {}
+
+    void Analyzer::visit(ast::type::BinaryOp &node) {}
+
+    void Analyzer::visit(ast::type::Nullable &node) {}
+
+    void Analyzer::visit(ast::type::TypeBuilder &node) {}
+
+    void Analyzer::visit(ast::type::TypeBuilderMember &node) {}
+
+    void Analyzer::visit(ast::expr::Constant &node) {}
+
+    void Analyzer::visit(ast::expr::Super &node) {}
+
+    void Analyzer::visit(ast::expr::Self &node) {}
+
+    void Analyzer::visit(ast::expr::DotAccess &node) {}
+
+    void Analyzer::visit(ast::expr::Call &node) {}
+
+    void Analyzer::visit(ast::expr::Argument &node) {}
+
+    void Analyzer::visit(ast::expr::Reify &node) {}
+
+    void Analyzer::visit(ast::expr::Index &node) {}
+
+    void Analyzer::visit(ast::expr::Slice &node) {}
+
+    void Analyzer::visit(ast::expr::Unary &node) {}
+
+    void Analyzer::visit(ast::expr::Cast &node) {}
+
+    void Analyzer::visit(ast::expr::Binary &node) {}
+
+    void Analyzer::visit(ast::expr::ChainBinary &node) {}
+
+    void Analyzer::visit(ast::expr::Ternary &node) {}
+
+    void Analyzer::visit(ast::expr::Assignment &node) {}
+
+    void Analyzer::visit(ast::stmt::Block &node) {}
+
+    void Analyzer::visit(ast::stmt::If &node) {}
+
+    void Analyzer::visit(ast::stmt::While &node) {}
+
+    void Analyzer::visit(ast::stmt::DoWhile &node) {}
+
+    void Analyzer::visit(ast::stmt::Throw &node) {}
+
+    void Analyzer::visit(ast::stmt::Catch &node) {}
+
+    void Analyzer::visit(ast::stmt::Try &node) {}
+
+    void Analyzer::visit(ast::stmt::Continue &node) {}
+
+    void Analyzer::visit(ast::stmt::Break &node) {}
+
+    void Analyzer::visit(ast::stmt::Return &node) {}
+
+    void Analyzer::visit(ast::stmt::Yield &node) {}
+
+    void Analyzer::visit(ast::stmt::Expr &node) {}
+
+    void Analyzer::visit(ast::stmt::Declaration &node) {}
+
+    void Analyzer::visit(ast::decl::TypeParam &node) {}
+
+    void Analyzer::visit(ast::decl::Constraint &node) {}
+
+    void Analyzer::visit(ast::decl::Param &node) {}
+
+    void Analyzer::visit(ast::decl::Params &node) {}
+
+    void Analyzer::visit(ast::decl::Function &node) {}
+
+    void Analyzer::visit(ast::decl::Variable &node) {}
+
+    void Analyzer::visit(ast::decl::Init &node) {}
+
+    void Analyzer::visit(ast::decl::Parent &node) {}
+
+    void Analyzer::visit(ast::decl::Enumerator &node) {}
+
+    void Analyzer::visit(ast::decl::Compound &node) {}
+
+    void Analyzer::visit(ast::Import &node) {
+        if (auto alias = node.get_alias(); alias) {
+            auto module = cast<ModuleScope>(scope_stack.top());
+            module->new_variable(alias->get_text(), &*node.get_module());
+        }
+    }
+
+    void Analyzer::visit(ast::Module &node) {
+        auto scope = std::make_shared<ModuleScope>(&node);
+        scope_stack.push(scope);
+        scopes.insert(scope);
+
+        for (auto import: node.get_imports()) import->accept(this);
+        for (auto member: node.get_members()) member->accept(this);
+
+        scope_stack.pop();
     }
 }    // namespace spade

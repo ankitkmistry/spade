@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../lexer/token.hpp"
+#include <memory>
 
 namespace spade::ast
 {
@@ -1362,6 +1363,7 @@ namespace spade::ast
     class Import final : public AstNode {
         string path;
         std::shared_ptr<Token> alias;
+        std::shared_ptr<Module> module;
 
       public:
         template<typename T1, typename T2>
@@ -1377,6 +1379,14 @@ namespace spade::ast
 
         std::shared_ptr<Token> get_alias() const {
             return alias;
+        }
+
+        std::shared_ptr<Module> get_module() const {
+            return module;
+        }
+
+        void set_module(const std::shared_ptr<Module> module) {
+            this->module = module;
         }
 
         void accept(VisitorBase *visitor) override {
