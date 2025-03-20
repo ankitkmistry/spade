@@ -8,7 +8,6 @@ enum Color {
 
 fun abaxa(){}
 
-var color: Color=1
 
 interface Foo {
 	static var size = 0
@@ -18,6 +17,7 @@ interface Foo {
 }
 
 abstract class A : Foo {
+	var color: Color=self
 	abstract fun f()
 }
 

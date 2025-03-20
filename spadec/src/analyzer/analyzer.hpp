@@ -1,26 +1,36 @@
 #pragma once
 
+#include "utils/error.hpp"
 #include "parser/ast.hpp"
 #include "info.hpp"
-#include "utils/error.hpp"
+#include "scope.hpp"
+#include <memory>
 
 namespace spade
 {
     class Analyzer final : public ast::VisitorBase {
+        // Internal modules
+        enum class Internal { SPADE, SPADE_ANY, SPADE_INT, SPADE_FLOAT, SPADE_BOOL, SPADE_STRING, SPADE_VOID };
+        std::unordered_map<Internal, std::shared_ptr<scope::Scope>> internals;
+        void load_internal_modules();
+
         std::unordered_map<ast::Module *, ScopeInfo> module_scopes;
         std::vector<std::shared_ptr<scope::Scope>> scope_stack;
 
-      public:
-        std::shared_ptr<scope::Module> get_current_module();
-        std::shared_ptr<scope::Scope> get_parent_scope();
-        std::shared_ptr<scope::Scope> get_current_scope();
-
-        void analyze(const std::vector<std::shared_ptr<ast::Module>> &modules);
+        std::shared_ptr<scope::Module> get_module_of(std::shared_ptr<scope::Scope> scope) const;
+        std::shared_ptr<scope::Module> get_current_module() const;
+        std::shared_ptr<scope::Scope> get_parent_scope() const;
+        std::shared_ptr<scope::Scope> get_current_scope() const;
+        std::shared_ptr<scope::Scope> find_name(const string &name) const;
+        void resolve_context(const std::shared_ptr<scope::Scope> &scope, const ast::AstNode &node);
 
         template<ast::HasLineInfo T>
         AnalyzerError error(const string &msg, T node) {
             return AnalyzerError(msg, get_current_module()->get_module_node()->get_file_path(), node);
         }
+
+      public:
+        void analyze(const std::vector<std::shared_ptr<ast::Module>> &modules);
 
       private:
         std::shared_ptr<scope::Scope> _res_reference;
@@ -42,6 +52,10 @@ namespace spade
         void visit(ast::type::TypeBuilder &node);
         void visit(ast::type::TypeBuilderMember &node);
         // Expression visitor
+      private:
+        ExprInfo _res_expr_info;
+
+      public:
         void visit(ast::expr::Constant &node);
         void visit(ast::expr::Super &node);
         void visit(ast::expr::Self &node);

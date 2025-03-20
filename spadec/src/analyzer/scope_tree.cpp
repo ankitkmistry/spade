@@ -1,3 +1,5 @@
+#include <numeric>
+
 #include "scope_tree.hpp"
 #include "parser/ast.hpp"
 
@@ -35,6 +37,7 @@ namespace spade
                             std::pair(ErrorType::ERROR, error(std::format("redeclaration of '{}'", name), scope)),
                             std::pair(ErrorType::NOTE, error("already declared here", module_scope)));
                 } else {
+                    scope->set_path(get_current_path().to_string());
                     module_scopes.emplace(cast<ast::FolderModule>(scope->get_node()), ScopeInfo(scope));
                 }
             } else if (scope->get_type() == scope::ScopeType::MODULE) {
@@ -44,10 +47,12 @@ namespace spade
                             std::pair(ErrorType::ERROR, error(std::format("redeclaration of '{}'", name), scope)),
                             std::pair(ErrorType::NOTE, error("already declared here", module_scope)));
                 } else {
+                    scope->set_path(get_current_path().to_string());
                     module_scopes.emplace(cast<ast::Module>(scope->get_node()), ScopeInfo(scope));
                 }
             } else
                 throw Unreachable();    // surely some parser error
+
             LOGGER.log_info(std::format("added symbol '{}'", get_current_path().to_string()));
             return;
         }
@@ -70,6 +75,7 @@ namespace spade
             }
         }
         parent_scope->new_variable(name, decl_site, scope);
+        scope->set_path(symbol_path);
         LOGGER.log_info(std::format("added symbol '{}'", symbol_path));
     }
 

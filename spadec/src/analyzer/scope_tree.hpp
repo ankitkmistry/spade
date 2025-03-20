@@ -3,6 +3,7 @@
 #include "parser/ast.hpp"
 #include "symbol_path.hpp"
 #include "info.hpp"
+#include "scope.hpp"
 #include "utils/error.hpp"
 
 namespace spade

@@ -1,25 +1,32 @@
 #pragma once
 
+#include <unordered_set>
+
+#include "info.hpp"
 #include "lexer/token.hpp"
 #include "parser/ast.hpp"
-#include <memory>
+#include "symbol_path.hpp"
 
 namespace spade::scope
 {
     enum class ScopeType { FOLDER_MODULE, MODULE, COMPOUND, INIT, FUNCTION, BLOCK, VARIABLE, ENUMERATOR };
 
     class Scope {
+      public:
+        using Member = std::pair<std::shared_ptr<Token>, std::shared_ptr<Scope>>;
+
       protected:
         /// the type of the scope
         ScopeType type;
-
+        /// the path of the scope
+        SymbolPath path;
         /// the ast node of the scope
         ast::AstNode *node;
         /// scopes that are members (can be referenced) e.g. variables, functions
-        std::unordered_map<string, std::pair<std::shared_ptr<Token>, std::shared_ptr<Scope>>> members;
+        std::unordered_map<string, Member> members;
 
       public:
-        Scope(ScopeType type, ast::AstNode *node) : type(type), node(node) {}
+        Scope(ScopeType type, ast::AstNode *node, const SymbolPath &path = {}) : type(type), path(path), node(node) {}
 
         virtual ~Scope() = default;
 
@@ -41,6 +48,14 @@ namespace spade::scope
 
         ScopeType get_type() const {
             return type;
+        }
+
+        const SymbolPath &get_path() const {
+            return path;
+        }
+
+        void set_path(const SymbolPath &path) {
+            this->path = path;
         }
 
         ast::AstNode *get_node() const {
@@ -86,7 +101,7 @@ namespace spade::scope
             return members.contains(name) ? members.at(name).first : null;
         }
 
-        void print(const string &name) const {
+        void print() const {
             switch (type) {
                 case ScopeType::FOLDER_MODULE:
                     std::cout << "[FOLDER_MODULE] ";
@@ -113,9 +128,9 @@ namespace spade::scope
                     std::cout << "[ENUMERATOR] ";
                     break;
             }
-            std::cout << name << '\n';
-            for (const auto &[member_name, member]: members) {
-                member.second->print(name + '.' + member_name);
+            std::cout << path << std::endl;
+            for (const auto &[_,member]: members) {
+                member.second->print();
             }
         }
     };
@@ -139,8 +154,40 @@ namespace spade::scope
     };
 
     class Compound : public Scope {
+        string name;
+        std::unordered_set<std::shared_ptr<Compound>> parents;
+
       public:
-        Compound(ast::decl::Compound *node) : Scope(ScopeType::COMPOUND, node) {}
+        Compound(string name) : Scope(ScopeType::COMPOUND, null), name(name) {}
+
+        Compound(ast::decl::Compound *node) : Scope(ScopeType::COMPOUND, node), name(node->get_name()->get_text()) {}
+
+        void inherit_from(const std::shared_ptr<Compound> &parent) {
+            for (const auto &[name, member]: parent->members) {
+                new_variable(name, member.first, member.second);
+            }
+            parents.insert(parent);
+        }
+
+        const string &get_name() const {
+            return name;
+        }
+
+        bool has_parent(const std::shared_ptr<Compound> &parent) const {
+            if (parents.contains(parent))
+                return true;
+            else {
+                for (const auto &p: parents) {
+                    if (p->has_parent(parent))
+                        return true;
+                }
+                return false;
+            }
+        }
+
+        const std::unordered_set<std::shared_ptr<Compound>> &get_parents() const {
+            return parents;
+        }
 
         ast::decl::Compound *get_compound_node() const {
             return cast<ast::decl::Compound>(node);
@@ -175,11 +222,21 @@ namespace spade::scope
     };
 
     class Variable : public Scope {
+        TypeInfo type_info;
+
       public:
         Variable(ast::decl::Variable *node) : Scope(ScopeType::VARIABLE, node) {}
 
         bool is_const() const {
             return get_variable_node()->get_token()->get_type() == TokenType::CONST;
+        }
+
+        const TypeInfo &get_type_info() const {
+            return type_info;
+        }
+
+        void set_type_info(const TypeInfo &type_info) {
+            this->type_info = type_info;
         }
 
         ast::decl::Variable *get_variable_node() const {

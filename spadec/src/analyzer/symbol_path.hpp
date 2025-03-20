@@ -1,6 +1,5 @@
 #pragma once
 
-#include <numeric>
 #include "utils/common.hpp"
 
 namespace spade
@@ -60,9 +59,10 @@ namespace spade
             return path;
         }
 
-        string to_string() const {
-            return std::accumulate(elements.begin(), elements.end(), string(),
-                                   [](const string &a, const string &b) { return a + (a.empty() ? "" : ".") + b; });
+        string to_string() const;
+
+        const std::vector<string> &get_elements() const {
+            return elements;
         }
     };
 }    // namespace spade
