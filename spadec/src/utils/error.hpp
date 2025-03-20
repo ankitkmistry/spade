@@ -30,6 +30,10 @@ namespace spade
               line_end(line_end),
               col_end(col_end) {}
 
+        bool has_no_location() const {
+            return line_start == -1 || col_start == -1 || line_end == -1 || col_end == -1;
+        }
+
         const fs::path &get_file_path() const {
             return file_path;
         }

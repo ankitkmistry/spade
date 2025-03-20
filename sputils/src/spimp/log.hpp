@@ -136,5 +136,5 @@ namespace spade
         }
     };
 
-    extern const Logger LOGGER;
+    extern Logger LOGGER;
 }    // namespace spade

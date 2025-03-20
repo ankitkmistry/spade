@@ -1,30 +1,34 @@
 #pragma once
 
-#include <numeric>
-#include <unordered_set>
-
-#include "analyzer/analyzer.hpp"
 #include "parser/ast.hpp"
 #include "scope.hpp"
-
+#include "utils/error.hpp"
 
 namespace spade
 {
-    class Analyzer : public ast::VisitorBase {
-        std::unordered_map<SymbolPath, ast::AstNode *> symbol_table;
-        std::unordered_set<std::shared_ptr<Scope>> scopes;
-        std::stack<std::shared_ptr<Scope>> scope_stack;
+    class Analyzer final : public ast::VisitorBase {
+        std::unordered_map<ast::Module *, std::shared_ptr<scope::Scope>> module_scopes;
+        std::vector<std::shared_ptr<scope::Scope>> scope_stack;
 
       public:
+        std::shared_ptr<scope::Module> get_current_module();
+        std::shared_ptr<scope::Scope> get_parent_scope();
+        std::shared_ptr<scope::Scope> get_current_scope();
+
         void analyze(const std::vector<std::shared_ptr<ast::Module>> &modules);
 
+        template<ast::HasLineInfo T>
+        AnalyzerError error(const string &msg, T node) {
+            return AnalyzerError(msg, get_current_module()->get_module_node()->get_file_path(), node);
+        }
+
+        std::shared_ptr<scope::Scope> _res_reference;
         // Visitor
         void visit(ast::Reference &node);
         // Type visitor
         void visit(ast::type::Reference &node);
         void visit(ast::type::Function &node);
         void visit(ast::type::TypeLiteral &node);
-        void visit(ast::type::TypeOf &node);
         void visit(ast::type::BinaryOp &node);
         void visit(ast::type::Nullable &node);
         void visit(ast::type::TypeBuilder &node);
@@ -73,5 +77,31 @@ namespace spade
         // Module level visitor
         void visit(ast::Import &node);
         void visit(ast::Module &node);
+        void visit(ast::FolderModule &node);
+
+        template<typename Scope_Type, typename Ast_Type>
+            requires std::derived_from<Scope_Type, scope::Scope> && std::derived_from<Ast_Type, ast::AstNode>
+        std::shared_ptr<Scope_Type> begin_scope(Ast_Type &node) {
+            auto scope = std::make_shared<Scope_Type>(&node);
+            scope_stack.push_back(scope);
+            return scope;
+        }
+
+        template<typename Scope_Type>
+            requires std::derived_from<Scope_Type, scope::Scope>
+        std::shared_ptr<Scope_Type> find_scope(const string &name) {
+            auto scope = get_current_scope()->get_variable(name);
+            scope_stack.push_back(scope);
+            return cast<Scope_Type>(scope);
+        }
+
+        inline void end_scope() {
+            scope_stack.pop_back();
+        }
+    };
+
+    struct TypeInfo {
+        ast::Type *node;
+        std::vector<TypeInfo> type_args;
     };
 }    // namespace spade

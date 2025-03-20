@@ -1,5 +1,7 @@
 #include <clocale>
+#include <exception>
 #include <filesystem>
+#include <ios>
 #include <iostream>
 #include <fstream>
 
@@ -8,6 +10,7 @@
 #include "parser/import.hpp"
 #include "parser/parser.hpp"
 #include "parser/printer.hpp"
+#include "spimp/log.hpp"
 #include "spimp/utils.hpp"
 #include "utils/error.hpp"
 
@@ -105,10 +108,15 @@ static void print_error(ErrorType type, const CompilerError &err) {
             underline_char = ' ';
             break;
     }
-    std::cout << std::format("{} [{}:{}]->[{}:{}]: {}\n", error_type_str, err.get_line_start(), err.get_col_start(),
-                             err.get_line_end(), err.get_col_end(), err.what());
-    std::cout << std::format("in file: {}\n", path.generic_string());
-    print_code(path, err, underline, underline_char, 6);
+    if (err.has_no_location()) {
+        std::cout << std::format("{}: {}\n", error_type_str, err.what());
+        std::cout << std::format("in file: {}\n", path.generic_string());
+    } else {
+        std::cout << std::format("[{}:{}]->[{}:{}] {}: {}\n", err.get_line_start(), err.get_col_start(), err.get_line_end(),
+                                 err.get_col_end(), error_type_str, err.what());
+        std::cout << std::format("in file: {}\n", path.generic_string());
+        print_code(path, err, underline, underline_char, 6);
+    }
 }
 
 void compile() {
@@ -146,38 +154,47 @@ void compile() {
 }
 
 void repl() {
-    while (true) {
-        std::stringstream code;
-        std::cout << ">>> ";
+    try {
         while (true) {
-            if (!code.str().empty())
-                std::cout << "... ";
-            string line;
-            std::getline(std::cin, line);
-            if (!line.empty() && line.back() == ';') {
-                if (line.size() > 1)
-                    code << line.substr(0, line.size() - 1) << '\n';
-                break;
+            std::stringstream code;
+            std::cout << ">>> ";
+            while (true) {
+                if (!code.str().empty())
+                    std::cout << "... ";
+                string line;
+                std::getline(std::cin, line);
+                if (!line.empty() && line.back() == ';') {
+                    if (line.size() > 1)
+                        code << line.substr(0, line.size() - 1) << '\n';
+                    break;
+                }
+                code << line << '\n';
             }
-            code << line << '\n';
+            if (code.str() == "exit" || code.str() == "quit")
+                return;
+            Lexer lexer("", code.str());
+            Parser parser("", &lexer);
+            auto tree = parser.parse();
+            ast::Printer printer{tree};
+            std::cout << printer;
         }
-        if (code.str() == "exit" || code.str() == "quit")
-            return;
-        Lexer lexer("", code.str());
-        Parser parser("", &lexer);
-        auto tree = parser.parse();
-        ast::Printer printer{tree};
-        std::cout << printer;
+    } catch (const CompilerError &err) {
+        std::cerr << std::format("error [{}:{}]: {}\n", err.get_line_start(), err.get_col_start(), err.what());
     }
 }
 
 int main() {
     try {
         std::setlocale(LC_CTYPE, ".UTF-8");
+        // std::ofstream file("output.log");
+        // LOGGER.set_file(file);
+        // std::ios_base::sync_with_stdio(false);
+        LOGGER.set_format("[{4}] {5}");
         compile();
         // repl();
-    } catch (const CompilerError &err) {
-        std::cerr << std::format("error [{}:{}]: {}\n", err.get_line_start(), err.get_col_start(), err.what());
+        return 0;
+    } catch (const std::exception &err) {
+        LOGGER.log_fatal(err.what());
+        return 1;
     }
-    return 0;
 }

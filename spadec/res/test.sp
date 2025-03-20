@@ -6,29 +6,14 @@ enum Color {
 	static var value: int
 }
 
-#var Color=1
+fun abaxa(){}
+
+var color: Color=1
 
 interface Foo {
 	static var size = 0
 	public fun build() {
 		self.bar(Color.RED)
-	}
-	private final static fun bar(color: Color, filter: (object{red:float,blue:float,green:float,alpha:float},bool) -> Color){
-		absolute
-		barb
-		barb
-		barb
-		barb
-		b
-
-		barb
-		barb
-		barb
-		barb
-
-		barb
-		bar
-		barb
 	}
 }
 

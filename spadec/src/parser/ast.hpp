@@ -1,10 +1,10 @@
 #pragma once
 
-#include "../lexer/token.hpp"
-#include <memory>
+#include "lexer/token.hpp"
 
 namespace spade::ast
 {
+    class FolderModule;
     class Module;
     class Import;
     class Declaration;
@@ -52,7 +52,6 @@ namespace spade::ast
         class TypeBuilder;
         class Nullable;
         class BinaryOp;
-        class TypeOf;
         class TypeLiteral;
         class Function;
         class Reference;
@@ -90,7 +89,6 @@ namespace spade::ast
         virtual void visit(type::Reference &node) = 0;
         virtual void visit(type::Function &node) = 0;
         virtual void visit(type::TypeLiteral &node) = 0;
-        virtual void visit(type::TypeOf &node) = 0;
         virtual void visit(type::BinaryOp &node) = 0;
         virtual void visit(type::Nullable &node) = 0;
         virtual void visit(type::TypeBuilder &node) = 0;
@@ -139,6 +137,7 @@ namespace spade::ast
         // Module level visitor
         virtual void visit(Import &node) = 0;
         virtual void visit(Module &node) = 0;
+        virtual void visit(FolderModule &node) = 0;
     };
 
     template<typename T>
@@ -266,23 +265,6 @@ namespace spade::ast
         class TypeLiteral final : public Type {
           public:
             TypeLiteral(const std::shared_ptr<Token> &token) : Type(token, token) {}
-
-            void accept(VisitorBase *visitor) override {
-                visitor->visit(*this);
-            }
-        };
-
-        class TypeOf final : public Type {
-            std::shared_ptr<Expression> expr;
-
-          public:
-            TypeOf(const std::shared_ptr<Token> &start, const std::shared_ptr<Token> &end,
-                   const std::shared_ptr<Expression> &expr)
-                : Type(start, end), expr(expr) {}
-
-            std::shared_ptr<Expression> get_expr() const {
-                return expr;
-            }
 
             void accept(VisitorBase *visitor) override {
                 visitor->visit(*this);
@@ -1127,6 +1109,9 @@ namespace spade::ast
             std::shared_ptr<Type> return_type;
             std::shared_ptr<Statement> definition;
 
+            // Analyzer specific
+            string qualified_name;
+
           public:
             template<typename T>
                 requires HasLineInfo<T>
@@ -1164,6 +1149,14 @@ namespace spade::ast
 
             std::shared_ptr<Statement> get_definition() const {
                 return definition;
+            }
+
+            const string &get_qualified_name() const {
+                return qualified_name;
+            }
+
+            void set_qualified_name(const string &qualified_name) {
+                this->qualified_name = qualified_name;
             }
 
             void accept(VisitorBase *visitor) override {
@@ -1206,13 +1199,21 @@ namespace spade::ast
         };
 
         class Init final : public Declaration {
+            std::shared_ptr<Token> name;
             std::shared_ptr<Params> params;
             std::shared_ptr<Statement> definition;
 
+            // Analyzer specific
+            string qualified_name;
+
           public:
-            Init(const std::shared_ptr<Token> &token, const std::shared_ptr<Params> &params,
+            Init(const std::shared_ptr<Token> &name, const std::shared_ptr<Params> &params,
                  const std::shared_ptr<Statement> &definition)
-                : Declaration(token, definition), params(params), definition(definition) {}
+                : Declaration(name, definition), name(name), params(params), definition(definition) {}
+
+            std::shared_ptr<Token> get_name() const {
+                return name;
+            }
 
             std::shared_ptr<Params> get_params() const {
                 return params;
@@ -1220,6 +1221,14 @@ namespace spade::ast
 
             std::shared_ptr<Statement> get_definition() const {
                 return definition;
+            }
+
+            const string &get_qualified_name() const {
+                return qualified_name;
+            }
+
+            void set_qualified_name(const string &qualified_name) {
+                this->qualified_name = qualified_name;
             }
 
             void accept(VisitorBase *visitor) override {
@@ -1362,20 +1371,25 @@ namespace spade::ast
 
     class Import final : public AstNode {
         string path;
+        std::shared_ptr<Token> name;
         std::shared_ptr<Token> alias;
         std::shared_ptr<Module> module;
 
       public:
         template<typename T1, typename T2>
             requires HasLineInfo<T1> && HasLineInfo<T2>
-        Import(T1 start, T2 end, const string &path, const std::shared_ptr<Token> &alias)
-            : AstNode(start, end), path(path), alias(alias) {}
+        Import(T1 start, T2 end, const string &path, const std::shared_ptr<Token> &name, const std::shared_ptr<Token> &alias)
+            : AstNode(start, end), path(path), name(name), alias(alias) {}
 
         const string &get_path() const {
             return path;
         }
 
         fs::path get_path(const fs::path &root_path, const std::shared_ptr<Module> &module) const;
+
+        std::shared_ptr<Token> get_name() const {
+            return name;
+        }
 
         std::shared_ptr<Token> get_alias() const {
             return alias;
@@ -1394,10 +1408,13 @@ namespace spade::ast
         }
     };
 
-    class Module final : public AstNode {
+    class Module : public AstNode {
+      protected:
         fs::path file_path;
         std::vector<std::shared_ptr<Import>> imports;
         std::vector<std::shared_ptr<Declaration>> members;
+
+        Module(const fs::path &path) : AstNode(-1, -1, -1, -1), file_path(path) {}
 
       public:
         template<typename T1, typename T2>
@@ -1421,6 +1438,15 @@ namespace spade::ast
         const std::vector<std::shared_ptr<Declaration>> &get_members() const {
             return members;
         }
+
+        void accept(VisitorBase *visitor) override {
+            visitor->visit(*this);
+        }
+    };
+
+    class FolderModule final : public Module {
+      public:
+        FolderModule(const fs::path &path) : Module(path) {}
 
         void accept(VisitorBase *visitor) override {
             visitor->visit(*this);

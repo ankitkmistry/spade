@@ -93,10 +93,11 @@ namespace spade
         if (match(TokenType::AS))
             alias = expect(TokenType::IDENTIFIER);
         else if (match(TokenType::DOT)) {
+            // TODO: implement this in analyzer
             expect(TokenType::STAR);
             path << ".*";
         }
-        return std::make_shared<ast::Import>(start, current(), path.str(), alias);
+        return std::make_shared<ast::Import>(start, current(), path.str(), ref->get_path().back(), alias);
     }
 
     std::shared_ptr<ast::Reference> Parser::reference() {
@@ -192,7 +193,7 @@ namespace spade
     }
 
     std::shared_ptr<ast::Declaration> Parser::init_decl() {
-        auto token = expect(TokenType::INIT);
+        auto name = expect(TokenType::INIT);
         expect(TokenType::LPAREN);
         std::shared_ptr<ast::decl::Params> init_params;
         if (peek()->get_type() != TokenType::RPAREN)
@@ -205,7 +206,7 @@ namespace spade
             def = block();
         else
             throw error(std::format("expected {}", make_expected_string(TokenType::EQUAL, TokenType::LBRACE)));
-        return std::make_shared<ast::decl::Init>(token, init_params, def);
+        return std::make_shared<ast::decl::Init>(name, init_params, def);
     }
 
     std::shared_ptr<ast::Declaration> Parser::variable_decl() {
@@ -928,11 +929,6 @@ namespace spade
             }
             case TokenType::TYPE:
                 return std::make_shared<ast::type::TypeLiteral>(advance());
-            case TokenType::TYPEOF: {
-                auto start = advance();
-                auto expr = expression();
-                return std::make_shared<ast::type::TypeOf>(start, current(), expr);
-            }
             case TokenType::LPAREN: {
                 auto start = advance();
                 return rule_or<ast::Type, ast::type::Function, ast::Type>(

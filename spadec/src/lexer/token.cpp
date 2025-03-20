@@ -90,7 +90,6 @@ namespace spade
             {"null", TokenType::NULL_},
             {"object", TokenType::OBJECT},
             {"type", TokenType::TYPE},
-            {"typeof", TokenType::TYPEOF},
             {"_", TokenType::UNDERSCORE}
     };
 
@@ -103,12 +102,13 @@ namespace spade
     }
 
     bool TokenInfo::get_type_if_keyword(const string &text, TokenType &type) {
-        try {
-            type = KEYWORDS.at(text);
-            return true;
-        } catch (const std::out_of_range &) {
-            return false;
-        }
+        // try {
+        //     type = KEYWORDS.at(text);
+        //     return true;
+        // } catch (const std::out_of_range &) {
+        //     return false;
+        // }
+        return KEYWORDS.contains(text) ? (type = KEYWORDS.at(text), true) : false;
     }
 
     static string get_token_type_repr(TokenType type) {
@@ -271,8 +271,6 @@ namespace spade
                 return "object";
             case TokenType::TYPE:
                 return "type";
-            case TokenType::TYPEOF:
-                return "typeof";
             case TokenType::IDENTIFIER:
                 return "<identifier>";
             case TokenType::INTEGER:
@@ -458,8 +456,6 @@ namespace spade
                 return "OBJECT";
             case TokenType::TYPE:
                 return "TYPE";
-            case TokenType::TYPEOF:
-                return "TYPEOF";
             case TokenType::IDENTIFIER:
                 return "IDENTIFIER";
             case TokenType::INTEGER:

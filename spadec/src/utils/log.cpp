@@ -2,5 +2,5 @@
 
 namespace spade
 {
-    const Logger LOGGER;
+    Logger LOGGER;
 }

@@ -110,12 +110,6 @@ namespace spade::ast
         ss << "type::TypeLiteral";
     }
 
-    void Printer::visit(type::TypeOf &type) {
-        write_repr(cast<AstNode>(&type));
-        ss << "type::TypeOf";
-        print(type.get_expr(), "expr");
-    }
-
     void Printer::visit(type::BinaryOp &type) {
         write_repr(cast<AstNode>(&type));
         ss << "type::BinaryOp";
@@ -424,5 +418,10 @@ namespace spade::ast
         ss << "Module '" << node.get_file_path().generic_string() << "'";
         print(node.get_imports(), "imports");
         print(node.get_members(), "members");
+    }
+
+    void Printer::visit(FolderModule &node) {
+        // Parser does not generate FolderModule nodes
+        throw Unreachable();
     }
 }    // namespace spade::ast

@@ -102,7 +102,6 @@ namespace spade::ast
         void visit(type::Reference &type) override;
         void visit(type::Function &type) override;
         void visit(type::TypeLiteral &type) override;
-        void visit(type::TypeOf &type) override;
         void visit(type::BinaryOp &type) override;
         void visit(type::Nullable &type) override;
         void visit(type::TypeBuilder &node) override;
@@ -143,5 +142,6 @@ namespace spade::ast
 
         void visit(Import &node) override;
         void visit(Module &node) override;
+        void visit(FolderModule &node) override;
     };
 }    // namespace spade::ast

@@ -16,6 +16,8 @@
 
 #include <sputils.hpp>
 
+#define ENABLE_MT
+
 namespace spade
 {
     using std::string;

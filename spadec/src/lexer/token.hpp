@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../utils/common.hpp"
+#include "utils/common.hpp"
 
 namespace spade
 {
@@ -100,7 +100,6 @@ namespace spade
         // Special keywords
         OBJECT,
         TYPE,
-        TYPEOF,
         // Other types
         IDENTIFIER,
         INTEGER,

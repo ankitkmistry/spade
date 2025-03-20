@@ -159,7 +159,6 @@ type: type '|' type                         # unionType
     | primaryType;
 
 primaryType: | reference ('[' typeArgs ']')?              # referenceType
-             | TYPEOF '(' expr ')'                 # typeofType
              | TYPE                                # literalType
              | '(' paramTypes? ')' '->' type          # functionType
              | '(' type ')' # groupedType
@@ -249,7 +248,6 @@ NULL: 'null';
 // Special keywords
 OBJECT: 'object';
 TYPE: 'varKind';
-TYPEOF: 'typeof';
 
 // Contextual keywords
 OUT: 'out';
