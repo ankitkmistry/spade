@@ -1,8 +1,8 @@
 #pragma once
 
 #include "parser/ast.hpp"
-#include "scope.hpp"
 #include "symbol_path.hpp"
+#include "info.hpp"
 #include "utils/error.hpp"
 
 namespace spade
@@ -10,7 +10,7 @@ namespace spade
     class ScopeTreeBuilder final : public ast::VisitorBase {
         fs::path root_path;
         // std::unordered_map<SymbolPath, ast::AstNode *> symbols;
-        std::unordered_map<ast::Module *, std::shared_ptr<scope::Scope>> module_scopes;
+        std::unordered_map<ast::Module *, ScopeInfo> module_scopes;
         std::vector<std::shared_ptr<ast::Module>> modules;
         std::vector<std::shared_ptr<scope::Scope>> scope_stack;
 
@@ -108,6 +108,6 @@ namespace spade
         void visit(ast::Module &node) override;
         void visit(ast::FolderModule &node) override;
 
-        const std::unordered_map<ast::Module *, std::shared_ptr<scope::Scope>> &build();
+        const std::unordered_map<ast::Module *, ScopeInfo> &build();
     };
 }    // namespace spade

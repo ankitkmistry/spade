@@ -1373,7 +1373,9 @@ namespace spade::ast
         string path;
         std::shared_ptr<Token> name;
         std::shared_ptr<Token> alias;
-        std::shared_ptr<Module> module;
+
+        // Analyzer specific
+        std::weak_ptr<Module> module;
 
       public:
         template<typename T1, typename T2>
@@ -1395,11 +1397,11 @@ namespace spade::ast
             return alias;
         }
 
-        std::shared_ptr<Module> get_module() const {
+        std::weak_ptr<Module> get_module() const {
             return module;
         }
 
-        void set_module(const std::shared_ptr<Module> module) {
+        void set_module(const std::weak_ptr<Module> &module) {
             this->module = module;
         }
 

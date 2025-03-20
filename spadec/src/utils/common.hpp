@@ -16,7 +16,7 @@
 
 #include <sputils.hpp>
 
-#define ENABLE_MT
+// #define ENABLE_MT
 
 namespace spade
 {

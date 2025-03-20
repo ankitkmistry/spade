@@ -26,25 +26,25 @@ namespace spade
     }
 
     void ScopeTreeBuilder::add_symbol(const string &name, const std::shared_ptr<Token> &decl_site,
-                                        std::shared_ptr<scope::Scope> scope) {
+                                      std::shared_ptr<scope::Scope> scope) {
         if (scope_stack.size() == 1) {
             if (scope->get_type() == scope::ScopeType::FOLDER_MODULE) {
                 if (module_scopes.contains(cast<ast::FolderModule>(scope->get_node()))) {
-                    auto module_scope = module_scopes[cast<ast::FolderModule>(scope->get_node())];
+                    auto module_scope = module_scopes.at(cast<ast::FolderModule>(scope->get_node())).get_scope();
                     throw ErrorGroup<AnalyzerError>(
                             std::pair(ErrorType::ERROR, error(std::format("redeclaration of '{}'", name), scope)),
                             std::pair(ErrorType::NOTE, error("already declared here", module_scope)));
                 } else {
-                    module_scopes[cast<ast::FolderModule>(scope->get_node())] = scope;
+                    module_scopes.emplace(cast<ast::FolderModule>(scope->get_node()), ScopeInfo(scope));
                 }
             } else if (scope->get_type() == scope::ScopeType::MODULE) {
                 if (module_scopes.contains(cast<ast::Module>(scope->get_node()))) {
-                    auto module_scope = module_scopes[cast<ast::Module>(scope->get_node())];
+                    auto module_scope = module_scopes.at(cast<ast::Module>(scope->get_node())).get_scope();
                     throw ErrorGroup<AnalyzerError>(
                             std::pair(ErrorType::ERROR, error(std::format("redeclaration of '{}'", name), scope)),
                             std::pair(ErrorType::NOTE, error("already declared here", module_scope)));
                 } else {
-                    module_scopes[cast<ast::Module>(scope->get_node())] = scope;
+                    module_scopes.emplace(cast<ast::Module>(scope->get_node()), ScopeInfo(scope));
                 }
             } else
                 throw Unreachable();    // surely some parser error
@@ -583,7 +583,9 @@ namespace spade
         }
         auto scope = begin_scope<scope::Module>(node);
         add_symbol(scope->get_module_node()->get_name(), null, scope);
-        module_scopes[&node] = scope;
+        if (scope_stack.size() > 1) {
+            module_scopes.emplace(&node, ScopeInfo(scope, false));
+        }
         for (auto import: node.get_imports()) {
             import->accept(this);
         }
@@ -595,7 +597,7 @@ namespace spade
 
     void ScopeTreeBuilder::visit(ast::FolderModule &node) {}
 
-    const std::unordered_map<ast::Module *, std::shared_ptr<scope::Scope>> &ScopeTreeBuilder::build() {
+    const std::unordered_map<ast::Module *, ScopeInfo> &ScopeTreeBuilder::build() {
         for (auto module: modules) {
             {
                 size_t n = 0;

@@ -1,13 +1,13 @@
 #pragma once
 
 #include "parser/ast.hpp"
-#include "scope.hpp"
+#include "info.hpp"
 #include "utils/error.hpp"
 
 namespace spade
 {
     class Analyzer final : public ast::VisitorBase {
-        std::unordered_map<ast::Module *, std::shared_ptr<scope::Scope>> module_scopes;
+        std::unordered_map<ast::Module *, ScopeInfo> module_scopes;
         std::vector<std::shared_ptr<scope::Scope>> scope_stack;
 
       public:
@@ -22,9 +22,17 @@ namespace spade
             return AnalyzerError(msg, get_current_module()->get_module_node()->get_file_path(), node);
         }
 
+      private:
         std::shared_ptr<scope::Scope> _res_reference;
+
+      public:
         // Visitor
         void visit(ast::Reference &node);
+
+      private:
+        TypeInfo _res_type_info;
+
+      public:
         // Type visitor
         void visit(ast::type::Reference &node);
         void visit(ast::type::Function &node);
@@ -98,10 +106,5 @@ namespace spade
         inline void end_scope() {
             scope_stack.pop_back();
         }
-    };
-
-    struct TypeInfo {
-        ast::Type *node;
-        std::vector<TypeInfo> type_args;
     };
 }    // namespace spade

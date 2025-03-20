@@ -19,8 +19,9 @@ namespace spade
         std::unordered_map<fs::path, std::shared_ptr<ast::Import>> nodes;
         {
 #ifdef ENABLE_MT
-            if (resolved.contains(module->get_file_path()))
+            if (resolved.contains(module->get_file_path())) {
                 return;    // Prevent circular imports
+            }
             std::lock_guard lg(resolve_imports_mutex);
 #endif
             // Set current module resolved
@@ -41,8 +42,10 @@ namespace spade
 #endif
         // Load the file
         std::for_each(ex_policy, import_paths.begin(), import_paths.end(), [&](const fs::path &path) {
-            if (resolved.contains(path))
+            if (resolved.contains(path)) {
+                nodes[path]->set_module(resolved[path]);
                 return;    // Prevent circular imports
+            }
             // Check for errors
             if (!fs::exists(path))
                 throw ImportError(std::format("cannot find dependency '{}'", path.generic_string()), module->get_file_path(),

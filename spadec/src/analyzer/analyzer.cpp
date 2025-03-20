@@ -24,18 +24,23 @@ namespace spade
     void Analyzer::analyze(const std::vector<std::shared_ptr<ast::Module>> &modules) {
         if (modules.empty())
             return;
-        // Build symbol table
+        // Build scope tree
         ScopeTreeBuilder builder(modules);
         module_scopes = builder.build();
-        for (auto [_, module]: module_scopes) {
-            if (module->get_type() == scope::ScopeType::FOLDER_MODULE)
-                module->print(cast<scope::FolderModule>(module)->get_module_node()->get_name());
-            else
-                module->print(cast<scope::Module>(module)->get_module_node()->get_name());
+        // Print scope tree
+        for (auto [_, module_scope_info]: module_scopes) {
+            if (module_scope_info.is_original()) {
+                auto module = module_scope_info.get_scope();
+                if (module->get_type() == scope::ScopeType::FOLDER_MODULE)
+                    module->print(cast<scope::FolderModule>(module)->get_module_node()->get_name());
+                else
+                    module->print(cast<scope::Module>(module)->get_module_node()->get_name());
+            }
         }
         // Start analysis
-        for (auto module: modules) {
-            module->accept(this);
+        for (auto [_, module_scope_info]: module_scopes) {
+            if (module_scope_info.is_original())
+                module_scope_info.get_scope()->get_node()->accept(this);
         }
     }
 
@@ -45,8 +50,10 @@ namespace spade
         auto name = node.get_path()[0]->get_text();
         std::shared_ptr<scope::Scope> scope;
         for (auto itr = scope_stack.rbegin(); itr != scope_stack.rend(); ++itr) {
-            if ((*itr)->has_variable(name))
+            if ((*itr)->has_variable(name)) {
                 scope = (*itr)->get_variable(name);
+                break;
+            }
         }
         // Yell if the scope cannot be located
         if (!scope)
@@ -62,24 +69,38 @@ namespace spade
     }
 
     void Analyzer::visit(ast::type::Reference &node) {
+        _res_type_info.reset();
         node.get_reference()->accept(this);
         auto type_scope = _res_reference;
         if (type_scope->get_type() != scope::ScopeType::COMPOUND)
             throw ErrorGroup<AnalyzerError>(std::pair(ErrorType::ERROR, error("reference is not a type", &node)),
                                             std::pair(ErrorType::NOTE, error("declared here", type_scope)));
+        _res_type_info.type = cast<scope::Compound>(type_scope);
     }
 
-    void Analyzer::visit(ast::type::Function &node) {}
+    void Analyzer::visit(ast::type::Function &node) {
+        _res_type_info.reset();
+    }
 
-    void Analyzer::visit(ast::type::TypeLiteral &node) {}
+    void Analyzer::visit(ast::type::TypeLiteral &node) {
+        _res_type_info.reset();
+    }
 
-    void Analyzer::visit(ast::type::BinaryOp &node) {}
+    void Analyzer::visit(ast::type::BinaryOp &node) {
+        _res_type_info.reset();
+    }
 
-    void Analyzer::visit(ast::type::Nullable &node) {}
+    void Analyzer::visit(ast::type::Nullable &node) {
+        _res_type_info.reset();
+    }
 
-    void Analyzer::visit(ast::type::TypeBuilder &node) {}
+    void Analyzer::visit(ast::type::TypeBuilder &node) {
+        _res_type_info.reset();
+    }
 
-    void Analyzer::visit(ast::type::TypeBuilderMember &node) {}
+    void Analyzer::visit(ast::type::TypeBuilderMember &node) {
+        // _res_type_info.reset();
+    }
 
     void Analyzer::visit(ast::expr::Constant &node) {}
 
@@ -171,7 +192,7 @@ namespace spade
 
     void Analyzer::visit(ast::decl::Variable &node) {
         std::shared_ptr<scope::Variable> scope;
-        if (get_parent_scope()->get_type() == scope::ScopeType::FUNCTION) {
+        if (get_current_scope()->get_type() == scope::ScopeType::FUNCTION) {
             scope = begin_scope<scope::Variable>(node);
             // Add the variable to the parent scope
             auto parent_scope = get_parent_scope();
@@ -212,35 +233,48 @@ namespace spade
         auto scope = scope_stack.back();
         // Put the alias if present
         auto name = node.get_alias() ? node.get_alias() : node.get_name();
-        auto value = module_scopes[node.get_module().get()];
-        if (!scope->new_variable(name, value)) {
-            // Find the original declaration
-            auto org_def = scope->get_decl_site(name->get_text());
-            throw ErrorGroup<AnalyzerError>(
-                    std::pair(ErrorType::ERROR, error(std::format("redeclaration of '{}'", name->get_text()), name)),
-                    std::pair(ErrorType::NOTE, error("already declared here", org_def)));
+        if (auto module_sptr = node.get_module().lock()) {
+            auto value = module_scopes.at(&*module_sptr).get_scope();
+            if (!scope->new_variable(name, value)) {
+                // Find the original declaration
+                auto org_def = scope->get_decl_site(name->get_text());
+                throw ErrorGroup<AnalyzerError>(
+                        std::pair(ErrorType::ERROR, error(std::format("redeclaration of '{}'", name->get_text()), name)),
+                        std::pair(ErrorType::NOTE, error("already declared here", org_def)));
+            }
+        } else {
+            LOGGER.log_error("import statement is not resolved");
         }
     }
 
     void Analyzer::visit(ast::Module &node) {
-        auto scope = module_scopes[&node];
-        scope_stack.push_back(scope);
+        if (scope_stack.empty()) {
+            auto scope = module_scopes.at(&node).get_scope();
+            scope_stack.push_back(scope);
+        } else {
+            find_scope<scope::Module>(node.get_name());
+        }
 
         for (auto import: node.get_imports()) import->accept(this);
         for (auto member: node.get_members()) member->accept(this);
 
-        scope_stack.pop_back();
+        end_scope();
     }
 
     void Analyzer::visit(ast::FolderModule &node) {
-        auto scope = module_scopes[&node];
-        scope_stack.push_back(scope);
+        std::shared_ptr<scope::Scope> scope;
+        if (scope_stack.empty()) {
+            scope = module_scopes.at(&node).get_scope();
+            scope_stack.push_back(scope);
+        } else {
+            scope = find_scope<scope::Module>(node.get_name());
+        }
 
         for (auto [name, member]: scope->get_members()) {
             auto [_, scope] = member;
             scope->get_node()->accept(this);
         }
 
-        scope_stack.pop_back();
+        end_scope();
     }
 }    // namespace spade
