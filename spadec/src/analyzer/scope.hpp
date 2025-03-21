@@ -28,7 +28,7 @@ namespace spade::scope
         /// the ast node of the scope
         ast::AstNode *node;
         /// parent of the scope
-        Scope *parent;
+        Scope *parent = null;
         /// scopes that are members (can be referenced) e.g. variables, functions
         std::unordered_map<string, Member> members;
 
@@ -247,7 +247,14 @@ namespace spade::scope
     };
 
     class Variable final : public Scope {
+      public:
+        enum class Eval { NOT_STARTED, PROGRESS, DONE };
+
+      private:
+        /// type info of the variable
         TypeInfo type_info;
+        /// flag if the current scope is being evaluated
+        Eval evaluating = Eval::NOT_STARTED;
 
       public:
         Variable(ast::decl::Variable *node) : Scope(ScopeType::VARIABLE, node) {}
@@ -262,6 +269,14 @@ namespace spade::scope
 
         void set_type_info(const TypeInfo &type_info) {
             this->type_info = type_info;
+        }
+
+        Eval get_evaluating() const {
+            return evaluating;
+        }
+
+        void set_evaluating(Eval evaluating) {
+            this->evaluating = evaluating;
         }
 
         ast::decl::Variable *get_variable_node() const {

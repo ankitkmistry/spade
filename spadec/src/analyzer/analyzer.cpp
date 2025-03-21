@@ -56,31 +56,24 @@ namespace spade
         module_scopes.emplace(null, ScopeInfo(module));
     }
 
-    std::shared_ptr<scope::Module> Analyzer::get_current_module() const {
-        for (auto itr = scope_stack.rbegin(); itr != scope_stack.rend(); ++itr)
-            if (auto scope = *itr; scope->get_type() == scope::ScopeType::MODULE)
-                return cast<scope::Module>(scope);
-        return null;
+    scope::Scope *Analyzer::get_parent_scope() const {
+        return cur_scope->get_parent();
     }
 
-    std::shared_ptr<scope::Scope> Analyzer::get_parent_scope() const {
-        return scope_stack[scope_stack.size() - 2];
-    }
-
-    std::shared_ptr<scope::Scope> Analyzer::get_current_scope() const {
-        return scope_stack.back();
+    scope::Scope *Analyzer::get_current_scope() const {
+        return cur_scope;
     }
 
     std::shared_ptr<scope::Scope> Analyzer::find_name(const string &name) const {
         std::shared_ptr<scope::Scope> scope;
-        for (auto itr = scope_stack.rbegin(); itr != scope_stack.rend(); ++itr) {
-            if ((*itr)->has_variable(name)) {
-                scope = (*itr)->get_variable(name);
+        for (auto itr = cur_scope; itr != null; itr = itr->get_parent()) {
+            if (itr->has_variable(name)) {
+                scope = itr->get_variable(name);
                 break;
             }
             // TODO: what about functions
-            if ((*itr)->has_variable(name + "()")) {
-                scope = (*itr)->get_variable(name + "()");
+            if (itr->has_variable(name + "()")) {
+                scope = itr->get_variable(name + "()");
                 break;
             }
         }
@@ -411,10 +404,50 @@ namespace spade
                         break;
                     case scope::ScopeType::BLOCK:
                         throw Unreachable();    // surely some parser error
-                    case scope::ScopeType::VARIABLE:
+                    case scope::ScopeType::VARIABLE: {
                         _res_expr_info.tag = ExprInfo::Type::NORMAL;
-                        _res_expr_info.type_info = cast<scope::Variable>(scope)->get_type_info();
+                        auto var_scope = cast<scope::Variable>(scope);
+                        // switch (var_scope->get_evaluating()) {
+                        //     case scope::Variable::Eval::NOT_STARTED: {
+                        //         auto old_cur_scope = cur_scope;         // save context
+                        //         cur_scope = var_scope->get_parent();    // change context
+                        //         var_scope->get_node()->accept(this);    // visit variable
+                        //         cur_scope = old_cur_scope;              // reset context
+                        //         _res_expr_info.type_info = var_scope->get_type_info();
+                        //         break;
+                        //     }
+                        //     case scope::Variable::Eval::PROGRESS:
+                        //         _res_expr_info.type_info.type =
+                        //                 cast<scope::Compound>(&*internals[Analyzer::Internal::SPADE_ANY]);
+                        //         _res_expr_info.type_info.b_nullable = true;
+                        //         warning(std::format("type inference is ambiguous, defaulting to '{}'",
+                        //                             _res_expr_info.type_info.to_string()),
+                        //                 &node);
+                        //         note("declared here", var_scope);
+                        //         break;
+                        //     case scope::Variable::Eval::DONE:
+                        //         _res_expr_info.type_info = var_scope->get_type_info();
+                        //         break;
+                        // }
+
+                        if (var_scope->get_evaluating() == scope::Variable::Eval::NOT_STARTED) {
+                            auto old_cur_scope = cur_scope;         // save context
+                            cur_scope = var_scope->get_parent();    // change context
+                            var_scope->get_node()->accept(this);    // visit variable
+                            cur_scope = old_cur_scope;              // reset context
+                            _res_expr_info.type_info = var_scope->get_type_info();
+                        } else if (var_scope->get_evaluating() == scope::Variable::Eval::PROGRESS) {
+                            _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Analyzer::Internal::SPADE_ANY]);
+                            _res_expr_info.type_info.b_nullable = true;
+                            warning(std::format("type inference is ambiguous, defaulting to '{}'",
+                                                _res_expr_info.type_info.to_string()),
+                                    &node);
+                            note("declared here", var_scope);
+                        } else if (var_scope->get_evaluating() == scope::Variable::Eval::DONE) {
+                            _res_expr_info.type_info = var_scope->get_type_info();
+                        }
                         break;
+                    }
                     case scope::ScopeType::ENUMERATOR:
                         _res_expr_info.tag = ExprInfo::Type::NORMAL;
                         _res_expr_info.type_info.type = scope->get_enclosing_compound();
@@ -883,6 +916,12 @@ namespace spade
             scope = find_scope<scope::Variable>(node.get_name()->get_text());
         }
 
+        if (scope->get_evaluating() == scope::Variable::Eval::DONE) {
+            end_scope();
+            return;
+        }
+        scope->set_evaluating(scope::Variable::Eval::PROGRESS);
+
         TypeInfo type_info;
         if (auto type = node.get_type()) {
             type->accept(this);
@@ -896,7 +935,8 @@ namespace spade
             switch (expr_info.tag) {
                 case ExprInfo::Type::NORMAL:
                     if (node.get_type()) {
-                        if (!expr_info.is_null() && type_info.type != expr_info.type_info.type)
+                        if (!expr_info.is_null() && type_info.type != expr_info.type_info.type &&
+                            !expr_info.type_info.type->has_super(type_info.type))
                             throw error(std::format("cannot assign value of type '{}' to variable of type '{}'",
                                                     expr_info.type_info.to_string(), type_info.to_string()),
                                         &node);
@@ -968,6 +1008,7 @@ namespace spade
         }
 
         scope->set_type_info(type_info);
+        scope->set_evaluating(scope::Variable::Eval::DONE);
         end_scope();
     }
 
@@ -1012,7 +1053,7 @@ namespace spade
     }
 
     void Analyzer::visit(ast::Import &node) {
-        auto scope = scope_stack.back();
+        auto scope = get_current_scope();
         // Put the alias if present
         auto name = node.get_alias() ? node.get_alias() : node.get_name();
         if (auto module_sptr = node.get_module().lock()) {
@@ -1030,9 +1071,9 @@ namespace spade
     }
 
     void Analyzer::visit(ast::Module &node) {
-        if (scope_stack.empty()) {
+        if (get_current_scope() == null) {
             auto scope = module_scopes.at(&node).get_scope();
-            scope_stack.push_back(scope);
+            cur_scope = &*scope;
         } else {
             find_scope<scope::Module>(node.get_name());
         }
@@ -1045,9 +1086,9 @@ namespace spade
 
     void Analyzer::visit(ast::FolderModule &node) {
         std::shared_ptr<scope::Scope> scope;
-        if (scope_stack.empty()) {
+        if (get_current_scope() == null) {
             scope = module_scopes.at(&node).get_scope();
-            scope_stack.push_back(scope);
+            cur_scope = &*scope;
         } else {
             scope = find_scope<scope::Module>(node.get_name());
         }

@@ -1,7 +1,7 @@
 import foo as bar
 import mod.bar as foo
 
-var global1 = Aa.a as B # no error here
+var global1 = Aa.a as B # no error here but no more
 
 class Aa{
 	var a
@@ -9,7 +9,7 @@ class Aa{
 
 class B{
 	class a
-	var b
+	var b: B
 }
 
 # var global2 = Aa.a as B # but error here!!!
@@ -19,7 +19,7 @@ enum Color {
 	static var value: int = 0
 }
 
-var a: B
+var a: B?
 var b: any? = a?.b
 
 fun abaxa(){}

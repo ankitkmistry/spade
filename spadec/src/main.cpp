@@ -77,17 +77,17 @@ void repl() {
 }
 
 int main() {
-    try {
-        std::setlocale(LC_CTYPE, ".UTF-8");
-        // std::ofstream file("output.log");
-        // LOGGER.set_file(file);
-        // std::ios_base::sync_with_stdio(false);
-        LOGGER.set_format("[{4}] {5}");
-        compile();
-        // repl();
-        return 0;
-    } catch (const std::exception &err) {
-        LOGGER.log_fatal(err.what());
-        return 1;
-    }
+    // try {
+    std::setlocale(LC_CTYPE, ".UTF-8");
+    // std::ofstream file("output.log");
+    // LOGGER.set_file(file);
+    // std::ios_base::sync_with_stdio(false);
+    LOGGER.set_format("[{4}] {5}");
+    compile();
+    // repl();
+    return 0;
+    // } catch (const std::exception &err) {
+    // LOGGER.log_fatal(err.what());
+    // return 1;
+    // }
 }

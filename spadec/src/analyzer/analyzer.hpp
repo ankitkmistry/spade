@@ -15,11 +15,12 @@ namespace spade
         void load_internal_modules();
 
         std::unordered_map<ast::Module *, ScopeInfo> module_scopes;
-        std::vector<std::shared_ptr<scope::Scope>> scope_stack;
+        // std::vector<std::shared_ptr<scope::Scope>> scope_stack;
 
-        std::shared_ptr<scope::Module> get_current_module() const;
-        std::shared_ptr<scope::Scope> get_parent_scope() const;
-        std::shared_ptr<scope::Scope> get_current_scope() const;
+        scope::Scope *cur_scope = null;
+        scope::Scope *get_parent_scope() const;
+        scope::Scope *get_current_scope() const;
+
         std::shared_ptr<scope::Scope> find_name(const string &name) const;
         void resolve_context(const std::shared_ptr<scope::Scope> &scope, const ast::AstNode &node);
         void check_cast(scope::Compound *from, scope::Compound *to, const ast::AstNode &node, bool safe);
@@ -28,7 +29,7 @@ namespace spade
 
         template<ast::HasLineInfo T>
         AnalyzerError error(const string &msg, T node) {
-            return AnalyzerError(msg, get_current_module()->get_module_node()->get_file_path(), node);
+            return AnalyzerError(msg, get_current_scope()->get_enclosing_module()->get_module_node()->get_file_path(), node);
         }
 
         template<ast::HasLineInfo T>
@@ -119,7 +120,7 @@ namespace spade
             requires std::derived_from<Scope_Type, scope::Scope> && std::derived_from<Ast_Type, ast::AstNode>
         std::shared_ptr<Scope_Type> begin_scope(Ast_Type &node) {
             auto scope = std::make_shared<Scope_Type>(&node);
-            scope_stack.push_back(scope);
+            cur_scope = &*scope;
             return scope;
         }
 
@@ -127,12 +128,12 @@ namespace spade
             requires std::derived_from<Scope_Type, scope::Scope>
         std::shared_ptr<Scope_Type> find_scope(const string &name) {
             auto scope = get_current_scope()->get_variable(name);
-            scope_stack.push_back(scope);
+            cur_scope = &*scope;
             return cast<Scope_Type>(scope);
         }
 
         inline void end_scope() {
-            scope_stack.pop_back();
+            cur_scope = cur_scope->get_parent();
         }
     };
 }    // namespace spade
