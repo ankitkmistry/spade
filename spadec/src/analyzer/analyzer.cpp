@@ -7,7 +7,6 @@
 #include "spimp/error.hpp"
 #include "symbol_path.hpp"
 #include "utils/error.hpp"
-#include <format>
 
 // TODO: implement generics
 
@@ -186,7 +185,7 @@ namespace spade
         bool error_state = false;
         ErrorGroup<AnalyzerError> err_grp;
         auto err_prolog =
-                safe ? std::pair(ErrorType::WARNING, error("expression is always null", &node))
+                safe ? std::pair(ErrorType::WARNING, error("expression is always 'null'", &node))
                      : std::pair(ErrorType::ERROR,
                                  error(std::format("cannot cast '{}' to '{}'", from->to_string(), to->to_string()), &node));
         for (const auto &[to_member_name, to_member]: to->get_members()) {
@@ -350,22 +349,29 @@ namespace spade
         _res_expr_info.reset();
         switch (node.get_token()->get_type()) {
             case TokenType::TRUE:
+                _res_expr_info.tag = ExprInfo::Type::NORMAL;
                 _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_BOOL]);
                 break;
             case TokenType::FALSE:
+                _res_expr_info.tag = ExprInfo::Type::NORMAL;
                 _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_BOOL]);
                 break;
             case TokenType::NULL_:
+                _res_expr_info.tag = ExprInfo::Type::NORMAL;
                 _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_ANY]);
                 _res_expr_info.type_info.b_nullable = true;
+                _res_expr_info.type_info.b_null = true;
                 break;
             case TokenType::INTEGER:
+                _res_expr_info.tag = ExprInfo::Type::NORMAL;
                 _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_INT]);
                 break;
             case TokenType::FLOAT:
+                _res_expr_info.tag = ExprInfo::Type::NORMAL;
                 _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_FLOAT]);
                 break;
             case TokenType::STRING:
+                _res_expr_info.tag = ExprInfo::Type::NORMAL;
                 _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_STRING]);
                 break;
             case TokenType::IDENTIFIER: {
@@ -378,29 +384,30 @@ namespace spade
                 switch (scope->get_type()) {
                     case scope::ScopeType::FOLDER_MODULE:
                     case scope::ScopeType::MODULE:
-                        _res_expr_info.module = cast<scope::Module>(&*scope);
                         _res_expr_info.tag = ExprInfo::Type::MODULE;
+                        _res_expr_info.module = cast<scope::Module>(&*scope);
                         break;
                     case scope::ScopeType::COMPOUND:
-                        _res_expr_info.type_info.type = cast<scope::Compound>(&*scope);
                         _res_expr_info.tag = ExprInfo::Type::STATIC;
+                        _res_expr_info.type_info.type = cast<scope::Compound>(&*scope);
                         break;
                     case scope::ScopeType::INIT:
-                        _res_expr_info.init = cast<scope::Init>(&*scope);
                         _res_expr_info.tag = ExprInfo::Type::INIT;
+                        _res_expr_info.init = cast<scope::Init>(&*scope);
                         break;
                     case scope::ScopeType::FUNCTION:
-                        _res_expr_info.function = cast<scope::Function>(&*scope);
                         _res_expr_info.tag = ExprInfo::Type::FUNCTION;
+                        _res_expr_info.function = cast<scope::Function>(&*scope);
                         break;
                     case scope::ScopeType::BLOCK:
                         throw Unreachable();    // surely some parser error
                     case scope::ScopeType::VARIABLE:
-                        _res_expr_info.type_info = cast<scope::Variable>(scope)->get_type_info();
                         _res_expr_info.tag = ExprInfo::Type::NORMAL;
+                        _res_expr_info.type_info = cast<scope::Variable>(scope)->get_type_info();
                         break;
                     case scope::ScopeType::ENUMERATOR:
-                        // TODO: implement enumerator
+                        _res_expr_info.tag = ExprInfo::Type::NORMAL;
+                        _res_expr_info.type_info.type = scope->get_enclosing_compound();
                         break;
                 }
                 break;
@@ -458,6 +465,8 @@ namespace spade
         _res_expr_info.reset();
         switch (caller_info.tag) {
             case ExprInfo::Type::NORMAL: {
+                if (caller_info.is_null())
+                    throw error("cannot access 'null'", &node);
                 if (caller_info.type_info.b_nullable && !node.get_safe()) {
                     throw ErrorGroup<AnalyzerError>(
                             std::pair(ErrorType::ERROR, error("cannot access member of nullable type", &node)),
@@ -581,6 +590,8 @@ namespace spade
         _res_expr_info.reset();
         switch (caller_info.tag) {
             case ExprInfo::Type::NORMAL:
+                if (caller_info.is_null())
+                    throw error("null is not callable", &node);
                 // TODO: check for call operator
                 break;
             case ExprInfo::Type::STATIC:
@@ -609,6 +620,7 @@ namespace spade
     void Analyzer::visit(ast::expr::Reify &node) {
         node.get_caller()->accept(this);
         _res_expr_info.reset();
+        // TODO: implement reify
     }
 
     void Analyzer::visit(ast::expr::Index &node) {
@@ -625,10 +637,12 @@ namespace spade
         auto expr_info = _res_expr_info;
         switch (expr_info.tag) {
             case ExprInfo::Type::NORMAL: {
+                if (expr_info.is_null())
+                    throw error(std::format("cannot apply unary operator '{}' on 'null'", node.get_op()->get_text()), &node);
                 auto type_info = expr_info.type_info;
                 if (type_info.b_nullable) {
-                    throw error(std::format("cannot apply unary expression '{}' on nullable type '{}'",
-                                            node.get_op()->get_text(), type_info.type->to_string()),
+                    throw error(std::format("cannot apply unary operator '{}' on nullable type '{}'", node.get_op()->get_text(),
+                                            type_info.type->to_string()),
                                 &node);
                 }
                 _res_expr_info.reset();
@@ -642,7 +656,7 @@ namespace spade
                             _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_INT]);
                         } else {
                             // Check for overloaded operator ~
-                            throw error(std::format("cannot apply unary expression '~' on '{}'", type_info.type->to_string()),
+                            throw error(std::format("cannot apply unary operator '~' on '{}'", type_info.type->to_string()),
                                         &node);
                         }
                         break;
@@ -654,7 +668,7 @@ namespace spade
                             _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_FLOAT]);
                         } else {
                             // Check for overloaded operator -
-                            throw error(std::format("cannot apply unary expression '-' on '{}'", type_info.type->to_string()),
+                            throw error(std::format("cannot apply unary operator '-' on '{}'", type_info.type->to_string()),
                                         &node);
                         }
                         break;
@@ -666,7 +680,7 @@ namespace spade
                             _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_FLOAT]);
                         } else {
                             // Check for overloaded operator +
-                            throw error(std::format("cannot apply unary expression '+' on '{}'", type_info.type->to_string()),
+                            throw error(std::format("cannot apply unary operator '+' on '{}'", type_info.type->to_string()),
                                         &node);
                         }
                         break;
@@ -677,19 +691,19 @@ namespace spade
                 break;
             }
             case ExprInfo::Type::STATIC:
-                throw error(std::format("cannot apply unary expression '{}' on '{}'", node.get_op()->get_text(),
+                throw error(std::format("cannot apply unary operator '{}' on '{}'", node.get_op()->get_text(),
                                         expr_info.type_info.type->to_string()),
                             &node);
             case ExprInfo::Type::MODULE:
-                throw error(std::format("cannot apply unary expression '{}' on '{}'", node.get_op()->get_text(),
+                throw error(std::format("cannot apply unary operator '{}' on '{}'", node.get_op()->get_text(),
                                         expr_info.module->to_string()),
                             &node);
             case ExprInfo::Type::INIT:
-                throw error(std::format("cannot apply unary expression '{}' on '{}'", node.get_op()->get_text(),
+                throw error(std::format("cannot apply unary operator '{}' on '{}'", node.get_op()->get_text(),
                                         expr_info.init->to_string()),
                             &node);
             case ExprInfo::Type::FUNCTION:
-                throw error(std::format("cannot apply unary expression '{}' on '{}'", node.get_op()->get_text(),
+                throw error(std::format("cannot apply unary operator '{}' on '{}'", node.get_op()->get_text(),
                                         expr_info.function->to_string()),
                             &node);
         }
@@ -708,15 +722,21 @@ namespace spade
         _res_expr_info.reset();
         _res_expr_info.tag = ExprInfo::Type::NORMAL;
         if (node.get_safe()) {
-            try {
-                check_cast(expr_info.type_info.type, type_cast_info.type, node, true);
-            } catch (const ErrorGroup<AnalyzerError> &err) {
-                // print warnings
-                printer.print(err);
+            if (expr_info.is_null())
+                printer.print(ErrorType::WARNING, error("expression is always 'null'", &node));
+            else {
+                try {
+                    check_cast(expr_info.type_info.type, type_cast_info.type, node, true);
+                } catch (const ErrorGroup<AnalyzerError> &err) {
+                    // print warnings
+                    printer.print(err);
+                }
+                type_cast_info.b_nullable = true;
+                _res_expr_info.type_info = type_cast_info;
             }
-            type_cast_info.b_nullable = true;
-            _res_expr_info.type_info = type_cast_info;
         } else {
+            if (expr_info.is_null())
+                throw error("cannot cast 'null'", &node);
             check_cast(expr_info.type_info.type, type_cast_info.type, node, false);
             _res_expr_info.type_info = type_cast_info;
         }
@@ -805,14 +825,91 @@ namespace spade
             scope = find_scope<scope::Variable>(node.get_name()->get_text());
         }
 
+        TypeInfo type_info;
         if (auto type = node.get_type()) {
             type->accept(this);
+            type_info = _res_type_info;
         }
 
         if (auto expr = node.get_expr()) {
             expr->accept(this);
+            auto expr_info = _res_expr_info;
+            // Check type inference
+            switch (expr_info.tag) {
+                case ExprInfo::Type::NORMAL:
+                    if (node.get_type()) {
+                        if (!expr_info.is_null() && type_info.type != expr_info.type_info.type)
+                            throw error(std::format("cannot assign value of type '{}' to variable of type '{}'",
+                                                    expr_info.type_info.to_string(), type_info.to_string()),
+                                        &node);
+                        if (!type_info.b_nullable && expr_info.type_info.b_nullable) {
+                            expr_info.is_null()
+                                    ? throw error(std::format("cannot assign 'null' to variable of type '{}'",
+                                                              type_info.to_string()),
+                                                  &node)
+                                    : throw error(std::format("cannot assign value of type '{}' to variable of type '{}'",
+                                                              expr_info.type_info.to_string(), type_info.to_string()),
+                                                  &node);
+                        }
+                        if (type_info.type_args.empty() && expr_info.type_info.type_args.empty()) {
+                            // no type args, plain vanilla
+                        } else if (/* type_info.type_args.empty() &&  */ !expr_info.type_info.type_args.empty()) {
+                            // deduce from type_info
+                            type_info.type_args = expr_info.type_info.type_args;
+                        } else if (!type_info.type_args.empty() /*  && expr_info.type_info.type_args.empty() */) {
+                            // deduce from expr_info
+                            // TODO: check type args
+                        } else /* if(!type_info.type_args.empty() && !expr_info.type_info.type_args.empty()) */ {
+                            if (type_info.type_args.size() != expr_info.type_info.type_args.size())
+                                throw error(std::format("failed to deduce type arguments"), &node);    // failed deducing
+                            // now both type_info and expr_info have typeargs (same size)
+                            // check if both of them are same
+                            // TODO: implement covariance and contravariance
+                        }
+                    } else {
+                        // deduce variable type from expression
+                        type_info = expr_info.type_info;
+                    }
+                    break;
+                case ExprInfo::Type::STATIC:
+                    if (node.get_type()) {
+                        if (!type_info.is_type_literal())
+                            throw error(std::format("cannot assign value of type '{}' to variable of type '{}'",
+                                                    expr_info.type_info.to_string(), type_info.to_string()),
+                                        &node);
+                        if (!type_info.b_nullable && expr_info.type_info.b_nullable)
+                            throw error(std::format("cannot assign value of type '{}' to variable of type '{}'",
+                                                    expr_info.type_info.to_string(), type_info.to_string()),
+                                        &node);
+                    } else {
+                        // deduce variable type as type literal
+                        // also set nullable if any
+                        type_info.reset();
+                        type_info.b_nullable = expr_info.type_info.b_nullable;
+                    }
+                    break;
+                case ExprInfo::Type::MODULE:
+                    if (node.get_type())
+                        throw error(std::format("cannot assign a module to variable of type '{}'", type_info.to_string()),
+                                    &node);
+                    else
+                        throw error(std::format("cannot assign a module to variable", type_info.to_string()), &node);
+                case ExprInfo::Type::INIT:
+                    // TODO: implement function resolution
+                    break;
+                case ExprInfo::Type::FUNCTION:
+                    // TODO: implement function resolution
+                    break;
+            }
         }
 
+        if (!node.get_expr() && !node.get_type()) {
+            // type_info.reset();
+            type_info.type = cast<scope::Compound>(&*internals[Analyzer::Internal::SPADE_ANY]);
+            // non nullable by default
+        }
+
+        scope->set_type_info(type_info);
         end_scope();
     }
 

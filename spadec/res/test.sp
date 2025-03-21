@@ -1,7 +1,7 @@
 import foo as bar
 import mod.bar as foo
 
-var global = Aa.a as B
+# var global = Aa.a as B
 
 class Aa{
 	var a
@@ -15,7 +15,7 @@ class B{
 
 enum Color {
 	RED, BLUE, GREEN, WHITE, BLACK
-	static var value: int = foo
+	static var value: int = 0
 }
 
 fun abaxa(){}
@@ -28,7 +28,7 @@ interface Foo {
 }
 
 abstract class A : Foo {
-	var color: Color=self
+	var color: Color=Color.RED
 	abstract fun f()
 }
 

@@ -14,13 +14,19 @@ namespace spade
     }    // namespace scope
 
     struct TypeInfo {
-        scope::Compound *type;
+        /// scope of the type
+        scope::Compound *type = null;
+        /// type args of the type
         std::vector<TypeInfo> type_args;
+        /// flag if the type is nullable
         bool b_nullable = false;
+        /// flag if the type or value is null by itself
+        bool b_null = false;
 
         TypeInfo() = default;
 
-        TypeInfo(const TypeInfo &other) : type(other.type), type_args(other.type_args), b_nullable(other.b_nullable) {}
+        TypeInfo(const TypeInfo &other)
+            : type(other.type), type_args(other.type_args), b_nullable(other.b_nullable), b_null(other.b_null) {}
 
         TypeInfo(TypeInfo &&other) noexcept = default;
 
@@ -31,6 +37,7 @@ namespace spade
             else
                 type_args.clear();
             b_nullable = other.b_nullable;
+            b_null = other.b_null;
             return *this;
         }
 
@@ -46,13 +53,14 @@ namespace spade
             if (!type_args.empty())
                 type_args.clear();
             b_nullable = false;
+            b_null = false;
         }
 
         bool is_type_literal() const {
             return type == null && type_args.empty();
         }
 
-        string to_string()const;
+        string to_string() const;
     };
 
     struct ExprInfo {
@@ -180,7 +188,11 @@ namespace spade
             tag = Type::NORMAL;
         }
 
-        string to_string()const;
+        bool is_null() const {
+            return tag == Type::NORMAL && type_info.b_null && type_info.b_nullable;
+        }
+
+        string to_string() const;
     };
 
     class ScopeInfo {
