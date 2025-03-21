@@ -137,8 +137,6 @@ namespace spade
                 return ">=";
             case TokenType::GT:
                 return ">";
-            case TokenType::BANG:
-                return "!";
             case TokenType::HOOK:
                 return "?";
             case TokenType::TILDE:
@@ -322,8 +320,6 @@ namespace spade
                 return "GE";
             case TokenType::GT:
                 return "GT";
-            case TokenType::BANG:
-                return "BANG";
             case TokenType::HOOK:
                 return "HOOK";
             case TokenType::TILDE:

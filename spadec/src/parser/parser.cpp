@@ -719,7 +719,6 @@ namespace spade
 
     std::shared_ptr<ast::Expression> Parser::unary() {
         switch (peek()->get_type()) {
-            case TokenType::BANG:
             case TokenType::TILDE:
             case TokenType::DASH:
             case TokenType::PLUS: {

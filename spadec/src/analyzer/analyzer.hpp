@@ -31,6 +31,16 @@ namespace spade
             return AnalyzerError(msg, get_current_module()->get_module_node()->get_file_path(), node);
         }
 
+        template<ast::HasLineInfo T>
+        void warning(const string &msg, T node) {
+            printer.print(ErrorType::WARNING, error(msg, node));
+        }
+
+        template<ast::HasLineInfo T>
+        void note(const string &msg, T node) {
+            printer.print(ErrorType::NOTE, error(msg, node));
+        }
+
       public:
         explicit Analyzer(ErrorPrinter printer) : printer(printer) {}
 

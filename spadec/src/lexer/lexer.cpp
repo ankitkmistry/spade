@@ -125,7 +125,7 @@ namespace spade
                 case '!':
                     if (match('='))
                         return get_token(TokenType::NE);
-                    return get_token(TokenType::BANG);
+                    throw make_error("unexpected character: !");
                 case '?':
                     if (match('?'))
                         return get_token(TokenType::ELVIS);

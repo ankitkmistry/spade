@@ -89,7 +89,7 @@ body: ':' stmt sep | block;
 
 // Expression
 expr
-    : op=(BANG|TILDE|DASH|PLUS)? postfix                            # unaryExpr
+    : op=(TILDE|DASH|PLUS)? postfix                            # unaryExpr
     | expr '??' expr                                        # elvisExpr
     | expr (AS safe='?'? type)*                                   # castExpr
     | <assoc=right> expr '**' expr                          # powerExpr
@@ -232,7 +232,6 @@ STAR : '*' ;
 PLUS : '+' ;
 DASH : '-' ;
 TILDE : '~' ;
-BANG : '!' ;
 AS: 'as';
 IS: 'is';
 NOT: 'not';

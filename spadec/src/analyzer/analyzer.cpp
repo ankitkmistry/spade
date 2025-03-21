@@ -177,6 +177,12 @@ namespace spade
     }
 
     void Analyzer::check_cast(scope::Compound *from, scope::Compound *to, const ast::AstNode &node, bool safe) {
+        if (from == null || to == null) {
+            LOGGER.log_warn("check_cast: one of the scope::Compound is null, casting cannot be done");
+            LOGGER.log_debug(
+                    std::format("check_cast: from = {}, to = {}", (from ? "non-null" : "null"), (to ? "non-null" : "null")));
+            return;    // TODO: resolve this
+        }
         // take advantage of super classes
         if (from->has_super(to))
             return;
@@ -255,8 +261,12 @@ namespace spade
                                                         to_member_scope));
             }
         }
-        if (error_state)
-            throw err_grp;
+        if (error_state) {
+            if (safe)
+                printer.print(err_grp);
+            else
+                throw err_grp;
+        }
         return;
     }
 
@@ -582,6 +592,10 @@ namespace spade
             case ExprInfo::Type::FUNCTION:
                 throw error("cannot access member of function or constructor", &node);
         }
+        // This is the property of safe dot operator
+        // where 'a?.b' returns 'a.b' if 'a' is not null, else returns null
+        if (node.get_safe() && (_res_expr_info.tag == ExprInfo::Type::NORMAL || _res_expr_info.tag == ExprInfo::Type::STATIC))
+            _res_expr_info.type_info.b_nullable = true;
     }
 
     void Analyzer::visit(ast::expr::Call &node) {
@@ -648,7 +662,7 @@ namespace spade
                 _res_expr_info.reset();
                 _res_expr_info.tag = ExprInfo::Type::NORMAL;
                 switch (node.get_op()->get_type()) {
-                    case TokenType::BANG:
+                    case TokenType::NOT:
                         _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_BOOL]);
                         break;
                     case TokenType::TILDE: {
@@ -691,20 +705,11 @@ namespace spade
                 break;
             }
             case ExprInfo::Type::STATIC:
-                throw error(std::format("cannot apply unary operator '{}' on '{}'", node.get_op()->get_text(),
-                                        expr_info.type_info.type->to_string()),
-                            &node);
             case ExprInfo::Type::MODULE:
-                throw error(std::format("cannot apply unary operator '{}' on '{}'", node.get_op()->get_text(),
-                                        expr_info.module->to_string()),
-                            &node);
             case ExprInfo::Type::INIT:
-                throw error(std::format("cannot apply unary operator '{}' on '{}'", node.get_op()->get_text(),
-                                        expr_info.init->to_string()),
-                            &node);
             case ExprInfo::Type::FUNCTION:
                 throw error(std::format("cannot apply unary operator '{}' on '{}'", node.get_op()->get_text(),
-                                        expr_info.function->to_string()),
+                                        expr_info.to_string()),
                             &node);
         }
     }
@@ -723,14 +728,9 @@ namespace spade
         _res_expr_info.tag = ExprInfo::Type::NORMAL;
         if (node.get_safe()) {
             if (expr_info.is_null())
-                printer.print(ErrorType::WARNING, error("expression is always 'null'", &node));
+                warning("expression is always 'null'", &node);
             else {
-                try {
-                    check_cast(expr_info.type_info.type, type_cast_info.type, node, true);
-                } catch (const ErrorGroup<AnalyzerError> &err) {
-                    // print warnings
-                    printer.print(err);
-                }
+                check_cast(expr_info.type_info.type, type_cast_info.type, node, true);
                 type_cast_info.b_nullable = true;
                 _res_expr_info.type_info = type_cast_info;
             }
@@ -742,11 +742,69 @@ namespace spade
         }
     }
 
-    void Analyzer::visit(ast::expr::Binary &node) {}
+    void Analyzer::visit(ast::expr::Binary &node) {
+        string op_str = (node.get_op1() ? node.get_op1()->get_text() : "") + (node.get_op2() ? node.get_op2()->get_text() : "");
+
+        node.get_left()->accept(this);
+        auto left_expr_info = _res_expr_info;
+        node.get_right()->accept(this);
+        auto right_expr_info = _res_expr_info;
+
+        if (left_expr_info.is_null() || right_expr_info.is_null())
+            throw error(std::format("cannot apply binary operator '{}' on 'null'", op_str), &node);
+        switch (node.get_op1()->get_type()) {
+            case TokenType::STAR_STAR:
+                break;
+            case TokenType::STAR:
+                break;
+            case TokenType::SLASH:
+                break;
+            case TokenType::PERCENT:
+                break;
+            case TokenType::PLUS:
+                break;
+            case TokenType::DASH:
+                break;
+            case TokenType::LSHIFT:
+                break;
+            case TokenType::RSHIFT:
+                break;
+            case TokenType::URSHIFT:
+                break;
+            case TokenType::AMPERSAND:
+                break;
+            case TokenType::CARET:
+                break;
+            case TokenType::PIPE:
+                break;
+            case TokenType::IS:
+                if (node.get_op2() && node.get_op2()->get_type() == TokenType::NOT) {
+                } else {
+                }
+                break;
+            case TokenType::NOT:
+                if (node.get_op2() && node.get_op2()->get_type() == TokenType::IN) {
+                } else
+                    throw Unreachable();    // surely some parser error
+                break;
+            case TokenType::IN:
+                break;
+            case TokenType::AND:
+                break;
+            case TokenType::OR:
+                break;
+            default:
+                throw Unreachable();
+        }
+    }
 
     void Analyzer::visit(ast::expr::ChainBinary &node) {}
 
-    void Analyzer::visit(ast::expr::Ternary &node) {}
+    void Analyzer::visit(ast::expr::Ternary &node) {
+        node.get_condition()->accept(this);
+        node.get_on_true()->accept(this);
+        node.get_on_false()->accept(this);
+    }
 
     void Analyzer::visit(ast::expr::Assignment &node) {}
 

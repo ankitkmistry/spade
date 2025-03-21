@@ -19,7 +19,6 @@ namespace spade
         GE,
         GT,
         // Operators
-        BANG,
         HOOK,
         TILDE,
         PLUS,
