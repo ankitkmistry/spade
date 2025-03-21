@@ -9,6 +9,10 @@
 
 namespace spade::scope
 {
+    class Module;
+    class Compound;
+    class Function;
+
     enum class ScopeType { FOLDER_MODULE, MODULE, COMPOUND, INIT, FUNCTION, BLOCK, VARIABLE, ENUMERATOR };
 
     class Scope {
@@ -22,11 +26,13 @@ namespace spade::scope
         SymbolPath path;
         /// the ast node of the scope
         ast::AstNode *node;
+        /// parent of the scope
+        Scope *parent;
         /// scopes that are members (can be referenced) e.g. variables, functions
         std::unordered_map<string, Member> members;
 
       public:
-        Scope(ScopeType type, ast::AstNode *node, const SymbolPath &path = {}) : type(type), path(path), node(node) {}
+        Scope(ScopeType type, ast::AstNode *node, const SymbolPath &path = {}) : type(type), node(node), path(path) {}
 
         virtual ~Scope() = default;
 
@@ -62,32 +68,21 @@ namespace spade::scope
             return node;
         }
 
-        const std::unordered_map<string, std::pair<std::shared_ptr<Token>, std::shared_ptr<Scope>>> &get_members() const {
+        Scope *get_parent() const {
+            return parent;
+        }
+
+        const std::unordered_map<string, Member> &get_members() const {
             return members;
         }
 
-        bool new_variable(const string &name, const std::shared_ptr<Token> &name_tok, std::shared_ptr<Scope> value) {
-            if (members.contains(name))
-                return false;
-            members[name] = {name_tok, value};
-            return true;
-        }
+        bool new_variable(const string &name, const std::shared_ptr<Token> &name_tok, std::shared_ptr<Scope> value);
 
         bool new_variable(const std::shared_ptr<Token> &name_tok, std::shared_ptr<Scope> value) {
-            auto name = name_tok->get_text();
-            if (members.contains(name))
-                return false;
-            members[name] = {name_tok, value};
-            return true;
+            return new_variable(name_tok->get_text(), name_tok, value);
         }
 
-        bool del_variable(const string &name) {
-            // if (members.contains(name))
-            //     return false;
-            // members.erase(name);
-            // return true;
-            return members.contains(name) ? (members.erase(name), true) : false;
-        }
+        bool del_variable(const string &name);
 
         std::shared_ptr<Scope> get_variable(const string &name) const {
             return members.contains(name) ? members.at(name).second : null;
@@ -101,38 +96,11 @@ namespace spade::scope
             return members.contains(name) ? members.at(name).first : null;
         }
 
-        void print() const {
-            switch (type) {
-                case ScopeType::FOLDER_MODULE:
-                    std::cout << "[FOLDER_MODULE] ";
-                    break;
-                case ScopeType::MODULE:
-                    std::cout << "[MODULE] ";
-                    break;
-                case ScopeType::COMPOUND:
-                    std::cout << "[COMPOUND] ";
-                    break;
-                case ScopeType::INIT:
-                    std::cout << "[INIT] ";
-                    break;
-                case ScopeType::FUNCTION:
-                    std::cout << "[FUNCTION] ";
-                    break;
-                case ScopeType::BLOCK:
-                    std::cout << "[BLOCK] ";
-                    break;
-                case ScopeType::VARIABLE:
-                    std::cout << "[VARIABLE] ";
-                    break;
-                case ScopeType::ENUMERATOR:
-                    std::cout << "[ENUMERATOR] ";
-                    break;
-            }
-            std::cout << path << std::endl;
-            for (const auto &[_,member]: members) {
-                member.second->print();
-            }
-        }
+        Module *get_enclosing_module() const;
+        Compound *get_enclosing_compound() const;
+        Function *get_enclosing_function() const;
+
+        void print() const;
     };
 
     class FolderModule : public Scope {
@@ -155,38 +123,50 @@ namespace spade::scope
 
     class Compound : public Scope {
         string name;
-        std::unordered_set<std::shared_ptr<Compound>> parents;
+        std::unordered_set<Compound *> supers;
 
       public:
         Compound(string name) : Scope(ScopeType::COMPOUND, null), name(name) {}
 
         Compound(ast::decl::Compound *node) : Scope(ScopeType::COMPOUND, node), name(node->get_name()->get_text()) {}
 
-        void inherit_from(const std::shared_ptr<Compound> &parent) {
-            for (const auto &[name, member]: parent->members) {
+        void inherit_from(const std::shared_ptr<Compound> &super) {
+            for (const auto &[name, member]: super->members) {
                 new_variable(name, member.first, member.second);
             }
-            parents.insert(parent);
+            supers.insert(&*super);
         }
 
         const string &get_name() const {
             return name;
         }
 
-        bool has_parent(const std::shared_ptr<Compound> &parent) const {
-            if (parents.contains(parent))
+        bool has_super(const std::shared_ptr<Compound> &super) const {
+            if (supers.contains(&*super))
                 return true;
             else {
-                for (const auto &p: parents) {
-                    if (p->has_parent(parent))
+                for (const auto &p: supers) {
+                    if (p->has_super(super))
                         return true;
                 }
                 return false;
             }
         }
 
-        const std::unordered_set<std::shared_ptr<Compound>> &get_parents() const {
-            return parents;
+        bool has_super(Compound *super) const {
+            if (supers.contains(super))
+                return true;
+            else {
+                for (const auto &p: supers) {
+                    if (p->has_super(super))
+                        return true;
+                }
+                return false;
+            }
+        }
+
+        const std::unordered_set<Compound *> &get_supers() const {
+            return supers;
         }
 
         ast::decl::Compound *get_compound_node() const {

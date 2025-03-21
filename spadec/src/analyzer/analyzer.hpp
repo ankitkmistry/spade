@@ -4,7 +4,6 @@
 #include "parser/ast.hpp"
 #include "info.hpp"
 #include "scope.hpp"
-#include <memory>
 
 namespace spade
 {
@@ -17,7 +16,6 @@ namespace spade
         std::unordered_map<ast::Module *, ScopeInfo> module_scopes;
         std::vector<std::shared_ptr<scope::Scope>> scope_stack;
 
-        std::shared_ptr<scope::Module> get_module_of(std::shared_ptr<scope::Scope> scope) const;
         std::shared_ptr<scope::Module> get_current_module() const;
         std::shared_ptr<scope::Scope> get_parent_scope() const;
         std::shared_ptr<scope::Scope> get_current_scope() const;

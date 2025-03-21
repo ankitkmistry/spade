@@ -14,7 +14,7 @@ namespace spade
     }    // namespace scope
 
     struct TypeInfo {
-        std::shared_ptr<scope::Compound> type;
+        scope::Compound *type;
         std::vector<TypeInfo> type_args;
         bool b_nullable = false;
 
@@ -30,7 +30,7 @@ namespace spade
 
         void reset() {
             if (type)
-                type.reset();
+                type = null;
             if (!type_args.empty())
                 type_args.clear();
             b_nullable = false;

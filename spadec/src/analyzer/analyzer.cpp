@@ -7,7 +7,6 @@
 #include "spimp/error.hpp"
 #include "symbol_path.hpp"
 #include "utils/error.hpp"
-#include <memory>
 
 namespace spade
 {
@@ -55,39 +54,6 @@ namespace spade
         module_scopes.emplace(null, ScopeInfo(module));
     }
 
-    std::shared_ptr<scope::Module> Analyzer::get_module_of(std::shared_ptr<scope::Scope> scope) const {
-        if (scope->get_path().empty())
-            return null;    // return nothing if the scope has no symbol path
-        if (scope->get_type() == scope::ScopeType::FOLDER_MODULE || scope->get_type() == scope::ScopeType::MODULE)
-            return null;    // could not get module of a module
-        auto path_elements = scope->get_path().get_elements();
-        auto p_itr = path_elements.begin();
-        std::shared_ptr<scope::Scope> module;
-        // Find the topmost module
-        for (const auto &[member_ast, member]: module_scopes) {
-            if (member.get_scope()->get_path().to_string() == *p_itr) {
-                module = member.get_scope();
-                if (module->get_type() == scope::ScopeType::MODULE) {
-                    return cast<scope::Module>(module);
-                } else
-                    break;
-            }
-        }
-        if (!module)
-            return null;    // could not find topmost module
-        ++p_itr;
-        // Now find the actual module
-        for (; p_itr != path_elements.end(); ++p_itr) {
-            if (auto m = module->get_variable(*p_itr); m && m->get_type() == scope::ScopeType::MODULE) {
-                return cast<scope::Module>(m);
-            } else if (m) {
-                module = m;
-            } else
-                return null;    // scope has invalid symbol path
-        }
-        return null;    // could not find the actual module
-    }
-
     std::shared_ptr<scope::Module> Analyzer::get_current_module() const {
         for (auto itr = scope_stack.rbegin(); itr != scope_stack.rend(); ++itr)
             if (auto scope = *itr; scope->get_type() == scope::ScopeType::MODULE)
@@ -120,22 +86,26 @@ namespace spade
 
     void Analyzer::resolve_context(const std::shared_ptr<scope::Scope> &scope, const ast::AstNode &node) {
         /*
-        +================================================================================================================+
-        |                                               ACCESSORS                                                        |
-        +===================+============================================================================================+
-        |   private         | same class                                                                                 |
-        |   internal        | same class, same module subclass                                                           |
-        |   module private  | same class, same module subclass, same module,                                             |
-        |   protected       | same class, same module subclass, same module, other module subclass                       |
-        |   public          | same class, same module subclass, same module, other module subclass, other non-subclass   |
-        +===================+============================================================================================+
+            +================================================================================================================+
+            |                                               ACCESSORS                                                        |
+            +===================+============================================================================================+
+            |   private         | same class                                                                                 |
+            |   internal        | same class, same module subclass                                                           |
+            |   module private  | same class, same module subclass, same module,                                             |
+            |   protected       | same class, same module subclass, same module, other module subclass                       |
+            |   public          | same class, same module subclass, same module, other module subclass, other non-subclass   |
+            +===================+============================================================================================+
         */
         // TODO: implement context resolution
 
-        auto cur_mod = get_current_module();
-        auto scope_mod = get_module_of(scope);
+        auto cur_mod = get_current_scope()->get_enclosing_module();
+        auto scope_mod = scope->get_enclosing_module();
+        if (!cur_mod || !scope_mod)
+            throw Unreachable();    // this cannot happen
+
         std::vector<std::shared_ptr<Token>> modifiers;
         // scope is a variable of scope::Compound
+        // scope.get_enclosing_compound() is never null
         switch (scope->get_type()) {
             case scope::ScopeType::COMPOUND:
             case scope::ScopeType::INIT:
@@ -149,17 +119,45 @@ namespace spade
         }
         for (const auto &modifier: modifiers) {
             switch (modifier->get_type()) {
-                case TokenType::PRIVATE:
+                case TokenType::PRIVATE: {
                     // private here
+                    auto cur_class = get_current_scope()->get_enclosing_compound();
+                    auto scope_class = scope->get_enclosing_compound();
+                    if (!cur_class || cur_class != scope_class)
+                        throw ErrorGroup<AnalyzerError>(
+                                std::pair(ErrorType::ERROR, error("cannot access 'private' member", &node)),
+                                std::pair(ErrorType::NOTE, error("declared here", scope)));
                     return;
-                case TokenType::INTERNAL:
+                }
+                case TokenType::INTERNAL: {
                     // internal here
+                    if (cur_mod != scope_mod) {
+                        throw ErrorGroup<AnalyzerError>(
+                                std::pair(ErrorType::ERROR, error("cannot access 'internal' member", &node)),
+                                std::pair(ErrorType::NOTE, error("declared here", scope)));
+                    }
+                    auto cur_class = get_current_scope()->get_enclosing_compound();
+                    auto scope_class = scope->get_enclosing_compound();
+                    if (!cur_class || cur_class != scope_class || !cur_class->has_super(scope_class))
+                        throw ErrorGroup<AnalyzerError>(
+                                std::pair(ErrorType::ERROR, error("cannot access 'internal' member", &node)),
+                                std::pair(ErrorType::NOTE, error("declared here", scope)));
                     return;
-                case TokenType::PROTECTED:
+                }
+                case TokenType::PROTECTED: {
+                    auto cur_class = get_current_scope()->get_enclosing_compound();
+                    auto scope_class = scope->get_enclosing_compound();
+                    if (cur_mod != scope_mod && (!cur_class || !cur_class->has_super(scope_class))) {
+                        throw ErrorGroup<AnalyzerError>(
+                                std::pair(ErrorType::ERROR, error("cannot access 'protected' member", &node)),
+                                std::pair(ErrorType::NOTE, error("declared here", scope)));
+                    }
                     // protected here
                     return;
+                }
                 case TokenType::PUBLIC:
                     // public here
+                    // eat 5 star, do nothing
                     return;
                 default:
                     break;
@@ -227,7 +225,7 @@ namespace spade
             type_arg->accept(this);
             type_args.push_back(_res_type_info);
         }
-        _res_type_info.type = cast<scope::Compound>(type_scope);
+        _res_type_info.type = cast<scope::Compound>(&*type_scope);
         _res_type_info.type_args = type_args;
     }
 
@@ -261,23 +259,23 @@ namespace spade
         _res_expr_info.reset();
         switch (node.get_token()->get_type()) {
             case TokenType::TRUE:
-                _res_expr_info.type_info.type = cast<scope::Compound>(internals[Internal::SPADE_BOOL]);
+                _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_BOOL]);
                 break;
             case TokenType::FALSE:
-                _res_expr_info.type_info.type = cast<scope::Compound>(internals[Internal::SPADE_BOOL]);
+                _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_BOOL]);
                 break;
             case TokenType::NULL_:
-                _res_expr_info.type_info.type = cast<scope::Compound>(internals[Internal::SPADE_ANY]);
+                _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_ANY]);
                 _res_expr_info.type_info.b_nullable = true;
                 break;
             case TokenType::INTEGER:
-                _res_expr_info.type_info.type = cast<scope::Compound>(internals[Internal::SPADE_INT]);
+                _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_INT]);
                 break;
             case TokenType::FLOAT:
-                _res_expr_info.type_info.type = cast<scope::Compound>(internals[Internal::SPADE_FLOAT]);
+                _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_FLOAT]);
                 break;
             case TokenType::STRING:
-                _res_expr_info.type_info.type = cast<scope::Compound>(internals[Internal::SPADE_STRING]);
+                _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_STRING]);
                 break;
             case TokenType::IDENTIFIER: {
                 // Find the scope where name is located
@@ -293,7 +291,7 @@ namespace spade
                         _res_expr_info.tag = ExprInfo::Type::MODULE;
                         break;
                     case scope::ScopeType::COMPOUND:
-                        _res_expr_info.type_info.type = cast<scope::Compound>(scope);
+                        _res_expr_info.type_info.type = cast<scope::Compound>(&*scope);
                         _res_expr_info.tag = ExprInfo::Type::STATIC;
                         break;
                     case scope::ScopeType::INIT:
@@ -332,12 +330,12 @@ namespace spade
             auto klass = cast<scope::Compound>(get_parent_scope());
             if (auto reference = node.get_reference()) {
                 reference->accept(this);
-                if (!klass->has_parent(_res_type_info.type))
+                if (!klass->has_super(_res_type_info.type))
                     throw error("invalid super class", &node);
                 _res_expr_info.type_info.type = _res_type_info.type;
                 return;
             } else {
-                for (const auto &parent: klass->get_parents()) {
+                for (const auto &parent: klass->get_supers()) {
                     if (parent->get_compound_node()->get_token()->get_type() == TokenType::CLASS) {
                         _res_expr_info.type_info.type = parent;
                         return;
@@ -357,7 +355,7 @@ namespace spade
              get_current_scope()->get_type() == scope::ScopeType::INIT ||
              get_current_scope()->get_type() == scope::ScopeType::VARIABLE ||
              get_current_scope()->get_type() == scope::ScopeType::ENUMERATOR)) {
-            _res_expr_info.type_info.type = cast<scope::Compound>(get_parent_scope());
+            _res_expr_info.type_info.type = cast<scope::Compound>(&*get_parent_scope());
         } else {
             throw error("self is only allowed in class level declarations only", &node);
         }
@@ -387,7 +385,7 @@ namespace spade
                 resolve_context(member_scope, node);
                 switch (member_scope->get_type()) {
                     case scope::ScopeType::COMPOUND:
-                        _res_expr_info.type_info.type = cast<scope::Compound>(member_scope);
+                        _res_expr_info.type_info.type = cast<scope::Compound>(&*member_scope);
                         _res_expr_info.tag = ExprInfo::Type::STATIC;
                         break;
                     case scope::ScopeType::INIT:
@@ -428,7 +426,7 @@ namespace spade
                 resolve_context(member_scope, node);
                 switch (member_scope->get_type()) {
                     case scope::ScopeType::COMPOUND:
-                        _res_expr_info.type_info.type = cast<scope::Compound>(member_scope);
+                        _res_expr_info.type_info.type = cast<scope::Compound>(&*member_scope);
                         _res_expr_info.tag = ExprInfo::Type::STATIC;
                         break;
                     case scope::ScopeType::INIT:
@@ -464,7 +462,7 @@ namespace spade
                         _res_expr_info.tag = ExprInfo::Type::MODULE;
                         break;
                     case scope::ScopeType::COMPOUND:
-                        _res_expr_info.type_info.type = cast<scope::Compound>(scope);
+                        _res_expr_info.type_info.type = cast<scope::Compound>(&*scope);
                         _res_expr_info.tag = ExprInfo::Type::STATIC;
                         break;
                     case scope::ScopeType::FUNCTION:
