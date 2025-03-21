@@ -1,13 +1,24 @@
 import foo as bar
 import mod.bar as foo
 
+var global = Aa.a as B
+
+class Aa{
+	var a
+}
+
+class B{
+	class a
+	var b
+}
+
+
 enum Color {
 	RED, BLUE, GREEN, WHITE, BLACK
-	static var value: int
+	static var value: int = foo
 }
 
 fun abaxa(){}
-
 
 interface Foo {
 	static var size = 0

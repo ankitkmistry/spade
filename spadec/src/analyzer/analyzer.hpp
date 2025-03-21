@@ -1,6 +1,7 @@
 #pragma once
 
 #include "utils/error.hpp"
+#include "utils/error_printer.hpp"
 #include "parser/ast.hpp"
 #include "info.hpp"
 #include "scope.hpp"
@@ -21,6 +22,9 @@ namespace spade
         std::shared_ptr<scope::Scope> get_current_scope() const;
         std::shared_ptr<scope::Scope> find_name(const string &name) const;
         void resolve_context(const std::shared_ptr<scope::Scope> &scope, const ast::AstNode &node);
+        void check_cast(scope::Compound *from, scope::Compound *to, const ast::AstNode &node, bool safe);
+
+        ErrorPrinter printer;
 
         template<ast::HasLineInfo T>
         AnalyzerError error(const string &msg, T node) {
@@ -28,6 +32,8 @@ namespace spade
         }
 
       public:
+        explicit Analyzer(ErrorPrinter printer) : printer(printer) {}
+
         void analyze(const std::vector<std::shared_ptr<ast::Module>> &modules);
 
       private:

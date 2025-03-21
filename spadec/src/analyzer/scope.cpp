@@ -43,33 +43,7 @@ namespace spade::scope
     }
 
     void Scope::print() const {
-        switch (type) {
-            case ScopeType::FOLDER_MODULE:
-                std::cout << "[FOLDER_MODULE] ";
-                break;
-            case ScopeType::MODULE:
-                std::cout << "[MODULE] ";
-                break;
-            case ScopeType::COMPOUND:
-                std::cout << "[COMPOUND] ";
-                break;
-            case ScopeType::INIT:
-                std::cout << "[INIT] ";
-                break;
-            case ScopeType::FUNCTION:
-                std::cout << "[FUNCTION] ";
-                break;
-            case ScopeType::BLOCK:
-                std::cout << "[BLOCK] ";
-                break;
-            case ScopeType::VARIABLE:
-                std::cout << "[VARIABLE] ";
-                break;
-            case ScopeType::ENUMERATOR:
-                std::cout << "[ENUMERATOR] ";
-                break;
-        }
-        std::cout << path << std::endl;
+        std::cout << to_string() << std::endl;
         for (const auto &[_, member]: members) {
             member.second->print();
         }

@@ -7,6 +7,9 @@
 #include "spimp/error.hpp"
 #include "symbol_path.hpp"
 #include "utils/error.hpp"
+#include <format>
+
+// TODO: implement generics
 
 namespace spade
 {
@@ -76,6 +79,11 @@ namespace spade
                 scope = (*itr)->get_variable(name);
                 break;
             }
+            // TODO: what about functions
+            if ((*itr)->has_variable(name + "()")) {
+                scope = (*itr)->get_variable(name + "()");
+                break;
+            }
         }
         // Check for null module
         if (!scope && module_scopes.at(null).get_scope()->has_variable(name)) {
@@ -86,18 +94,17 @@ namespace spade
 
     void Analyzer::resolve_context(const std::shared_ptr<scope::Scope> &scope, const ast::AstNode &node) {
         /*
-            +================================================================================================================+
-            |                                               ACCESSORS                                                        |
-            +===================+============================================================================================+
-            |   private         | same class                                                                                 |
-            |   internal        | same class, same module subclass                                                           |
-            |   module private  | same class, same module subclass, same module,                                             |
-            |   protected       | same class, same module subclass, same module, other module subclass                       |
-            |   public          | same class, same module subclass, same module, other module subclass, other non-subclass   |
-            +===================+============================================================================================+
-        */
-        // TODO: implement context resolution
+            +=======================================================================================================================+
+            |                                                   ACCESSORS |
+            +===================+===================================================================================================+
+            |   private         | same class | |   internal        | same class, same module subclass | |   module private  |
+           same class, same module subclass, same module                                                     | |   protected |
+           same class, same module subclass, same module, other module subclass                              | |   public | same
+           class, same module subclass, same module, other module subclass, other module non-subclass   |
+            +===================+===================================================================================================+
 
+            default acessor is module private
+        */
         auto cur_mod = get_current_scope()->get_enclosing_module();
         auto scope_mod = scope->get_enclosing_module();
         if (!cur_mod || !scope_mod)
@@ -170,6 +177,90 @@ namespace spade
         }
     }
 
+    void Analyzer::check_cast(scope::Compound *from, scope::Compound *to, const ast::AstNode &node, bool safe) {
+        // take advantage of super classes
+        if (from->has_super(to))
+            return;
+        // duck typing
+        // check if the members of 'to' is subset of members of 'from'
+        bool error_state = false;
+        ErrorGroup<AnalyzerError> err_grp;
+        auto err_prolog =
+                safe ? std::pair(ErrorType::WARNING, error("expression is always null", &node))
+                     : std::pair(ErrorType::ERROR,
+                                 error(std::format("cannot cast '{}' to '{}'", from->to_string(), to->to_string()), &node));
+        for (const auto &[to_member_name, to_member]: to->get_members()) {
+            const auto &[_, to_member_scope] = to_member;
+            if (from->has_variable(to_member_name)) {
+                auto from_member_scope = from->get_variable(to_member_name);
+                // check if the scope type is same
+                if (from_member_scope->get_type() == to_member_scope->get_type()) {
+                    if (from_member_scope->get_type() == scope::ScopeType::COMPOUND) {
+                        // check if they are the same type of compound (class, interface, enum, annotation)
+                        if (cast<ast::decl::Compound>(from_member_scope->get_node())->get_token()->get_type() !=
+                            cast<ast::decl::Compound>(to_member_scope->get_node())->get_token()->get_type()) {
+                            if (!error_state) {
+                                error_state = true;
+                                err_grp.get_errors().push_back(err_prolog);
+                            }
+                            err_grp.get_errors().emplace_back(
+                                    ErrorType::NOTE,
+                                    error(std::format("see '{}' in '{}'", to_member_scope->to_string(), to->to_string()),
+                                          to_member_scope));
+                            err_grp.get_errors().emplace_back(
+                                    ErrorType::NOTE, error(std::format("also see '{}' in '{}'", from_member_scope->to_string(),
+                                                                       from->to_string()),
+                                                           from_member_scope));
+                            continue;
+                        }
+                    } else if (from_member_scope->get_type() == scope::ScopeType::VARIABLE) {
+                        // check if they are the same type of variable (var, const)
+                        if (cast<ast::decl::Variable>(from_member_scope->get_node())->get_token()->get_type() !=
+                            cast<ast::decl::Variable>(to_member_scope->get_node())->get_token()->get_type()) {
+                            if (!error_state) {
+                                error_state = true;
+                                err_grp.get_errors().push_back(err_prolog);
+                            }
+                            err_grp.get_errors().emplace_back(
+                                    ErrorType::NOTE,
+                                    error(std::format("see '{}' in '{}'", to_member_scope->to_string(), to->to_string()),
+                                          to_member_scope));
+                            err_grp.get_errors().emplace_back(
+                                    ErrorType::NOTE, error(std::format("also see '{}' in '{}'", from_member_scope->to_string(),
+                                                                       from->to_string()),
+                                                           from_member_scope));
+                        }
+                    }
+                } else {
+                    if (!error_state) {
+                        error_state = true;
+                        err_grp.get_errors().push_back(err_prolog);
+                    }
+                    err_grp.get_errors().emplace_back(
+                            ErrorType::NOTE,
+                            error(std::format("see '{}' in '{}'", to_member_scope->to_string(), to->to_string()),
+                                  to_member_scope));
+                    err_grp.get_errors().emplace_back(
+                            ErrorType::NOTE,
+                            error(std::format("also see '{}' in '{}'", from_member_scope->to_string(), from->to_string()),
+                                  from_member_scope));
+                }
+            } else {
+                if (!error_state) {
+                    error_state = true;
+                    err_grp.get_errors().push_back(err_prolog);
+                }
+                err_grp.get_errors().emplace_back(ErrorType::NOTE,
+                                                  error(std::format("'{}' does not have similar member like '{}'",
+                                                                    from->to_string(), to_member_scope->to_string()),
+                                                        to_member_scope));
+            }
+        }
+        if (error_state)
+            throw err_grp;
+        return;
+    }
+
     void Analyzer::analyze(const std::vector<std::shared_ptr<ast::Module>> &modules) {
         if (modules.empty())
             return;
@@ -211,7 +302,6 @@ namespace spade
     }
 
     void Analyzer::visit(ast::type::Reference &node) {
-        _res_type_info.reset();
         // Find the type scope
         node.get_reference()->accept(this);
         auto type_scope = _res_reference;
@@ -225,6 +315,7 @@ namespace spade
             type_arg->accept(this);
             type_args.push_back(_res_type_info);
         }
+        _res_type_info.reset();
         _res_type_info.type = cast<scope::Compound>(&*type_scope);
         _res_type_info.type_args = type_args;
     }
@@ -287,7 +378,7 @@ namespace spade
                 switch (scope->get_type()) {
                     case scope::ScopeType::FOLDER_MODULE:
                     case scope::ScopeType::MODULE:
-                        _res_expr_info.module = cast<scope::Module>(scope);
+                        _res_expr_info.module = cast<scope::Module>(&*scope);
                         _res_expr_info.tag = ExprInfo::Type::MODULE;
                         break;
                     case scope::ScopeType::COMPOUND:
@@ -295,11 +386,11 @@ namespace spade
                         _res_expr_info.tag = ExprInfo::Type::STATIC;
                         break;
                     case scope::ScopeType::INIT:
-                        _res_expr_info.init = cast<scope::Init>(scope);
+                        _res_expr_info.init = cast<scope::Init>(&*scope);
                         _res_expr_info.tag = ExprInfo::Type::INIT;
                         break;
                     case scope::ScopeType::FUNCTION:
-                        _res_expr_info.function = cast<scope::Function>(scope);
+                        _res_expr_info.function = cast<scope::Function>(&*scope);
                         _res_expr_info.tag = ExprInfo::Type::FUNCTION;
                         break;
                     case scope::ScopeType::BLOCK:
@@ -362,10 +453,10 @@ namespace spade
     }
 
     void Analyzer::visit(ast::expr::DotAccess &node) {
-        _res_expr_info.reset();
         node.get_caller()->accept(this);
         auto caller_info = _res_expr_info;
-        switch (_res_expr_info.tag) {
+        _res_expr_info.reset();
+        switch (caller_info.tag) {
             case ExprInfo::Type::NORMAL: {
                 if (caller_info.type_info.b_nullable && !node.get_safe()) {
                     throw ErrorGroup<AnalyzerError>(
@@ -389,11 +480,11 @@ namespace spade
                         _res_expr_info.tag = ExprInfo::Type::STATIC;
                         break;
                     case scope::ScopeType::INIT:
-                        _res_expr_info.init = cast<scope::Init>(member_scope);
+                        _res_expr_info.init = cast<scope::Init>(&*&*member_scope);
                         _res_expr_info.tag = ExprInfo::Type::INIT;
                         break;
                     case scope::ScopeType::FUNCTION:
-                        _res_expr_info.function = cast<scope::Function>(member_scope);
+                        _res_expr_info.function = cast<scope::Function>(&*&*member_scope);
                         _res_expr_info.tag = ExprInfo::Type::FUNCTION;
                         break;
                     case scope::ScopeType::VARIABLE:
@@ -430,11 +521,11 @@ namespace spade
                         _res_expr_info.tag = ExprInfo::Type::STATIC;
                         break;
                     case scope::ScopeType::INIT:
-                        _res_expr_info.init = cast<scope::Init>(member_scope);
+                        _res_expr_info.init = cast<scope::Init>(&*member_scope);
                         _res_expr_info.tag = ExprInfo::Type::INIT;
                         break;
                     case scope::ScopeType::FUNCTION:
-                        _res_expr_info.function = cast<scope::Function>(member_scope);
+                        _res_expr_info.function = cast<scope::Function>(&*member_scope);
                         _res_expr_info.tag = ExprInfo::Type::FUNCTION;
                         break;
                     case scope::ScopeType::VARIABLE:
@@ -458,7 +549,7 @@ namespace spade
                 switch (scope->get_type()) {
                     case scope::ScopeType::FOLDER_MODULE:
                     case scope::ScopeType::MODULE:
-                        _res_expr_info.module = cast<scope::Module>(scope);
+                        _res_expr_info.module = cast<scope::Module>(&*scope);
                         _res_expr_info.tag = ExprInfo::Type::MODULE;
                         break;
                     case scope::ScopeType::COMPOUND:
@@ -466,7 +557,7 @@ namespace spade
                         _res_expr_info.tag = ExprInfo::Type::STATIC;
                         break;
                     case scope::ScopeType::FUNCTION:
-                        _res_expr_info.function = cast<scope::Function>(scope);
+                        _res_expr_info.function = cast<scope::Function>(&*scope);
                         _res_expr_info.tag = ExprInfo::Type::FUNCTION;
                         break;
                     case scope::ScopeType::VARIABLE:
@@ -485,29 +576,151 @@ namespace spade
     }
 
     void Analyzer::visit(ast::expr::Call &node) {
-        _res_expr_info.reset();
         node.get_caller()->accept(this);
+        auto caller_info = _res_expr_info;
+        _res_expr_info.reset();
+        switch (caller_info.tag) {
+            case ExprInfo::Type::NORMAL:
+                // TODO: check for call operator
+                break;
+            case ExprInfo::Type::STATIC:
+                // TODO: check for constructor
+                break;
+            case ExprInfo::Type::MODULE:
+                throw error("module is not callable", &node);
+            case ExprInfo::Type::INIT:
+                // TODO: constructor but lone
+                break;
+            case ExprInfo::Type::FUNCTION:
+                // this is the actual thing
+                // TODO: function resolution
+                break;
+        }
+        for (auto arg: node.get_args()) {
+            arg->accept(this);
+        }
     }
 
     void Analyzer::visit(ast::expr::Argument &node) {
+        node.get_expr()->accept(this);
         _res_expr_info.reset();
     }
 
     void Analyzer::visit(ast::expr::Reify &node) {
-        _res_expr_info.reset();
         node.get_caller()->accept(this);
+        _res_expr_info.reset();
     }
 
     void Analyzer::visit(ast::expr::Index &node) {
-        _res_expr_info.reset();
         node.get_caller()->accept(this);
+        _res_expr_info.reset();
     }
 
-    void Analyzer::visit(ast::expr::Slice &node) {}
+    void Analyzer::visit(ast::expr::Slice &node) {
+        // TODO: implement slices
+    }
 
-    void Analyzer::visit(ast::expr::Unary &node) {}
+    void Analyzer::visit(ast::expr::Unary &node) {
+        node.get_expr()->accept(this);
+        auto expr_info = _res_expr_info;
+        switch (expr_info.tag) {
+            case ExprInfo::Type::NORMAL: {
+                auto type_info = expr_info.type_info;
+                if (type_info.b_nullable) {
+                    throw error(std::format("cannot apply unary expression '{}' on nullable type '{}'",
+                                            node.get_op()->get_text(), type_info.type->to_string()),
+                                &node);
+                }
+                _res_expr_info.reset();
+                _res_expr_info.tag = ExprInfo::Type::NORMAL;
+                switch (node.get_op()->get_type()) {
+                    case TokenType::BANG:
+                        _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_BOOL]);
+                        break;
+                    case TokenType::TILDE: {
+                        if (type_info.type == &*internals[Internal::SPADE_INT]) {
+                            _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_INT]);
+                        } else {
+                            // Check for overloaded operator ~
+                            throw error(std::format("cannot apply unary expression '~' on '{}'", type_info.type->to_string()),
+                                        &node);
+                        }
+                        break;
+                    }
+                    case TokenType::DASH: {
+                        if (type_info.type == &*internals[Internal::SPADE_INT]) {
+                            _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_INT]);
+                        } else if (type_info.type == &*internals[Internal::SPADE_FLOAT]) {
+                            _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_FLOAT]);
+                        } else {
+                            // Check for overloaded operator -
+                            throw error(std::format("cannot apply unary expression '-' on '{}'", type_info.type->to_string()),
+                                        &node);
+                        }
+                        break;
+                    }
+                    case TokenType::PLUS: {
+                        if (type_info.type == &*internals[Internal::SPADE_INT]) {
+                            _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_INT]);
+                        } else if (type_info.type == &*internals[Internal::SPADE_FLOAT]) {
+                            _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_FLOAT]);
+                        } else {
+                            // Check for overloaded operator +
+                            throw error(std::format("cannot apply unary expression '+' on '{}'", type_info.type->to_string()),
+                                        &node);
+                        }
+                        break;
+                    }
+                    default:
+                        throw Unreachable();    // surely some parser error
+                }
+                break;
+            }
+            case ExprInfo::Type::STATIC:
+                throw error(std::format("cannot apply unary expression '{}' on '{}'", node.get_op()->get_text(),
+                                        expr_info.type_info.type->to_string()),
+                            &node);
+            case ExprInfo::Type::MODULE:
+                throw error(std::format("cannot apply unary expression '{}' on '{}'", node.get_op()->get_text(),
+                                        expr_info.module->to_string()),
+                            &node);
+            case ExprInfo::Type::INIT:
+                throw error(std::format("cannot apply unary expression '{}' on '{}'", node.get_op()->get_text(),
+                                        expr_info.init->to_string()),
+                            &node);
+            case ExprInfo::Type::FUNCTION:
+                throw error(std::format("cannot apply unary expression '{}' on '{}'", node.get_op()->get_text(),
+                                        expr_info.function->to_string()),
+                            &node);
+        }
+    }
 
-    void Analyzer::visit(ast::expr::Cast &node) {}
+    void Analyzer::visit(ast::expr::Cast &node) {
+        node.get_expr()->accept(this);
+        auto expr_info = _res_expr_info;
+        if (expr_info.tag != ExprInfo::Type::NORMAL)
+            throw error(std::format("cannot cast '{}'", expr_info.to_string()), &node);
+        node.get_type()->accept(this);
+        auto type_cast_info = _res_type_info;
+        if (type_cast_info.b_nullable)
+            throw error("cast type cannot be nullable", &node);
+
+        _res_expr_info.reset();
+        _res_expr_info.tag = ExprInfo::Type::NORMAL;
+        if (node.get_safe()) {
+            try {
+                check_cast(expr_info.type_info.type, type_cast_info.type, node, true);
+            } catch (const ErrorGroup<AnalyzerError> &err) {
+                // print warnings
+                printer.print(err);
+            }
+            type_cast_info.b_nullable = true;
+            _res_expr_info.type_info = type_cast_info;
+        } else {
+            check_cast(expr_info.type_info.type, type_cast_info.type, node, false);
+            _res_expr_info.type_info = type_cast_info;
+        }
+    }
 
     void Analyzer::visit(ast::expr::Binary &node) {}
 
@@ -608,12 +821,37 @@ namespace spade
         end_scope();
     }
 
-    void Analyzer::visit(ast::decl::Parent &node) {}
+    void Analyzer::visit(ast::decl::Parent &node) {
+        _res_type_info.reset();
+        node.get_reference()->accept(this);
+        // Check if the super class is a scope::Compound
+        if (_res_reference->get_type() != scope::ScopeType::COMPOUND)
+            throw ErrorGroup<AnalyzerError>(std::pair(ErrorType::ERROR, error("reference is not a type", &node)),
+                                            std::pair(ErrorType::NOTE, error("declared here", _res_reference)));
+        // Get the parent type info and type args if any
+        TypeInfo parent_type_info;
+        parent_type_info.type = cast<scope::Compound>(&*_res_reference);
+        if (!node.get_type_args().empty()) {
+            for (auto type_arg: node.get_type_args()) {
+                type_arg->accept(this);
+                parent_type_info.type_args.push_back(_res_type_info);
+            }
+        }
+        _res_type_info = parent_type_info;
+    }
 
     void Analyzer::visit(ast::decl::Enumerator &node) {}
 
     void Analyzer::visit(ast::decl::Compound &node) {
         auto scope = find_scope<scope::Compound>(node.get_name()->get_text());
+        if (node.get_parents().empty()) {
+            scope->inherit_from(cast<scope::Compound>(internals[Internal::SPADE_ANY]));
+        } else {
+            for (auto parent: node.get_parents()) {
+                parent->accept(this);
+                scope->inherit_from(_res_type_info.type);
+            }
+        }
         for (auto member: node.get_members()) member->accept(this);
         end_scope();
     }

@@ -19,9 +19,21 @@ namespace spade
         bool b_nullable = false;
 
         TypeInfo() = default;
-        TypeInfo(const TypeInfo &other) = default;
+
+        TypeInfo(const TypeInfo &other) : type(other.type), type_args(other.type_args), b_nullable(other.b_nullable) {}
+
         TypeInfo(TypeInfo &&other) noexcept = default;
-        TypeInfo &operator=(const TypeInfo &other) = default;
+
+        TypeInfo &operator=(const TypeInfo &other) {
+            type = other.type;
+            if (!other.type_args.empty())
+                type_args = other.type_args;
+            else
+                type_args.clear();
+            b_nullable = other.b_nullable;
+            return *this;
+        }
+
         TypeInfo &operator=(TypeInfo &&other) noexcept = default;
 
         ~TypeInfo() {
@@ -39,6 +51,8 @@ namespace spade
         bool is_type_literal() const {
             return type == null && type_args.empty();
         }
+
+        string to_string()const;
     };
 
     struct ExprInfo {
@@ -52,9 +66,9 @@ namespace spade
 
         union {
             TypeInfo type_info;
-            std::shared_ptr<scope::Module> module;
-            std::shared_ptr<scope::Init> init;
-            std::shared_ptr<scope::Function> function;
+            scope::Module *module;
+            scope::Init *init;
+            scope::Function *function;
         };
 
         ExprInfo() : type_info() {}
@@ -154,17 +168,19 @@ namespace spade
                     type_info.reset();
                     break;
                 case Type::MODULE:
-                    module.reset();
+                    module = null;
                     break;
                 case Type::INIT:
-                    init.reset();
+                    init = null;
                     break;
                 case Type::FUNCTION:
-                    function.reset();
+                    function = null;
                     break;
             }
             tag = Type::NORMAL;
         }
+
+        string to_string()const;
     };
 
     class ScopeInfo {

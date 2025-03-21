@@ -5,6 +5,7 @@
 #include "info.hpp"
 #include "lexer/token.hpp"
 #include "parser/ast.hpp"
+#include "spimp/error.hpp"
 #include "symbol_path.hpp"
 
 namespace spade::scope
@@ -100,28 +101,38 @@ namespace spade::scope
         Compound *get_enclosing_compound() const;
         Function *get_enclosing_function() const;
 
+        virtual string to_string() const = 0;
+
         void print() const;
     };
 
-    class FolderModule : public Scope {
+    class FolderModule final : public Scope {
       public:
         FolderModule(ast::FolderModule *node) : Scope(ScopeType::FOLDER_MODULE, node) {}
 
         ast::FolderModule *get_module_node() const {
             return cast<ast::FolderModule>(node);
         }
+
+        string to_string() const override {
+            return "module " + path.to_string();
+        }
     };
 
-    class Module : public Scope {
+    class Module final : public Scope {
       public:
         Module(ast::Module *node) : Scope(ScopeType::MODULE, node) {}
 
         ast::Module *get_module_node() const {
             return cast<ast::Module>(node);
         }
+
+        string to_string() const override {
+            return "module " + path.to_string();
+        }
     };
 
-    class Compound : public Scope {
+    class Compound final : public Scope {
         string name;
         std::unordered_set<Compound *> supers;
 
@@ -135,6 +146,13 @@ namespace spade::scope
                 new_variable(name, member.first, member.second);
             }
             supers.insert(&*super);
+        }
+
+        void inherit_from(Compound *super) {
+            for (const auto &[name, member]: super->members) {
+                new_variable(name, member.first, member.second);
+            }
+            supers.insert(super);
         }
 
         const string &get_name() const {
@@ -156,13 +174,11 @@ namespace spade::scope
         bool has_super(Compound *super) const {
             if (supers.contains(super))
                 return true;
-            else {
-                for (const auto &p: supers) {
-                    if (p->has_super(super))
-                        return true;
-                }
-                return false;
+            for (const auto &p: supers) {
+                if (p->has_super(super))
+                    return true;
             }
+            return false;
         }
 
         const std::unordered_set<Compound *> &get_supers() const {
@@ -172,36 +188,65 @@ namespace spade::scope
         ast::decl::Compound *get_compound_node() const {
             return cast<ast::decl::Compound>(node);
         }
+
+        string to_string() const override {
+            if (!node)
+                return "class " + path.to_string();
+            switch (get_compound_node()->get_token()->get_type()) {
+                case TokenType::CLASS:
+                    return "class " + path.to_string();
+                case TokenType::INTERFACE:
+                    return "interface " + path.to_string();
+                case TokenType::ENUM:
+                    return "enum " + path.to_string();
+                case TokenType::ANNOTATION:
+                    return "annotation " + path.to_string();
+                default:
+                    throw Unreachable();    // surely some parser error
+            }
+        }
     };
 
-    class Init : public Scope {
+    class Init final : public Scope {
       public:
         Init(ast::decl::Init *node) : Scope(ScopeType::INIT, node) {}
 
         ast::decl::Init *get_init_node() const {
             return cast<ast::decl::Init>(node);
         }
+
+        string to_string() const override {
+            return "init " + path.to_string();
+        }
     };
 
-    class Function : public Scope {
+    class Function final : public Scope {
       public:
         Function(ast::decl::Function *node) : Scope(ScopeType::FUNCTION, node) {}
 
         ast::decl::Function *get_function_node() const {
             return cast<ast::decl::Function>(node);
         }
+
+        string to_string() const override {
+            return "function " + path.to_string();
+        }
     };
 
-    class Block : public Scope {
+    class Block final : public Scope {
       public:
         Block(ast::stmt::Block *node) : Scope(ScopeType::BLOCK, node) {}
 
         ast::stmt::Block *get_block_node() const {
             return cast<ast::stmt::Block>(node);
         }
+
+        string to_string() const override {
+            return "block";
+        }
     };
 
-    class Variable : public Scope {
+    class Variable final : public Scope {
         TypeInfo type_info;
 
       public:
@@ -222,14 +267,33 @@ namespace spade::scope
         ast::decl::Variable *get_variable_node() const {
             return cast<ast::decl::Variable>(node);
         }
+
+        string to_string() const override {
+            switch (get_variable_node()->get_token()->get_type()) {
+                case TokenType::VAR:
+                    if (get_enclosing_compound())
+                        return "field " + path.to_string();
+                    return "var " + path.to_string();
+                case TokenType::CONST:
+                    if (get_enclosing_compound())
+                        return "const field " + path.to_string();
+                    return "const " + path.to_string();
+                default:
+                    throw Unreachable();
+            }
+        }
     };
 
-    class Enumerator : public Scope {
+    class Enumerator final : public Scope {
       public:
         Enumerator(ast::decl::Enumerator *node) : Scope(ScopeType::ENUMERATOR, node) {}
 
         ast::decl::Enumerator *get_enumerator_node() const {
             return cast<ast::decl::Enumerator>(node);
+        }
+
+        string to_string() const override {
+            return "enumerator " + path.to_string();
         }
     };
 }    // namespace spade::scope
