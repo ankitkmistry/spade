@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 
+#include "utils/color.hpp"
 #include "analyzer/analyzer.hpp"
 #include "lexer/lexer.hpp"
 #include "parser/import.hpp"
@@ -79,12 +80,14 @@ void repl() {
 int main() {
     // try {
     std::setlocale(LC_CTYPE, ".UTF-8");
+    color::Console::init();
     // std::ofstream file("output.log");
     // LOGGER.set_file(file);
     // std::ios_base::sync_with_stdio(false);
     LOGGER.set_format("[{4}] {5}");
     compile();
     // repl();
+    color::Console::restore();
     return 0;
     // } catch (const std::exception &err) {
     // LOGGER.log_fatal(err.what());

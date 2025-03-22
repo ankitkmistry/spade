@@ -1,4 +1,7 @@
 #include "error_printer.hpp"
+#include "color.hpp"
+#include "utils/color.hpp"
+#include <string>
 
 namespace spade
 {
@@ -16,53 +19,63 @@ namespace spade
                                 : 10;
     }
 
-    static void print_code(const fs::path &path, const CompilerError &err, bool underline, char underline_char, int max_lines) {
+    struct CodePrintInfo {
+        string line_info_color = color::fg(color::White);
+        bool underline;
+        string underline_char;
+        int max_lines;
+    };
+
+    static void print_code(const fs::path &path, const CompilerError &err, CodePrintInfo info) {
         std::ifstream in(path);
         int max_digits = num_digits(err.get_line_end());
 
         int num_lines = err.get_line_end() - err.get_line_start() + 1;
-        bool snip = num_lines > max_lines;
+        bool snip = num_lines > info.max_lines;
         int snip_start = -1, snip_end = -1;
         if (snip) {
-            snip_start = err.get_line_start() + std::floor(max_lines / 2);
-            snip_end = err.get_line_end() - std::ceil(max_lines / 2);
+            snip_start = err.get_line_start() + std::floor(info.max_lines / 2);
+            snip_end = err.get_line_end() - std::ceil(info.max_lines / 2);
         }
 
         string line;
+        string pipe = color::fg(color::Cyan) + "|" + color::attr(color::RESET);
         for (int lineno = 1; !in.eof(); lineno++) {
             std::getline(in, line);
             if (err.get_line_start() <= lineno && lineno <= err.get_line_end()) {
                 if (snip && snip_start <= lineno && lineno <= snip_end) {
-                    std::cout << std::format(" {} | ... <snipped {} lines of code> ...\n", string(max_digits, ' '),
+                    std::cout << std::format(" {} {} ... <snipped {} lines of code> ...\n", string(max_digits, ' '), pipe,
                                              snip_end - snip_start + 1);
                     for (; lineno <= snip_end; lineno++) std::getline(in, line);    // snip
                 }
 
-                std::cout << std::format(" {} | {}\n", pad_right(std::to_string(lineno), max_digits), line);
-                if (underline) {
-                    std::cout << std::format(" {} | ", string(max_digits, ' '));
+                auto line_str =
+                        info.line_info_color + pad_right(std::to_string(lineno), max_digits) + color::attr(color::RESET);
+                std::cout << std::format(" {} {} {}\n", line_str, pipe, line);
+                if (info.underline) {
+                    std::cout << std::format(" {} {} ", string(max_digits, ' '), pipe);
 
                     if (lineno == err.get_line_start() && lineno == err.get_line_end()) {
                         for (int col = 1; col <= line.size(); ++col)
                             if (err.get_col_start() <= col && col <= err.get_col_end())
-                                std::cout << (isspace(line[col - 1]) ? line[col - 1] : underline_char);
+                                std::cout << (isspace(line[col - 1]) ? string(1, line[col - 1]) : info.underline_char);
                             else
                                 std::cout << (isspace(line[col - 1]) ? line[col - 1] : ' ');
                     } else if (lineno == err.get_line_start()) {
                         for (int col = 1; col <= line.size(); ++col)
                             if (err.get_col_start() <= col)
-                                std::cout << (isspace(line[col - 1]) ? line[col - 1] : underline_char);
+                                std::cout << (isspace(line[col - 1]) ? string(1, line[col - 1]) : info.underline_char);
                             else
                                 std::cout << (isspace(line[col - 1]) ? line[col - 1] : ' ');
                     } else if (lineno == err.get_line_end()) {
                         for (int col = 1; col <= line.size(); ++col)
                             if (col <= err.get_col_end())
-                                std::cout << (isspace(line[col - 1]) ? line[col - 1] : underline_char);
+                                std::cout << (isspace(line[col - 1]) ? string(1, line[col - 1]) : info.underline_char);
                             else
                                 std::cout << (isspace(line[col - 1]) ? line[col - 1] : ' ');
                     } else {
                         for (int col = 1; col <= line.size(); ++col) {
-                            std::cout << (isspace(line[col - 1]) ? line[col - 1] : underline_char);
+                            std::cout << (isspace(line[col - 1]) ? string(1, line[col - 1]) : info.underline_char);
                         }
                     }
                     std::cout << '\n';
@@ -72,36 +85,59 @@ namespace spade
     }
 
     void ErrorPrinter::print(ErrorType type, const CompilerError &err) {
+        string err_str;
+        bool quote_open = false;
+        string err_what = err.what();
+        for (auto c: err_what) {
+            if (c == '\'') {
+                if (!quote_open) {
+                    err_str += color::fg(color::from_hex(0xd619e0));
+                    err_str += color::attr(color::BOLD);
+                    err_str += c;
+                    quote_open = true;
+                } else {
+                    err_str += c;
+                    err_str += color::attr(color::RESET);
+                    quote_open = false;
+                }
+            } else
+                err_str += c;
+        }
+
+
         std::vector<string> lines;
         fs::path path = err.get_file_path();
         string error_type_str;
-        bool underline;
-        char underline_char;
+        CodePrintInfo info;
+        info.max_lines = 6;
+
         switch (type) {
             case ErrorType::ERROR:
-                error_type_str = "error";
-                underline = true;
-                underline_char = '^';
+                error_type_str = color::fg(color::Red) + color::attr(color::BOLD) + "error" + color::attr(color::RESET);
+                info.underline = true;
+                info.underline_char = color::fg(color::Dark_Red) + '^' + color::attr(color::RESET);
                 break;
             case ErrorType::WARNING:
-                error_type_str = "warning";
-                underline = true;
-                underline_char = '~';
+                error_type_str = color::fg(color::Orange) + color::attr(color::BOLD) + "warning" + color::attr(color::RESET);
+                info.underline = true;
+                info.underline_char = color::fg(color::from_hex(0xe0cb2b)) + '~' + color::attr(color::RESET);
                 break;
             case ErrorType::NOTE:
-                error_type_str = "note";
-                underline = false;
-                underline_char = ' ';
+                error_type_str =
+                        color::fg(color::from_hex(0x07acf2)) + color::attr(color::BOLD) + "note" + color::attr(color::RESET);
+                info.underline = false;
+                info.underline_char = ' ';
                 break;
         }
+        auto file_path = color::fg(color::from_hex(0x50a638)) + path.generic_string() + color::attr(color::RESET);
         if (err.has_no_location()) {
-            std::cout << std::format("{}: {}\n", error_type_str, err.what());
-            std::cout << std::format("in file: {}\n", path.generic_string());
+            std::cout << std::format("{}: {}\n", error_type_str, err_str);
+            std::cout << std::format("in file: {}\n", file_path);
         } else {
             std::cout << std::format("[{}:{}]->[{}:{}] {}: {}\n", err.get_line_start(), err.get_col_start(), err.get_line_end(),
-                                     err.get_col_end(), error_type_str, err.what());
-            std::cout << std::format("in file: {}\n", path.generic_string());
-            print_code(path, err, underline, underline_char, 6);
+                                     err.get_col_end(), error_type_str, err_str);
+            std::cout << std::format("in file: {}\n", file_path);
+            print_code(path, err, info);
         }
     }
 }    // namespace spade

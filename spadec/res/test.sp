@@ -4,7 +4,7 @@ import mod.bar as foo
 # var global1 = Aa.a as B # no error here but no more
 
 class Aa{
-	var a
+	var a: int = 0.5
 }
 
 class B{
