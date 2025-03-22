@@ -144,10 +144,17 @@ namespace spade
                     return get_token(TokenType::STAR);
                 case '/': {
                     if (match('*')) {
+                        col++;
                         while (true) {
-                            if (match('*') && match('/'))
-                                break;
+                            if (match('*')) {
+                                col++;
+                                if (match('/')) {
+                                    col++;
+                                    break;
+                                }
+                            }
                             advance();
+                            col++;
                         }
                     } else
                         return get_token(TokenType::SLASH);
@@ -200,6 +207,7 @@ namespace spade
                         if (peek() == EOF)
                             return get_token(TokenType::END_OF_FILE);
                         advance();
+                        col++;
                     }
                     break;
                 case ' ':

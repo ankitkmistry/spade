@@ -87,12 +87,13 @@ namespace spade
     void Analyzer::resolve_context(const std::shared_ptr<scope::Scope> &scope, const ast::AstNode &node) {
         /*
             +=======================================================================================================================+
-            |                                                   ACCESSORS |
+            |                                                   ACCESSORS                                                           |
             +===================+===================================================================================================+
-            |   private         | same class | |   internal        | same class, same module subclass | |   module private  |
-           same class, same module subclass, same module                                                     | |   protected |
-           same class, same module subclass, same module, other module subclass                              | |   public | same
-           class, same module subclass, same module, other module subclass, other module non-subclass   |
+            |   private         | same class                                                                                        | 
+            |   internal        | same class, same module subclass                                                                  | 
+            |   module private  | same class, same module subclass, same module                                                     | 
+            |   protected       | same class, same module subclass, same module, other module subclass                              | 
+            |   public          | same class, same module subclass, same module, other module subclass, other module non-subclass   |
             +===================+===================================================================================================+
 
             default acessor is module private
@@ -263,6 +264,38 @@ namespace spade
         return;
     }
 
+    ExprInfo Analyzer::get_var_expr_info(std::shared_ptr<scope::Variable> var_scope, const ast::AstNode &node) {
+        ExprInfo expr_info;
+        expr_info.tag = ExprInfo::Type::NORMAL;
+        switch (var_scope->get_evaluating()) {
+            case scope::Variable::Eval::NOT_STARTED: {
+                auto old_cur_scope = cur_scope;         // save context
+                cur_scope = var_scope->get_parent();    // change context
+                var_scope->get_node()->accept(this);    // visit variable
+                cur_scope = old_cur_scope;              // reset context
+                expr_info.type_info = var_scope->get_type_info();
+                break;
+            }
+            case scope::Variable::Eval::PROGRESS:
+                if (get_current_scope()->get_type() == scope::ScopeType::VARIABLE) {
+                    auto cur_var_scope = cast<scope::Variable>(get_current_scope());
+                    if (cur_var_scope->get_evaluating() == scope::Variable::Eval::DONE) {
+                        expr_info.type_info = cur_var_scope->get_type_info();    // sense correct
+                        break;
+                    }
+                }
+                expr_info.type_info.type = cast<scope::Compound>(&*internals[Analyzer::Internal::SPADE_ANY]);
+                expr_info.type_info.b_nullable = true;
+                warning(std::format("type inference is ambiguous, defaulting to '{}'", expr_info.type_info.to_string()), &node);
+                note("declared here", var_scope);
+                break;
+            case scope::Variable::Eval::DONE:
+                expr_info.type_info = var_scope->get_type_info();
+                break;
+        }
+        return expr_info;
+    }
+
     void Analyzer::analyze(const std::vector<std::shared_ptr<ast::Module>> &modules) {
         if (modules.empty())
             return;
@@ -405,47 +438,7 @@ namespace spade
                     case scope::ScopeType::BLOCK:
                         throw Unreachable();    // surely some parser error
                     case scope::ScopeType::VARIABLE: {
-                        _res_expr_info.tag = ExprInfo::Type::NORMAL;
-                        auto var_scope = cast<scope::Variable>(scope);
-                        // switch (var_scope->get_evaluating()) {
-                        //     case scope::Variable::Eval::NOT_STARTED: {
-                        //         auto old_cur_scope = cur_scope;         // save context
-                        //         cur_scope = var_scope->get_parent();    // change context
-                        //         var_scope->get_node()->accept(this);    // visit variable
-                        //         cur_scope = old_cur_scope;              // reset context
-                        //         _res_expr_info.type_info = var_scope->get_type_info();
-                        //         break;
-                        //     }
-                        //     case scope::Variable::Eval::PROGRESS:
-                        //         _res_expr_info.type_info.type =
-                        //                 cast<scope::Compound>(&*internals[Analyzer::Internal::SPADE_ANY]);
-                        //         _res_expr_info.type_info.b_nullable = true;
-                        //         warning(std::format("type inference is ambiguous, defaulting to '{}'",
-                        //                             _res_expr_info.type_info.to_string()),
-                        //                 &node);
-                        //         note("declared here", var_scope);
-                        //         break;
-                        //     case scope::Variable::Eval::DONE:
-                        //         _res_expr_info.type_info = var_scope->get_type_info();
-                        //         break;
-                        // }
-
-                        if (var_scope->get_evaluating() == scope::Variable::Eval::NOT_STARTED) {
-                            auto old_cur_scope = cur_scope;         // save context
-                            cur_scope = var_scope->get_parent();    // change context
-                            var_scope->get_node()->accept(this);    // visit variable
-                            cur_scope = old_cur_scope;              // reset context
-                            _res_expr_info.type_info = var_scope->get_type_info();
-                        } else if (var_scope->get_evaluating() == scope::Variable::Eval::PROGRESS) {
-                            _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Analyzer::Internal::SPADE_ANY]);
-                            _res_expr_info.type_info.b_nullable = true;
-                            warning(std::format("type inference is ambiguous, defaulting to '{}'",
-                                                _res_expr_info.type_info.to_string()),
-                                    &node);
-                            note("declared here", var_scope);
-                        } else if (var_scope->get_evaluating() == scope::Variable::Eval::DONE) {
-                            _res_expr_info.type_info = var_scope->get_type_info();
-                        }
+                        _res_expr_info = get_var_expr_info(cast<scope::Variable>(scope), node);
                         break;
                     }
                     case scope::ScopeType::ENUMERATOR:
@@ -532,16 +525,15 @@ namespace spade
                         _res_expr_info.tag = ExprInfo::Type::STATIC;
                         break;
                     case scope::ScopeType::INIT:
-                        _res_expr_info.init = cast<scope::Init>(&*&*member_scope);
+                        _res_expr_info.init = cast<scope::Init>(&*member_scope);
                         _res_expr_info.tag = ExprInfo::Type::INIT;
                         break;
                     case scope::ScopeType::FUNCTION:
-                        _res_expr_info.function = cast<scope::Function>(&*&*member_scope);
+                        _res_expr_info.function = cast<scope::Function>(&*member_scope);
                         _res_expr_info.tag = ExprInfo::Type::FUNCTION;
                         break;
                     case scope::ScopeType::VARIABLE:
-                        _res_expr_info.type_info = cast<scope::Variable>(member_scope)->get_type_info();
-                        _res_expr_info.tag = ExprInfo::Type::NORMAL;
+                        _res_expr_info = get_var_expr_info(cast<scope::Variable>(member_scope), node);
                         break;
                     case scope::ScopeType::ENUMERATOR:
                         throw error("cannot access enumerator from an object (you should use the type)", &node);
@@ -580,10 +572,19 @@ namespace spade
                         _res_expr_info.function = cast<scope::Function>(&*member_scope);
                         _res_expr_info.tag = ExprInfo::Type::FUNCTION;
                         break;
-                    case scope::ScopeType::VARIABLE:
-                        _res_expr_info.type_info = cast<scope::Variable>(member_scope)->get_type_info();
-                        _res_expr_info.tag = ExprInfo::Type::NORMAL;
+                    case scope::ScopeType::VARIABLE: {
+                        auto var_scope = cast<scope::Variable>(member_scope);
+                        if (!var_scope->is_static()) {
+                            throw ErrorGroup<AnalyzerError>(
+                                    std::pair(ErrorType::ERROR,
+                                              error(std::format("cannot access non-static variable '{}' of '{}'",
+                                                                var_scope->to_string(), caller_info.to_string()),
+                                                    &node)),
+                                    std::pair(ErrorType::NOTE, error("declared here", var_scope)));
+                        }
+                        _res_expr_info = get_var_expr_info(var_scope, node);
                         break;
+                    }
                     case scope::ScopeType::ENUMERATOR:
                         _res_expr_info.type_info.type = caller_info.type_info.type;
                         _res_expr_info.tag = ExprInfo::Type::NORMAL;
@@ -926,11 +927,17 @@ namespace spade
         if (auto type = node.get_type()) {
             type->accept(this);
             type_info = _res_type_info;
+
+            scope->set_type_info(type_info);
+            scope->set_evaluating(scope::Variable::Eval::DONE);    // mimic as if type resolution is completed
         }
 
         if (auto expr = node.get_expr()) {
             expr->accept(this);
             auto expr_info = _res_expr_info;
+            // if (scope->get_evaluating() == scope::Variable::Eval::DONE) {
+            //     scope->set_evaluating(scope::Variable::Eval::PROGRESS);    // also resume progress
+            // }
             // Check type inference
             switch (expr_info.tag) {
                 case ExprInfo::Type::NORMAL:

@@ -1,7 +1,7 @@
 import foo as bar
 import mod.bar as foo
 
-var global1 = Aa.a as B # no error here but no more
+# var global1 = Aa.a as B # no error here but no more
 
 class Aa{
 	var a

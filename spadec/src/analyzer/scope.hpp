@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <unordered_set>
 
 #include "info.hpp"
@@ -261,6 +262,13 @@ namespace spade::scope
 
         bool is_const() const {
             return get_variable_node()->get_token()->get_type() == TokenType::CONST;
+        }
+
+        bool is_static() const {
+            const auto &modifiers = get_variable_node()->get_modifiers();
+            return std::find_if(modifiers.begin(), modifiers.end(), [](const std::shared_ptr<Token> &modifier) {
+                       return modifier->get_type() == TokenType::STATIC;
+                   }) != modifiers.end();
         }
 
         const TypeInfo &get_type_info() const {

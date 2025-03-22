@@ -5,6 +5,7 @@
 #include "parser/ast.hpp"
 #include "info.hpp"
 #include "scope.hpp"
+#include <memory>
 
 namespace spade
 {
@@ -24,6 +25,7 @@ namespace spade
         std::shared_ptr<scope::Scope> find_name(const string &name) const;
         void resolve_context(const std::shared_ptr<scope::Scope> &scope, const ast::AstNode &node);
         void check_cast(scope::Compound *from, scope::Compound *to, const ast::AstNode &node, bool safe);
+        ExprInfo get_var_expr_info(std::shared_ptr<scope::Variable> var_scope, const ast::AstNode &node);
 
         ErrorPrinter printer;
 

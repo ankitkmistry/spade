@@ -72,7 +72,7 @@ NamespaceIndentation: All
 PackConstructorInitializers: NextLine
 PointerAlignment: Right
 ReferenceAlignment: Pointer
-ReflowComments: true
+ReflowComments: false
 SeparateDefinitionBlocks: Always
 SortIncludes: Never
 
