@@ -206,7 +206,9 @@ namespace spade
             def = block();
         else
             throw error(std::format("expected {}", make_expected_string(TokenType::EQUAL, TokenType::LBRACE)));
-        return std::make_shared<ast::decl::Init>(name, init_params, def);
+        return std::make_shared<ast::decl::Function>(
+                name, current(), name, std::vector<std::shared_ptr<ast::decl::TypeParam>>{},
+                std::vector<std::shared_ptr<ast::decl::Constraint>>{}, init_params, null, def);
     }
 
     std::shared_ptr<ast::Declaration> Parser::variable_decl() {
@@ -532,40 +534,40 @@ namespace spade
     }
 
     std::shared_ptr<ast::Expression> Parser::ternary() {
-        auto expr1 = or_();
+        auto expr1 = logic_or();
         if (match(TokenType::IF)) {
-            auto expr2 = or_();
+            auto expr2 = logic_or();
             expect(TokenType::ELSE);
-            auto expr3 = or_();
+            auto expr3 = logic_or();
             return std::make_shared<ast::expr::Ternary>(expr2, expr1, expr3);
         }
         return expr1;
     }
 
-    std::shared_ptr<ast::Expression> Parser::or_() {
-        auto left = and_();
+    std::shared_ptr<ast::Expression> Parser::logic_or() {
+        auto left = logic_and();
         while (match(TokenType::OR)) {
             auto op = current();
-            auto right = and_();
+            auto right = logic_and();
             left = std::make_shared<ast::expr::Binary>(left, op, right);
         }
         return left;
     }
 
-    std::shared_ptr<ast::Expression> Parser::and_() {
-        auto left = not_();
+    std::shared_ptr<ast::Expression> Parser::logic_and() {
+        auto left = logic_not();
         while (match(TokenType::AND)) {
             auto op = current();
-            auto right = not_();
+            auto right = logic_not();
             left = std::make_shared<ast::expr::Binary>(left, op, right);
         }
         return left;
     }
 
-    std::shared_ptr<ast::Expression> Parser::not_() {
+    std::shared_ptr<ast::Expression> Parser::logic_not() {
         if (match(TokenType::NOT)) {
             auto op = current();
-            auto expr = not_();
+            auto expr = logic_not();
             return std::make_shared<ast::expr::Unary>(op, expr);
         }
         return conditional();

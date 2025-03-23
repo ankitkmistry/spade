@@ -14,7 +14,6 @@ namespace spade::ast
         class Compound;
         class Enumerator;
         class Parent;
-        class Init;
         class Constraint;
         class TypeParam;
         class Variable;
@@ -130,7 +129,6 @@ namespace spade::ast
         virtual void visit(decl::Params &node) = 0;
         virtual void visit(decl::Function &node) = 0;
         virtual void visit(decl::Variable &node) = 0;
-        virtual void visit(decl::Init &node) = 0;
         virtual void visit(decl::Parent &node) = 0;
         virtual void visit(decl::Enumerator &node) = 0;
         virtual void visit(decl::Compound &node) = 0;
@@ -1191,44 +1189,6 @@ namespace spade::ast
 
             std::shared_ptr<Expression> get_expr() const {
                 return expr;
-            }
-
-            void accept(VisitorBase *visitor) override {
-                visitor->visit(*this);
-            }
-        };
-
-        class Init final : public Declaration {
-            std::shared_ptr<Token> name;
-            std::shared_ptr<Params> params;
-            std::shared_ptr<Statement> definition;
-
-            // Analyzer specific
-            string qualified_name;
-
-          public:
-            Init(const std::shared_ptr<Token> &name, const std::shared_ptr<Params> &params,
-                 const std::shared_ptr<Statement> &definition)
-                : Declaration(name, definition), name(name), params(params), definition(definition) {}
-
-            std::shared_ptr<Token> get_name() const {
-                return name;
-            }
-
-            std::shared_ptr<Params> get_params() const {
-                return params;
-            }
-
-            std::shared_ptr<Statement> get_definition() const {
-                return definition;
-            }
-
-            const string &get_qualified_name() const {
-                return qualified_name;
-            }
-
-            void set_qualified_name(const string &qualified_name) {
-                this->qualified_name = qualified_name;
             }
 
             void accept(VisitorBase *visitor) override {

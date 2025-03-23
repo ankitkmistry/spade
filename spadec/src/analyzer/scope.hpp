@@ -15,7 +15,7 @@ namespace spade::scope
     class Compound;
     class Function;
 
-    enum class ScopeType { FOLDER_MODULE, MODULE, COMPOUND, INIT, FUNCTION, BLOCK, VARIABLE, ENUMERATOR };
+    enum class ScopeType { FOLDER_MODULE, MODULE, COMPOUND, FUNCTION, BLOCK, VARIABLE, ENUMERATOR };
 
     class Scope {
       public:
@@ -205,19 +205,6 @@ namespace spade::scope
                 default:
                     throw Unreachable();    // surely some parser error
             }
-        }
-    };
-
-    class Init final : public Scope {
-      public:
-        Init(ast::decl::Init *node) : Scope(ScopeType::INIT, node) {}
-
-        ast::decl::Init *get_init_node() const {
-            return cast<ast::decl::Init>(node);
-        }
-
-        string to_string() const override {
-            return "init " + path.to_string();
         }
     };
 

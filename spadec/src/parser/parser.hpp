@@ -129,39 +129,83 @@ namespace spade
         std::shared_ptr<ast::Statement> catch_stmt();
 
         // Expressions
+        /// expression ::= assignment | ternary
         std::shared_ptr<ast::Expression> expression();
+        /// assignment ::= assignee_list ('+' | '-' | '*' | '/' | '%' | '**' | '<<' | '>>' | '>>>' | '&' | '|' | '^' | '??') '=' expr_list
         std::shared_ptr<ast::Expression> assignment();
+        /// ternary ::= logic_or ('if' logic_or 'else' logic_or)?
         std::shared_ptr<ast::Expression> ternary();
+
         // Binary
-        std::shared_ptr<ast::Expression> or_();
-        std::shared_ptr<ast::Expression> and_();
-        std::shared_ptr<ast::Expression> not_();
+        /// logic_or ::= logic_and ('or' logic_and)*
+        std::shared_ptr<ast::Expression> logic_or();
+        /// logic_and ::= logic_not ('and' logic_not)*
+        std::shared_ptr<ast::Expression> logic_and();
+        /// logic_not ::= 'not'* conditional
+        std::shared_ptr<ast::Expression> logic_not();
+        /// conditional ::= relational (('is' 'not'? | 'not'? 'in') relational)*
         std::shared_ptr<ast::Expression> conditional();
+        /// relational ::= bit_or (('<' | '<=' | '==' | '!=' | '>=' | '>') bit_or)*
         std::shared_ptr<ast::Expression> relational();
+        /// bit_or ::= bit_xor ('|' bit_xor)*
         std::shared_ptr<ast::Expression> bit_or();
+        /// bit_xor ::= bit_and ('^' bit_and)*
         std::shared_ptr<ast::Expression> bit_xor();
+        /// bit_and ::= shift ('&' shift)*
         std::shared_ptr<ast::Expression> bit_and();
+        /// shift ::= term (('<<' | '>>' | '>>>') term)*
         std::shared_ptr<ast::Expression> shift();
+        /// term ::= factor (('+' | '-') factor)*
         std::shared_ptr<ast::Expression> term();
+        /// factor ::= power (('*' | '/' | '%') power)*
         std::shared_ptr<ast::Expression> factor();
+        /// power ::= (cast '**')* cast
         std::shared_ptr<ast::Expression> power();
+        /// cast ::= elvis ('as' type)*
         std::shared_ptr<ast::Expression> cast();
+        /// elvis ::= unary ('??' unary)*
         std::shared_ptr<ast::Expression> elvis();
+
         // Unary
+        /// unary ::= ('~' | '-' | '+')? postfix
         std::shared_ptr<ast::Expression> unary();
+
         // Postfix
+        /// postfix ::= primary
+        ///                 ('?'? '.' (IDENTIFIER | 'init')     # dot_access or safe_dot_access
+        ///               | '(' argument_list? ')'              # call
+        ///               | '[' (slice_list | type_list) ']')?  # indexer or reify
         std::shared_ptr<ast::Expression> postfix();
+        /// argument ::= (IDENTIFIER ':')? expression
         std::shared_ptr<ast::expr::Argument> argument();
+        /// slice ::= expression
+        ///         | expression? ':' expression? (':' expression?)?
         std::shared_ptr<ast::expr::Slice> slice();
+
         // Primary
+        // primary ::= 'true' | 'false' | 'null'
+        //           | INTEGER | FLOAT | STRING | IDENTIFIER
+        //           | 'super' | 'self'
+        //           | '(' expression ')'
         std::shared_ptr<ast::Expression> primary();
 
         // Type expressions
+
+        /// type ::= union_type
         std::shared_ptr<ast::Type> type();
+        /// union_type ::= intersection_type ('&' intersection_type)*
         std::shared_ptr<ast::Type> union_type();
+        /// intersection_type ::= nullable_type ('&' nullable_type)*
         std::shared_ptr<ast::Type> intersection_type();
+        /// nullable_type ::= primary_type '?'?
         std::shared_ptr<ast::Type> nullable_type();
+        /// primary_type ::= reference ('[' type_list? ']')?                # reference_type
+        ///                | 'type'                                         # type_literal
+        ///                | '(' type_list? ')' '->' type                   # function_type
+        ///                | object ('{' type_builder_member_list ? '}')?   # object_builder_type
+        ///                | '(' type ')'                                   # grouped_type
         std::shared_ptr<ast::Type> primary_type();
+        /// type_builder_member ::= (IDENTIFER | 'init') (':' type)?
         std::shared_ptr<ast::type::TypeBuilderMember> type_builder_member();
 
         // Comma separated lists

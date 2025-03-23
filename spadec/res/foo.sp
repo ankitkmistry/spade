@@ -11,11 +11,11 @@ class Bax {
 }
 
 class A {
-	static var a = B.b
+	# static var a = B.b
 }
 
 class B {
-	static var b/*: any*/ = A.a
+	# static var b/*: any*/ = A.a
 }
 
 fun hello() {

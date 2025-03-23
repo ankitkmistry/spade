@@ -109,7 +109,6 @@ namespace spade
         void visit(ast::decl::Params &node);
         void visit(ast::decl::Function &node);
         void visit(ast::decl::Variable &node);
-        void visit(ast::decl::Init &node);
         void visit(ast::decl::Parent &node);
         void visit(ast::decl::Enumerator &node);
         void visit(ast::decl::Compound &node);

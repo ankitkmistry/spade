@@ -44,7 +44,6 @@ namespace spade
 
         string build_params_string(const std::shared_ptr<ast::decl::Params> &params);
         string build_function_name(const ast::decl::Function &node);
-        string build_init_name(const ast::decl::Init &node);
 
         template<typename Scope_Type, typename Ast_Type>
             requires std::derived_from<Scope_Type, scope::Scope> && std::derived_from<Ast_Type, ast::AstNode>
@@ -101,7 +100,6 @@ namespace spade
         void visit(ast::decl::Params &node) override;
         void visit(ast::decl::Function &node) override;
         void visit(ast::decl::Variable &node) override;
-        void visit(ast::decl::Init &node) override;
         void visit(ast::decl::Parent &node) override;
         void visit(ast::decl::Enumerator &node) override;
         void visit(ast::decl::Compound &node) override;

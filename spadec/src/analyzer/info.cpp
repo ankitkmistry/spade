@@ -28,8 +28,6 @@ namespace spade
                 return type_info.to_string();
             case Type::MODULE:
                 return module->to_string();
-            case Type::INIT:
-                return init->to_string();
             case Type::FUNCTION:
                 return function->to_string();
             default:

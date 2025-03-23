@@ -1,6 +1,7 @@
 #include <numeric>
 
 #include "scope_tree.hpp"
+#include "lexer/token.hpp"
 #include "parser/ast.hpp"
 
 #define get_parent_scope() (scope_stack.at(scope_stack.size() - 2))
@@ -231,15 +232,16 @@ namespace spade
             throw Unreachable();    // not a folder module expected a file module
         }
         // Constructor specific checks
-        if (is<ast::decl::Init>(node)) {
+        if (auto fun_node = dynamic_cast<ast::decl::Function *>(node);
+            fun_node && fun_node->get_name()->get_type() == TokenType::INIT) {
             if (modifier_counts[TokenType::ABSTRACT] > 0)
-                throw error("constructor cannot be 'abstract'", node);
+                throw error("constructor cannot be 'abstract'", fun_node);
             if (modifier_counts[TokenType::STATIC] > 0)
-                throw error("constructor cannot be 'static'", node);
+                throw error("constructor cannot be 'static'", fun_node);
             if (modifier_counts[TokenType::STATIC] > 0)
-                throw error("constructor cannot be 'final'", node);
+                throw error("constructor cannot be 'final'", fun_node);
             if (modifier_counts[TokenType::OVERRIDE] > 0)
-                throw error("constructor cannot be 'override'", node);
+                throw error("constructor cannot be 'override'", fun_node);
         }
     }
 
@@ -285,10 +287,6 @@ namespace spade
         ss << build_params_string(params);
         ss << ')';
         return ss.str();
-    }
-
-    string ScopeTreeBuilder::build_init_name(const ast::decl::Init &node) {
-        return "init(" + build_params_string(node.get_params()) + ")";
     }
 
     ScopeTreeBuilder::ScopeTreeBuilder(const std::vector<std::shared_ptr<ast::Module>> &modules) : modules(modules) {
@@ -455,6 +453,12 @@ namespace spade
         check_modifiers(&node, node.get_modifiers());
         if (scope_stack.empty()) {
             throw Unreachable();    // surely some parser error
+        } else if (node.get_name()->get_type() == TokenType::INIT) {
+            if (scope_stack.back()->get_type() == scope::ScopeType::COMPOUND &&
+                cast<scope::Compound>(scope_stack.back())->get_compound_node()->get_token()->get_type() != TokenType::INTERFACE)
+                ;
+            else
+                throw error("constructors are not allowed in interfaces", &node);
         }
 
         auto scope = begin_scope<scope::Function>(node);
@@ -483,25 +487,6 @@ namespace spade
 
         auto scope = begin_scope<scope::Variable>(node);
         add_symbol(node.get_name()->get_text(), node.get_name(), scope);
-        end_scope();
-    }
-
-    void ScopeTreeBuilder::visit(ast::decl::Init &node) {
-        check_modifiers(&node, node.get_modifiers());
-        if (!scope_stack.empty()) {
-            if (scope_stack.back()->get_type() == scope::ScopeType::COMPOUND &&
-                cast<scope::Compound>(scope_stack.back())->get_compound_node()->get_token()->get_type() != TokenType::INTERFACE)
-                ;
-            else
-                throw error("constructors are not allowed in interfaces", &node);
-        } else {
-            throw Unreachable();    // surely some parser error
-        }
-
-        auto scope = begin_scope<scope::Init>(node);
-        auto qualified_name = build_init_name(node);
-        node.set_qualified_name(qualified_name);
-        add_symbol(qualified_name, node.get_name(), scope);
         end_scope();
     }
 

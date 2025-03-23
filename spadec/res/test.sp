@@ -4,7 +4,7 @@ import mod.bar as foo
 # var global1 = Aa.a as B # no error here but no more
 
 class Aa{
-	var a: int = 0.5
+	var a: int = 5
 }
 
 class B{
@@ -33,6 +33,7 @@ interface Foo {
 
 abstract class A : Foo {
 	var color: Color=Color.RED
+	init(){}
 	abstract fun f()
 }
 

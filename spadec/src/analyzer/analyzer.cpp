@@ -108,7 +108,6 @@ namespace spade
         // scope.get_enclosing_compound() is never null
         switch (scope->get_type()) {
             case scope::ScopeType::COMPOUND:
-            case scope::ScopeType::INIT:
             case scope::ScopeType::FUNCTION:
             case scope::ScopeType::VARIABLE:
             case scope::ScopeType::ENUMERATOR:
@@ -427,10 +426,6 @@ namespace spade
                         _res_expr_info.tag = ExprInfo::Type::STATIC;
                         _res_expr_info.type_info.type = cast<scope::Compound>(&*scope);
                         break;
-                    case scope::ScopeType::INIT:
-                        _res_expr_info.tag = ExprInfo::Type::INIT;
-                        _res_expr_info.init = cast<scope::Init>(&*scope);
-                        break;
                     case scope::ScopeType::FUNCTION:
                         _res_expr_info.tag = ExprInfo::Type::FUNCTION;
                         _res_expr_info.function = cast<scope::Function>(&*scope);
@@ -457,8 +452,7 @@ namespace spade
         _res_expr_info.reset();
 
         if (get_parent_scope()->get_type() == scope::ScopeType::COMPOUND &&
-            (get_current_scope()->get_type() == scope::ScopeType::FUNCTION ||
-             get_current_scope()->get_type() == scope::ScopeType::INIT) /* ||
+            (get_current_scope()->get_type() == scope::ScopeType::FUNCTION) /* ||
              get_current_scope()->get_type() == scope::ScopeType::VARIABLE ||
              get_current_scope()->get_type() == scope::ScopeType::ENUMERATOR) */) {
             auto klass = cast<scope::Compound>(get_parent_scope());
@@ -486,7 +480,6 @@ namespace spade
 
         if (get_parent_scope()->get_type() == scope::ScopeType::COMPOUND &&
             (get_current_scope()->get_type() == scope::ScopeType::FUNCTION ||
-             get_current_scope()->get_type() == scope::ScopeType::INIT ||
              get_current_scope()->get_type() == scope::ScopeType::VARIABLE ||
              get_current_scope()->get_type() == scope::ScopeType::ENUMERATOR)) {
             _res_expr_info.type_info.type = cast<scope::Compound>(&*get_parent_scope());
@@ -524,10 +517,6 @@ namespace spade
                         _res_expr_info.type_info.type = cast<scope::Compound>(&*member_scope);
                         _res_expr_info.tag = ExprInfo::Type::STATIC;
                         break;
-                    case scope::ScopeType::INIT:
-                        _res_expr_info.init = cast<scope::Init>(&*member_scope);
-                        _res_expr_info.tag = ExprInfo::Type::INIT;
-                        break;
                     case scope::ScopeType::FUNCTION:
                         _res_expr_info.function = cast<scope::Function>(&*member_scope);
                         _res_expr_info.tag = ExprInfo::Type::FUNCTION;
@@ -563,10 +552,6 @@ namespace spade
                     case scope::ScopeType::COMPOUND:
                         _res_expr_info.type_info.type = cast<scope::Compound>(&*member_scope);
                         _res_expr_info.tag = ExprInfo::Type::STATIC;
-                        break;
-                    case scope::ScopeType::INIT:
-                        _res_expr_info.init = cast<scope::Init>(&*member_scope);
-                        _res_expr_info.tag = ExprInfo::Type::INIT;
                         break;
                     case scope::ScopeType::FUNCTION:
                         _res_expr_info.function = cast<scope::Function>(&*member_scope);
@@ -622,7 +607,6 @@ namespace spade
                 }
                 break;
             }
-            case ExprInfo::Type::INIT:
             case ExprInfo::Type::FUNCTION:
                 throw error("cannot access member of function or constructor", &node);
         }
@@ -647,9 +631,6 @@ namespace spade
                 break;
             case ExprInfo::Type::MODULE:
                 throw error("module is not callable", &node);
-            case ExprInfo::Type::INIT:
-                // TODO: constructor but lone
-                break;
             case ExprInfo::Type::FUNCTION:
                 // this is the actual thing
                 // TODO: function resolution
@@ -740,7 +721,6 @@ namespace spade
             }
             case ExprInfo::Type::STATIC:
             case ExprInfo::Type::MODULE:
-            case ExprInfo::Type::INIT:
             case ExprInfo::Type::FUNCTION:
                 throw error(std::format("cannot apply unary operator '{}' on '{}'", node.get_op()->get_text(),
                                         expr_info.to_string()),
@@ -969,7 +949,7 @@ namespace spade
                                 throw error(std::format("failed to deduce type arguments"), &node);    // failed deducing
                             // now both type_info and expr_info have typeargs (same size)
                             // check if both of them are same
-                            // TODO: implement covariance and contravariance
+                            // TODO: implement covariance and contravarianceJ
                         }
                     } else {
                         // deduce variable type from expression
@@ -999,9 +979,6 @@ namespace spade
                                     &node);
                     else
                         throw error(std::format("cannot assign a module to variable", type_info.to_string()), &node);
-                case ExprInfo::Type::INIT:
-                    // TODO: implement function resolution
-                    break;
                 case ExprInfo::Type::FUNCTION:
                     // TODO: implement function resolution
                     break;
@@ -1016,11 +993,6 @@ namespace spade
 
         scope->set_type_info(type_info);
         scope->set_evaluating(scope::Variable::Eval::DONE);
-        end_scope();
-    }
-
-    void Analyzer::visit(ast::decl::Init &node) {
-        auto scope = find_scope<scope::Function>(node.get_qualified_name());
         end_scope();
     }
 

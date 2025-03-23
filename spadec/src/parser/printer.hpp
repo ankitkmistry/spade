@@ -137,7 +137,6 @@ namespace spade::ast
         void visit(decl::Function &node) override;
         void visit(decl::TypeParam &node) override;
         void visit(decl::Variable &node) override;
-        void visit(decl::Init &node) override;
         void visit(decl::Compound &node) override;
 
         void visit(Import &node) override;

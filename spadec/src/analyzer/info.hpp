@@ -68,14 +68,12 @@ namespace spade
             NORMAL,
             STATIC,
             MODULE,
-            INIT,
             FUNCTION,
         } tag = Type::NORMAL;
 
         union {
             TypeInfo type_info;
             scope::Module *module;
-            scope::Init *init;
             scope::Function *function;
         };
 
@@ -89,9 +87,6 @@ namespace spade
                     break;
                 case Type::MODULE:
                     module = other.module;
-                    break;
-                case Type::INIT:
-                    init = other.init;
                     break;
                 case Type::FUNCTION:
                     function = other.function;
@@ -107,9 +102,6 @@ namespace spade
                     break;
                 case Type::MODULE:
                     module = std::move(other.module);
-                    break;
-                case Type::INIT:
-                    init = std::move(other.init);
                     break;
                 case Type::FUNCTION:
                     function = std::move(other.function);
@@ -128,9 +120,6 @@ namespace spade
                         break;
                     case Type::MODULE:
                         module = other.module;
-                        break;
-                    case Type::INIT:
-                        init = other.init;
                         break;
                     case Type::FUNCTION:
                         function = other.function;
@@ -151,9 +140,6 @@ namespace spade
                         break;
                     case Type::MODULE:
                         module = std::move(other.module);
-                        break;
-                    case Type::INIT:
-                        init = std::move(other.init);
                         break;
                     case Type::FUNCTION:
                         function = std::move(other.function);
@@ -177,9 +163,6 @@ namespace spade
                     break;
                 case Type::MODULE:
                     module = null;
-                    break;
-                case Type::INIT:
-                    init = null;
                     break;
                 case Type::FUNCTION:
                     function = null;

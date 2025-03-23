@@ -383,15 +383,7 @@ namespace spade::ast
         print(node.get_name(), "name");
         print(node.get_expr(), "expr");
     }
-
-    void Printer::visit(decl::Init &node) {
-        write_repr(&node);
-        ss << "decl::Init";
-        print(node.get_modifiers(), "modifiers");
-        print(node.get_params(), "params");
-        print(node.get_definition(), "definition");
-    }
-
+    
     void Printer::visit(decl::Compound &node) {
         write_repr(&node);
         ss << "decl::Compound";
