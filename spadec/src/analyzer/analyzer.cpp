@@ -174,7 +174,7 @@ namespace spade
             LOGGER.log_warn("check_cast: one of the scope::Compound is null, casting cannot be done");
             LOGGER.log_debug(
                     std::format("check_cast: from = {}, to = {}", (from ? "non-null" : "null"), (to ? "non-null" : "null")));
-            return;    // TODO: resolve this
+            return;
         }
         // take advantage of super classes
         if (from->has_super(to))
@@ -266,7 +266,7 @@ namespace spade
     ExprInfo Analyzer::get_var_expr_info(std::shared_ptr<scope::Variable> var_scope, const ast::AstNode &node) {
         ExprInfo expr_info;
         expr_info.tag = ExprInfo::Type::NORMAL;
-        switch (var_scope->get_evaluating()) {
+        switch (var_scope->get_eval()) {
             case scope::Variable::Eval::NOT_STARTED: {
                 auto old_cur_scope = cur_scope;         // save context
                 cur_scope = var_scope->get_parent();    // change context
@@ -278,7 +278,7 @@ namespace spade
             case scope::Variable::Eval::PROGRESS:
                 if (get_current_scope()->get_type() == scope::ScopeType::VARIABLE) {
                     auto cur_var_scope = cast<scope::Variable>(get_current_scope());
-                    if (cur_var_scope->get_evaluating() == scope::Variable::Eval::DONE) {
+                    if (cur_var_scope->get_eval() == scope::Variable::Eval::DONE) {
                         expr_info.type_info = cur_var_scope->get_type_info();    // sense correct
                         break;
                     }
@@ -294,6 +294,38 @@ namespace spade
         }
         return expr_info;
     }
+
+    // ExprInfo Analyzer::get_fun_ret_info(std::shared_ptr<scope::Function> fun_scope, const ast::AstNode &node) {
+    //     ExprInfo expr_info;
+    //     expr_info.tag = ExprInfo::Type::NORMAL;
+    //     switch (fun_scope->get_proto_eval()) {
+    //         case scope::Function::ProtoEval::NOT_STARTED: {
+    //             auto old_cur_scope = cur_scope;         // save context
+    //             cur_scope = fun_scope->get_parent()->get_parent();    // change context
+    //             fun_scope->get_node()->accept(this);    // visit variable
+    //             cur_scope = old_cur_scope;              // reset context
+    //             expr_info.type_info = fun_scope->get_ret_type();
+    //             break;
+    //         }
+    //         case scope::Function::ProtoEval::PROGRESS:
+    //             if (get_current_scope()->get_type() == scope::ScopeType::FUNCTION) {
+    //                 auto cur_fun_scope = cast<scope::Function>(get_current_scope());
+    //                 if (cur_fun_scope->get_proto_eval() == scope::Function::ProtoEval::DONE) {
+    //                     expr_info.type_info = cur_fun_scope->get_ret_type();    // sense correct
+    //                     break;
+    //                 }
+    //             }
+    //             expr_info.type_info.type = cast<scope::Compound>(&*internals[Analyzer::Internal::SPADE_ANY]);
+    //             expr_info.type_info.b_nullable = true;
+    //             warning(std::format("type inference is ambiguous, defaulting to '{}'", expr_info.type_info.to_string()), &node);
+    //             note("declared here", fun_scope);
+    //             break;
+    //         case scope::Function::ProtoEval::DONE:
+    //             expr_info.type_info = fun_scope->get_ret_type();
+    //             break;
+    //     }
+    //     return expr_info;
+    // }
 
     void Analyzer::analyze(const std::vector<std::shared_ptr<ast::Module>> &modules) {
         if (modules.empty())
@@ -427,8 +459,10 @@ namespace spade
                         _res_expr_info.type_info.type = cast<scope::Compound>(&*scope);
                         break;
                     case scope::ScopeType::FUNCTION:
-                        _res_expr_info.tag = ExprInfo::Type::FUNCTION;
-                        _res_expr_info.function = cast<scope::Function>(&*scope);
+                        throw Unreachable();    // surely some symbol tree builder error
+                    case scope::ScopeType::FUNCTION_SET:
+                        _res_expr_info.tag = ExprInfo::Type::FUNCTION_SET;
+                        _res_expr_info.function_set = cast<scope::FunctionSet>(&*scope);
                         break;
                     case scope::ScopeType::BLOCK:
                         throw Unreachable();    // surely some parser error
@@ -518,8 +552,10 @@ namespace spade
                         _res_expr_info.tag = ExprInfo::Type::STATIC;
                         break;
                     case scope::ScopeType::FUNCTION:
-                        _res_expr_info.function = cast<scope::Function>(&*member_scope);
-                        _res_expr_info.tag = ExprInfo::Type::FUNCTION;
+                        throw Unreachable();    // surely some symbol tree builder error
+                    case scope::ScopeType::FUNCTION_SET:
+                        _res_expr_info.function_set = cast<scope::FunctionSet>(&*member_scope);
+                        _res_expr_info.tag = ExprInfo::Type::FUNCTION_SET;
                         break;
                     case scope::ScopeType::VARIABLE:
                         _res_expr_info = get_var_expr_info(cast<scope::Variable>(member_scope), node);
@@ -554,8 +590,10 @@ namespace spade
                         _res_expr_info.tag = ExprInfo::Type::STATIC;
                         break;
                     case scope::ScopeType::FUNCTION:
-                        _res_expr_info.function = cast<scope::Function>(&*member_scope);
-                        _res_expr_info.tag = ExprInfo::Type::FUNCTION;
+                        throw Unreachable();    // surely some symbol tree builder error
+                    case scope::ScopeType::FUNCTION_SET:
+                        _res_expr_info.function_set = cast<scope::FunctionSet>(&*member_scope);
+                        _res_expr_info.tag = ExprInfo::Type::FUNCTION_SET;
                         break;
                     case scope::ScopeType::VARIABLE: {
                         auto var_scope = cast<scope::Variable>(member_scope);
@@ -595,8 +633,10 @@ namespace spade
                         _res_expr_info.tag = ExprInfo::Type::STATIC;
                         break;
                     case scope::ScopeType::FUNCTION:
-                        _res_expr_info.function = cast<scope::Function>(&*scope);
-                        _res_expr_info.tag = ExprInfo::Type::FUNCTION;
+                        throw Unreachable();    // surely some symbol tree builder error
+                    case scope::ScopeType::FUNCTION_SET:
+                        _res_expr_info.function_set = cast<scope::FunctionSet>(&*scope);
+                        _res_expr_info.tag = ExprInfo::Type::FUNCTION_SET;
                         break;
                     case scope::ScopeType::VARIABLE:
                         _res_expr_info.type_info = cast<scope::Variable>(scope)->get_type_info();
@@ -607,8 +647,8 @@ namespace spade
                 }
                 break;
             }
-            case ExprInfo::Type::FUNCTION:
-                throw error("cannot access member of function or constructor", &node);
+            case ExprInfo::Type::FUNCTION_SET:
+                throw error("cannot access member of callable type", &node);
         }
         // This is the property of safe dot operator
         // where 'a?.b' returns 'a.b' if 'a' is not null, else returns null
@@ -620,6 +660,29 @@ namespace spade
         node.get_caller()->accept(this);
         auto caller_info = _res_expr_info;
         _res_expr_info.reset();
+
+        struct ArgInfo {
+            bool b_kwd = false;
+            string name;
+            ExprInfo expr_info;
+        };
+
+        std::vector<ArgInfo> arg_infos;
+        arg_infos.reserve(node.get_args().size());
+
+        for (auto arg: node.get_args()) {
+            ArgInfo arg_info;
+            arg_info.b_kwd = arg->get_name() != null;
+            arg_info.name = arg_info.b_kwd ? arg->get_name()->get_text() : "";
+            arg->accept(this);
+            arg_info.expr_info = _res_expr_info;
+
+            if (!arg_infos.empty() && arg_infos.back().b_kwd && !arg_info.b_kwd)
+                throw error("mixing non-keyword and keyword arguments is not allowed", arg);
+
+            arg_infos.push_back(arg_info);
+        }
+
         switch (caller_info.tag) {
             case ExprInfo::Type::NORMAL:
                 if (caller_info.is_null())
@@ -631,19 +694,42 @@ namespace spade
                 break;
             case ExprInfo::Type::MODULE:
                 throw error("module is not callable", &node);
-            case ExprInfo::Type::FUNCTION:
+            case ExprInfo::Type::FUNCTION_SET: {
                 // this is the actual thing
                 // TODO: function resolution
+                auto fun_set = caller_info.function_set;
+                // Check for redeclaration if any
+                if (!fun_set->is_redecl_check()) {
+                    // fun_set can never be empty (according to scope tree builder)
+                    fun_set->get_members().begin()->second.second->get_node()->accept(this);
+                }
+
+                ErrorGroup<AnalyzerError> err_grp;
+                bool found = false;
+
+                for (const auto &[member_name, member]: fun_set->get_members()) {
+                    const auto &[_, member_scope] = member;
+                    auto fun_scope = cast<scope::Function>(member_scope);
+                    // first check for size
+                    if (fun_scope->param_count() != arg_infos.size()) {
+                        err_grp.get_errors().emplace_back(
+                                std::pair(ErrorType::ERROR, error(std::format("expected {} arguments but got {}",
+                                                                              fun_scope->param_count(), arg_infos.size()),
+                                                                  &node)));
+                        continue;
+                    }
+                }
+
+                if (!found)
+                    throw err_grp;
                 break;
-        }
-        for (auto arg: node.get_args()) {
-            arg->accept(this);
+            }
         }
     }
 
     void Analyzer::visit(ast::expr::Argument &node) {
         node.get_expr()->accept(this);
-        _res_expr_info.reset();
+        // _res_expr_info.reset();
     }
 
     void Analyzer::visit(ast::expr::Reify &node) {
@@ -721,7 +807,7 @@ namespace spade
             }
             case ExprInfo::Type::STATIC:
             case ExprInfo::Type::MODULE:
-            case ExprInfo::Type::FUNCTION:
+            case ExprInfo::Type::FUNCTION_SET:
                 throw error(std::format("cannot apply unary operator '{}' on '{}'", node.get_op()->get_text(),
                                         expr_info.to_string()),
                             &node);
@@ -854,30 +940,101 @@ namespace spade
 
     void Analyzer::visit(ast::decl::Param &node) {}
 
-    void Analyzer::visit(ast::decl::Params &node) {}
+    void Analyzer::visit(ast::decl::Params &node) {
+        // TODO: implement this
+    }
 
     void Analyzer::visit(ast::decl::Function &node) {
-        std::shared_ptr<scope::Function> scope;
-        if (get_current_scope()->get_type() == scope::ScopeType::FUNCTION) {
-            scope = begin_scope<scope::Function>(node);
-            // Add the variable to the parent scope
-            auto parent_scope = get_parent_scope();
-            if (!parent_scope->new_variable(node.get_name(), scope)) {
-                auto org_def = scope->get_decl_site(node.get_name()->get_text());
-                throw ErrorGroup<AnalyzerError>(
-                        std::pair(ErrorType::ERROR,
-                                  error(std::format("redeclaration of '{}'", node.get_name()->get_text()), node.get_name())),
-                        std::pair(ErrorType::NOTE, error("already declared here", org_def)));
+        std::shared_ptr<scope::FunctionSet> fun_set = find_scope<scope::FunctionSet>(node.get_name()->get_text());
+        std::shared_ptr<scope::Function> scope = find_scope<scope::Function>(node.get_qualified_name());
+
+        // TODO: check for function level declarations
+
+        if (scope->get_proto_eval() == scope::Function::ProtoEval::NOT_STARTED) {
+            scope->set_proto_eval(scope::Function::ProtoEval::PROGRESS);
+
+            node.get_params()->accept(this);
+
+            if (auto type = node.get_return_type()) {
+                type->accept(this);
+                scope->set_ret_type(_res_type_info);
+            } else {
+                TypeInfo return_type;
+                return_type.type = scope->is_init() ? scope->get_enclosing_compound()
+                                                    : cast<scope::Compound>(&*internals[Internal::SPADE_VOID]);
+                scope->set_ret_type(return_type);
+            }
+
+            scope->set_proto_eval(scope::Function::ProtoEval::DONE);
+        }
+
+        if (!fun_set->is_redecl_check()) {
+            // Collect all other defintions
+            for (const auto &[member_name, member]: fun_set->get_members()) {
+                const auto &[_, member_scope] = member;
+                if (scope != member_scope)
+                    member_scope->get_node()->accept(this);
+            }
+            // TODO: Check all the functions using brute force
+            fun_set->set_redecl_check(true);
+        }
+
+        auto definition = node.get_definition();
+
+        if (scope->get_enclosing_function() != null) {
+            if (definition == null)
+                throw error("function must have a definition", &node);
+        } else if (auto compound = scope->get_enclosing_compound()) {
+            switch (compound->get_compound_node()->get_token()->get_type()) {
+                case TokenType::CLASS: {
+                    if (scope->is_init() && definition == null) {
+                        throw error("constructor must have a definition", &node);
+                    }
+                    if (scope->is_abstract()) {
+                        if (definition != null)
+                            throw error("abstract function cannot have a definition", &node);
+                    } else {
+                        if (definition == null)
+                            throw error("function must have a definition", &node);
+                    }
+                    break;
+                }
+                case TokenType::INTERFACE: {
+                    if (scope->is_static()) {
+                        if (definition == null)
+                            throw error("static function must have a definition", &node);
+                    }
+                    break;
+                }
+                case TokenType::ENUM: {
+                    if (scope->is_init() && definition == null) {
+                        throw error("constructor must have a definition", &node);
+                    }
+                    if (definition == null)
+                        throw error("function must have a definition", &node);
+                    break;
+                }
+                case TokenType::ANNOTATION: {
+                    if (scope->is_init() && definition == null) {
+                        throw error("constructor must have a definition", &node);
+                    }
+                    if (definition == null)
+                        throw error("function must have a definition", &node);
+                    break;
+                }
+                default:
+                    throw Unreachable();    // surely some parser error
             }
         } else {
-            scope = find_scope<scope::Function>(node.get_qualified_name());
+            if (definition == null)
+                throw error("function must have a definition", &node);
         }
 
-        if (auto type = node.get_return_type()) {
-            type->accept(this);
-        }
+        if (definition)
+            definition->accept(this);
 
-        end_scope();
+        end_scope();    // pop the function
+        end_scope();    // pop the function set
     }
 
     void Analyzer::visit(ast::decl::Variable &node) {
@@ -897,11 +1054,11 @@ namespace spade
             scope = find_scope<scope::Variable>(node.get_name()->get_text());
         }
 
-        if (scope->get_evaluating() == scope::Variable::Eval::DONE) {
+        if (scope->get_eval() == scope::Variable::Eval::DONE) {
             end_scope();
             return;
         }
-        scope->set_evaluating(scope::Variable::Eval::PROGRESS);
+        scope->set_eval(scope::Variable::Eval::PROGRESS);
 
         TypeInfo type_info;
         if (auto type = node.get_type()) {
@@ -909,14 +1066,14 @@ namespace spade
             type_info = _res_type_info;
 
             scope->set_type_info(type_info);
-            scope->set_evaluating(scope::Variable::Eval::DONE);    // mimic as if type resolution is completed
+            scope->set_eval(scope::Variable::Eval::DONE);    // mimic as if type resolution is completed
         }
 
         if (auto expr = node.get_expr()) {
             expr->accept(this);
             auto expr_info = _res_expr_info;
-            // if (scope->get_evaluating() == scope::Variable::Eval::DONE) {
-            //     scope->set_evaluating(scope::Variable::Eval::PROGRESS);    // also resume progress
+            // if (scope->get_eval() == scope::Variable::Eval::DONE) {
+            //     scope->set_eval(scope::Variable::Eval::PROGRESS);    // also resume progress
             // }
             // Check type inference
             switch (expr_info.tag) {
@@ -979,7 +1136,7 @@ namespace spade
                                     &node);
                     else
                         throw error(std::format("cannot assign a module to variable", type_info.to_string()), &node);
-                case ExprInfo::Type::FUNCTION:
+                case ExprInfo::Type::FUNCTION_SET:
                     // TODO: implement function resolution
                     break;
             }
@@ -992,7 +1149,7 @@ namespace spade
         }
 
         scope->set_type_info(type_info);
-        scope->set_evaluating(scope::Variable::Eval::DONE);
+        scope->set_eval(scope::Variable::Eval::DONE);
         end_scope();
     }
 

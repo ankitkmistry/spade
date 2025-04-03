@@ -10,7 +10,7 @@ namespace spade
         class Compound;
         class Module;
         class Init;
-        class Function;
+        class FunctionSet;
     }    // namespace scope
 
     struct TypeInfo {
@@ -68,13 +68,13 @@ namespace spade
             NORMAL,
             STATIC,
             MODULE,
-            FUNCTION,
+            FUNCTION_SET,
         } tag = Type::NORMAL;
 
         union {
             TypeInfo type_info;
             scope::Module *module;
-            scope::Function *function;
+            scope::FunctionSet *function_set;
         };
 
         ExprInfo() : type_info() {}
@@ -88,8 +88,8 @@ namespace spade
                 case Type::MODULE:
                     module = other.module;
                     break;
-                case Type::FUNCTION:
-                    function = other.function;
+                case Type::FUNCTION_SET:
+                    function_set = other.function_set;
                     break;
             }
         }
@@ -103,8 +103,8 @@ namespace spade
                 case Type::MODULE:
                     module = std::move(other.module);
                     break;
-                case Type::FUNCTION:
-                    function = std::move(other.function);
+                case Type::FUNCTION_SET:
+                    function_set = std::move(other.function_set);
                     break;
             }
         }
@@ -121,8 +121,8 @@ namespace spade
                     case Type::MODULE:
                         module = other.module;
                         break;
-                    case Type::FUNCTION:
-                        function = other.function;
+                    case Type::FUNCTION_SET:
+                        function_set = other.function_set;
                         break;
                 }
             }
@@ -141,8 +141,8 @@ namespace spade
                     case Type::MODULE:
                         module = std::move(other.module);
                         break;
-                    case Type::FUNCTION:
-                        function = std::move(other.function);
+                    case Type::FUNCTION_SET:
+                        function_set = std::move(other.function_set);
                         break;
                 }
             }
@@ -164,8 +164,8 @@ namespace spade
                 case Type::MODULE:
                     module = null;
                     break;
-                case Type::FUNCTION:
-                    function = null;
+                case Type::FUNCTION_SET:
+                    function_set = null;
                     break;
             }
             tag = Type::NORMAL;

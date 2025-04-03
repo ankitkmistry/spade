@@ -28,8 +28,8 @@ namespace spade
                 return type_info.to_string();
             case Type::MODULE:
                 return module->to_string();
-            case Type::FUNCTION:
-                return function->to_string();
+            case Type::FUNCTION_SET:
+                return function_set->to_string();
             default:
                 throw Unreachable();    // to remove MSVC warning
         }

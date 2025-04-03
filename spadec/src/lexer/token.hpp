@@ -117,7 +117,7 @@ namespace spade
         int col;
 
       public:
-        Token(TokenType type, string text, int line, int col) : type(type), text(std::move(text)), line(line), col(col) {}
+        Token(TokenType type, const string &text, int line, int col) : type(type), text(text), line(line), col(col) {}
 
         Token(const Token &other) = default;
         Token(Token &&other) noexcept = default;
@@ -201,14 +201,10 @@ namespace spade
         }
 
         int get_col_end() const {
-            int res = col;
-            for (auto c: text) {
-                if (c == '\n')
-                    res = 0;
-                else
-                    res++;
+            if (auto pos = text.find_last_of('\n'); pos != string::npos) {
+                return text.size() - pos - (type == TokenType::END_OF_FILE ? 0 : 1);
             }
-            return res;
+            return col + text.size() - (type == TokenType::END_OF_FILE ? 0 : 1);
         }
     };
 

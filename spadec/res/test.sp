@@ -10,6 +10,10 @@ class Aa{
 class B{
 	class a
 	var b: B
+
+	abstract fun baz()
+
+	init(){}
 }
 
 # var global2 = Aa.a as B # but error here!!!
@@ -22,11 +26,13 @@ enum Color {
 var a: B?
 var b: any? = a?.b
 
-fun abaxa(){}
+fun abaxify(){}
+
+var abaxa=abaxify(1,b:2)
 
 interface Foo {
 	static var size = 0
-	public fun build() {
+	public final static fun build() {
 		self.bar(Color.RED)
 	}
 }

@@ -44,18 +44,7 @@ namespace spade
     }
 
     ParserError Parser::error(const string &msg, const std::shared_ptr<Token> &token) {
-        int line_start = token->get_line();
-        int col_start = token->get_col();
-        int line_end = line_start;
-        int col_end = col_start;
-        for (auto c: token->get_text()) {
-            if (c == '\n') {
-                line_end++;
-                col_end = 0;
-            } else
-                col_end++;
-        }
-        return {msg, file_path, line_start, col_start, line_end, col_end};
+        return {msg, file_path, token->get_line_start(), token->get_col_start(), token->get_line_end(), token->get_col_end()};
     }
 
     ParserError Parser::error(const string &msg) {
@@ -225,7 +214,7 @@ namespace spade
 
     std::shared_ptr<ast::Declaration> Parser::function_decl() {
         auto token = expect(TokenType::FUN);
-        auto name = expect(TokenType::IDENTIFIER, TokenType::UNDERSCORE);
+        auto name = expect(TokenType::IDENTIFIER);
         std::vector<std::shared_ptr<ast::decl::TypeParam>> type_params;
         std::vector<std::shared_ptr<ast::decl::Constraint>> constraints;
         if (match(TokenType::LBRACKET)) {

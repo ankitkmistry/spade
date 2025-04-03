@@ -89,7 +89,7 @@ namespace spade
         bool quote_open = false;
         string err_what = err.what();
         for (auto c: err_what) {
-            if (c == '\'') {
+            if (c == '\'' || c == '<' || c == '>') {
                 if (!quote_open) {
                     err_str += color::fg(color::from_hex(0xd619e0));
                     err_str += color::attr(color::BOLD);

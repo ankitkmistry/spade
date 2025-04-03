@@ -23,6 +23,23 @@ namespace spade
             return elements != other.elements;
         }
 
+        SymbolPath operator+(const string &element) const {
+            SymbolPath path(*this);
+            if (!path.empty())
+                path.elements.back() += element;
+            else
+                path.elements.push_back(element);
+            return path;
+        }
+
+        SymbolPath &operator+=(const string &element) {
+            if (!empty())
+                elements.back() += element;
+            else
+                elements.push_back(element);
+            return *this;
+        }
+
         SymbolPath operator/(const string &element) const {
             SymbolPath path(*this);
             path.elements.push_back(element);

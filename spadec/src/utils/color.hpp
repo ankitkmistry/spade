@@ -139,16 +139,6 @@ namespace color
         static void clear();
 
         /**
-         * Hides the cursor
-         */
-        static void make_cursor_invisible();
-
-        /**
-         * Shows the cursor
-         */
-        static void make_cursor_visible();
-
-        /**
          * Sets the style of the console
          * @param style the specified style
          */

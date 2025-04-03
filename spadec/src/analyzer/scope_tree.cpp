@@ -1,17 +1,16 @@
+#include <memory>
 #include <numeric>
 
 #include "scope_tree.hpp"
 #include "lexer/token.hpp"
 #include "parser/ast.hpp"
+#include "scope.hpp"
+#include "spimp/utils.hpp"
 
 #define get_parent_scope() (scope_stack.at(scope_stack.size() - 2))
 
 namespace spade
 {
-    static string deparenthesize(const string &str) {
-        return str.substr(0, str.find_first_of('('));
-    }
-
     SymbolPath ScopeTreeBuilder::get_current_path() const {
         auto scope_sptr = scope_stack.at(0);
         SymbolPath path(cast<ast::Module>(scope_sptr->get_node())->get_name());
@@ -58,26 +57,51 @@ namespace spade
             return;
         }
 
-        auto node = scope->get_node();
         auto parent_scope = (scope_stack.at(scope_stack.size() - 2));
-        auto symbol_path = (get_current_path() / name).to_string();
-        if (parent_scope->has_variable(name))
-            throw ErrorGroup<AnalyzerError>(
-                    std::pair(ErrorType::ERROR, error(std::format("redeclaration of '{}'", symbol_path), node)),
-                    std::pair(ErrorType::NOTE, error("already declared here", parent_scope->get_variable(name))));
-        if (scope->get_type() != scope::ScopeType::FUNCTION) {
-            for (const auto &[member_name, member]: parent_scope->get_members()) {
-                auto member_scope = member.second;
-                if (member_scope->get_type() == scope::ScopeType::FUNCTION && deparenthesize(member_name) == name) {
+        auto symbol_path = get_current_path() / name;
+
+        if (scope->get_type() == scope::ScopeType::FUNCTION) {
+            // Compute the function name and symbol path
+            auto fun_scope = cast<scope::Function>(scope);
+            auto fun_name = build_function_name(*fun_scope->get_function_node());
+            auto fun_sym_path = get_current_path() / fun_name;
+            // Check if there was any existing functions
+            if (auto existing_scope = parent_scope->get_variable(name)) {
+                if (existing_scope->get_type() == scope::ScopeType::FUNCTION_SET) {
+                    // Then add this current function to it
+                    auto fun_set = cast<scope::FunctionSet>(existing_scope);
+                    fun_scope->set_path(fun_sym_path);
+                    fun_scope->get_function_node()->set_qualified_name(fun_name);
+                    fun_set->new_variable(fun_name, decl_site, fun_scope);
+
+                } else    // Something else was defined with the same name
                     throw ErrorGroup<AnalyzerError>(
-                            std::pair(ErrorType::ERROR, error(std::format("redeclaration of '{}'", symbol_path), node)),
-                            std::pair(ErrorType::NOTE, error("already declared here", scope)));
-                }
+                            std::pair(ErrorType::ERROR, error(std::format("redeclaration of '{}'", symbol_path.to_string()),
+                                                              fun_scope->get_node())),
+                            std::pair(ErrorType::NOTE, error("already declared here", existing_scope)));
+            } else {
+                // There was no existing functions with the same name
+                // So create a function set and add the current function to it
+                auto fun_set = std::make_shared<scope::FunctionSet>();
+                fun_scope->set_path(fun_sym_path);                               // set the symbol path of the function
+                fun_scope->get_function_node()->set_qualified_name(fun_name);    // set the qualified name of the function
+                fun_set->set_path(symbol_path);                                  // set the symbol path of the function set
+                fun_set->new_variable(fun_name, decl_site, fun_scope);           // add the function to the set
+                parent_scope->new_variable(name, null, fun_set);                 // add the function set to the parent scope
+            }
+        } else {
+            if (parent_scope->has_variable(name)) {
+                throw ErrorGroup<AnalyzerError>(
+                        std::pair(ErrorType::ERROR,
+                                  error(std::format("redeclaration of '{}'", symbol_path.to_string()), scope->get_node())),
+                        std::pair(ErrorType::NOTE, error("already declared here", parent_scope->get_variable(name))));
+            } else {
+                parent_scope->new_variable(name, decl_site, scope);
+                scope->set_path(symbol_path);
             }
         }
-        parent_scope->new_variable(name, decl_site, scope);
-        scope->set_path(symbol_path);
-        LOGGER.log_info(std::format("added symbol '{}'", symbol_path));
+
+        LOGGER.log_info(std::format("added symbol '{}'", symbol_path.to_string()));
     }
 
     void ScopeTreeBuilder::check_modifiers(ast::AstNode *node, const std::vector<std::shared_ptr<Token>> &modifiers) {
@@ -462,9 +486,7 @@ namespace spade
         }
 
         auto scope = begin_scope<scope::Function>(node);
-        auto qualified_name = build_function_name(node);
-        node.set_qualified_name(qualified_name);
-        add_symbol(qualified_name, node.get_name(), scope);
+        add_symbol(node.get_name()->get_text(), node.get_name(), scope);
         end_scope();
     }
 
@@ -611,6 +633,8 @@ namespace spade
                 for (size_t i = 0; i < n; i++) end_scope();
             }
         }
+
+
         return module_scopes;
     }
 }    // namespace spade

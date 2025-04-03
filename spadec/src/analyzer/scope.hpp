@@ -15,7 +15,7 @@ namespace spade::scope
     class Compound;
     class Function;
 
-    enum class ScopeType { FOLDER_MODULE, MODULE, COMPOUND, FUNCTION, BLOCK, VARIABLE, ENUMERATOR };
+    enum class ScopeType { FOLDER_MODULE, MODULE, COMPOUND, FUNCTION, FUNCTION_SET, BLOCK, VARIABLE, ENUMERATOR };
 
     class Scope {
       public:
@@ -210,14 +210,113 @@ namespace spade::scope
 
     class Function final : public Scope {
       public:
+        enum class ProtoEval { NOT_STARTED, PROGRESS, DONE };
+
+      private:
+        /// Flag if the function prototype is being evaluated
+        ProtoEval proto_eval = ProtoEval::NOT_STARTED;
+        std::vector<TypeInfo> pos_only_param_types;
+        std::vector<TypeInfo> pos_kwd_param_types;
+        std::vector<TypeInfo> kwd_only_param_types;
+        TypeInfo ret_type;
+
+      public:
         Function(ast::decl::Function *node) : Scope(ScopeType::FUNCTION, node) {}
 
         ast::decl::Function *get_function_node() const {
             return cast<ast::decl::Function>(node);
         }
 
+        bool is_init() const {
+            return get_function_node()->get_name()->get_type() == TokenType::INIT;
+        }
+
+        bool is_abstract() const {
+            const auto &modifiers = get_function_node()->get_modifiers();
+            return std::find_if(modifiers.begin(), modifiers.end(), [](const std::shared_ptr<Token> &modifier) {
+                       return modifier->get_type() == TokenType::ABSTRACT;
+                   }) != modifiers.end();
+        }
+
+        bool is_final() const {
+            const auto &modifiers = get_function_node()->get_modifiers();
+            return std::find_if(modifiers.begin(), modifiers.end(), [](const std::shared_ptr<Token> &modifier) {
+                       return modifier->get_type() == TokenType::FINAL;
+                   }) != modifiers.end();
+        }
+
+        bool is_override() const {
+            const auto &modifiers = get_function_node()->get_modifiers();
+            return std::find_if(modifiers.begin(), modifiers.end(), [](const std::shared_ptr<Token> &modifier) {
+                       return modifier->get_type() == TokenType::OVERRIDE;
+                   }) != modifiers.end();
+        }
+
+        bool is_static() const {
+            const auto &modifiers = get_function_node()->get_modifiers();
+            return std::find_if(modifiers.begin(), modifiers.end(), [](const std::shared_ptr<Token> &modifier) {
+                       return modifier->get_type() == TokenType::STATIC;
+                   }) != modifiers.end();
+        }
+
+        size_t param_count() const {
+            return pos_only_param_types.size() + pos_kwd_param_types.size() + kwd_only_param_types.size();
+        }
+
+        const std::vector<TypeInfo> &get_pos_only_param_types() const {
+            return pos_only_param_types;
+        }
+
+        const std::vector<TypeInfo> &get_pos_kwd_param_types() const {
+            return pos_kwd_param_types;
+        }
+
+        const std::vector<TypeInfo> &get_kwd_only_param_types() const {
+            return kwd_only_param_types;
+        }
+
+        const TypeInfo &get_ret_type() const {
+            return ret_type;
+        }
+
+        void set_ret_type(const TypeInfo &type) {
+            ret_type = type;
+        }
+
+        ProtoEval get_proto_eval() const {
+            return proto_eval;
+        }
+
+        void set_proto_eval(ProtoEval eval) {
+            proto_eval = eval;
+        }
+
         string to_string() const override {
-            return "function " + path.to_string();
+            return (is_init() ? "init " : "function ") + path.to_string();
+        }
+    };
+
+    class FunctionSet final : public Scope {
+        bool redecl_check = false;
+
+      public:
+        FunctionSet() : Scope(ScopeType::FUNCTION_SET, null) {}
+
+        FunctionSet(const FunctionSet &) = default;
+        FunctionSet(FunctionSet &&) = default;
+        FunctionSet &operator=(const FunctionSet &) = default;
+        FunctionSet &operator=(FunctionSet &&) = default;
+
+        bool is_redecl_check() const {
+            return redecl_check;
+        }
+
+        void set_redecl_check(bool value) {
+            redecl_check = value;
+        }
+
+        string to_string() const override {
+            return "function set " + path.to_string();
         }
     };
 
@@ -239,10 +338,10 @@ namespace spade::scope
         enum class Eval { NOT_STARTED, PROGRESS, DONE };
 
       private:
+        /// flag if the current scope is being evaluated
+        Eval eval = Eval::NOT_STARTED;
         /// type info of the variable
         TypeInfo type_info;
-        /// flag if the current scope is being evaluated
-        Eval evaluating = Eval::NOT_STARTED;
 
       public:
         Variable(ast::decl::Variable *node) : Scope(ScopeType::VARIABLE, node) {}
@@ -266,12 +365,12 @@ namespace spade::scope
             this->type_info = type_info;
         }
 
-        Eval get_evaluating() const {
-            return evaluating;
+        Eval get_eval() const {
+            return eval;
         }
 
-        void set_evaluating(Eval evaluating) {
-            this->evaluating = evaluating;
+        void set_eval(Eval eval) {
+            this->eval = eval;
         }
 
         ast::decl::Variable *get_variable_node() const {

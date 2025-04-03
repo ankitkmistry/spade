@@ -251,7 +251,7 @@ namespace spade::ast
                 return param_types;
             }
 
-            std::shared_ptr<Type> get_return_type() const {
+            const std::shared_ptr<Type> &get_return_type() const {
                 return return_type;
             }
 
@@ -278,15 +278,15 @@ namespace spade::ast
             BinaryOp(const std::shared_ptr<Type> &left, const std::shared_ptr<Token> &op, const std::shared_ptr<Type> &right)
                 : Type(left, right), left(left), op(op), right(right) {}
 
-            std::shared_ptr<Type> get_left() const {
+            const std::shared_ptr<Type> &get_left() const {
                 return left;
             }
 
-            std::shared_ptr<Token> get_op() const {
+            const std::shared_ptr<Token> &get_op() const {
                 return op;
             }
 
-            std::shared_ptr<Type> get_right() const {
+            const std::shared_ptr<Type> &get_right() const {
                 return right;
             }
 
@@ -301,7 +301,7 @@ namespace spade::ast
           public:
             Nullable(const std::shared_ptr<Token> &end, const std::shared_ptr<Type> &type) : Type(type, end), type(type) {}
 
-            std::shared_ptr<Type> get_type() const {
+            const std::shared_ptr<Type> &get_type() const {
                 return type;
             }
 
@@ -318,11 +318,11 @@ namespace spade::ast
             TypeBuilderMember(const std::shared_ptr<Token> &name, const std::shared_ptr<Type> &type)
                 : AstNode(name, type), name(name), type(type) {}
 
-            std::shared_ptr<Token> get_name() const {
+            const std::shared_ptr<Token> &get_name() const {
                 return name;
             }
 
-            std::shared_ptr<Type> get_type() const {
+            const std::shared_ptr<Type> &get_type() const {
                 return type;
             }
 
@@ -365,7 +365,7 @@ namespace spade::ast
           public:
             Constant(const std::shared_ptr<Token> &token) : Expression(token, token), token(token) {}
 
-            std::shared_ptr<Token> get_token() const {
+            const std::shared_ptr<Token> &get_token() const {
                 return token;
             }
 
@@ -382,7 +382,7 @@ namespace spade::ast
                   const std::shared_ptr<Reference> &reference)
                 : Expression(start, end), reference(reference) {}
 
-            std::shared_ptr<Reference> get_reference() const {
+            const std::shared_ptr<Reference> &get_reference() const {
                 return reference;
             }
 
@@ -408,7 +408,7 @@ namespace spade::ast
             Postfix(const std::shared_ptr<Token> &end, const std::shared_ptr<Expression> &caller)
                 : Expression(caller, end), caller(caller) {}
 
-            std::shared_ptr<Expression> get_caller() const {
+            const std::shared_ptr<Expression> &get_caller() const {
                 return caller;
             }
         };
@@ -423,11 +423,11 @@ namespace spade::ast
                       const std::shared_ptr<Token> &safe)
                 : Postfix(member, caller), member(member), safe(safe) {}
 
-            std::shared_ptr<Token> get_member() const {
+            const std::shared_ptr<Token> &get_member() const {
                 return member;
             }
 
-            std::shared_ptr<Token> get_safe() const {
+            const std::shared_ptr<Token> &get_safe() const {
                 return safe;
             }
 
@@ -446,11 +446,11 @@ namespace spade::ast
 
             Argument(const std::shared_ptr<Expression> &expr) : AstNode(expr, expr), expr(expr) {}
 
-            std::shared_ptr<Token> get_name() const {
+            const std::shared_ptr<Token> &get_name() const {
                 return name;
             }
 
-            std::shared_ptr<Expression> get_expr() const {
+            const std::shared_ptr<Expression> &get_expr() const {
                 return expr;
             }
 
@@ -512,15 +512,15 @@ namespace spade::ast
                 return kind;
             }
 
-            std::shared_ptr<Expression> get_from() const {
+            const std::shared_ptr<Expression> &get_from() const {
                 return from;
             }
 
-            std::shared_ptr<Expression> get_to() const {
+            const std::shared_ptr<Expression> &get_to() const {
                 return to;
             }
 
-            std::shared_ptr<Expression> get_step() const {
+            const std::shared_ptr<Expression> &get_step() const {
                 return step;
             }
 
@@ -554,11 +554,11 @@ namespace spade::ast
             Unary(const std::shared_ptr<Token> &op, const std::shared_ptr<Expression> &expr)
                 : Expression(op, expr), op(op), expr(expr) {}
 
-            std::shared_ptr<Token> get_op() const {
+            const std::shared_ptr<Token> &get_op() const {
                 return op;
             }
 
-            std::shared_ptr<Expression> get_expr() const {
+            const std::shared_ptr<Expression> &get_expr() const {
                 return expr;
             }
 
@@ -576,15 +576,15 @@ namespace spade::ast
             Cast(const std::shared_ptr<Expression> &expr, const std::shared_ptr<Token> &safe, const std::shared_ptr<Type> &type)
                 : Expression(expr, type), expr(expr), safe(safe), type(type) {}
 
-            std::shared_ptr<Expression> get_expr() const {
+            const std::shared_ptr<Expression> &get_expr() const {
                 return expr;
             }
 
-            std::shared_ptr<Token> get_safe() const {
+            const std::shared_ptr<Token> &get_safe() const {
                 return safe;
             }
 
-            std::shared_ptr<Type> get_type() const {
+            const std::shared_ptr<Type> &get_type() const {
                 return type;
             }
 
@@ -609,19 +609,19 @@ namespace spade::ast
                    const std::shared_ptr<Token> &op2, const std::shared_ptr<Expression> &right)
                 : Expression(left, right), left(left), op1(op1), op2(op2), right(right) {}
 
-            std::shared_ptr<Expression> get_left() const {
+            const std::shared_ptr<Expression> &get_left() const {
                 return left;
             }
 
-            std::shared_ptr<Token> get_op1() const {
+            const std::shared_ptr<Token> &get_op1() const {
                 return op1;
             }
 
-            std::shared_ptr<Token> get_op2() const {
+            const std::shared_ptr<Token> &get_op2() const {
                 return op2;
             }
 
-            std::shared_ptr<Expression> get_right() const {
+            const std::shared_ptr<Expression> &get_right() const {
                 return right;
             }
 
@@ -661,15 +661,15 @@ namespace spade::ast
                     const std::shared_ptr<Expression> &on_false)
                 : Expression(condition, on_false), condition(condition), on_true(on_true), on_false(on_false) {}
 
-            std::shared_ptr<Expression> get_condition() const {
+            const std::shared_ptr<Expression> &get_condition() const {
                 return condition;
             }
 
-            std::shared_ptr<Expression> get_on_true() const {
+            const std::shared_ptr<Expression> &get_on_true() const {
                 return on_true;
             }
 
-            std::shared_ptr<Expression> get_on_false() const {
+            const std::shared_ptr<Expression> &get_on_false() const {
                 return on_false;
             }
 
@@ -693,11 +693,11 @@ namespace spade::ast
                 return assignees;
             }
 
-            std::shared_ptr<Token> get_op1() const {
+            const std::shared_ptr<Token> &get_op1() const {
                 return op1;
             }
 
-            std::shared_ptr<Token> get_op2() const {
+            const std::shared_ptr<Token> &get_op2() const {
                 return op2;
             }
 
@@ -747,15 +747,15 @@ namespace spade::ast
                const std::shared_ptr<Statement> &body, const std::shared_ptr<Statement> &else_body)
                 : Statement(token, else_body ? else_body : body), condition(condition), body(body), else_body(else_body) {}
 
-            std::shared_ptr<Expression> get_condition() const {
+            const std::shared_ptr<Expression> &get_condition() const {
                 return condition;
             }
 
-            std::shared_ptr<Statement> get_body() const {
+            const std::shared_ptr<Statement> &get_body() const {
                 return body;
             }
 
-            std::shared_ptr<Statement> get_else_body() const {
+            const std::shared_ptr<Statement> &get_else_body() const {
                 return else_body;
             }
 
@@ -774,15 +774,15 @@ namespace spade::ast
                   const std::shared_ptr<Statement> &body, const std::shared_ptr<Statement> &else_body)
                 : Statement(token, else_body ? else_body : body), condition(condition), body(body), else_body(else_body) {}
 
-            std::shared_ptr<Expression> get_condition() const {
+            const std::shared_ptr<Expression> &get_condition() const {
                 return condition;
             }
 
-            std::shared_ptr<Statement> get_body() const {
+            const std::shared_ptr<Statement> &get_body() const {
                 return body;
             }
 
-            std::shared_ptr<Statement> get_else_body() const {
+            const std::shared_ptr<Statement> &get_else_body() const {
                 return else_body;
             }
 
@@ -801,15 +801,15 @@ namespace spade::ast
                     const std::shared_ptr<Expression> &condition, const std::shared_ptr<Statement> &else_body)
                 : Statement(token, else_body ? else_body : body), body(body), condition(condition), else_body(else_body) {}
 
-            std::shared_ptr<Expression> get_condition() const {
+            const std::shared_ptr<Expression> &get_condition() const {
                 return condition;
             }
 
-            std::shared_ptr<Statement> get_body() const {
+            const std::shared_ptr<Statement> &get_body() const {
                 return body;
             }
 
-            std::shared_ptr<Statement> get_else_body() const {
+            const std::shared_ptr<Statement> &get_else_body() const {
                 return else_body;
             }
 
@@ -825,7 +825,7 @@ namespace spade::ast
             Throw(const std::shared_ptr<Token> &token, const std::shared_ptr<Expression> &expression)
                 : Statement(token, expression), expression(expression) {}
 
-            std::shared_ptr<Expression> get_expression() const {
+            const std::shared_ptr<Expression> &get_expression() const {
                 return expression;
             }
 
@@ -848,11 +848,11 @@ namespace spade::ast
                 return references;
             }
 
-            std::shared_ptr<Token> get_symbol() const {
+            const std::shared_ptr<Token> &get_symbol() const {
                 return symbol;
             }
 
-            std::shared_ptr<Statement> get_body() const {
+            const std::shared_ptr<Statement> &get_body() const {
                 return body;
             }
 
@@ -871,7 +871,7 @@ namespace spade::ast
                 const std::vector<std::shared_ptr<Statement>> &catches, const std::shared_ptr<Statement> &finally)
                 : Statement(token, finally ? finally : catches.back()), body(body), catches(catches), finally(finally) {}
 
-            std::shared_ptr<Statement> get_body() const {
+            const std::shared_ptr<Statement> &get_body() const {
                 return body;
             }
 
@@ -879,7 +879,7 @@ namespace spade::ast
                 return catches;
             }
 
-            std::shared_ptr<Statement> get_finally() const {
+            const std::shared_ptr<Statement> &get_finally() const {
                 return finally;
             }
 
@@ -913,7 +913,7 @@ namespace spade::ast
             Return(const std::shared_ptr<Token> &token, const std::shared_ptr<Expression> &expression)
                 : Statement(token, expression), expression(expression) {}
 
-            std::shared_ptr<Expression> get_expression() const {
+            const std::shared_ptr<Expression> &get_expression() const {
                 return expression;
             }
 
@@ -929,7 +929,7 @@ namespace spade::ast
             Yield(const std::shared_ptr<Token> &token, const std::shared_ptr<Expression> &expression)
                 : Statement(token, expression), expression(expression) {}
 
-            std::shared_ptr<Expression> get_expression() const {
+            const std::shared_ptr<Expression> &get_expression() const {
                 return expression;
             }
 
@@ -945,7 +945,7 @@ namespace spade::ast
             explicit Expr(const std::shared_ptr<Expression> &expression)
                 : Statement(expression, expression), expression(expression) {}
 
-            std::shared_ptr<Expression> get_expression() const {
+            const std::shared_ptr<Expression> &get_expression() const {
                 return expression;
             }
 
@@ -989,15 +989,15 @@ namespace spade::ast
                       const std::shared_ptr<Type> &default_type)
                 : Declaration(variance ? variance : name, end), variance(variance), name(name), default_type(default_type) {}
 
-            std::shared_ptr<Token> get_variance() const {
+            const std::shared_ptr<Token> &get_variance() const {
                 return variance;
             }
 
-            std::shared_ptr<Token> get_name() const {
+            const std::shared_ptr<Token> &get_name() const {
                 return name;
             }
 
-            std::shared_ptr<Type> get_default_type() const {
+            const std::shared_ptr<Type> &get_default_type() const {
                 return default_type;
             }
 
@@ -1014,11 +1014,11 @@ namespace spade::ast
             Constraint(const std::shared_ptr<Token> &arg, const std::shared_ptr<Type> &type)
                 : AstNode(arg, type), arg(arg), type(type) {}
 
-            std::shared_ptr<Token> get_arg() const {
+            const std::shared_ptr<Token> &get_arg() const {
                 return arg;
             }
 
-            std::shared_ptr<Type> get_type() const {
+            const std::shared_ptr<Type> &get_type() const {
                 return type;
             }
 
@@ -1045,23 +1045,23 @@ namespace spade::ast
                   type(type),
                   default_expr(default_expr) {}
 
-            std::shared_ptr<Token> get_is_const() const {
+            const std::shared_ptr<Token> &get_is_const() const {
                 return is_const;
             }
 
-            std::shared_ptr<Token> get_variadic() const {
+            const std::shared_ptr<Token> &get_variadic() const {
                 return variadic;
             }
 
-            std::shared_ptr<Token> get_name() const {
+            const std::shared_ptr<Token> &get_name() const {
                 return name;
             }
 
-            std::shared_ptr<Type> get_type() const {
+            const std::shared_ptr<Type> &get_type() const {
                 return type;
             }
 
-            std::shared_ptr<Expression> get_default_expr() const {
+            const std::shared_ptr<Expression> &get_default_expr() const {
                 return default_expr;
             }
 
@@ -1125,7 +1125,7 @@ namespace spade::ast
                   return_type(return_type),
                   definition(definition) {}
 
-            std::shared_ptr<Token> get_name() const {
+            const std::shared_ptr<Token> &get_name() const {
                 return name;
             }
 
@@ -1137,15 +1137,15 @@ namespace spade::ast
                 return constraints;
             }
 
-            std::shared_ptr<Params> get_params() const {
+            const std::shared_ptr<Params> &get_params() const {
                 return params;
             }
 
-            std::shared_ptr<Type> get_return_type() const {
+            const std::shared_ptr<Type> &get_return_type() const {
                 return return_type;
             }
 
-            std::shared_ptr<Statement> get_definition() const {
+            const std::shared_ptr<Statement> &get_definition() const {
                 return definition;
             }
 
@@ -1175,19 +1175,19 @@ namespace spade::ast
                      const std::shared_ptr<Type> &type, const std::shared_ptr<Expression> &expr)
                 : Declaration(token, end), token(token), name(name), type(type), expr(expr) {}
 
-            std::shared_ptr<Token> get_token() const {
+            const std::shared_ptr<Token> &get_token() const {
                 return token;
             }
 
-            std::shared_ptr<Token> get_name() const {
+            const std::shared_ptr<Token> &get_name() const {
                 return name;
             }
 
-            std::shared_ptr<Type> get_type() const {
+            const std::shared_ptr<Type> &get_type() const {
                 return type;
             }
 
-            std::shared_ptr<Expression> get_expr() const {
+            const std::shared_ptr<Expression> &get_expr() const {
                 return expr;
             }
 
@@ -1206,7 +1206,7 @@ namespace spade::ast
             Parent(T end, std::shared_ptr<Reference> reference, const std::vector<std::shared_ptr<Type>> &type_args)
                 : AstNode(reference, end), reference(reference), type_args(type_args) {}
 
-            std::shared_ptr<Reference> get_reference() const {
+            const std::shared_ptr<Reference> &get_reference() const {
                 return reference;
             }
 
@@ -1235,11 +1235,11 @@ namespace spade::ast
             Enumerator(T end, std::shared_ptr<Token> name, const std::vector<std::shared_ptr<expr::Argument>> &args)
                 : Declaration(name, end), name(name), args(args) {}
 
-            std::shared_ptr<Token> get_name() const {
+            const std::shared_ptr<Token> &get_name() const {
                 return name;
             }
 
-            std::shared_ptr<Expression> get_expr() const {
+            const std::shared_ptr<Expression> &get_expr() const {
                 return expr;
             }
 
@@ -1279,11 +1279,11 @@ namespace spade::ast
                   enumerators(enumerators),
                   members(members) {}
 
-            std::shared_ptr<Token> get_token() const {
+            const std::shared_ptr<Token> &get_token() const {
                 return token;
             }
 
-            std::shared_ptr<Token> get_name() const {
+            const std::shared_ptr<Token> &get_name() const {
                 return name;
             }
 
@@ -1349,11 +1349,11 @@ namespace spade::ast
 
         fs::path get_path(const fs::path &root_path, const std::shared_ptr<Module> &module) const;
 
-        std::shared_ptr<Token> get_name() const {
+        const std::shared_ptr<Token> &get_name() const {
             return name;
         }
 
-        std::shared_ptr<Token> get_alias() const {
+        const std::shared_ptr<Token> &get_alias() const {
             return alias;
         }
 

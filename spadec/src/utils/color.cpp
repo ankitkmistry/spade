@@ -79,7 +79,7 @@ namespace color
         return GetConsoleMode(h_stdout, &mode);
     }
 
-    static DWORD old_in_mode, old_out_mode;
+    static DWORD old_out_mode;
     static UINT old_console_cp = 0;
     static char *old_locale = nullptr;
 
@@ -89,27 +89,20 @@ namespace color
         std::strcpy(old_locale, locale);
         std::setlocale(LC_CTYPE, "en_US.utf8");
 
-        if (!GetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), &old_in_mode))
-            throw _color_win_get_last_error();
         if (!GetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), &old_out_mode))
             throw _color_win_get_last_error();
         if ((old_console_cp = GetConsoleOutputCP()) == 0)
             throw _color_win_get_last_error();
 
-        if (!SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), ENABLE_EXTENDED_FLAGS | ENABLE_MOUSE_INPUT | ENABLE_WINDOW_INPUT))
-            throw _color_win_get_last_error();
         if (!SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE),
                             ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING | DISABLE_NEWLINE_AUTO_RETURN))
             throw _color_win_get_last_error();
         if (!SetConsoleOutputCP(CP_UTF8))
             throw _color_win_get_last_error();
-        make_cursor_visible();
     }
 
     void Console::restore() {
         std::setlocale(LC_CTYPE, old_locale);
-        if (!SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), old_in_mode))
-            throw _color_win_get_last_error();
         if (!SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), old_out_mode))
             throw _color_win_get_last_error();
         if (!SetConsoleOutputCP(old_console_cp))
@@ -147,28 +140,6 @@ namespace color
         // Put the cursor in the top left corner.
         SetConsoleCursorPosition(h_console, coord_screen);
     }
-
-    void Console::make_cursor_invisible() {
-        CONSOLE_CURSOR_INFO cursor_info;
-        HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
-
-        if (!GetConsoleCursorInfo(out, &cursor_info))
-            throw _color_win_get_last_error();
-        cursor_info.bVisible = false;    // turn off the cursor visibility
-        if (!SetConsoleCursorInfo(out, &cursor_info))
-            throw _color_win_get_last_error();
-    }
-
-    void Console::make_cursor_visible() {
-        CONSOLE_CURSOR_INFO cursor_info;
-        HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
-
-        if (!GetConsoleCursorInfo(out, &cursor_info))
-            throw _color_win_get_last_error();
-        cursor_info.bVisible = true;    // turn on the cursor visibility
-        if (!SetConsoleCursorInfo(out, &cursor_info))
-            throw _color_win_get_last_error();
-    }
 }    // namespace color
 
 #elif defined(BOOST_OS_LINUX)
@@ -201,7 +172,6 @@ namespace color
         old_locale = new char[std::strlen(locale)];
         std::strcpy(old_locale, locale);
         std::setlocale(LC_CTYPE, "en_US.utf8");
-        make_cursor_visible();
     }
 
     void Console::restore() {
@@ -217,20 +187,6 @@ namespace color
 
     void Console::clear() {
         print("\033[2J\033[H");    // ANSI escape code to clear screen
-    }
-
-    static bool isVisible = true;
-
-    void Console::make_cursor_visible() {
-        if (!isVisible)
-            print("\033[?25h");    // show the cursor
-        isVisible = true;
-    }
-
-    void Console::make_cursor_invisible() {
-        if (isVisible)
-            print("\033[?25l");    // hide the cursor
-        isVisible = false;
     }
 }    // namespace color
 #endif
