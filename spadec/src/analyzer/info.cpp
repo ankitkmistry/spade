@@ -34,4 +34,12 @@ namespace spade
                 throw Unreachable();    // to remove MSVC warning
         }
     }
+
+    string ParamInfo::to_string() const {
+        return type_info.to_string();
+    }
+
+    string ArgInfo::to_string() const {
+        return expr_info.to_string();
+    }
 }    // namespace spade

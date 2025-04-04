@@ -1,5 +1,6 @@
 #pragma once
 
+#include "parser/ast.hpp"
 #include "utils/common.hpp"
 
 namespace spade
@@ -173,6 +174,39 @@ namespace spade
 
         bool is_null() const {
             return tag == Type::NORMAL && type_info.b_null && type_info.b_nullable;
+        }
+
+        string to_string() const;
+    };
+
+    struct ParamInfo {
+        bool b_const = false;
+        bool b_variadic = false;
+        bool b_default = false;
+        bool b_kwd_only = false;
+        string name;
+        TypeInfo type_info;
+        ast::decl::Param *node = null;
+
+        void reset() {
+            b_const = false;
+            b_variadic = false;
+            name.clear();
+            type_info.reset();
+        }
+
+        string to_string() const;
+    };
+
+    struct ArgInfo {
+        bool b_kwd = false;
+        string name;
+        ExprInfo expr_info;
+
+        void reset() {
+            b_kwd = false;
+            name.clear();
+            expr_info.reset();
         }
 
         string to_string() const;

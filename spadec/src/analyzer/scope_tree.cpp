@@ -1,5 +1,6 @@
 #include <memory>
 #include <numeric>
+#include <string>
 
 #include "scope_tree.hpp"
 #include "lexer/token.hpp"
@@ -101,7 +102,7 @@ namespace spade
             }
         }
 
-        LOGGER.log_info(std::format("added symbol '{}'", symbol_path.to_string()));
+        // LOGGER.log_info(std::format("added symbol '{}'", symbol_path.to_string()));
     }
 
     void ScopeTreeBuilder::check_modifiers(ast::AstNode *node, const std::vector<std::shared_ptr<Token>> &modifiers) {
@@ -278,24 +279,8 @@ namespace spade
 
     string ScopeTreeBuilder::build_params_string(const std::shared_ptr<ast::decl::Params> &params) {
         if (!params)
-            return "";
-        string param_string;
-        param_string = std::accumulate(params->get_pos_only().begin(), params->get_pos_only().end(), param_string,
-                                       [&](const string &a, const std::shared_ptr<ast::decl::Param> &b) {
-                                           b->get_type()->accept(this);
-                                           return a + (a.empty() ? "" : ",") + _res_type_signature;
-                                       });
-        param_string = std::accumulate(params->get_pos_kwd().begin(), params->get_pos_kwd().end(), param_string,
-                                       [&](const string &a, const std::shared_ptr<ast::decl::Param> &b) {
-                                           b->get_type()->accept(this);
-                                           return a + (a.empty() ? "" : ",") + _res_type_signature;
-                                       });
-        param_string = std::accumulate(params->get_kwd_only().begin(), params->get_kwd_only().end(), param_string,
-                                       [&](const string &a, const std::shared_ptr<ast::decl::Param> &b) {
-                                           b->get_type()->accept(this);
-                                           return a + (a.empty() ? "" : ",") + _res_type_signature;
-                                       });
-        return param_string;
+            return "0";
+        return std::to_string(params->get_pos_only().size() + params->get_pos_kwd().size() + params->get_kwd_only().size());
     }
 
     string ScopeTreeBuilder::build_function_name(const ast::decl::Function &node) {

@@ -104,6 +104,21 @@ namespace spade
             (errors.emplace_back(args), ...);
         }
 
+        ErrorGroup<T> &error(const T &err) {
+            errors.emplace_back(ErrorType::ERROR, err);
+            return *this;
+        }
+
+        ErrorGroup<T> &warning(const T &err) {
+            errors.emplace_back(ErrorType::WARNING, err);
+            return *this;
+        }
+
+        ErrorGroup<T> &note(const T &err) {
+            errors.emplace_back(ErrorType::NOTE, err);
+            return *this;
+        }
+
         const std::vector<std::pair<ErrorType, T>> &get_errors() const {
             return errors;
         }

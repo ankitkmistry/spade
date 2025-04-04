@@ -7,6 +7,8 @@
 #include "spimp/error.hpp"
 #include "symbol_path.hpp"
 #include "utils/error.hpp"
+#include <memory>
+#include <utility>
 
 // TODO: implement generics
 
@@ -66,14 +68,9 @@ namespace spade
 
     std::shared_ptr<scope::Scope> Analyzer::find_name(const string &name) const {
         std::shared_ptr<scope::Scope> scope;
-        for (auto itr = cur_scope; itr != null; itr = itr->get_parent()) {
+        for (auto itr = get_current_scope(); itr != null; itr = itr->get_parent()) {
             if (itr->has_variable(name)) {
                 scope = itr->get_variable(name);
-                break;
-            }
-            // TODO: what about functions
-            if (itr->has_variable(name + "()")) {
-                scope = itr->get_variable(name + "()");
                 break;
             }
         }
@@ -123,33 +120,33 @@ namespace spade
                     auto cur_class = get_current_scope()->get_enclosing_compound();
                     auto scope_class = scope->get_enclosing_compound();
                     if (!cur_class || cur_class != scope_class)
-                        throw ErrorGroup<AnalyzerError>(
-                                std::pair(ErrorType::ERROR, error("cannot access 'private' member", &node)),
-                                std::pair(ErrorType::NOTE, error("declared here", scope)));
+                        throw ErrorGroup<AnalyzerError>()
+                                .error(error("cannot access 'private' member", &node))
+                                .note(error("declared here", scope));
                     return;
                 }
                 case TokenType::INTERNAL: {
                     // internal here
                     if (cur_mod != scope_mod) {
-                        throw ErrorGroup<AnalyzerError>(
-                                std::pair(ErrorType::ERROR, error("cannot access 'internal' member", &node)),
-                                std::pair(ErrorType::NOTE, error("declared here", scope)));
+                        throw ErrorGroup<AnalyzerError>()
+                                .error(error("cannot access 'internal' member", &node))
+                                .note(error("declared here", scope));
                     }
                     auto cur_class = get_current_scope()->get_enclosing_compound();
                     auto scope_class = scope->get_enclosing_compound();
                     if (!cur_class || cur_class != scope_class || !cur_class->has_super(scope_class))
-                        throw ErrorGroup<AnalyzerError>(
-                                std::pair(ErrorType::ERROR, error("cannot access 'internal' member", &node)),
-                                std::pair(ErrorType::NOTE, error("declared here", scope)));
+                        throw ErrorGroup<AnalyzerError>()
+                                .error(error("cannot access 'internal' member", &node))
+                                .note(error("declared here", scope));
                     return;
                 }
                 case TokenType::PROTECTED: {
                     auto cur_class = get_current_scope()->get_enclosing_compound();
                     auto scope_class = scope->get_enclosing_compound();
                     if (cur_mod != scope_mod && (!cur_class || !cur_class->has_super(scope_class))) {
-                        throw ErrorGroup<AnalyzerError>(
-                                std::pair(ErrorType::ERROR, error("cannot access 'protected' member", &node)),
-                                std::pair(ErrorType::NOTE, error("declared here", scope)));
+                        throw ErrorGroup<AnalyzerError>()
+                                .error(error("cannot access 'protected' member", &node))
+                                .note(error("declared here", scope));
                     }
                     // protected here
                     return;
@@ -164,8 +161,9 @@ namespace spade
         }
         // module private here
         if (cur_mod != scope_mod) {
-            throw ErrorGroup<AnalyzerError>(std::pair(ErrorType::ERROR, error("cannot access 'module private' member", &node)),
-                                            std::pair(ErrorType::NOTE, error("declared here", scope)));
+            throw ErrorGroup<AnalyzerError>()
+                    .error(error("cannot access 'module private' member", &node))
+                    .note(error("declared here", scope));
         }
     }
 
@@ -179,17 +177,19 @@ namespace spade
         // take advantage of super classes
         if (from->has_super(to))
             return;
-        // duck typing
-        // check if the members of 'to' is subset of members of 'from'
+        // setup error state
         bool error_state = false;
         ErrorGroup<AnalyzerError> err_grp;
-        auto err_prolog =
-                safe ? std::pair(ErrorType::WARNING, error("expression is always 'null'", &node))
-                     : std::pair(ErrorType::ERROR,
-                                 error(std::format("cannot cast '{}' to '{}'", from->to_string(), to->to_string()), &node));
+        if (safe)
+            err_grp.warning(error("expression is always 'null'", &node));
+        else
+            err_grp.error(error(std::format("cannot cast '{}' to '{}'", from->to_string(), to->to_string()), &node));
+        // duck typing
+        // check if the members of 'to' is subset of members of 'from'
         for (const auto &[to_member_name, to_member]: to->get_members()) {
-            const auto &[_, to_member_scope] = to_member;
+            const auto &[to_member_decl_site, to_member_scope] = to_member;
             if (from->has_variable(to_member_name)) {
+                auto from_member_decl_site = from->get_decl_site(to_member_name);
                 auto from_member_scope = from->get_variable(to_member_name);
                 // check if the scope type is same
                 if (from_member_scope->get_type() == to_member_scope->get_type()) {
@@ -197,61 +197,41 @@ namespace spade
                         // check if they are the same type of compound (class, interface, enum, annotation)
                         if (cast<ast::decl::Compound>(from_member_scope->get_node())->get_token()->get_type() !=
                             cast<ast::decl::Compound>(to_member_scope->get_node())->get_token()->get_type()) {
-                            if (!error_state) {
+                            if (!error_state)
                                 error_state = true;
-                                err_grp.get_errors().push_back(err_prolog);
-                            }
-                            err_grp.get_errors().emplace_back(
-                                    ErrorType::NOTE,
-                                    error(std::format("see '{}' in '{}'", to_member_scope->to_string(), to->to_string()),
-                                          to_member_scope));
-                            err_grp.get_errors().emplace_back(
-                                    ErrorType::NOTE, error(std::format("also see '{}' in '{}'", from_member_scope->to_string(),
-                                                                       from->to_string()),
-                                                           from_member_scope));
-                            continue;
+                            err_grp.note(error(std::format("see '{}' in '{}'", to_member_scope->to_string(), to->to_string()),
+                                               to_member_decl_site))
+                                    .note(error(std::format("also see '{}' in '{}'", from_member_scope->to_string(),
+                                                            from->to_string()),
+                                                from_member_decl_site));
                         }
                     } else if (from_member_scope->get_type() == scope::ScopeType::VARIABLE) {
                         // check if they are the same type of variable (var, const)
                         if (cast<ast::decl::Variable>(from_member_scope->get_node())->get_token()->get_type() !=
                             cast<ast::decl::Variable>(to_member_scope->get_node())->get_token()->get_type()) {
-                            if (!error_state) {
+                            if (!error_state)
                                 error_state = true;
-                                err_grp.get_errors().push_back(err_prolog);
-                            }
-                            err_grp.get_errors().emplace_back(
-                                    ErrorType::NOTE,
-                                    error(std::format("see '{}' in '{}'", to_member_scope->to_string(), to->to_string()),
-                                          to_member_scope));
-                            err_grp.get_errors().emplace_back(
-                                    ErrorType::NOTE, error(std::format("also see '{}' in '{}'", from_member_scope->to_string(),
-                                                                       from->to_string()),
-                                                           from_member_scope));
+                            err_grp.note(error(std::format("see '{}' in '{}'", to_member_scope->to_string(), to->to_string()),
+                                               to_member_decl_site))
+                                    .note(error(std::format("also see '{}' in '{}'", from_member_scope->to_string(),
+                                                            from->to_string()),
+                                                from_member_decl_site));
                         }
                     }
                 } else {
-                    if (!error_state) {
+                    if (!error_state)
                         error_state = true;
-                        err_grp.get_errors().push_back(err_prolog);
-                    }
-                    err_grp.get_errors().emplace_back(
-                            ErrorType::NOTE,
-                            error(std::format("see '{}' in '{}'", to_member_scope->to_string(), to->to_string()),
-                                  to_member_scope));
-                    err_grp.get_errors().emplace_back(
-                            ErrorType::NOTE,
-                            error(std::format("also see '{}' in '{}'", from_member_scope->to_string(), from->to_string()),
-                                  from_member_scope));
+                    err_grp.note(error(std::format("see '{}' in '{}'", to_member_scope->to_string(), to->to_string()),
+                                       to_member_scope))
+                            .note(error(std::format("also see '{}' in '{}'", from_member_scope->to_string(), from->to_string()),
+                                        from_member_scope));
                 }
             } else {
-                if (!error_state) {
+                if (!error_state)
                     error_state = true;
-                    err_grp.get_errors().push_back(err_prolog);
-                }
-                err_grp.get_errors().emplace_back(ErrorType::NOTE,
-                                                  error(std::format("'{}' does not have similar member like '{}'",
-                                                                    from->to_string(), to_member_scope->to_string()),
-                                                        to_member_scope));
+                err_grp.note(error(std::format("'{}' does not have similar member like '{}'", from->to_string(),
+                                               to_member_scope->to_string()),
+                                   to_member_scope));
             }
         }
         if (error_state) {
@@ -263,15 +243,308 @@ namespace spade
         return;
     }
 
+    TypeInfo Analyzer::resolve_assign(const TypeInfo *type_info, const ExprInfo *expr_info, const ast::AstNode &node) {
+        TypeInfo result;
+        // Check type inference
+        switch (expr_info->tag) {
+            case ExprInfo::Type::NORMAL:
+                if (type_info) {
+                    result = *type_info;
+                    if (!expr_info->is_null() && type_info->type != expr_info->type_info.type &&
+                        !expr_info->type_info.type->has_super(type_info->type))
+                        throw error(std::format("cannot assign value of type '{}' to type '{}'",
+                                                expr_info->type_info.to_string(), type_info->to_string()),
+                                    &node);
+                    if (!type_info->b_nullable && expr_info->type_info.b_nullable) {
+                        expr_info->is_null()
+                                ? throw error(std::format("cannot assign 'null' to type '{}'", type_info->to_string()), &node)
+                                : throw error(std::format("cannot assign value of type '{}' to type '{}'",
+                                                          expr_info->type_info.to_string(), type_info->to_string()),
+                                              &node);
+                    }
+                    if (type_info->type_args.empty() && expr_info->type_info.type_args.empty()) {
+                        // no type args, plain vanilla
+                    } else if (/* type_info.type_args.empty() &&  */ !expr_info->type_info.type_args.empty()) {
+                        // deduce from type_info
+                        result.type_args = expr_info->type_info.type_args;
+                    } else if (!type_info->type_args.empty() /*  && expr_info.type_info.type_args.empty() */) {
+                        // deduce from expr_info
+                        // TODO: check type args
+                    } else /* if(!type_info.type_args.empty() && !expr_info.type_info.type_args.empty()) */ {
+                        if (type_info->type_args.size() != expr_info->type_info.type_args.size())
+                            throw error(std::format("failed to deduce type arguments"), &node);    // failed deducing
+                        // now both type_info and expr_info have typeargs (same size)
+                        // check if both of them are same
+                        // TODO: implement covariance and contravariance
+                    }
+                } else {
+                    // deduce variable type from expression
+                    result = expr_info->type_info;
+                }
+                break;
+            case ExprInfo::Type::STATIC:
+                if (type_info) {
+                    result = *type_info;
+                    if (!type_info->is_type_literal())
+                        throw error(std::format("cannot assign value of type '{}' to type '{}'",
+                                                expr_info->type_info.to_string(), type_info->to_string()),
+                                    &node);
+                    if (!type_info->b_nullable && expr_info->type_info.b_nullable)
+                        throw error(std::format("cannot assign value of type '{}' to type '{}'",
+                                                expr_info->type_info.to_string(), type_info->to_string()),
+                                    &node);
+                } else {
+                    // deduce variable type as type literal, also set nullable if any
+                    result.reset();
+                    result.b_nullable = expr_info->type_info.b_nullable;
+                }
+                break;
+            case ExprInfo::Type::MODULE:
+                if (type_info)
+                    throw error(std::format("cannot assign a module to type '{}'", type_info->to_string()), &node);
+                else
+                    throw error(std::format("cannot assign a module", type_info->to_string()), &node);
+            case ExprInfo::Type::FUNCTION_SET:
+                // TODO: implement function resolution
+                break;
+        }
+        return result;
+    }
+
+    TypeInfo Analyzer::resolve_assign(std::shared_ptr<ast::Type> type, std::shared_ptr<ast::Expression> expr,
+                                      const ast::AstNode &node) {
+        TypeInfo type_info;
+        if (type) {
+            type->accept(this);
+            type_info = _res_type_info;
+
+            if (auto scope = dynamic_cast<scope::Variable *>(get_current_scope())) {
+                scope->set_type_info(type_info);
+                scope->set_eval(scope::Variable::Eval::DONE);    // mimic as if type resolution is completed
+            }
+        }
+        if (expr) {
+            expr->accept(this);
+            auto expr_info = _res_expr_info;
+            type_info = resolve_assign(type ? &type_info : null, &expr_info, node);
+        }
+        if (!type && !expr) {
+            // type_info.reset();
+            type_info.type = cast<scope::Compound>(&*internals[Analyzer::Internal::SPADE_ANY]);
+            // non nullable by default
+        }
+        // Assigning to a variable, so set the type info
+        if (auto scope = dynamic_cast<scope::Variable *>(get_current_scope())) {
+            if (scope->get_eval() != scope::Variable::Eval::DONE) {
+                scope->set_type_info(type_info);
+                scope->set_eval(scope::Variable::Eval::DONE);
+            }
+        }
+        return type_info;
+    }
+
+    std::vector<std::shared_ptr<scope::Function>> Analyzer::resolve_call_candidates(scope::FunctionSet *fun_set,
+                                                                                    std::vector<ArgInfo> arg_infos,
+                                                                                    const ast::expr::Call &node,
+                                                                                    ErrorGroup<AnalyzerError> *errors) {
+        // Check for redeclarations if any
+        if (!fun_set->is_redecl_check()) {
+            // fun_set can never be empty (according to scope tree builder)
+            fun_set->get_members().begin()->second.second->get_node()->accept(this);
+        }
+
+        ErrorGroup<AnalyzerError> err_grp;
+        err_grp.error(error("call candidate cannot be resolved", &node));
+        std::vector<std::shared_ptr<scope::Function>> candidates;
+
+        for (const auto &[member_name, member]: fun_set->get_members()) {
+            const auto &[decl_site, member_scope] = member;
+            auto fun_scope = cast<scope::Function>(member_scope);
+
+            bool next_fun = false;    // flag to skip to next function
+            size_t arg_id = 0;        // index of arg_info in arg_infos
+
+            // Positional only parameters
+            for (const auto &param: fun_scope->get_pos_only_params()) {
+                if (next_fun)
+                    break;
+                auto arg_info = arg_infos[arg_id];
+                if (!param.b_variadic && arg_info.b_kwd) {
+                    err_grp.note(
+                            error(std::format("expected positional argument '{}' but got keyword argument '{}', declared here",
+                                              param.name, arg_info.name),
+                                  decl_site));
+                    next_fun = true;
+                    continue;
+                }
+                if (param.b_variadic) {
+                    for (; arg_id < arg_infos.size(); arg_id++) {
+                        arg_info = arg_infos[arg_id];
+                        // check assignability
+                        resolve_assign(&param.type_info, &arg_info.expr_info, node);
+                        if (arg_info.b_kwd) {
+                            arg_id--;
+                            break;
+                        }
+                    }
+                } else {
+                    // check assignability
+                    resolve_assign(&param.type_info, &arg_info.expr_info, node);
+                }
+                arg_id++;
+            }
+            // Positional or keyword parameters and keyword only parameters
+            std::map<string, ParamInfo> params;
+            // Build the param table
+            for (const auto &param: fun_scope->get_pos_kwd_params()) params[param.name] = param;
+            for (const auto &param: fun_scope->get_kwd_only_params()) params[param.name] = param;
+            const ParamInfo *var_kwargs = null;
+            if (fun_scope->is_variadic_kwd_only()) {
+                var_kwargs = &fun_scope->get_kwd_only_params().back();
+            }
+
+            // Collect arguments
+            while (arg_id < arg_infos.size() && !params.empty()) {
+                if (next_fun)
+                    break;
+                auto arg_info = arg_infos[arg_id];
+                if (arg_info.b_kwd) {
+                    if (params.contains(arg_info.name)) {
+                        auto param = params[arg_info.name];
+                        if (param.b_variadic) {
+                            if (!param.b_kwd_only) {
+                                // if argument is kwd and the param is not kwd only but variadic
+                                err_grp.note(error(std::format("variadic parameter '{}' cannot be used as keyword "
+                                                               "argument, declared here",
+                                                               arg_info.name),
+                                                   decl_site));
+                                next_fun = true;
+                                continue;
+                            } else {
+                                // if argument is kwd and the param kwd only and variadic
+                                // var_kwargs should not be null
+                                if (!var_kwargs)
+                                    throw Unreachable();
+                                // check for assignabilty
+                                resolve_assign(&param.type_info, &arg_info.expr_info, node);
+                            }
+                        } else {
+                            // if argument is kwd and the param is not variadic
+                            // check for assignabilty
+                            resolve_assign(&param.type_info, &arg_info.expr_info, node);
+                        }
+                        params.erase(arg_info.name);    // NOTE: variadic kw param name gets deleted here
+                    } else {
+                        // if argument is kwd but the param is not found
+                        // surely it must be variadic kwargs
+                        if (!var_kwargs) {
+                            err_grp.note(error(std::format("unknown keyword argument '{}', declared here", arg_info.name),
+                                               decl_site));
+                            next_fun = true;
+                            continue;
+                        }
+                        // check for assignabilty
+                        resolve_assign(&var_kwargs->type_info, &arg_info.expr_info, node);
+                    }
+                } else {
+                    auto [param_name, param] = *params.begin();
+                    if (param.b_kwd_only) {
+                        // if argument is value but the param is kwd only
+                        err_grp.note(
+                                error(std::format("expected keyword argument '{}' but got non-keyword argument, declared here",
+                                                  param_name),
+                                      decl_site));
+                        next_fun = true;
+                        continue;
+                    }
+                    if (param.b_variadic) {
+                        // if argument is value and the param is not kwd only but variadic
+                        for (; arg_id < arg_infos.size(); arg_id++) {
+                            arg_info = arg_infos[arg_id];
+                            // check for assignabilty
+                            resolve_assign(&param.type_info, &arg_info.expr_info, node);
+                            if (arg_info.b_kwd) {
+                                arg_id--;
+                                break;
+                            }
+                        }
+                    } else {
+                        // if argument is value and the param is not kwd only
+                        // check for assignabilty
+                        resolve_assign(&param.type_info, &arg_info.expr_info, node);
+                    }
+                    params.erase(param_name);
+                }
+                arg_id++;
+            }
+            if (next_fun) {
+                next_fun = false;
+                continue;
+            }
+            if (arg_id >= arg_infos.size() && !params.empty()) {
+                for (const auto &[param_name, param]: params) {
+                    if (param.b_variadic)
+                        continue;
+                    if (!param.b_default) {
+                        err_grp.note(
+                                error(std::format("missing required argument '{}', declared here", param_name), decl_site));
+                        next_fun = true;
+                        continue;
+                    }
+                }
+            }
+            if (next_fun) {
+                next_fun = false;
+                continue;
+            }
+            if (arg_id < arg_infos.size() && params.empty()) {
+                for (; arg_id < arg_infos.size(); arg_id++) {
+                    auto arg_info = arg_infos[arg_id];
+                    err_grp.note(error(std::format("unexpected argument"), node.get_args()[arg_id]));
+                }
+                err_grp.note(error("declared here", decl_site));
+                continue;
+            }
+
+            candidates.push_back(fun_scope);
+        }
+        if (errors)
+            *errors = err_grp;
+        return candidates;
+    }
+
+    ExprInfo Analyzer::resolve_call(scope::FunctionSet *fun_set, std::vector<ArgInfo> arg_infos, const ast::expr::Call &node) {
+        ErrorGroup<AnalyzerError> err_grp;
+        auto candidates = resolve_call_candidates(fun_set, arg_infos, node, &err_grp);
+        if (candidates.size() == 0)
+            throw err_grp;
+        else if (candidates.size() > 1) {
+            ErrorGroup<AnalyzerError> err_grp;
+            err_grp.error(error(std::format("ambiguous call to '{}'", fun_set->to_string()), &node));
+            for (const auto &candidate: candidates) {
+                err_grp.note(error("possible candidate declared here", candidate->get_node()));
+            }
+            throw err_grp;
+        }
+
+        auto candidate = candidates[0];
+        LOGGER.log_debug(std::format("resolved call candidate: {}", candidate->to_string()));
+
+        ExprInfo expr_info;
+        expr_info.tag = ExprInfo::Type::NORMAL;
+        expr_info.type_info = candidate->get_ret_type();
+        return expr_info;
+    }
+
     ExprInfo Analyzer::get_var_expr_info(std::shared_ptr<scope::Variable> var_scope, const ast::AstNode &node) {
         ExprInfo expr_info;
         expr_info.tag = ExprInfo::Type::NORMAL;
         switch (var_scope->get_eval()) {
             case scope::Variable::Eval::NOT_STARTED: {
-                auto old_cur_scope = cur_scope;         // save context
-                cur_scope = var_scope->get_parent();    // change context
-                var_scope->get_node()->accept(this);    // visit variable
-                cur_scope = old_cur_scope;              // reset context
+                auto old_cur_scope = get_current_scope();    // save context
+                cur_scope = var_scope->get_parent();         // change context
+                var_scope->get_node()->accept(this);         // visit variable
+                cur_scope = old_cur_scope;                   // reset context
                 expr_info.type_info = var_scope->get_type_info();
                 break;
             }
@@ -294,38 +567,6 @@ namespace spade
         }
         return expr_info;
     }
-
-    // ExprInfo Analyzer::get_fun_ret_info(std::shared_ptr<scope::Function> fun_scope, const ast::AstNode &node) {
-    //     ExprInfo expr_info;
-    //     expr_info.tag = ExprInfo::Type::NORMAL;
-    //     switch (fun_scope->get_proto_eval()) {
-    //         case scope::Function::ProtoEval::NOT_STARTED: {
-    //             auto old_cur_scope = cur_scope;         // save context
-    //             cur_scope = fun_scope->get_parent()->get_parent();    // change context
-    //             fun_scope->get_node()->accept(this);    // visit variable
-    //             cur_scope = old_cur_scope;              // reset context
-    //             expr_info.type_info = fun_scope->get_ret_type();
-    //             break;
-    //         }
-    //         case scope::Function::ProtoEval::PROGRESS:
-    //             if (get_current_scope()->get_type() == scope::ScopeType::FUNCTION) {
-    //                 auto cur_fun_scope = cast<scope::Function>(get_current_scope());
-    //                 if (cur_fun_scope->get_proto_eval() == scope::Function::ProtoEval::DONE) {
-    //                     expr_info.type_info = cur_fun_scope->get_ret_type();    // sense correct
-    //                     break;
-    //                 }
-    //             }
-    //             expr_info.type_info.type = cast<scope::Compound>(&*internals[Analyzer::Internal::SPADE_ANY]);
-    //             expr_info.type_info.b_nullable = true;
-    //             warning(std::format("type inference is ambiguous, defaulting to '{}'", expr_info.type_info.to_string()), &node);
-    //             note("declared here", fun_scope);
-    //             break;
-    //         case scope::Function::ProtoEval::DONE:
-    //             expr_info.type_info = fun_scope->get_ret_type();
-    //             break;
-    //     }
-    //     return expr_info;
-    // }
 
     void Analyzer::analyze(const std::vector<std::shared_ptr<ast::Module>> &modules) {
         if (modules.empty())
@@ -373,8 +614,9 @@ namespace spade
         auto type_scope = _res_reference;
         // Check if the reference is a type
         if (type_scope->get_type() != scope::ScopeType::COMPOUND)
-            throw ErrorGroup<AnalyzerError>(std::pair(ErrorType::ERROR, error("reference is not a type", &node)),
-                                            std::pair(ErrorType::NOTE, error("declared here", type_scope)));
+            throw ErrorGroup<AnalyzerError>()
+                    .error(error("reference is not a type", &node))
+                    .note(error("declared here", type_scope));
         // Check for type arguments
         std::vector<TypeInfo> type_args;
         for (auto type_arg: node.get_type_args()) {
@@ -531,15 +773,14 @@ namespace spade
                 if (caller_info.is_null())
                     throw error("cannot access 'null'", &node);
                 if (caller_info.type_info.b_nullable && !node.get_safe()) {
-                    throw ErrorGroup<AnalyzerError>(
-                            std::pair(ErrorType::ERROR, error("cannot access member of nullable type", &node)),
-                            std::pair(ErrorType::NOTE, error("use safe dot access operator '?.'", &node)));
+                    throw ErrorGroup<AnalyzerError>()
+                            .error(error("cannot access member of nullable type", &node))
+                            .note(error("use safe dot access operator '?.'", &node));
                 }
                 if (!caller_info.type_info.b_nullable && node.get_safe()) {
-                    throw ErrorGroup<AnalyzerError>(
-                            std::pair(ErrorType::ERROR,
-                                      error("cannot use safe dot access operator on non-nullable type", &node)),
-                            std::pair(ErrorType::NOTE, error("remove the safe dot access operator '?.'", &node)));
+                    throw ErrorGroup<AnalyzerError>()
+                            .error(error("cannot use safe dot access operator on non-nullable type", &node))
+                            .note(error("remove the safe dot access operator '?.'", &node));
                 }
                 if (!caller_info.type_info.type->has_variable(node.get_member()->get_text())) {
                     throw error(std::format("cannot access member: '{}'", node.get_member()->get_text()), &node);
@@ -570,15 +811,14 @@ namespace spade
             }
             case ExprInfo::Type::STATIC: {
                 if (caller_info.type_info.b_nullable && !node.get_safe()) {
-                    throw ErrorGroup<AnalyzerError>(
-                            std::pair(ErrorType::ERROR, error("cannot access member of nullable type", &node)),
-                            std::pair(ErrorType::NOTE, error("use safe dot access operator '?.'", &node)));
+                    throw ErrorGroup<AnalyzerError>()
+                            .error(error("cannot access member of nullable type", &node))
+                            .note(error("use safe dot access operator '?.'", &node));
                 }
                 if (!caller_info.type_info.b_nullable && node.get_safe()) {
-                    throw ErrorGroup<AnalyzerError>(
-                            std::pair(ErrorType::ERROR,
-                                      error("cannot use safe dot access operator on non-nullable type", &node)),
-                            std::pair(ErrorType::NOTE, error("remove the safe dot access operator '?.'", &node)));
+                    throw ErrorGroup<AnalyzerError>()
+                            .error(error("cannot use safe dot access operator on non-nullable type", &node))
+                            .note(error("remove the safe dot access operator '?.'", &node));
                 }
                 if (!caller_info.type_info.type->has_variable(node.get_member()->get_text()))
                     throw error(std::format("cannot access member: '{}'", node.get_member()->get_text()), &node);
@@ -598,12 +838,11 @@ namespace spade
                     case scope::ScopeType::VARIABLE: {
                         auto var_scope = cast<scope::Variable>(member_scope);
                         if (!var_scope->is_static()) {
-                            throw ErrorGroup<AnalyzerError>(
-                                    std::pair(ErrorType::ERROR,
-                                              error(std::format("cannot access non-static variable '{}' of '{}'",
-                                                                var_scope->to_string(), caller_info.to_string()),
-                                                    &node)),
-                                    std::pair(ErrorType::NOTE, error("declared here", var_scope)));
+                            throw ErrorGroup<AnalyzerError>()
+                                    .error(error(std::format("cannot access non-static variable '{}' of '{}'",
+                                                             var_scope->to_string(), caller_info.to_string()),
+                                                 &node))
+                                    .note(error("declared here", var_scope));
                         }
                         _res_expr_info = get_var_expr_info(var_scope, node);
                         break;
@@ -661,75 +900,64 @@ namespace spade
         auto caller_info = _res_expr_info;
         _res_expr_info.reset();
 
-        struct ArgInfo {
-            bool b_kwd = false;
-            string name;
-            ExprInfo expr_info;
-        };
-
         std::vector<ArgInfo> arg_infos;
         arg_infos.reserve(node.get_args().size());
 
         for (auto arg: node.get_args()) {
-            ArgInfo arg_info;
-            arg_info.b_kwd = arg->get_name() != null;
-            arg_info.name = arg_info.b_kwd ? arg->get_name()->get_text() : "";
             arg->accept(this);
-            arg_info.expr_info = _res_expr_info;
-
-            if (!arg_infos.empty() && arg_infos.back().b_kwd && !arg_info.b_kwd)
+            if (!arg_infos.empty() && arg_infos.back().b_kwd && !_res_arg_info.b_kwd)
                 throw error("mixing non-keyword and keyword arguments is not allowed", arg);
-
-            arg_infos.push_back(arg_info);
+            arg_infos.push_back(_res_arg_info);
         }
 
         switch (caller_info.tag) {
-            case ExprInfo::Type::NORMAL:
+            case ExprInfo::Type::NORMAL: {
                 if (caller_info.is_null())
                     throw error("null is not callable", &node);
-                // TODO: check for call operator
-                break;
-            case ExprInfo::Type::STATIC:
-                // TODO: check for constructor
-                break;
-            case ExprInfo::Type::MODULE:
-                throw error("module is not callable", &node);
-            case ExprInfo::Type::FUNCTION_SET: {
-                // this is the actual thing
-                // TODO: function resolution
-                auto fun_set = caller_info.function_set;
-                // Check for redeclaration if any
-                if (!fun_set->is_redecl_check()) {
-                    // fun_set can never be empty (according to scope tree builder)
-                    fun_set->get_members().begin()->second.second->get_node()->accept(this);
+                // check for call operator
+                auto fun_set = caller_info.type_info.type->get_variable("__call__");
+                if (fun_set) {
+                    _res_expr_info.reset();
+                    _res_expr_info = resolve_call(&*cast<scope::FunctionSet>(fun_set), arg_infos, node);
+                } else {
+                    throw ErrorGroup<AnalyzerError>()
+                            .error(error(std::format("'{}' does not provide a constructor", caller_info.to_string()), &node))
+                            .note(error("declared here", caller_info.type_info.type));
                 }
-
-                ErrorGroup<AnalyzerError> err_grp;
-                bool found = false;
-
-                for (const auto &[member_name, member]: fun_set->get_members()) {
-                    const auto &[_, member_scope] = member;
-                    auto fun_scope = cast<scope::Function>(member_scope);
-                    // first check for size
-                    if (fun_scope->param_count() != arg_infos.size()) {
-                        err_grp.get_errors().emplace_back(
-                                std::pair(ErrorType::ERROR, error(std::format("expected {} arguments but got {}",
-                                                                              fun_scope->param_count(), arg_infos.size()),
-                                                                  &node)));
-                        continue;
-                    }
-                }
-
-                if (!found)
-                    throw err_grp;
                 break;
             }
+            case ExprInfo::Type::STATIC: {
+                // check for constructor
+                auto fun_set = caller_info.type_info.type->get_variable("init");
+                if (fun_set) {
+                    _res_expr_info.reset();
+                    _res_expr_info = resolve_call(&*cast<scope::FunctionSet>(fun_set), arg_infos, node);
+                } else {
+                    throw ErrorGroup<AnalyzerError>()
+                            .error(error(std::format("'{}' does not provide a constructor", caller_info.to_string()), &node))
+                            .note(error("declared here", caller_info.type_info.type));
+                }
+                break;
+            }
+            case ExprInfo::Type::MODULE:
+                throw error("module is not callable", &node);
+            case ExprInfo::Type::FUNCTION_SET:
+                // this is the actual thing: FUNCTION RESOLUTION
+                _res_expr_info.reset();
+                _res_expr_info = resolve_call(caller_info.function_set, arg_infos, node);
+                break;
         }
     }
 
     void Analyzer::visit(ast::expr::Argument &node) {
+        ArgInfo arg_info;
+        arg_info.b_kwd = node.get_name() != null;
+        arg_info.name = arg_info.b_kwd ? node.get_name()->get_text() : "";
         node.get_expr()->accept(this);
-        // _res_expr_info.reset();
+        arg_info.expr_info = _res_expr_info;
+
+        _res_arg_info.reset();
+        _res_arg_info = arg_info;
     }
 
     void Analyzer::visit(ast::expr::Reify &node) {
@@ -898,12 +1126,41 @@ namespace spade
         }
     }
 
-    void Analyzer::visit(ast::expr::ChainBinary &node) {}
+    void Analyzer::visit(ast::expr::ChainBinary &node) {
+        std::shared_ptr<ast::Expression> prev_expr;
+        size_t i = 0;
+        for (const auto &cur_expr: node.get_exprs()) {
+            cur_expr->accept(this);
+            if (prev_expr) {
+                switch (node.get_ops()[i - 1]->get_type()) {
+                    case TokenType::LT:
+                        break;
+                    case TokenType::LE:
+                        break;
+                    case TokenType::EQ:
+                        break;
+                    case TokenType::NE:
+                        break;
+                    case TokenType::GE:
+                        break;
+                    case TokenType::GT:
+                        break;
+                    default:
+                        throw Unreachable();    // surely some parser error
+                }
+            }
+            prev_expr = cur_expr;
+            i++;
+        }
+    }
 
     void Analyzer::visit(ast::expr::Ternary &node) {
         node.get_condition()->accept(this);
         node.get_on_true()->accept(this);
+        auto expr_info1 = _res_expr_info;
         node.get_on_false()->accept(this);
+        auto expr_info2 = _res_expr_info;
+        // TODO: check for type equality
     }
 
     void Analyzer::visit(ast::expr::Assignment &node) {}
@@ -938,10 +1195,91 @@ namespace spade
 
     void Analyzer::visit(ast::decl::Constraint &node) {}
 
-    void Analyzer::visit(ast::decl::Param &node) {}
+    void Analyzer::visit(ast::decl::Param &node) {
+        auto fun = cast<scope::Function>(get_current_scope());
+
+        ParamInfo param_info;
+        param_info.b_const = node.get_is_const() != null;
+        param_info.b_variadic = node.get_variadic() != null;
+        param_info.b_default = node.get_default_expr() != null;
+        param_info.name = node.get_name()->get_text();
+        param_info.type_info = resolve_assign(node.get_type(), node.get_default_expr(), node);
+        param_info.node = &node;
+
+        _res_param_info.reset();
+        _res_param_info = param_info;
+    }
 
     void Analyzer::visit(ast::decl::Params &node) {
-        // TODO: implement this
+        auto fun = cast<scope::Function>(get_current_scope());
+        std::shared_ptr<ast::decl::Param> found_variadic;
+        std::shared_ptr<ast::decl::Param> found_default;
+
+        std::vector<ParamInfo> pos_only_params;
+        pos_only_params.reserve(node.get_pos_only().size());
+        for (const auto &param: node.get_pos_only()) {
+            param->accept(this);
+            if (_res_param_info.b_variadic) {
+                if (found_variadic)
+                    throw ErrorGroup<AnalyzerError>()
+                            .error(error("variadic parameters is allowed only once", param))
+                            .note(error("already declared here", found_variadic));
+                found_variadic = param;
+            }
+            if (_res_param_info.b_default) {
+                throw error("positional only parameter cannot have default value", param);
+            }
+            pos_only_params.push_back(_res_param_info);
+        }
+        fun->set_pos_only_params(pos_only_params);
+
+        std::vector<ParamInfo> pos_kwd_params;
+        pos_kwd_params.reserve(node.get_pos_kwd().size());
+        for (const auto &param: node.get_pos_kwd()) {
+            param->accept(this);
+            if (_res_param_info.b_variadic) {
+                if (found_variadic)
+                    throw ErrorGroup<AnalyzerError>()
+                            .error(error("variadic parameters is allowed only once", param))
+                            .note(error("already declared here", found_variadic));
+                found_variadic = param;
+            }
+            if (!_res_param_info.b_default) {
+                if (found_default)
+                    throw ErrorGroup<AnalyzerError>()
+                            .error(error("incorrect ordering of default parameters", param))
+                            .note(error("already declared here", found_default));
+            } else {
+                found_default = param;
+            }
+            pos_kwd_params.push_back(_res_param_info);
+        }
+        fun->set_pos_kwd_params(pos_kwd_params);
+
+        // check for variadic parameters ambiguity
+        if (found_variadic && ((!node.get_pos_only().empty() && node.get_pos_only().back() != found_variadic) ||
+                               (!node.get_pos_kwd().empty() && node.get_pos_kwd().back() != found_variadic)))
+            throw ErrorGroup<AnalyzerError>().error(error("variadic parameter must be the last parameter", found_variadic));
+        found_variadic = null;    // variadic parameters is separate for kwd paremeter
+
+        std::vector<ParamInfo> kwd_only_params;
+        kwd_only_params.reserve(node.get_kwd_only().size());
+        for (const auto &param: node.get_kwd_only()) {
+            param->accept(this);
+            if (_res_param_info.b_variadic) {
+                if (found_variadic)
+                    throw ErrorGroup<AnalyzerError>()
+                            .error(error("variadic parameters is allowed only once", param))
+                            .note(error("already declared here", found_variadic));
+                found_variadic = param;
+            }
+            _res_param_info.b_kwd_only = true;
+            kwd_only_params.push_back(_res_param_info);
+        }
+        fun->set_kwd_only_params(kwd_only_params);
+
+        if (found_variadic && node.get_kwd_only().back() != found_variadic)
+            throw ErrorGroup<AnalyzerError>().error(error("variadic parameter must be the last parameter", found_variadic));
     }
 
     void Analyzer::visit(ast::decl::Function &node) {
@@ -953,8 +1291,6 @@ namespace spade
         if (scope->get_proto_eval() == scope::Function::ProtoEval::NOT_STARTED) {
             scope->set_proto_eval(scope::Function::ProtoEval::PROGRESS);
 
-            node.get_params()->accept(this);
-
             if (auto type = node.get_return_type()) {
                 type->accept(this);
                 scope->set_ret_type(_res_type_info);
@@ -965,18 +1301,55 @@ namespace spade
                 scope->set_ret_type(return_type);
             }
 
+            if (auto params = node.get_params())
+                params->accept(this);
+
             scope->set_proto_eval(scope::Function::ProtoEval::DONE);
         }
 
         if (!fun_set->is_redecl_check()) {
+            fun_set->set_redecl_check(true);
+            auto old_cur_scope = get_current_scope();    // save the context
+            end_scope();                                 // pop the function
+            end_scope();                                 // pop the function set
             // Collect all other defintions
             for (const auto &[member_name, member]: fun_set->get_members()) {
                 const auto &[_, member_scope] = member;
                 if (scope != member_scope)
                     member_scope->get_node()->accept(this);
             }
+            // for (const auto &[member_name, member]: fun_set->get_members()) {
+            //     const auto &[_, member_scope] = member;
+            //     auto fun_scope = cast<scope::Function>(member_scope);
+            //     std::vector<ArgInfo> arg_infos;
+            //     for (const auto &param: fun_scope->get_pos_only_params()) {
+            //         ArgInfo arg_info;
+            //         arg_info.b_kwd = false;
+            //         arg_info.name = "";
+            //         arg_info.expr_info.tag = ExprInfo::Type::NORMAL;
+            //         arg_info.expr_info.type_info = param.type_info;
+            //         arg_infos.push_back(arg_info);
+            //     }
+            //     for (const auto &param: fun_scope->get_pos_kwd_params()) {
+            //         ArgInfo arg_info;
+            //         arg_info.b_kwd = true;
+            //         arg_info.name = param.name;
+            //         arg_info.expr_info.tag = ExprInfo::Type::NORMAL;
+            //         arg_info.expr_info.type_info = param.type_info;
+            //         arg_infos.push_back(arg_info);
+            //     }
+            //     for (const auto &param: fun_scope->get_kwd_only_params()) {
+            //         ArgInfo arg_info;
+            //         arg_info.b_kwd = true;
+            //         arg_info.name = param.name;
+            //         arg_info.expr_info.tag = ExprInfo::Type::NORMAL;
+            //         arg_info.expr_info.type_info = param.type_info;
+            //         arg_infos.push_back(arg_info);
+            //     }
+            //     auto candidates=resolve_call_candidates(&*fun_set, arg_infos, node);
+            // }
             // TODO: Check all the functions using brute force
-            fun_set->set_redecl_check(true);
+            cur_scope = old_cur_scope;    // restore context
         }
 
         auto definition = node.get_definition();
@@ -1045,111 +1418,29 @@ namespace spade
             auto parent_scope = get_parent_scope();
             if (!parent_scope->new_variable(node.get_name(), scope)) {
                 auto org_def = scope->get_decl_site(node.get_name()->get_text());
-                throw ErrorGroup<AnalyzerError>(
-                        std::pair(ErrorType::ERROR,
-                                  error(std::format("redeclaration of '{}'", node.get_name()->get_text()), node.get_name())),
-                        std::pair(ErrorType::NOTE, error("already declared here", org_def)));
+                throw ErrorGroup<AnalyzerError>()
+                        .error(error(std::format("redeclaration of '{}'", node.get_name()->get_text()), node.get_name()))
+                        .note(error("already declared here", org_def));
             };
+            // Check if the variable is not overshadowing parameters
+            if (auto fun = scope->get_enclosing_function()) {
+                if (fun->has_param(node.get_name()->get_text())) {
+                    auto param = fun->get_param(node.get_name()->get_text());
+                    throw ErrorGroup<AnalyzerError>()
+                            .error(error(
+                                    std::format("function parameters cannot be overshadowed '{}'", node.get_name()->get_text()),
+                                    node.get_name()))
+                            .note(error("already declared here", param.node));
+                }
+            }
         } else {
             scope = find_scope<scope::Variable>(node.get_name()->get_text());
         }
 
-        if (scope->get_eval() == scope::Variable::Eval::DONE) {
-            end_scope();
-            return;
+        if (scope->get_eval() == scope::Variable::Eval::NOT_STARTED) {
+            scope->set_eval(scope::Variable::Eval::PROGRESS);
+            resolve_assign(node.get_type(), node.get_expr(), node);
         }
-        scope->set_eval(scope::Variable::Eval::PROGRESS);
-
-        TypeInfo type_info;
-        if (auto type = node.get_type()) {
-            type->accept(this);
-            type_info = _res_type_info;
-
-            scope->set_type_info(type_info);
-            scope->set_eval(scope::Variable::Eval::DONE);    // mimic as if type resolution is completed
-        }
-
-        if (auto expr = node.get_expr()) {
-            expr->accept(this);
-            auto expr_info = _res_expr_info;
-            // if (scope->get_eval() == scope::Variable::Eval::DONE) {
-            //     scope->set_eval(scope::Variable::Eval::PROGRESS);    // also resume progress
-            // }
-            // Check type inference
-            switch (expr_info.tag) {
-                case ExprInfo::Type::NORMAL:
-                    if (node.get_type()) {
-                        if (!expr_info.is_null() && type_info.type != expr_info.type_info.type &&
-                            !expr_info.type_info.type->has_super(type_info.type))
-                            throw error(std::format("cannot assign value of type '{}' to variable of type '{}'",
-                                                    expr_info.type_info.to_string(), type_info.to_string()),
-                                        &node);
-                        if (!type_info.b_nullable && expr_info.type_info.b_nullable) {
-                            expr_info.is_null()
-                                    ? throw error(std::format("cannot assign 'null' to variable of type '{}'",
-                                                              type_info.to_string()),
-                                                  &node)
-                                    : throw error(std::format("cannot assign value of type '{}' to variable of type '{}'",
-                                                              expr_info.type_info.to_string(), type_info.to_string()),
-                                                  &node);
-                        }
-                        if (type_info.type_args.empty() && expr_info.type_info.type_args.empty()) {
-                            // no type args, plain vanilla
-                        } else if (/* type_info.type_args.empty() &&  */ !expr_info.type_info.type_args.empty()) {
-                            // deduce from type_info
-                            type_info.type_args = expr_info.type_info.type_args;
-                        } else if (!type_info.type_args.empty() /*  && expr_info.type_info.type_args.empty() */) {
-                            // deduce from expr_info
-                            // TODO: check type args
-                        } else /* if(!type_info.type_args.empty() && !expr_info.type_info.type_args.empty()) */ {
-                            if (type_info.type_args.size() != expr_info.type_info.type_args.size())
-                                throw error(std::format("failed to deduce type arguments"), &node);    // failed deducing
-                            // now both type_info and expr_info have typeargs (same size)
-                            // check if both of them are same
-                            // TODO: implement covariance and contravarianceJ
-                        }
-                    } else {
-                        // deduce variable type from expression
-                        type_info = expr_info.type_info;
-                    }
-                    break;
-                case ExprInfo::Type::STATIC:
-                    if (node.get_type()) {
-                        if (!type_info.is_type_literal())
-                            throw error(std::format("cannot assign value of type '{}' to variable of type '{}'",
-                                                    expr_info.type_info.to_string(), type_info.to_string()),
-                                        &node);
-                        if (!type_info.b_nullable && expr_info.type_info.b_nullable)
-                            throw error(std::format("cannot assign value of type '{}' to variable of type '{}'",
-                                                    expr_info.type_info.to_string(), type_info.to_string()),
-                                        &node);
-                    } else {
-                        // deduce variable type as type literal
-                        // also set nullable if any
-                        type_info.reset();
-                        type_info.b_nullable = expr_info.type_info.b_nullable;
-                    }
-                    break;
-                case ExprInfo::Type::MODULE:
-                    if (node.get_type())
-                        throw error(std::format("cannot assign a module to variable of type '{}'", type_info.to_string()),
-                                    &node);
-                    else
-                        throw error(std::format("cannot assign a module to variable", type_info.to_string()), &node);
-                case ExprInfo::Type::FUNCTION_SET:
-                    // TODO: implement function resolution
-                    break;
-            }
-        }
-
-        if (!node.get_expr() && !node.get_type()) {
-            // type_info.reset();
-            type_info.type = cast<scope::Compound>(&*internals[Analyzer::Internal::SPADE_ANY]);
-            // non nullable by default
-        }
-
-        scope->set_type_info(type_info);
-        scope->set_eval(scope::Variable::Eval::DONE);
         end_scope();
     }
 
@@ -1158,8 +1449,9 @@ namespace spade
         node.get_reference()->accept(this);
         // Check if the super class is a scope::Compound
         if (_res_reference->get_type() != scope::ScopeType::COMPOUND)
-            throw ErrorGroup<AnalyzerError>(std::pair(ErrorType::ERROR, error("reference is not a type", &node)),
-                                            std::pair(ErrorType::NOTE, error("declared here", _res_reference)));
+            throw ErrorGroup<AnalyzerError>()
+                    .error(error("reference is not a type", &node))
+                    .note(error("declared here", _res_reference));
         // Get the parent type info and type args if any
         TypeInfo parent_type_info;
         parent_type_info.type = cast<scope::Compound>(&*_res_reference);
@@ -1197,9 +1489,9 @@ namespace spade
             if (!scope->new_variable(name, value)) {
                 // Find the original declaration
                 auto org_def = scope->get_decl_site(name->get_text());
-                throw ErrorGroup<AnalyzerError>(
-                        std::pair(ErrorType::ERROR, error(std::format("redeclaration of '{}'", name->get_text()), name)),
-                        std::pair(ErrorType::NOTE, error("already declared here", org_def)));
+                throw ErrorGroup<AnalyzerError>()
+                        .error(error(std::format("redeclaration of '{}'", name->get_text()), name))
+                        .note(error("already declared here", org_def));
             }
         } else {
             LOGGER.log_error("import statement is not resolved");

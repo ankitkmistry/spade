@@ -26,9 +26,11 @@ enum Color {
 var a: B?
 var b: any? = a?.b
 
-fun abaxify(){}
+fun abaxify(ac){}
+fun abaxify(ac,bc){}
+fun abaxify(ac,bc,dc){}
 
-var abaxa=abaxify(1,b:2)
+var abaxa=abaxify(1,bc:2)
 
 interface Foo {
 	static var size = 0

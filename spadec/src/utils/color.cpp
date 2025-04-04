@@ -1,5 +1,5 @@
-#define COLOR_IMPLEMENTATION
 #include "color.hpp"
+#define MAGIC_OFF
 
 namespace color
 {
@@ -13,6 +13,7 @@ namespace color
 #endif
 
     void Console::style(const Style &style) {
+#ifndef MAGIC_OFF
         // Refer to https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
         // Set attributes
         print(color::attr(style.attributes));
@@ -20,16 +21,21 @@ namespace color
         print(color::fg(style.fg_color));
         // Set background color
         print(color::bg(style.bg_color));
+#endif
     }
 
     void Console::gotoxy(size_t x, size_t y) {
+#ifndef MAGIC_OFF
         print("\x1b[" + std::to_string(y + 1) + ";" + std::to_string(x + 1) + "f");
+#endif
     }
 
     void Console::set_cell(size_t x, size_t y, wchar_t value, Style style) {
+#ifndef MAGIC_OFF
         gotoxy(x, y);
         Console::style(style);
         std::fputwc(value, stdout);
+#endif
     }
 }    // namespace color
 
@@ -84,6 +90,7 @@ namespace color
     static char *old_locale = nullptr;
 
     void Console::init() {
+#    ifndef MAGIC_OFF
         const char *locale = std::setlocale(LC_CTYPE, nullptr);
         old_locale = new char[std::strlen(locale)];
         std::strcpy(old_locale, locale);
@@ -99,14 +106,17 @@ namespace color
             throw _color_win_get_last_error();
         if (!SetConsoleOutputCP(CP_UTF8))
             throw _color_win_get_last_error();
+#    endif
     }
 
     void Console::restore() {
+#    ifndef MAGIC_OFF
         std::setlocale(LC_CTYPE, old_locale);
         if (!SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), old_out_mode))
             throw _color_win_get_last_error();
         if (!SetConsoleOutputCP(old_console_cp))
             throw _color_win_get_last_error();
+#    endif
     }
 
     std::pair<size_t, size_t> Console::size() {
@@ -119,6 +129,7 @@ namespace color
     }
 
     void Console::clear() {
+#    ifndef MAGIC_OFF
         HANDLE h_console = GetStdHandle(STD_OUTPUT_HANDLE);
         COORD coord_screen = {0, 0};    // Top-left corner
         DWORD chars_written;
@@ -139,6 +150,7 @@ namespace color
             throw _color_win_get_last_error();
         // Put the cursor in the top left corner.
         SetConsoleCursorPosition(h_console, coord_screen);
+#    endif
     }
 }    // namespace color
 

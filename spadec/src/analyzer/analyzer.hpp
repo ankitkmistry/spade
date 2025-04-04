@@ -27,9 +27,35 @@ namespace spade
         void resolve_context(const std::shared_ptr<scope::Scope> &scope, const ast::AstNode &node);
         /// Performs cast checking
         void check_cast(scope::Compound *from, scope::Compound *to, const ast::AstNode &node, bool safe);
+        /**
+         * Performs type resolution for assignments.
+         * It checks if the type of the expression is compatible with the type of the variable.
+         * 
+         * @param type type to assign
+         * @param expr expression to be assigned
+         * @param node the source ast node used for error messages
+         * @return the correct type info that is assigned
+         */
+        TypeInfo resolve_assign(const TypeInfo *type_info, const ExprInfo *expr_info, const ast::AstNode &node);
+        /**
+         * Performs type resolution for assignments.
+         * It checks if the type of the expression is compatible with the type of the variable.
+         * If the current scope is a variable, it automatically sets the type info and evaluation state of the variable
+         * 
+         * @param type type to assign
+         * @param expr expression to be assigned
+         * @param node the source ast node used for error messages
+         * @return the correct type info that is assigned
+         */
+        TypeInfo resolve_assign(std::shared_ptr<ast::Type> type, std::shared_ptr<ast::Expression> expr,
+                                const ast::AstNode &node);
+        std::vector<std::shared_ptr<scope::Function>> resolve_call_candidates(scope::FunctionSet *fun_set,
+                                                                              std::vector<ArgInfo> arg_infos,
+                                                                              const ast::expr::Call &node,
+                                                                              ErrorGroup<AnalyzerError> *errors = null);
+        ExprInfo resolve_call(scope::FunctionSet *fun_set, std::vector<ArgInfo> arg_infos, const ast::expr::Call &node);
         /// Performs variable type inference resolution
         ExprInfo get_var_expr_info(std::shared_ptr<scope::Variable> var_scope, const ast::AstNode &node);
-        // ExprInfo get_fun_ret_info(std::shared_ptr<scope::Function> fun_scope, const ast::AstNode &node);
 
         ErrorPrinter printer;
 
@@ -82,6 +108,11 @@ namespace spade
         void visit(ast::expr::Self &node);
         void visit(ast::expr::DotAccess &node);
         void visit(ast::expr::Call &node);
+
+      private:
+        ArgInfo _res_arg_info;
+
+      public:
         void visit(ast::expr::Argument &node);
         void visit(ast::expr::Reify &node);
         void visit(ast::expr::Index &node);
@@ -109,6 +140,11 @@ namespace spade
         // Declaration visitor
         void visit(ast::decl::TypeParam &node);
         void visit(ast::decl::Constraint &node);
+
+      private:
+        ParamInfo _res_param_info;
+
+      public:
         void visit(ast::decl::Param &node);
         void visit(ast::decl::Params &node);
         void visit(ast::decl::Function &node);

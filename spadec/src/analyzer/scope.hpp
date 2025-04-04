@@ -1,6 +1,5 @@
 #pragma once
 
-#include <algorithm>
 #include <unordered_set>
 
 #include "info.hpp"
@@ -39,19 +38,19 @@ namespace spade::scope
         virtual ~Scope() = default;
 
         int get_line_start() const {
-            return node->get_line_start();
+            return get_decl_site() ? get_decl_site()->get_line_start() : node->get_line_start();
         }
 
         int get_line_end() const {
-            return node->get_line_end();
+            return get_decl_site() ? get_decl_site()->get_line_end() : node->get_line_end();
         }
 
         int get_col_start() const {
-            return node->get_col_start();
+            return get_decl_site() ? get_decl_site()->get_col_start() : node->get_col_start();
         }
 
         int get_col_end() const {
-            return node->get_col_end();
+            return get_decl_site() ? get_decl_site()->get_col_end() : node->get_col_end();
         }
 
         ScopeType get_type() const {
@@ -76,6 +75,10 @@ namespace spade::scope
 
         const std::unordered_map<string, Member> &get_members() const {
             return members;
+        }
+
+        std::shared_ptr<Token> get_decl_site() const {
+            return parent ? parent->get_decl_site(path.get_name()) : null;
         }
 
         bool new_variable(const string &name, const std::shared_ptr<Token> &name_tok, std::shared_ptr<Scope> value);
@@ -215,9 +218,9 @@ namespace spade::scope
       private:
         /// Flag if the function prototype is being evaluated
         ProtoEval proto_eval = ProtoEval::NOT_STARTED;
-        std::vector<TypeInfo> pos_only_param_types;
-        std::vector<TypeInfo> pos_kwd_param_types;
-        std::vector<TypeInfo> kwd_only_param_types;
+        std::vector<ParamInfo> pos_only_params;
+        std::vector<ParamInfo> pos_kwd_params;
+        std::vector<ParamInfo> kwd_only_params;
         TypeInfo ret_type;
 
       public:
@@ -259,20 +262,82 @@ namespace spade::scope
                    }) != modifiers.end();
         }
 
+        bool has_param(const string &name) const {
+            auto it = std::find_if(pos_only_params.begin(), pos_only_params.end(),
+                                   [&name](const ParamInfo &param) { return param.name == name; });
+            if (it != pos_only_params.end())
+                return true;
+
+            it = std::find_if(pos_kwd_params.begin(), pos_kwd_params.end(),
+                              [&name](const ParamInfo &param) { return param.name == name; });
+            if (it != pos_kwd_params.end())
+                return true;
+
+            it = std::find_if(kwd_only_params.begin(), kwd_only_params.end(),
+                              [&name](const ParamInfo &param) { return param.name == name; });
+            return it != kwd_only_params.end();
+        }
+
+        ParamInfo get_param(const string &name) const {
+            auto it = std::find_if(pos_only_params.begin(), pos_only_params.end(),
+                                   [&name](const ParamInfo &param) { return param.name == name; });
+            if (it != pos_only_params.end())
+                return *it;
+
+            it = std::find_if(pos_kwd_params.begin(), pos_kwd_params.end(),
+                              [&name](const ParamInfo &param) { return param.name == name; });
+            if (it != pos_kwd_params.end())
+                return *it;
+
+            it = std::find_if(kwd_only_params.begin(), kwd_only_params.end(),
+                              [&name](const ParamInfo &param) { return param.name == name; });
+            if (it != kwd_only_params.end())
+                return *it;
+            throw Unreachable();    // surely some parser error
+        }
+
+        bool is_variadic() const {
+            return is_variadic_pos_only() || is_variadic_pos_kwd() || is_variadic_kwd_only();
+        }
+
+        bool is_variadic_pos_only() const {
+            return !pos_only_params.empty() && pos_only_params.back().b_variadic;
+        }
+
+        bool is_variadic_pos_kwd() const {
+            return !pos_kwd_params.empty() && pos_kwd_params.back().b_variadic;
+        }
+
+        bool is_variadic_kwd_only() const {
+            return !kwd_only_params.empty() && kwd_only_params.back().b_variadic;
+        }
+
         size_t param_count() const {
-            return pos_only_param_types.size() + pos_kwd_param_types.size() + kwd_only_param_types.size();
+            return pos_only_params.size() + pos_kwd_params.size() + kwd_only_params.size();
         }
 
-        const std::vector<TypeInfo> &get_pos_only_param_types() const {
-            return pos_only_param_types;
+        const std::vector<ParamInfo> &get_pos_only_params() const {
+            return pos_only_params;
         }
 
-        const std::vector<TypeInfo> &get_pos_kwd_param_types() const {
-            return pos_kwd_param_types;
+        const std::vector<ParamInfo> &get_pos_kwd_params() const {
+            return pos_kwd_params;
         }
 
-        const std::vector<TypeInfo> &get_kwd_only_param_types() const {
-            return kwd_only_param_types;
+        const std::vector<ParamInfo> &get_kwd_only_params() const {
+            return kwd_only_params;
+        }
+
+        void set_pos_only_params(const std::vector<ParamInfo> &params) {
+            pos_only_params = params;
+        }
+
+        void set_pos_kwd_params(const std::vector<ParamInfo> &params) {
+            pos_kwd_params = params;
+        }
+
+        void set_kwd_only_params(const std::vector<ParamInfo> &params) {
+            kwd_only_params = params;
         }
 
         const TypeInfo &get_ret_type() const {
@@ -307,6 +372,10 @@ namespace spade::scope
         FunctionSet &operator=(const FunctionSet &) = default;
         FunctionSet &operator=(FunctionSet &&) = default;
 
+        bool is_init() const {
+            return !members.empty() && cast<Function>(members.begin()->second.second)->is_init();
+        }
+
         bool is_redecl_check() const {
             return redecl_check;
         }
@@ -316,7 +385,7 @@ namespace spade::scope
         }
 
         string to_string() const override {
-            return "function set " + path.to_string();
+            return (is_init() ? "init " : "function ") + path.to_string();
         }
     };
 
