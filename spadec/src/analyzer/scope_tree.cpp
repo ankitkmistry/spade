@@ -539,6 +539,8 @@ namespace spade
             if (scope_stack.back()->get_type() == scope::ScopeType::COMPOUND) {
                 switch (cast<scope::Compound>(scope_stack.back())->get_compound_node()->get_token()->get_type()) {
                     case TokenType::CLASS:
+                        if (node.get_token()->get_type() == TokenType::ANNOTATION)
+                            throw error("annotations are not allowed in classes", &node);
                         break;
                     case TokenType::ENUM:
                         if (node.get_token()->get_type() == TokenType::ENUM)

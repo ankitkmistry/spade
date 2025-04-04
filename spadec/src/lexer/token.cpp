@@ -9,12 +9,6 @@ namespace spade
              "import", TokenType::IMPORT,
              },
             {
-             "extends", TokenType::EXTENDS,
-             },
-            {
-             "implements", TokenType::IMPLEMENTS,
-             },
-            {
              "enum", TokenType::ENUM,
              },
             {
@@ -179,10 +173,6 @@ namespace spade
                 return ":";
             case TokenType::IMPORT:
                 return "import";
-            case TokenType::EXTENDS:
-                return "extends";
-            case TokenType::IMPLEMENTS:
-                return "implements";
             case TokenType::ENUM:
                 return "enum";
             case TokenType::CLASS:
@@ -362,10 +352,6 @@ namespace spade
                 return "COLON";
             case TokenType::IMPORT:
                 return "IMPORT";
-            case TokenType::EXTENDS:
-                return "EXTENDS";
-            case TokenType::IMPLEMENTS:
-                return "IMPLEMENTS";
             case TokenType::ENUM:
                 return "ENUM";
             case TokenType::CLASS:

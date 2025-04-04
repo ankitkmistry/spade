@@ -44,18 +44,15 @@ namespace spade
         // Keywords
         // Heading
         IMPORT,
-        // Clauses
-        EXTENDS,
-        IMPLEMENTS,
         // Declarations
-        ENUM,
         CLASS,
         INTERFACE,
+        ENUM,
         ANNOTATION,
-        INIT,
-        FUN,
-        CONST,
         VAR,
+        CONST,
+        FUN,
+        INIT,
         // Modifiers
         ABSTRACT,
         FINAL,
@@ -75,12 +72,12 @@ namespace spade
         IN,
         MATCH,
         WHEN,
-        THROW,
         TRY,
         CATCH,
         FINALLY,
-        CONTINUE,
         BREAK,
+        CONTINUE,
+        THROW,
         RETURN,
         YIELD,
         // Operators

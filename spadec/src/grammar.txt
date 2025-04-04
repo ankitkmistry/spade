@@ -1,0 +1,210 @@
+// Grammar for the Spade programming language
+
+
+// Grammar rules
+module      ::= import* declaration* END_OF_FILE;
+import      ::= 'import' ('.' '.' | '.')? reference ('.' '*' | 'as' IDENTIFIER)?;
+reference   ::= IDENTIFIER ('.' IDENTIFIER)*;
+
+
+// Declarations
+declaration     ::= variable_decl | function_decl | compound_decl;
+compound_decl   ::= ('class' | 'enum' | 'interface' | 'annotation') IDENTIFIER
+                    ('[' type_param_list ']' set context_generics on)?
+                    (':' parent_list)?
+                    (if context_generics "where" constraint_list)?
+                    ('{' enumerator_list? member_decl* '}')?;
+member_decl     ::= variable_decl | function_decl | init_decl | compound_decl;
+init_decl       ::= 'init' '(' params ')' ('=' statement | block);
+variable_decl   ::= ('var' | 'const') IDENTIFIER (':' type)? ('=' expression)?;
+function_decl   ::= 'fun' IDENTIFIER
+                    ('[' type_param_list ']' set context_generics on)?
+                    '(' params ')' ('->' type)?
+                    (if context_generics "where" constraint_list)?
+                    ('=' statement | block)?;
+
+modifiers   ::= ('abstract' | 'final' | 'static' | 'override' | 'private' | 'internal' | 'protected' | 'public')*;
+type_param  ::= ('out' | 'in') IDENTIFIER ('=' type)?;
+constraint  ::= IDENTIFIER ':' type;
+parent      ::= reference ('[' type_list ']')?;
+enumerator  ::= IDENTIFIER ('=' expression | '(' argument_list ')')?;
+params      ::= param_list ((if last_token != ',' then ',') '*' ',' param_list)? ((if last_token !=',' then ',') '/' ',' param_list)?
+param       ::= 'const'? '*'? IDENTIFIER (':' type)? ('=' expression)?
+
+
+// Statements
+statements      ::= block | statement;
+block           ::= '{' (block | declaration | statement)* '}';
+statement       ::= if_stmt | while_stmt | do_while_stmt | try_stmt
+                  | 'continue' | 'break'
+                  | 'throw' expression
+                  | 'return' expression
+                  | 'yield' expression;
+if_stmt         ::= 'if' expression (':' statement | block) ('else' (':' statement | block))?;
+while_stmt      ::= 'while' expression (':' statement | block) ('else' (':' statement | block))?;
+do_while_stmt   ::= 'do' block 'while' expression ('else' (':' statement | block))?;
+try_stmt        ::= 'try' (':' statement | block) (finally_stmt | catch_stmt+ finally_stmt?);
+finally_stmt    ::= 'finally' (':' statement | block);
+catch_stmt      ::= 'catch' reference_list ('as' IDENTIFIER)? (':' statement | block);
+
+
+// Expressions
+expression  ::= assignment | ternary;
+assignment  ::= assignee_list ('+' | '-' | '*' | '/' | '%' | '**' | '<<' | '>>' | '>>>' | '&' | '|' | '^' | '??') '=' expr_list;
+ternary     ::= logic_or ('if' logic_or 'else' logic_or)?;
+
+// Binary
+logic_or    ::= logic_and ('or' logic_and)*;
+logic_and   ::= logic_not ('and' logic_not)*;
+logic_not   ::= 'not'* conditional;
+conditional ::= relational (('is' 'not'? | 'not'? 'in') relational)*;
+relational  ::= bit_or (('<' | '<=' | '==' | '!=' | '>=' | '>') bit_or)*;
+bit_or      ::= bit_xor ('|' bit_xor)*;
+bit_xor     ::= bit_and ('^' bit_and)*;
+bit_and     ::= shift ('&' shift)*;
+shift       ::= term (('<<' | '>>' | '>>>') term)*;
+term        ::= factor (('+' | '-') factor)*;
+factor      ::= power (('*' | '/' | '%') power)*;
+power       ::= (cast '**')* cast;
+cast        ::= elvis ('as' type)*;
+elvis       ::= unary ('??' unary)*;
+
+// Unary
+unary ::= ('~' | '-' | '+')? postfix;
+
+// Postfix
+postfix     ::= primary
+                ('?'? '.' (IDENTIFIER | 'init')     # dot_access or safe_dot_access
+              | '(' argument_list? ')'              # call
+              | '[' (slice_list | type_list) ']')?; # indexer or reify
+argument    ::= (IDENTIFIER ':')? expression;
+slice       ::= expression
+              | expression? ':' expression? (':' expression?)?;
+
+// Primary
+primary ::= 'true' | 'false' | 'null'
+          | INTEGER | FLOAT | STRING | IDENTIFIER
+          | 'super' | 'self'
+          | '(' expression ')';
+
+
+// Type expressions
+type                ::= union_type;
+union_type          ::= intersection_type ('&' intersection_type)*;
+intersection_type   ::= nullable_type ('&' nullable_type)*;
+nullable_type       ::= primary_type '?'?;
+primary_type        ::= reference ('[' type_list? ']')?                # reference_type
+                      | 'type'                                         # type_literal
+                      | '(' type_list? ')' '->' type                   # function_type
+                      | object ('{' type_builder_member_list ? '}')?   # object_builder_type
+                      | '(' type ')';                                  # grouped_type
+type_builder_member ::= (IDENTIFER | 'init') (':' type)?;
+
+
+// Comma separated lists
+type_list                   ::= type (',' type)* ','?;
+assignee_list               ::= assignee (',' assignee)* ','?;
+expr_list                   ::= expression (',' expression)* ','?;
+argument_list               ::= argument (',' argument)* ','?;
+slice_list                  ::= slice (',' slice)* ','?;
+reference_list              ::= reference (',' reference)* ','?;
+param_list                  ::= param (',' param)* ','?;
+type_param_list             ::= type_param (',' type_param)* ','?;
+constraint_list             ::= constraint (',' constraint)* ','?;
+parent_list                 ::= parent (',' parent)* ','?;
+enumerator_list             ::= enumerator (',' enumerator)* ','?;
+type_builder_member_list    ::= type_builder_member (',' type_builder_member)* ','?;
+
+
+// Lexer definitions
+<IDENTIFIER> : [a-zA-Z_][a-zA-Z0-9_]*;
+
+<INTEGER> : <DECIMAL>
+          | 0[bB]([01]_?)+
+          | 0([0-7]_?)+
+          | 0[xX]<HEX>
+          ;
+
+<FLOAT> : <DECIMAL>\.<DECIMAL>?([eE][+-]<DECIMAL>)?
+        | 0[xX]<HEX>\.<HEX>?([pP][+-]<DECIMAL>)?;
+
+fragment <DECIMAL>  : ([0-9]_?)+;
+fragment <HEX>      : ([0-9a-fA-F]_?)+;
+
+<STRING> : '(\\'|~[\n])*?'
+         | "(\\"|.)*?"
+         | `(\\`'|.)*?`
+         ;
+
+<WS> : [ \t\f]+ -> skip;
+<NEWLINE> : \r?\n -> skip;
+
+<BLOCK_COMMENT> : /\*.*?\*/ -> skip;
+<LINE_COMMENT> : #~[\r\n]* -> skip;
+
+
+// Keywords
+
+// Heading
+import
+
+// Declarations
+class
+interface
+enum
+annotation
+var
+const
+fun
+init
+
+// Modifiers
+abstract
+final
+static
+override
+
+// Accessors
+private
+protected
+internal
+public
+
+// Statements
+if
+else
+while
+do
+for
+in
+match
+when
+try
+catch
+finally
+break
+continue
+throw
+return
+yield
+
+// Operators
+as
+is
+not
+and
+or
+
+// Primary expressions
+super
+self
+
+// Literals
+true
+false
+null
+
+// Special keywords
+object
+type
+_

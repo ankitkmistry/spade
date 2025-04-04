@@ -98,34 +98,71 @@ namespace spade
         }
 
         // Parser rules
+        /// module ::= import* declaration* END_OF_FILE
         std::shared_ptr<ast::Module> module();
+        /// import ::= 'import' ('..' | '.')? reference ('.' '*' | 'as' IDENTIFIER)?
         std::shared_ptr<ast::Import> import();
+        /// reference ::= IDENTIFIER ('.' IDENTIFIER)*
         std::shared_ptr<ast::Reference> reference();
 
         // Declarations
+        /// declaration ::= variable_decl | function_decl | compound_decl
         std::shared_ptr<ast::Declaration> declaration();
+        /// compound_decl ::= ('class' | 'enum' | 'interface' | 'annotation') IDENTIFIER
+        ///                     ('[' type_param_list ']' set context_generics on)?
+        ///                     (':' parent_list)?
+        ///                     (if context_generics then "where" constraint_list)?
+        ///                     ('{' enumerator_list? member_decl* '}')?
         std::shared_ptr<ast::Declaration> compound_decl();
+        /// member_decl ::= variable_decl | function_decl | init_decl | compound_decl
         std::shared_ptr<ast::Declaration> member_decl();
+        /// init_decl ::= 'init' '(' params ')' ('=' statement | block)
         std::shared_ptr<ast::Declaration> init_decl();
+        /// variable_decl ::= ('var' | 'const') IDENTIFIER (':' type)? ('=' expression)?
         std::shared_ptr<ast::Declaration> variable_decl();
+        /// function_decl ::= 'fun' IDENTIFIER
+        ///                     ('[' type_param_list ']' set context_generics on)?
+        ///                     '(' params ')' ('->' type)? 
+        ///                     (if context_generics "where" constraint_list)?
+        ///                     ('=' statement | block)?
         std::shared_ptr<ast::Declaration> function_decl();
 
+        /// modifiers ::= ('abstract' | 'final' | 'static' | 'override' | 'private' | 'internal' | 'protected' | 'public')*
         std::vector<std::shared_ptr<Token>> modifiers();
+        /// type_param ::= ('out' | 'in') IDENTIFIER ('=' type)?
         std::shared_ptr<ast::decl::TypeParam> type_param();
+        /// constraint ::= IDENTIFIER ':' type
         std::shared_ptr<ast::decl::Constraint> constraint();
+        /// parent ::= reference ('[' type_list ']')?
         std::shared_ptr<ast::decl::Parent> parent();
+        /// enumerator ::= IDENTIFIER ('=' expression | '(' argument_list ')')?
         std::shared_ptr<ast::decl::Enumerator> enumerator();
+        /// params ::= param_list ((if last_token != ',' then ',') '*' ',' param_list)? ((if last_token !=',' then ',') '/' ',' param_list)?
         std::shared_ptr<ast::decl::Params> params();
+        /// param ::= 'const'? '*'? IDENTIFIER (':' type)? ('=' expression)?
         std::shared_ptr<ast::decl::Param> param();
 
         // Statements
+        /// statements ::= block | statement
         std::shared_ptr<ast::Statement> statements();
+        /// block ::= '{' (block | declaration | statement)* '}'
         std::shared_ptr<ast::Statement> block();
+        /// statement ::= if_stmt | while_stmt | do_while_stmt | try_stmt
+        ///             | 'continue' | 'break'
+        //              | 'throw' expression
+        //              | 'return' expression
+        //              | 'yield' expression
         std::shared_ptr<ast::Statement> statement();
+        /// if_stmt ::= 'if' expression (':' statement | block) ('else' (':' statement | block))?
         std::shared_ptr<ast::Statement> if_stmt();
+        /// while_stmt ::= 'while' expression (':' statement | block) ('else' (':' statement | block))?
         std::shared_ptr<ast::Statement> while_stmt();
+        /// do_while_stmt ::= 'do' block 'while' expression ('else' (':' statement | block))?
         std::shared_ptr<ast::Statement> do_while_stmt();
+        /// try_stmt ::= 'try' (':' statement | block) (finally_stmt | catch_stmt+ finally_stmt?)
+        /// finally_stmt ::= 'finally' (':' statement | block)
         std::shared_ptr<ast::Statement> try_stmt();
+        /// catch_stmt ::= 'catch' reference_list ('as' IDENTIFIER)? (':' statement | block)
         std::shared_ptr<ast::Statement> catch_stmt();
 
         // Expressions
@@ -183,14 +220,13 @@ namespace spade
         std::shared_ptr<ast::expr::Slice> slice();
 
         // Primary
-        // primary ::= 'true' | 'false' | 'null'
-        //           | INTEGER | FLOAT | STRING | IDENTIFIER
-        //           | 'super' | 'self'
-        //           | '(' expression ')'
+        /// primary ::= 'true' | 'false' | 'null'
+        ///           | INTEGER | FLOAT | STRING | IDENTIFIER
+        ///           | 'super' | 'self'
+        ///           | '(' expression ')'
         std::shared_ptr<ast::Expression> primary();
 
         // Type expressions
-
         /// type ::= union_type
         std::shared_ptr<ast::Type> type();
         /// union_type ::= intersection_type ('&' intersection_type)*
@@ -209,17 +245,29 @@ namespace spade
         std::shared_ptr<ast::type::TypeBuilderMember> type_builder_member();
 
         // Comma separated lists
+        /// type_list ::= type (',' type)* ','?
         std::vector<std::shared_ptr<ast::Type>> type_list();
+        /// assignee_list ::= assignee (',' assignee)* ','?
         std::vector<std::shared_ptr<ast::Expression>> assignee_list();
+        /// expr_list ::= expression (',' expression)* ','?
         std::vector<std::shared_ptr<ast::Expression>> expr_list();
+        /// argument_list ::= argument (',' argument)* ','?
         std::vector<std::shared_ptr<ast::expr::Argument>> argument_list();
+        /// slice_list ::= slice (',' slice)* ','?
         std::vector<std::shared_ptr<ast::expr::Slice>> slice_list();
+        /// reference_list ::= reference (',' reference)* ','?
         std::vector<std::shared_ptr<ast::Reference>> reference_list();
+        /// param_list ::= param (',' param)* ','?
         std::vector<std::shared_ptr<ast::decl::Param>> param_list();
+        /// type_param_list ::= type_param (',' type_param)* ','?
         std::vector<std::shared_ptr<ast::decl::TypeParam>> type_param_list();
+        /// constraint_list ::= constraint (',' constraint)* ','?
         std::vector<std::shared_ptr<ast::decl::Constraint>> constraint_list();
+        /// parent_list ::= parent (',' parent)* ','?
         std::vector<std::shared_ptr<ast::decl::Parent>> parent_list();
+        /// enumerator_list ::= enumerator (',' enumerator)* ','?
         std::vector<std::shared_ptr<ast::decl::Enumerator>> enumerator_list();
+        /// type_builder_member_list ::= type_builder_member (',' type_builder_member)* ','?
         std::vector<std::shared_ptr<ast::type::TypeBuilderMember>> type_builder_member_list();
 
       public:

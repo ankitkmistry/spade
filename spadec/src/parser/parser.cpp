@@ -130,20 +130,21 @@ namespace spade
         auto name = expect(TokenType::IDENTIFIER);
         std::vector<std::shared_ptr<ast::decl::TypeParam>> type_params;
         std::vector<std::shared_ptr<ast::decl::Constraint>> constraints;
+        bool context_generics = false;
         if (match(TokenType::LBRACKET)) {
-            if (peek()->get_type() != TokenType::RBRACKET)
-                type_params = type_param_list();
+            type_params = type_param_list();
             expect(TokenType::RBRACKET);
-            if (match("where")) {
-                constraints = constraint_list();
-            }
+            context_generics = true;
         }
         std::vector<std::shared_ptr<ast::decl::Parent>> parents;
         if (match(TokenType::COLON)) {
             parents = parent_list();
         }
-        std::vector<std::shared_ptr<ast::Declaration>> members;
+        if (context_generics && match("where")) {
+            constraints = constraint_list();
+        }
         std::vector<std::shared_ptr<ast::decl::Enumerator>> enumerators;
+        std::vector<std::shared_ptr<ast::Declaration>> members;
         if (match(TokenType::LBRACE)) {
             while (peek()->get_type() == TokenType::IDENTIFIER) enumerators = enumerator_list();
             while (peek()->get_type() != TokenType::RBRACE) members.push_back(member_decl());
@@ -170,16 +171,24 @@ namespace spade
             case TokenType::CLASS:
             case TokenType::INTERFACE:
             case TokenType::ENUM:
+            case TokenType::ANNOTATION:
                 decl = compound_decl();
                 break;
             default:
-                throw error(std::format("expected {}",
-                                        make_expected_string(TokenType::VAR, TokenType::CONST, TokenType::FUN, TokenType::INIT,
-                                                             TokenType::CLASS, TokenType::INTERFACE, TokenType::ENUM)));
+                throw error(
+                        std::format("expected {}", make_expected_string(TokenType::VAR, TokenType::CONST, TokenType::FUN,
+                                                                        TokenType::INIT, TokenType::CLASS, TokenType::INTERFACE,
+                                                                        TokenType::ENUM, TokenType::ANNOTATION)));
         }
         decl->set_modifiers(mods);
         return decl;
     }
+
+#define DEFINITION()                                                                                                           \
+    (match(TokenType::EQUAL) ? statement()                                                                                     \
+     : peek()->get_type() == TokenType::LBRACE                                                                                 \
+             ? block()                                                                                                         \
+             : throw error(std::format("expected {}", make_expected_string(TokenType::EQUAL, TokenType::LBRACE))))
 
     std::shared_ptr<ast::Declaration> Parser::init_decl() {
         auto name = expect(TokenType::INIT);
@@ -188,13 +197,7 @@ namespace spade
         if (peek()->get_type() != TokenType::RPAREN)
             init_params = params();
         expect(TokenType::RPAREN);
-        std::shared_ptr<ast::Statement> def;
-        if (match(TokenType::EQUAL))
-            def = statement();
-        else if (peek()->get_type() == TokenType::LBRACE)
-            def = block();
-        else
-            throw error(std::format("expected {}", make_expected_string(TokenType::EQUAL, TokenType::LBRACE)));
+        std::shared_ptr<ast::Statement> def = DEFINITION();
         return std::make_shared<ast::decl::Function>(
                 name, current(), name, std::vector<std::shared_ptr<ast::decl::TypeParam>>{},
                 std::vector<std::shared_ptr<ast::decl::Constraint>>{}, init_params, null, def);
@@ -217,13 +220,12 @@ namespace spade
         auto name = expect(TokenType::IDENTIFIER);
         std::vector<std::shared_ptr<ast::decl::TypeParam>> type_params;
         std::vector<std::shared_ptr<ast::decl::Constraint>> constraints;
+        bool context_generics = false;
         if (match(TokenType::LBRACKET)) {
             if (peek()->get_type() != TokenType::RBRACKET)
                 type_params = type_param_list();
             expect(TokenType::RBRACKET);
-            if (match("where")) {
-                constraints = constraint_list();
-            }
+            context_generics = true;
         }
         expect(TokenType::LPAREN);
         std::shared_ptr<ast::decl::Params> fun_params;
@@ -233,14 +235,17 @@ namespace spade
         std::shared_ptr<ast::Type> ret_type;
         if (match(TokenType::ARROW))
             ret_type = type();
+        if (context_generics && match("where")) {
+            constraints = constraint_list();
+        }
         std::shared_ptr<ast::Statement> def;
-        if (match(TokenType::EQUAL))
-            def = statement();
-        else if (peek()->get_type() == TokenType::LBRACE)
-            def = block();
+        if (peek()->get_type() == TokenType::EQUAL || peek()->get_type() == TokenType::LBRACE)
+            def = DEFINITION();
         return std::make_shared<ast::decl::Function>(token, current(), name, type_params, constraints, fun_params, ret_type,
                                                      def);
     }
+
+#undef DEFINITION
 
     std::vector<std::shared_ptr<Token>> Parser::modifiers() {
         std::vector<std::shared_ptr<Token>> mods;
@@ -286,8 +291,7 @@ namespace spade
         if (match(TokenType::EQUAL)) {
             auto expr = expression();
             return std::make_shared<ast::decl::Enumerator>(name, expr);
-        }
-        if (match(TokenType::LPAREN)) {
+        } else if (match(TokenType::LPAREN)) {
             std::vector<std::shared_ptr<ast::expr::Argument>> args;
             if (peek()->get_type() != TokenType::RPAREN)
                 args = argument_list();
@@ -426,7 +430,11 @@ namespace spade
         }
     }
 
-#define BODY() (match(TokenType::COLON) ? statement() : block())
+#define BODY()                                                                                                                 \
+    (match(TokenType::COLON) ? statement()                                                                                     \
+     : peek()->get_type() == TokenType::LBRACE                                                                                 \
+             ? block()                                                                                                         \
+             : throw error(std::format("expected {}", make_expected_string(TokenType::COLON, TokenType::LBRACE))))
 
     std::shared_ptr<ast::Statement> Parser::if_stmt() {
         auto token = expect(TokenType::IF);
@@ -479,6 +487,8 @@ namespace spade
         auto body = BODY();
         return std::make_shared<ast::stmt::Catch>(token, refs, symbol, body);
     }
+
+#undef BODY
 
     std::shared_ptr<ast::Expression> Parser::expression() {
         return rule_or<ast::Expression>([&] { return assignment(); }, [&] { return ternary(); });
