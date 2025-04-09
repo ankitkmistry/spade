@@ -48,6 +48,15 @@ namespace spade
             reset();
         }
 
+        bool operator==(const TypeInfo &other) const {
+            return type == other.type && b_nullable == other.b_nullable && /* b_null == other.b_null && */
+                   type_args == other.type_args;
+        }
+
+        bool operator!=(const TypeInfo &other) const {
+            return !(*this == other);
+        }
+
         void reset() {
             if (type)
                 type = null;
@@ -61,7 +70,7 @@ namespace spade
             return type == null && type_args.empty();
         }
 
-        string to_string() const;
+        string to_string(bool decorated = true) const;
     };
 
     struct ExprInfo {
@@ -176,7 +185,7 @@ namespace spade
             return tag == Type::NORMAL && type_info.b_null && type_info.b_nullable;
         }
 
-        string to_string() const;
+        string to_string(bool decorated = true) const;
     };
 
     struct ParamInfo {
@@ -188,6 +197,17 @@ namespace spade
         TypeInfo type_info;
         ast::decl::Param *node = null;
 
+        bool operator==(const ParamInfo &other) const {
+            if (b_kwd_only) {
+                return name == other.name && type_info == other.type_info;
+            }
+            return type_info == other.type_info;
+        }
+
+        bool operator!=(const ParamInfo &other) const {
+            return !(*this == other);
+        }
+
         void reset() {
             b_const = false;
             b_variadic = false;
@@ -195,7 +215,7 @@ namespace spade
             type_info.reset();
         }
 
-        string to_string() const;
+        string to_string(bool decorated = true) const;
     };
 
     struct ArgInfo {
@@ -209,7 +229,7 @@ namespace spade
             expr_info.reset();
         }
 
-        string to_string() const;
+        string to_string(bool decorated = true) const;
     };
 
     class ScopeInfo {

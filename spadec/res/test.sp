@@ -27,10 +27,10 @@ var a: B?
 var b: any? = a?.b
 
 fun abaxify(ac){}
-fun abaxify(ac,bc){}
+fun abaxify(ac:int){}
 fun abaxify(ac,bc,dc){}
 
-var abaxa=abaxify(1,bc:2)
+var abaxa=abaxify(1)
 
 interface Foo {
 	static var size = 0

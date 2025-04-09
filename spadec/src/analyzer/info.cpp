@@ -6,40 +6,40 @@
 
 namespace spade
 {
-    string TypeInfo::to_string() const {
+    string TypeInfo::to_string(bool decorated) const {
         if (is_type_literal())
             return "type";
-        string result = type->to_string();
+        string result = type->to_string(decorated);
         if (!type_args.empty()) {
             result += "[";
-            result += std::accumulate(type_args.begin(), type_args.end(), string(), [](const string &s, TypeInfo type_info) {
-                string t_info_str = type_info.to_string();
-                return s + (s.empty() ? "" : ",") + t_info_str.substr(t_info_str.find_first_of(' ') + 1);
-            });
+            result += std::accumulate(type_args.begin(), type_args.end(), string(),
+                                      [decorated](const string &s, const TypeInfo &type_info) {
+                                          return s + (s.empty() ? "" : ",") + type_info.to_string(decorated);
+                                      });
             result += "]";
         }
         return result + (b_nullable ? "?" : "");
     }
 
-    string ExprInfo::to_string() const {
+    string ExprInfo::to_string(bool decorated) const {
         switch (tag) {
             case Type::NORMAL:
             case Type::STATIC:
-                return type_info.to_string();
+                return type_info.to_string(decorated);
             case Type::MODULE:
-                return module->to_string();
+                return module->to_string(decorated);
             case Type::FUNCTION_SET:
-                return function_set->to_string();
+                return function_set->to_string(decorated);
             default:
                 throw Unreachable();    // to remove MSVC warning
         }
     }
 
-    string ParamInfo::to_string() const {
-        return type_info.to_string();
+    string ParamInfo::to_string(bool decorated) const {
+        return type_info.to_string(decorated);
     }
 
-    string ArgInfo::to_string() const {
-        return expr_info.to_string();
+    string ArgInfo::to_string(bool decorated) const {
+        return expr_info.to_string(decorated);
     }
 }    // namespace spade

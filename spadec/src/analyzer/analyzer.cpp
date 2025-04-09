@@ -7,8 +7,6 @@
 #include "spimp/error.hpp"
 #include "symbol_path.hpp"
 #include "utils/error.hpp"
-#include <memory>
-#include <utility>
 
 // TODO: implement generics
 
@@ -516,18 +514,28 @@ namespace spade
     ExprInfo Analyzer::resolve_call(scope::FunctionSet *fun_set, std::vector<ArgInfo> arg_infos, const ast::expr::Call &node) {
         ErrorGroup<AnalyzerError> err_grp;
         auto candidates = resolve_call_candidates(fun_set, arg_infos, node, &err_grp);
+        std::shared_ptr<scope::Function> candidate;
         if (candidates.size() == 0)
             throw err_grp;
-        else if (candidates.size() > 1) {
+        else if (candidates.size() == 1) {
+            candidate = candidates[0];
+        } else if (candidates.size() > 1) {
+            // TODO: Check for most viable call candidate
+            // auto COMP = [&](const std::shared_ptr<scope::Function> fun1, const std::shared_ptr<scope::Function> fun2) {
+            //     return fun1->get_param_count() < fun2->get_param_count();
+            // };
+
+            // std::sort(candidates.begin(), candidates.end(), COMP);
+
             ErrorGroup<AnalyzerError> err_grp;
             err_grp.error(error(std::format("ambiguous call to '{}'", fun_set->to_string()), &node));
             for (const auto &candidate: candidates) {
-                err_grp.note(error("possible candidate declared here", candidate->get_node()));
+                err_grp.note(error(std::format("possible candidate declared here: '{}'", candidate->to_string()),
+                                   candidate->get_node()));
             }
             throw err_grp;
         }
 
-        auto candidate = candidates[0];
         LOGGER.log_debug(std::format("resolved call candidate: {}", candidate->to_string()));
 
         ExprInfo expr_info;
@@ -566,6 +574,55 @@ namespace spade
                 break;
         }
         return expr_info;
+    }
+
+    void Analyzer::check_fun_set(std::shared_ptr<scope::FunctionSet> fun_set) {
+        auto old_cur_scope = get_current_scope();
+        cur_scope = &*fun_set;
+
+        // TODO: add support for variadic functions
+
+        // mapping of [parameter count] -> [function]
+        std::unordered_map<size_t, std::vector<std::shared_ptr<scope::Function>>> fun_map;
+        for (const auto &[member_name, member]: fun_set->get_members()) {
+            const auto &[_, member_scope] = member;
+            auto fun = cast<scope::Function>(member_scope);
+            if (fun->is_variadic())
+                continue;
+            size_t param_count = fun->get_param_count();
+            if (fun_map.contains(param_count))
+                fun_map[param_count].push_back(fun);
+            else
+                fun_map[param_count] = {fun};
+        }
+
+        for (const auto &[param_count, funs]: fun_map) {
+            if (funs.size() == 1)
+                continue;
+            for (size_t i = 0; i < funs.size(); i++) {
+                ErrorGroup<AnalyzerError> err_grp;
+                bool error_state = false;
+                for (size_t j = 0; j < funs.size(); j++) {
+                    if (i == j)
+                        continue;
+                    auto fun1 = funs[i];
+                    auto fun2 = funs[j];
+                    if (fun1->has_same_params_as(*fun2)) {
+                        if (!error_state) {
+                            err_grp.error(error(std::format("ambiguous declaration of '{}'", fun1->to_string()),
+                                                fun1->get_function_node()));
+                            error_state = true;
+                        }
+                        err_grp.note(error(std::format("check another declaration here: '{}'", fun2->to_string()),
+                                           fun2->get_function_node()));
+                    }
+                }
+                if (error_state)
+                    throw err_grp;
+            }
+        }
+
+        cur_scope = old_cur_scope;
     }
 
     void Analyzer::analyze(const std::vector<std::shared_ptr<ast::Module>> &modules) {
@@ -652,880 +709,5 @@ namespace spade
 
     void Analyzer::visit(ast::type::TypeBuilderMember &node) {
         // _res_type_info.reset();
-    }
-
-    void Analyzer::visit(ast::expr::Constant &node) {
-        _res_expr_info.reset();
-        switch (node.get_token()->get_type()) {
-            case TokenType::TRUE:
-                _res_expr_info.tag = ExprInfo::Type::NORMAL;
-                _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_BOOL]);
-                break;
-            case TokenType::FALSE:
-                _res_expr_info.tag = ExprInfo::Type::NORMAL;
-                _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_BOOL]);
-                break;
-            case TokenType::NULL_:
-                _res_expr_info.tag = ExprInfo::Type::NORMAL;
-                _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_ANY]);
-                _res_expr_info.type_info.b_nullable = true;
-                _res_expr_info.type_info.b_null = true;
-                break;
-            case TokenType::INTEGER:
-                _res_expr_info.tag = ExprInfo::Type::NORMAL;
-                _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_INT]);
-                break;
-            case TokenType::FLOAT:
-                _res_expr_info.tag = ExprInfo::Type::NORMAL;
-                _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_FLOAT]);
-                break;
-            case TokenType::STRING:
-                _res_expr_info.tag = ExprInfo::Type::NORMAL;
-                _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_STRING]);
-                break;
-            case TokenType::IDENTIFIER: {
-                // Find the scope where name is located
-                auto scope = find_name(node.get_token()->get_text());
-                // Yell if the scope cannot be located
-                if (!scope)
-                    throw error("undefined reference", &node);
-                // Now set the expr info accordingly
-                switch (scope->get_type()) {
-                    case scope::ScopeType::FOLDER_MODULE:
-                    case scope::ScopeType::MODULE:
-                        _res_expr_info.tag = ExprInfo::Type::MODULE;
-                        _res_expr_info.module = cast<scope::Module>(&*scope);
-                        break;
-                    case scope::ScopeType::COMPOUND:
-                        _res_expr_info.tag = ExprInfo::Type::STATIC;
-                        _res_expr_info.type_info.type = cast<scope::Compound>(&*scope);
-                        break;
-                    case scope::ScopeType::FUNCTION:
-                        throw Unreachable();    // surely some symbol tree builder error
-                    case scope::ScopeType::FUNCTION_SET:
-                        _res_expr_info.tag = ExprInfo::Type::FUNCTION_SET;
-                        _res_expr_info.function_set = cast<scope::FunctionSet>(&*scope);
-                        break;
-                    case scope::ScopeType::BLOCK:
-                        throw Unreachable();    // surely some parser error
-                    case scope::ScopeType::VARIABLE: {
-                        _res_expr_info = get_var_expr_info(cast<scope::Variable>(scope), node);
-                        break;
-                    }
-                    case scope::ScopeType::ENUMERATOR:
-                        _res_expr_info.tag = ExprInfo::Type::NORMAL;
-                        _res_expr_info.type_info.type = scope->get_enclosing_compound();
-                        break;
-                }
-                break;
-            }
-            default:
-                throw Unreachable();    // surely some parser error
-        }
-    }
-
-    void Analyzer::visit(ast::expr::Super &node) {
-        _res_expr_info.reset();
-
-        if (get_parent_scope()->get_type() == scope::ScopeType::COMPOUND &&
-            (get_current_scope()->get_type() == scope::ScopeType::FUNCTION) /* ||
-             get_current_scope()->get_type() == scope::ScopeType::VARIABLE ||
-             get_current_scope()->get_type() == scope::ScopeType::ENUMERATOR) */) {
-            auto klass = cast<scope::Compound>(get_parent_scope());
-            if (auto reference = node.get_reference()) {
-                reference->accept(this);
-                if (!klass->has_super(_res_type_info.type))
-                    throw error("invalid super class", &node);
-                _res_expr_info.type_info.type = _res_type_info.type;
-                return;
-            } else {
-                for (const auto &parent: klass->get_supers()) {
-                    if (parent->get_compound_node()->get_token()->get_type() == TokenType::CLASS) {
-                        _res_expr_info.type_info.type = parent;
-                        return;
-                    }
-                }
-                throw error("cannot deduce super class", &node);
-            }
-        } else
-            throw error("super is only allowed in class level functions and constructors only", &node);
-    }
-
-    void Analyzer::visit(ast::expr::Self &node) {
-        _res_expr_info.reset();
-
-        if (get_parent_scope()->get_type() == scope::ScopeType::COMPOUND &&
-            (get_current_scope()->get_type() == scope::ScopeType::FUNCTION ||
-             get_current_scope()->get_type() == scope::ScopeType::VARIABLE ||
-             get_current_scope()->get_type() == scope::ScopeType::ENUMERATOR)) {
-            _res_expr_info.type_info.type = cast<scope::Compound>(&*get_parent_scope());
-        } else {
-            throw error("self is only allowed in class level declarations only", &node);
-        }
-    }
-
-    void Analyzer::visit(ast::expr::DotAccess &node) {
-        node.get_caller()->accept(this);
-        auto caller_info = _res_expr_info;
-        _res_expr_info.reset();
-        switch (caller_info.tag) {
-            case ExprInfo::Type::NORMAL: {
-                if (caller_info.is_null())
-                    throw error("cannot access 'null'", &node);
-                if (caller_info.type_info.b_nullable && !node.get_safe()) {
-                    throw ErrorGroup<AnalyzerError>()
-                            .error(error("cannot access member of nullable type", &node))
-                            .note(error("use safe dot access operator '?.'", &node));
-                }
-                if (!caller_info.type_info.b_nullable && node.get_safe()) {
-                    throw ErrorGroup<AnalyzerError>()
-                            .error(error("cannot use safe dot access operator on non-nullable type", &node))
-                            .note(error("remove the safe dot access operator '?.'", &node));
-                }
-                if (!caller_info.type_info.type->has_variable(node.get_member()->get_text())) {
-                    throw error(std::format("cannot access member: '{}'", node.get_member()->get_text()), &node);
-                }
-                auto member_scope = caller_info.type_info.type->get_variable(node.get_member()->get_text());
-                resolve_context(member_scope, node);
-                switch (member_scope->get_type()) {
-                    case scope::ScopeType::COMPOUND:
-                        _res_expr_info.type_info.type = cast<scope::Compound>(&*member_scope);
-                        _res_expr_info.tag = ExprInfo::Type::STATIC;
-                        break;
-                    case scope::ScopeType::FUNCTION:
-                        throw Unreachable();    // surely some symbol tree builder error
-                    case scope::ScopeType::FUNCTION_SET:
-                        _res_expr_info.function_set = cast<scope::FunctionSet>(&*member_scope);
-                        _res_expr_info.tag = ExprInfo::Type::FUNCTION_SET;
-                        break;
-                    case scope::ScopeType::VARIABLE:
-                        _res_expr_info = get_var_expr_info(cast<scope::Variable>(member_scope), node);
-                        break;
-                    case scope::ScopeType::ENUMERATOR:
-                        throw error("cannot access enumerator from an object (you should use the type)", &node);
-                        break;
-                    default:
-                        throw Unreachable();    // surely some parser error
-                }
-                break;
-            }
-            case ExprInfo::Type::STATIC: {
-                if (caller_info.type_info.b_nullable && !node.get_safe()) {
-                    throw ErrorGroup<AnalyzerError>()
-                            .error(error("cannot access member of nullable type", &node))
-                            .note(error("use safe dot access operator '?.'", &node));
-                }
-                if (!caller_info.type_info.b_nullable && node.get_safe()) {
-                    throw ErrorGroup<AnalyzerError>()
-                            .error(error("cannot use safe dot access operator on non-nullable type", &node))
-                            .note(error("remove the safe dot access operator '?.'", &node));
-                }
-                if (!caller_info.type_info.type->has_variable(node.get_member()->get_text()))
-                    throw error(std::format("cannot access member: '{}'", node.get_member()->get_text()), &node);
-                auto member_scope = caller_info.type_info.type->get_variable(node.get_member()->get_text());
-                resolve_context(member_scope, node);
-                switch (member_scope->get_type()) {
-                    case scope::ScopeType::COMPOUND:
-                        _res_expr_info.type_info.type = cast<scope::Compound>(&*member_scope);
-                        _res_expr_info.tag = ExprInfo::Type::STATIC;
-                        break;
-                    case scope::ScopeType::FUNCTION:
-                        throw Unreachable();    // surely some symbol tree builder error
-                    case scope::ScopeType::FUNCTION_SET:
-                        _res_expr_info.function_set = cast<scope::FunctionSet>(&*member_scope);
-                        _res_expr_info.tag = ExprInfo::Type::FUNCTION_SET;
-                        break;
-                    case scope::ScopeType::VARIABLE: {
-                        auto var_scope = cast<scope::Variable>(member_scope);
-                        if (!var_scope->is_static()) {
-                            throw ErrorGroup<AnalyzerError>()
-                                    .error(error(std::format("cannot access non-static variable '{}' of '{}'",
-                                                             var_scope->to_string(), caller_info.to_string()),
-                                                 &node))
-                                    .note(error("declared here", var_scope));
-                        }
-                        _res_expr_info = get_var_expr_info(var_scope, node);
-                        break;
-                    }
-                    case scope::ScopeType::ENUMERATOR:
-                        _res_expr_info.type_info.type = caller_info.type_info.type;
-                        _res_expr_info.tag = ExprInfo::Type::NORMAL;
-                        break;
-                    default:
-                        throw Unreachable();    // surely some parser error
-                }
-                break;
-            }
-            case ExprInfo::Type::MODULE: {
-                if (!caller_info.module->has_variable(node.get_member()->get_text())) {
-                    throw error(std::format("cannot access member: '{}'", node.get_member()->get_text()), &node);
-                }
-                auto scope = caller_info.module->get_variable(node.get_member()->get_text());
-                switch (scope->get_type()) {
-                    case scope::ScopeType::FOLDER_MODULE:
-                    case scope::ScopeType::MODULE:
-                        _res_expr_info.module = cast<scope::Module>(&*scope);
-                        _res_expr_info.tag = ExprInfo::Type::MODULE;
-                        break;
-                    case scope::ScopeType::COMPOUND:
-                        _res_expr_info.type_info.type = cast<scope::Compound>(&*scope);
-                        _res_expr_info.tag = ExprInfo::Type::STATIC;
-                        break;
-                    case scope::ScopeType::FUNCTION:
-                        throw Unreachable();    // surely some symbol tree builder error
-                    case scope::ScopeType::FUNCTION_SET:
-                        _res_expr_info.function_set = cast<scope::FunctionSet>(&*scope);
-                        _res_expr_info.tag = ExprInfo::Type::FUNCTION_SET;
-                        break;
-                    case scope::ScopeType::VARIABLE:
-                        _res_expr_info.type_info = cast<scope::Variable>(scope)->get_type_info();
-                        _res_expr_info.tag = ExprInfo::Type::NORMAL;
-                        break;
-                    default:
-                        throw Unreachable();    // surely some parser error
-                }
-                break;
-            }
-            case ExprInfo::Type::FUNCTION_SET:
-                throw error("cannot access member of callable type", &node);
-        }
-        // This is the property of safe dot operator
-        // where 'a?.b' returns 'a.b' if 'a' is not null, else returns null
-        if (node.get_safe() && (_res_expr_info.tag == ExprInfo::Type::NORMAL || _res_expr_info.tag == ExprInfo::Type::STATIC))
-            _res_expr_info.type_info.b_nullable = true;
-    }
-
-    void Analyzer::visit(ast::expr::Call &node) {
-        node.get_caller()->accept(this);
-        auto caller_info = _res_expr_info;
-        _res_expr_info.reset();
-
-        std::vector<ArgInfo> arg_infos;
-        arg_infos.reserve(node.get_args().size());
-
-        for (auto arg: node.get_args()) {
-            arg->accept(this);
-            if (!arg_infos.empty() && arg_infos.back().b_kwd && !_res_arg_info.b_kwd)
-                throw error("mixing non-keyword and keyword arguments is not allowed", arg);
-            arg_infos.push_back(_res_arg_info);
-        }
-
-        switch (caller_info.tag) {
-            case ExprInfo::Type::NORMAL: {
-                if (caller_info.is_null())
-                    throw error("null is not callable", &node);
-                // check for call operator
-                auto fun_set = caller_info.type_info.type->get_variable("__call__");
-                if (fun_set) {
-                    _res_expr_info.reset();
-                    _res_expr_info = resolve_call(&*cast<scope::FunctionSet>(fun_set), arg_infos, node);
-                } else {
-                    throw ErrorGroup<AnalyzerError>()
-                            .error(error(std::format("'{}' does not provide a constructor", caller_info.to_string()), &node))
-                            .note(error("declared here", caller_info.type_info.type));
-                }
-                break;
-            }
-            case ExprInfo::Type::STATIC: {
-                // check for constructor
-                auto fun_set = caller_info.type_info.type->get_variable("init");
-                if (fun_set) {
-                    _res_expr_info.reset();
-                    _res_expr_info = resolve_call(&*cast<scope::FunctionSet>(fun_set), arg_infos, node);
-                } else {
-                    throw ErrorGroup<AnalyzerError>()
-                            .error(error(std::format("'{}' does not provide a constructor", caller_info.to_string()), &node))
-                            .note(error("declared here", caller_info.type_info.type));
-                }
-                break;
-            }
-            case ExprInfo::Type::MODULE:
-                throw error("module is not callable", &node);
-            case ExprInfo::Type::FUNCTION_SET:
-                // this is the actual thing: FUNCTION RESOLUTION
-                _res_expr_info.reset();
-                _res_expr_info = resolve_call(caller_info.function_set, arg_infos, node);
-                break;
-        }
-    }
-
-    void Analyzer::visit(ast::expr::Argument &node) {
-        ArgInfo arg_info;
-        arg_info.b_kwd = node.get_name() != null;
-        arg_info.name = arg_info.b_kwd ? node.get_name()->get_text() : "";
-        node.get_expr()->accept(this);
-        arg_info.expr_info = _res_expr_info;
-
-        _res_arg_info.reset();
-        _res_arg_info = arg_info;
-    }
-
-    void Analyzer::visit(ast::expr::Reify &node) {
-        node.get_caller()->accept(this);
-        _res_expr_info.reset();
-        // TODO: implement reify
-    }
-
-    void Analyzer::visit(ast::expr::Index &node) {
-        node.get_caller()->accept(this);
-        _res_expr_info.reset();
-    }
-
-    void Analyzer::visit(ast::expr::Slice &node) {
-        // TODO: implement slices
-    }
-
-    void Analyzer::visit(ast::expr::Unary &node) {
-        node.get_expr()->accept(this);
-        auto expr_info = _res_expr_info;
-        switch (expr_info.tag) {
-            case ExprInfo::Type::NORMAL: {
-                if (expr_info.is_null())
-                    throw error(std::format("cannot apply unary operator '{}' on 'null'", node.get_op()->get_text()), &node);
-                auto type_info = expr_info.type_info;
-                if (type_info.b_nullable) {
-                    throw error(std::format("cannot apply unary operator '{}' on nullable type '{}'", node.get_op()->get_text(),
-                                            type_info.type->to_string()),
-                                &node);
-                }
-                _res_expr_info.reset();
-                _res_expr_info.tag = ExprInfo::Type::NORMAL;
-                switch (node.get_op()->get_type()) {
-                    case TokenType::NOT:
-                        _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_BOOL]);
-                        break;
-                    case TokenType::TILDE: {
-                        if (type_info.type == &*internals[Internal::SPADE_INT]) {
-                            _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_INT]);
-                        } else {
-                            // Check for overloaded operator ~
-                            throw error(std::format("cannot apply unary operator '~' on '{}'", type_info.type->to_string()),
-                                        &node);
-                        }
-                        break;
-                    }
-                    case TokenType::DASH: {
-                        if (type_info.type == &*internals[Internal::SPADE_INT]) {
-                            _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_INT]);
-                        } else if (type_info.type == &*internals[Internal::SPADE_FLOAT]) {
-                            _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_FLOAT]);
-                        } else {
-                            // Check for overloaded operator -
-                            throw error(std::format("cannot apply unary operator '-' on '{}'", type_info.type->to_string()),
-                                        &node);
-                        }
-                        break;
-                    }
-                    case TokenType::PLUS: {
-                        if (type_info.type == &*internals[Internal::SPADE_INT]) {
-                            _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_INT]);
-                        } else if (type_info.type == &*internals[Internal::SPADE_FLOAT]) {
-                            _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_FLOAT]);
-                        } else {
-                            // Check for overloaded operator +
-                            throw error(std::format("cannot apply unary operator '+' on '{}'", type_info.type->to_string()),
-                                        &node);
-                        }
-                        break;
-                    }
-                    default:
-                        throw Unreachable();    // surely some parser error
-                }
-                break;
-            }
-            case ExprInfo::Type::STATIC:
-            case ExprInfo::Type::MODULE:
-            case ExprInfo::Type::FUNCTION_SET:
-                throw error(std::format("cannot apply unary operator '{}' on '{}'", node.get_op()->get_text(),
-                                        expr_info.to_string()),
-                            &node);
-        }
-    }
-
-    void Analyzer::visit(ast::expr::Cast &node) {
-        node.get_expr()->accept(this);
-        auto expr_info = _res_expr_info;
-        if (expr_info.tag != ExprInfo::Type::NORMAL)
-            throw error(std::format("cannot cast '{}'", expr_info.to_string()), &node);
-        node.get_type()->accept(this);
-        auto type_cast_info = _res_type_info;
-        if (type_cast_info.b_nullable)
-            throw error("cast type cannot be nullable", &node);
-
-        _res_expr_info.reset();
-        _res_expr_info.tag = ExprInfo::Type::NORMAL;
-        if (node.get_safe()) {
-            if (expr_info.is_null())
-                warning("expression is always 'null'", &node);
-            else {
-                check_cast(expr_info.type_info.type, type_cast_info.type, node, true);
-                type_cast_info.b_nullable = true;
-                _res_expr_info.type_info = type_cast_info;
-            }
-        } else {
-            if (expr_info.is_null())
-                throw error("cannot cast 'null'", &node);
-            check_cast(expr_info.type_info.type, type_cast_info.type, node, false);
-            _res_expr_info.type_info = type_cast_info;
-        }
-    }
-
-    void Analyzer::visit(ast::expr::Binary &node) {
-        string op_str = (node.get_op1() ? node.get_op1()->get_text() : "") + (node.get_op2() ? node.get_op2()->get_text() : "");
-
-        node.get_left()->accept(this);
-        auto left_expr_info = _res_expr_info;
-        node.get_right()->accept(this);
-        auto right_expr_info = _res_expr_info;
-
-        if (left_expr_info.is_null() || right_expr_info.is_null())
-            throw error(std::format("cannot apply binary operator '{}' on 'null'", op_str), &node);
-        switch (node.get_op1()->get_type()) {
-            case TokenType::STAR_STAR:
-                break;
-            case TokenType::STAR:
-                break;
-            case TokenType::SLASH:
-                break;
-            case TokenType::PERCENT:
-                break;
-            case TokenType::PLUS:
-                break;
-            case TokenType::DASH:
-                break;
-            case TokenType::LSHIFT:
-                break;
-            case TokenType::RSHIFT:
-                break;
-            case TokenType::URSHIFT:
-                break;
-            case TokenType::AMPERSAND:
-                break;
-            case TokenType::CARET:
-                break;
-            case TokenType::PIPE:
-                break;
-            case TokenType::IS:
-                if (node.get_op2() && node.get_op2()->get_type() == TokenType::NOT) {
-                } else {
-                }
-                break;
-            case TokenType::NOT:
-                if (node.get_op2() && node.get_op2()->get_type() == TokenType::IN) {
-                } else
-                    throw Unreachable();    // surely some parser error
-                break;
-            case TokenType::IN:
-                break;
-            case TokenType::AND:
-                break;
-            case TokenType::OR:
-                break;
-            default:
-                throw Unreachable();
-        }
-    }
-
-    void Analyzer::visit(ast::expr::ChainBinary &node) {
-        std::shared_ptr<ast::Expression> prev_expr;
-        size_t i = 0;
-        for (const auto &cur_expr: node.get_exprs()) {
-            cur_expr->accept(this);
-            if (prev_expr) {
-                switch (node.get_ops()[i - 1]->get_type()) {
-                    case TokenType::LT:
-                        break;
-                    case TokenType::LE:
-                        break;
-                    case TokenType::EQ:
-                        break;
-                    case TokenType::NE:
-                        break;
-                    case TokenType::GE:
-                        break;
-                    case TokenType::GT:
-                        break;
-                    default:
-                        throw Unreachable();    // surely some parser error
-                }
-            }
-            prev_expr = cur_expr;
-            i++;
-        }
-    }
-
-    void Analyzer::visit(ast::expr::Ternary &node) {
-        node.get_condition()->accept(this);
-        node.get_on_true()->accept(this);
-        auto expr_info1 = _res_expr_info;
-        node.get_on_false()->accept(this);
-        auto expr_info2 = _res_expr_info;
-        // TODO: check for type equality
-    }
-
-    void Analyzer::visit(ast::expr::Assignment &node) {}
-
-    void Analyzer::visit(ast::stmt::Block &node) {}
-
-    void Analyzer::visit(ast::stmt::If &node) {}
-
-    void Analyzer::visit(ast::stmt::While &node) {}
-
-    void Analyzer::visit(ast::stmt::DoWhile &node) {}
-
-    void Analyzer::visit(ast::stmt::Throw &node) {}
-
-    void Analyzer::visit(ast::stmt::Catch &node) {}
-
-    void Analyzer::visit(ast::stmt::Try &node) {}
-
-    void Analyzer::visit(ast::stmt::Continue &node) {}
-
-    void Analyzer::visit(ast::stmt::Break &node) {}
-
-    void Analyzer::visit(ast::stmt::Return &node) {}
-
-    void Analyzer::visit(ast::stmt::Yield &node) {}
-
-    void Analyzer::visit(ast::stmt::Expr &node) {}
-
-    void Analyzer::visit(ast::stmt::Declaration &node) {}
-
-    void Analyzer::visit(ast::decl::TypeParam &node) {}
-
-    void Analyzer::visit(ast::decl::Constraint &node) {}
-
-    void Analyzer::visit(ast::decl::Param &node) {
-        auto fun = cast<scope::Function>(get_current_scope());
-
-        ParamInfo param_info;
-        param_info.b_const = node.get_is_const() != null;
-        param_info.b_variadic = node.get_variadic() != null;
-        param_info.b_default = node.get_default_expr() != null;
-        param_info.name = node.get_name()->get_text();
-        param_info.type_info = resolve_assign(node.get_type(), node.get_default_expr(), node);
-        param_info.node = &node;
-
-        _res_param_info.reset();
-        _res_param_info = param_info;
-    }
-
-    void Analyzer::visit(ast::decl::Params &node) {
-        auto fun = cast<scope::Function>(get_current_scope());
-        std::shared_ptr<ast::decl::Param> found_variadic;
-        std::shared_ptr<ast::decl::Param> found_default;
-
-        std::vector<ParamInfo> pos_only_params;
-        pos_only_params.reserve(node.get_pos_only().size());
-        for (const auto &param: node.get_pos_only()) {
-            param->accept(this);
-            if (_res_param_info.b_variadic) {
-                if (found_variadic)
-                    throw ErrorGroup<AnalyzerError>()
-                            .error(error("variadic parameters is allowed only once", param))
-                            .note(error("already declared here", found_variadic));
-                found_variadic = param;
-            }
-            if (_res_param_info.b_default) {
-                throw error("positional only parameter cannot have default value", param);
-            }
-            pos_only_params.push_back(_res_param_info);
-        }
-        fun->set_pos_only_params(pos_only_params);
-
-        std::vector<ParamInfo> pos_kwd_params;
-        pos_kwd_params.reserve(node.get_pos_kwd().size());
-        for (const auto &param: node.get_pos_kwd()) {
-            param->accept(this);
-            if (_res_param_info.b_variadic) {
-                if (found_variadic)
-                    throw ErrorGroup<AnalyzerError>()
-                            .error(error("variadic parameters is allowed only once", param))
-                            .note(error("already declared here", found_variadic));
-                found_variadic = param;
-            }
-            if (!_res_param_info.b_default) {
-                if (found_default)
-                    throw ErrorGroup<AnalyzerError>()
-                            .error(error("incorrect ordering of default parameters", param))
-                            .note(error("already declared here", found_default));
-            } else {
-                found_default = param;
-            }
-            pos_kwd_params.push_back(_res_param_info);
-        }
-        fun->set_pos_kwd_params(pos_kwd_params);
-
-        // check for variadic parameters ambiguity
-        if (found_variadic && ((!node.get_pos_only().empty() && node.get_pos_only().back() != found_variadic) ||
-                               (!node.get_pos_kwd().empty() && node.get_pos_kwd().back() != found_variadic)))
-            throw ErrorGroup<AnalyzerError>().error(error("variadic parameter must be the last parameter", found_variadic));
-        found_variadic = null;    // variadic parameters is separate for kwd paremeter
-
-        std::vector<ParamInfo> kwd_only_params;
-        kwd_only_params.reserve(node.get_kwd_only().size());
-        for (const auto &param: node.get_kwd_only()) {
-            param->accept(this);
-            if (_res_param_info.b_variadic) {
-                if (found_variadic)
-                    throw ErrorGroup<AnalyzerError>()
-                            .error(error("variadic parameters is allowed only once", param))
-                            .note(error("already declared here", found_variadic));
-                found_variadic = param;
-            }
-            _res_param_info.b_kwd_only = true;
-            kwd_only_params.push_back(_res_param_info);
-        }
-        fun->set_kwd_only_params(kwd_only_params);
-
-        if (found_variadic && node.get_kwd_only().back() != found_variadic)
-            throw ErrorGroup<AnalyzerError>().error(error("variadic parameter must be the last parameter", found_variadic));
-    }
-
-    void Analyzer::visit(ast::decl::Function &node) {
-        std::shared_ptr<scope::FunctionSet> fun_set = find_scope<scope::FunctionSet>(node.get_name()->get_text());
-        std::shared_ptr<scope::Function> scope = find_scope<scope::Function>(node.get_qualified_name());
-
-        // TODO: check for function level declarations
-
-        if (scope->get_proto_eval() == scope::Function::ProtoEval::NOT_STARTED) {
-            scope->set_proto_eval(scope::Function::ProtoEval::PROGRESS);
-
-            if (auto type = node.get_return_type()) {
-                type->accept(this);
-                scope->set_ret_type(_res_type_info);
-            } else {
-                TypeInfo return_type;
-                return_type.type = scope->is_init() ? scope->get_enclosing_compound()
-                                                    : cast<scope::Compound>(&*internals[Internal::SPADE_VOID]);
-                scope->set_ret_type(return_type);
-            }
-
-            if (auto params = node.get_params())
-                params->accept(this);
-
-            scope->set_proto_eval(scope::Function::ProtoEval::DONE);
-        }
-
-        if (!fun_set->is_redecl_check()) {
-            fun_set->set_redecl_check(true);
-            auto old_cur_scope = get_current_scope();    // save the context
-            end_scope();                                 // pop the function
-            end_scope();                                 // pop the function set
-            // Collect all other defintions
-            for (const auto &[member_name, member]: fun_set->get_members()) {
-                const auto &[_, member_scope] = member;
-                if (scope != member_scope)
-                    member_scope->get_node()->accept(this);
-            }
-            // for (const auto &[member_name, member]: fun_set->get_members()) {
-            //     const auto &[_, member_scope] = member;
-            //     auto fun_scope = cast<scope::Function>(member_scope);
-            //     std::vector<ArgInfo> arg_infos;
-            //     for (const auto &param: fun_scope->get_pos_only_params()) {
-            //         ArgInfo arg_info;
-            //         arg_info.b_kwd = false;
-            //         arg_info.name = "";
-            //         arg_info.expr_info.tag = ExprInfo::Type::NORMAL;
-            //         arg_info.expr_info.type_info = param.type_info;
-            //         arg_infos.push_back(arg_info);
-            //     }
-            //     for (const auto &param: fun_scope->get_pos_kwd_params()) {
-            //         ArgInfo arg_info;
-            //         arg_info.b_kwd = true;
-            //         arg_info.name = param.name;
-            //         arg_info.expr_info.tag = ExprInfo::Type::NORMAL;
-            //         arg_info.expr_info.type_info = param.type_info;
-            //         arg_infos.push_back(arg_info);
-            //     }
-            //     for (const auto &param: fun_scope->get_kwd_only_params()) {
-            //         ArgInfo arg_info;
-            //         arg_info.b_kwd = true;
-            //         arg_info.name = param.name;
-            //         arg_info.expr_info.tag = ExprInfo::Type::NORMAL;
-            //         arg_info.expr_info.type_info = param.type_info;
-            //         arg_infos.push_back(arg_info);
-            //     }
-            //     auto candidates=resolve_call_candidates(&*fun_set, arg_infos, node);
-            // }
-            // TODO: Check all the functions using brute force
-            cur_scope = old_cur_scope;    // restore context
-        }
-
-        auto definition = node.get_definition();
-
-        if (scope->get_enclosing_function() != null) {
-            if (definition == null)
-                throw error("function must have a definition", &node);
-        } else if (auto compound = scope->get_enclosing_compound()) {
-            switch (compound->get_compound_node()->get_token()->get_type()) {
-                case TokenType::CLASS: {
-                    if (scope->is_init() && definition == null) {
-                        throw error("constructor must have a definition", &node);
-                    }
-                    if (scope->is_abstract()) {
-                        if (definition != null)
-                            throw error("abstract function cannot have a definition", &node);
-                    } else {
-                        if (definition == null)
-                            throw error("function must have a definition", &node);
-                    }
-                    break;
-                }
-                case TokenType::INTERFACE: {
-                    if (scope->is_static()) {
-                        if (definition == null)
-                            throw error("static function must have a definition", &node);
-                    }
-                    break;
-                }
-                case TokenType::ENUM: {
-                    if (scope->is_init() && definition == null) {
-                        throw error("constructor must have a definition", &node);
-                    }
-                    if (definition == null)
-                        throw error("function must have a definition", &node);
-                    break;
-                }
-                case TokenType::ANNOTATION: {
-                    if (scope->is_init() && definition == null) {
-                        throw error("constructor must have a definition", &node);
-                    }
-                    if (definition == null)
-                        throw error("function must have a definition", &node);
-                    break;
-                }
-                default:
-                    throw Unreachable();    // surely some parser error
-            }
-        } else {
-            if (definition == null)
-                throw error("function must have a definition", &node);
-        }
-
-        if (definition)
-            definition->accept(this);
-
-        end_scope();    // pop the function
-        end_scope();    // pop the function set
-    }
-
-    void Analyzer::visit(ast::decl::Variable &node) {
-        std::shared_ptr<scope::Variable> scope;
-        if (get_current_scope()->get_type() == scope::ScopeType::FUNCTION) {
-            scope = begin_scope<scope::Variable>(node);
-            // Add the variable to the parent scope
-            auto parent_scope = get_parent_scope();
-            if (!parent_scope->new_variable(node.get_name(), scope)) {
-                auto org_def = scope->get_decl_site(node.get_name()->get_text());
-                throw ErrorGroup<AnalyzerError>()
-                        .error(error(std::format("redeclaration of '{}'", node.get_name()->get_text()), node.get_name()))
-                        .note(error("already declared here", org_def));
-            };
-            // Check if the variable is not overshadowing parameters
-            if (auto fun = scope->get_enclosing_function()) {
-                if (fun->has_param(node.get_name()->get_text())) {
-                    auto param = fun->get_param(node.get_name()->get_text());
-                    throw ErrorGroup<AnalyzerError>()
-                            .error(error(
-                                    std::format("function parameters cannot be overshadowed '{}'", node.get_name()->get_text()),
-                                    node.get_name()))
-                            .note(error("already declared here", param.node));
-                }
-            }
-        } else {
-            scope = find_scope<scope::Variable>(node.get_name()->get_text());
-        }
-
-        if (scope->get_eval() == scope::Variable::Eval::NOT_STARTED) {
-            scope->set_eval(scope::Variable::Eval::PROGRESS);
-            resolve_assign(node.get_type(), node.get_expr(), node);
-        }
-        end_scope();
-    }
-
-    void Analyzer::visit(ast::decl::Parent &node) {
-        _res_type_info.reset();
-        node.get_reference()->accept(this);
-        // Check if the super class is a scope::Compound
-        if (_res_reference->get_type() != scope::ScopeType::COMPOUND)
-            throw ErrorGroup<AnalyzerError>()
-                    .error(error("reference is not a type", &node))
-                    .note(error("declared here", _res_reference));
-        // Get the parent type info and type args if any
-        TypeInfo parent_type_info;
-        parent_type_info.type = cast<scope::Compound>(&*_res_reference);
-        if (!node.get_type_args().empty()) {
-            for (auto type_arg: node.get_type_args()) {
-                type_arg->accept(this);
-                parent_type_info.type_args.push_back(_res_type_info);
-            }
-        }
-        _res_type_info = parent_type_info;
-    }
-
-    void Analyzer::visit(ast::decl::Enumerator &node) {}
-
-    void Analyzer::visit(ast::decl::Compound &node) {
-        auto scope = find_scope<scope::Compound>(node.get_name()->get_text());
-        if (node.get_parents().empty()) {
-            scope->inherit_from(cast<scope::Compound>(internals[Internal::SPADE_ANY]));
-        } else {
-            for (auto parent: node.get_parents()) {
-                parent->accept(this);
-                scope->inherit_from(_res_type_info.type);
-            }
-        }
-        for (auto member: node.get_members()) member->accept(this);
-        end_scope();
-    }
-
-    void Analyzer::visit(ast::Import &node) {
-        auto scope = get_current_scope();
-        // Put the alias if present
-        auto name = node.get_alias() ? node.get_alias() : node.get_name();
-        if (auto module_sptr = node.get_module().lock()) {
-            auto value = module_scopes.at(&*module_sptr).get_scope();
-            if (!scope->new_variable(name, value)) {
-                // Find the original declaration
-                auto org_def = scope->get_decl_site(name->get_text());
-                throw ErrorGroup<AnalyzerError>()
-                        .error(error(std::format("redeclaration of '{}'", name->get_text()), name))
-                        .note(error("already declared here", org_def));
-            }
-        } else {
-            LOGGER.log_error("import statement is not resolved");
-        }
-    }
-
-    void Analyzer::visit(ast::Module &node) {
-        if (get_current_scope() == null) {
-            auto scope = module_scopes.at(&node).get_scope();
-            cur_scope = &*scope;
-        } else {
-            find_scope<scope::Module>(node.get_name());
-        }
-
-        for (auto import: node.get_imports()) import->accept(this);
-        for (auto member: node.get_members()) member->accept(this);
-
-        end_scope();
-    }
-
-    void Analyzer::visit(ast::FolderModule &node) {
-        std::shared_ptr<scope::Scope> scope;
-        if (get_current_scope() == null) {
-            scope = module_scopes.at(&node).get_scope();
-            cur_scope = &*scope;
-        } else {
-            scope = find_scope<scope::Module>(node.get_name());
-        }
-
-        for (auto [name, member]: scope->get_members()) {
-            auto [_, scope] = member;
-            scope->get_node()->accept(this);
-        }
-
-        end_scope();
     }
 }    // namespace spade

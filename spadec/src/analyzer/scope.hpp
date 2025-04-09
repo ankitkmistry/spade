@@ -5,7 +5,6 @@
 #include "info.hpp"
 #include "lexer/token.hpp"
 #include "parser/ast.hpp"
-#include "spimp/error.hpp"
 #include "symbol_path.hpp"
 
 namespace spade::scope
@@ -105,7 +104,7 @@ namespace spade::scope
         Compound *get_enclosing_compound() const;
         Function *get_enclosing_function() const;
 
-        virtual string to_string() const = 0;
+        virtual string to_string(bool decorated = true) const = 0;
 
         void print() const;
     };
@@ -118,8 +117,8 @@ namespace spade::scope
             return cast<ast::FolderModule>(node);
         }
 
-        string to_string() const override {
-            return "module " + path.to_string();
+        string to_string(bool decorated = true) const override {
+            return decorated ? "module " + path.to_string() : path.to_string();
         }
     };
 
@@ -131,8 +130,8 @@ namespace spade::scope
             return cast<ast::Module>(node);
         }
 
-        string to_string() const override {
-            return "module " + path.to_string();
+        string to_string(bool decorated = true) const override {
+            return decorated ? "module " + path.to_string() : path.to_string();
         }
     };
 
@@ -193,7 +192,9 @@ namespace spade::scope
             return cast<ast::decl::Compound>(node);
         }
 
-        string to_string() const override {
+        string to_string(bool decorated = true) const override {
+            if (!decorated)
+                return path.to_string();
             if (!node)
                 return "class " + path.to_string();
             switch (get_compound_node()->get_token()->get_type()) {
@@ -262,6 +263,8 @@ namespace spade::scope
                    }) != modifiers.end();
         }
 
+        bool has_same_params_as(const Function &other);
+
         bool has_param(const string &name) const {
             auto it = std::find_if(pos_only_params.begin(), pos_only_params.end(),
                                    [&name](const ParamInfo &param) { return param.name == name; });
@@ -328,6 +331,10 @@ namespace spade::scope
             return kwd_only_params;
         }
 
+        size_t get_param_count() const {
+            return pos_only_params.size() + pos_kwd_params.size() + kwd_only_params.size();
+        }
+
         void set_pos_only_params(const std::vector<ParamInfo> &params) {
             pos_only_params = params;
         }
@@ -356,9 +363,7 @@ namespace spade::scope
             proto_eval = eval;
         }
 
-        string to_string() const override {
-            return (is_init() ? "init " : "function ") + path.to_string();
-        }
+        string to_string(bool decorated = true) const override;
     };
 
     class FunctionSet final : public Scope {
@@ -384,8 +389,8 @@ namespace spade::scope
             redecl_check = value;
         }
 
-        string to_string() const override {
-            return (is_init() ? "init " : "function ") + path.to_string();
+        string to_string(bool decorated = true) const override {
+            return (decorated ? (is_init() ? "init " : "function ") : "") + path.to_string();
         }
     };
 
@@ -397,7 +402,7 @@ namespace spade::scope
             return cast<ast::stmt::Block>(node);
         }
 
-        string to_string() const override {
+        string to_string(bool decorated = true) const override {
             return "block";
         }
     };
@@ -446,7 +451,9 @@ namespace spade::scope
             return cast<ast::decl::Variable>(node);
         }
 
-        string to_string() const override {
+        string to_string(bool decorated = true) const override {
+            if (!decorated)
+                return path.to_string();
             switch (get_variable_node()->get_token()->get_type()) {
                 case TokenType::VAR:
                     if (get_enclosing_compound())
@@ -470,8 +477,8 @@ namespace spade::scope
             return cast<ast::decl::Enumerator>(node);
         }
 
-        string to_string() const override {
-            return "enumerator " + path.to_string();
+        string to_string(bool decorated = true) const override {
+            return decorated ? path.to_string() : "enumerator " + path.to_string();
         }
     };
 }    // namespace spade::scope

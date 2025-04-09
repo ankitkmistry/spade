@@ -38,7 +38,7 @@ block           ::= '{' (block | declaration | statement)* '}';
 statement       ::= if_stmt | while_stmt | do_while_stmt | try_stmt
                   | 'continue' | 'break'
                   | 'throw' expression
-                  | 'return' expression
+                  | 'return' expression?
                   | 'yield' expression;
 if_stmt         ::= 'if' expression (':' statement | block) ('else' (':' statement | block))?;
 while_stmt      ::= 'while' expression (':' statement | block) ('else' (':' statement | block))?;
@@ -90,7 +90,7 @@ primary ::= 'true' | 'false' | 'null'
 
 // Type expressions
 type                ::= union_type;
-union_type          ::= intersection_type ('&' intersection_type)*;
+union_type          ::= intersection_type ('|' intersection_type)*;
 intersection_type   ::= nullable_type ('&' nullable_type)*;
 nullable_type       ::= primary_type '?'?;
 primary_type        ::= reference ('[' type_list? ']')?                # reference_type

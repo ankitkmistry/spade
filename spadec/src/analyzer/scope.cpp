@@ -1,4 +1,5 @@
 #include "scope.hpp"
+#include "info.hpp"
 
 namespace spade::scope
 {
@@ -47,5 +48,61 @@ namespace spade::scope
         for (const auto &[_, member]: members) {
             member.second->print();
         }
+    }
+
+    bool Function::has_same_params_as(const Function &other) {
+        // treat normal parameters as positional parameters
+        if (pos_only_params.size() + pos_kwd_params.size() != other.pos_only_params.size() + other.pos_kwd_params.size())
+            return false;
+        for (size_t i = 0; i < pos_only_params.size(); i++) {
+            if (pos_only_params[i] != other.pos_only_params[i])
+                return false;
+        }
+        for (size_t i = 0; i < pos_kwd_params.size(); i++) {
+            if (pos_kwd_params[i] != other.pos_kwd_params[i])
+                return false;
+        }
+        // check for keyword only parameters
+        std::unordered_map<string, ParamInfo> kwd_only_other_params_map;
+        for (const auto &param: other.kwd_only_params) {
+            kwd_only_other_params_map[param.name] = param;
+        }
+        for (size_t i = 0; i < kwd_only_params.size(); i++) {
+            auto param = kwd_only_params[i];
+            if (kwd_only_other_params_map.contains(param.name)) {
+                auto other_param = kwd_only_other_params_map[param.name];
+                if (param != other_param)
+                    return false;
+            } else
+                return false;
+        }
+        return true;
+    }
+
+    string Function::to_string(bool decorated) const {
+        string result = parent->get_path().to_string();
+        // TODO: add support for type arguments
+        if (node) {
+            result += "(";
+            for (size_t i = 0; i < pos_only_params.size(); i++) {
+                result += pos_only_params[i].to_string(false);
+                if (i != pos_only_params.size() - 1)
+                    result += ",";
+            }
+            for (size_t i = 0; i < pos_kwd_params.size(); i++) {
+                result += pos_kwd_params[i].to_string(false);
+                if (i != pos_kwd_params.size() - 1)
+                    result += ",";
+            }
+            for (size_t i = 0; i < kwd_only_params.size(); i++) {
+                result += kwd_only_params[i].to_string(false);
+                if (i != kwd_only_params.size() - 1)
+                    result += ",";
+            }
+            if (result.back() == ',')
+                result.pop_back();
+            result += ")";
+        }
+        return (decorated ? (is_init() ? "init " : "function ") : "") + result;
     }
 }    // namespace spade::scope

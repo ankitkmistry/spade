@@ -150,7 +150,7 @@ namespace spade
         /// statement ::= if_stmt | while_stmt | do_while_stmt | try_stmt
         ///             | 'continue' | 'break'
         //              | 'throw' expression
-        //              | 'return' expression
+        //              | 'return' expression?
         //              | 'yield' expression
         std::shared_ptr<ast::Statement> statement();
         /// if_stmt ::= 'if' expression (':' statement | block) ('else' (':' statement | block))?
@@ -229,7 +229,7 @@ namespace spade
         // Type expressions
         /// type ::= union_type
         std::shared_ptr<ast::Type> type();
-        /// union_type ::= intersection_type ('&' intersection_type)*
+        /// union_type ::= intersection_type ('|' intersection_type)*
         std::shared_ptr<ast::Type> union_type();
         /// intersection_type ::= nullable_type ('&' nullable_type)*
         std::shared_ptr<ast::Type> intersection_type();
