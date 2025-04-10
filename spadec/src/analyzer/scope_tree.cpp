@@ -54,7 +54,7 @@ namespace spade
             } else
                 throw Unreachable();    // surely some parser error
 
-            LOGGER.log_info(std::format("added symbol '{}'", get_current_path().to_string()));
+            LOGGER.log_debug(std::format("added symbol '{}'", get_current_path().to_string()));
             return;
         }
 

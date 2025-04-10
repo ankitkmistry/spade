@@ -26,7 +26,7 @@ enum Color {
 var a: B?
 var b: any? = a?.b
 
-fun abaxify(ac){}
+fun abaxify(parg1,*,ac:int=1,bc=1,*args){}
 fun abaxify(ac:int){}
 fun abaxify(ac,bc,dc){}
 

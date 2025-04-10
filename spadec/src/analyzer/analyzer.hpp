@@ -56,6 +56,8 @@ namespace spade
         ExprInfo resolve_call(scope::FunctionSet *fun_set, std::vector<ArgInfo> arg_infos, const ast::expr::Call &node);
         /// Performs variable type inference resolution
         ExprInfo get_var_expr_info(std::shared_ptr<scope::Variable> var_scope, const ast::AstNode &node);
+        void check_funs(std::shared_ptr<scope::Function> fun1, std::shared_ptr<scope::Function> fun2,
+                        ErrorGroup<AnalyzerError> &errors);
         void check_fun_set(std::shared_ptr<scope::FunctionSet> fun_set);
 
         ErrorPrinter printer;

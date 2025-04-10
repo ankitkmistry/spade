@@ -19,7 +19,7 @@ init_decl       ::= 'init' '(' params ')' ('=' statement | block);
 variable_decl   ::= ('var' | 'const') IDENTIFIER (':' type)? ('=' expression)?;
 function_decl   ::= 'fun' IDENTIFIER
                     ('[' type_param_list ']' set context_generics on)?
-                    '(' params ')' ('->' type)?
+                    '(' params? ')' ('->' type)?
                     (if context_generics "where" constraint_list)?
                     ('=' statement | block)?;
 
@@ -29,7 +29,7 @@ constraint  ::= IDENTIFIER ':' type;
 parent      ::= reference ('[' type_list ']')?;
 enumerator  ::= IDENTIFIER ('=' expression | '(' argument_list ')')?;
 params      ::= param_list ((if last_token != ',' then ',') '*' ',' param_list)? ((if last_token !=',' then ',') '/' ',' param_list)?
-param       ::= 'const'? '*'? IDENTIFIER (':' type)? ('=' expression)?
+param       ::= 'const'? '*'? IDENTIFIER (':' type)? ('=' ternary)?
 
 
 // Statements
@@ -108,7 +108,7 @@ expr_list                   ::= expression (',' expression)* ','?;
 argument_list               ::= argument (',' argument)* ','?;
 slice_list                  ::= slice (',' slice)* ','?;
 reference_list              ::= reference (',' reference)* ','?;
-param_list                  ::= param (',' param)* ','?;
+param_list                  ::= (param (',' param)* ','?)?;
 type_param_list             ::= type_param (',' type_param)* ','?;
 constraint_list             ::= constraint (',' constraint)* ','?;
 parent_list                 ::= parent (',' parent)* ','?;

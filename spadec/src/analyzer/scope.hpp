@@ -263,8 +263,6 @@ namespace spade::scope
                    }) != modifiers.end();
         }
 
-        bool has_same_params_as(const Function &other);
-
         bool has_param(const string &name) const {
             auto it = std::find_if(pos_only_params.begin(), pos_only_params.end(),
                                    [&name](const ParamInfo &param) { return param.name == name; });

@@ -197,17 +197,6 @@ namespace spade
         TypeInfo type_info;
         ast::decl::Param *node = null;
 
-        bool operator==(const ParamInfo &other) const {
-            if (b_kwd_only) {
-                return name == other.name && type_info == other.type_info;
-            }
-            return type_info == other.type_info;
-        }
-
-        bool operator!=(const ParamInfo &other) const {
-            return !(*this == other);
-        }
-
         void reset() {
             b_const = false;
             b_variadic = false;

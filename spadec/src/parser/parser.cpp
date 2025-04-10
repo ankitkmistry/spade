@@ -303,22 +303,32 @@ namespace spade
 
     std::shared_ptr<ast::decl::Params> Parser::params() {
         const static std::vector<std::shared_ptr<ast::decl::Param>> EMPTY;
+        bool got_param_list_1 = true, got_param_list_2 = false, got_param_list_3 = false;
         std::vector<std::shared_ptr<ast::decl::Param>> param_list1 = param_list();
         std::vector<std::shared_ptr<ast::decl::Param>> param_list2;
         std::vector<std::shared_ptr<ast::decl::Param>> param_list3;
-        if (current()->get_type() == TokenType::COMMA && match(TokenType::STAR)) {
+
+        if (current()->get_type() == TokenType::COMMA && peek()->get_type() == TokenType::STAR &&
+            peek(1)->get_type() == TokenType::COMMA) {
+            expect(TokenType::STAR);
             expect(TokenType::COMMA);
+            got_param_list_2 = true;
             param_list2 = param_list();
         }
-        if (current()->get_type() == TokenType::COMMA && match(TokenType::SLASH)) {
+
+        if (current()->get_type() == TokenType::COMMA && peek()->get_type() == TokenType::SLASH &&
+            peek(1)->get_type() == TokenType::COMMA) {
+            expect(TokenType::SLASH);
             expect(TokenType::COMMA);
+            got_param_list_3 = true;
             param_list3 = param_list();
         }
-        if (param_list2.empty() && param_list3.empty())
+
+        if (got_param_list_2 && got_param_list_3)
             return std::make_shared<ast::decl::Params>(param_list1.front(), current(), EMPTY, param_list1, EMPTY);
-        if (param_list2.empty())
+        if (got_param_list_2)
             return std::make_shared<ast::decl::Params>(param_list1.front(), current(), EMPTY, param_list1, param_list3);
-        if (param_list3.empty())
+        if (got_param_list_3)
             return std::make_shared<ast::decl::Params>(param_list1.front(), current(), param_list1, param_list2, EMPTY);
         return std::make_shared<ast::decl::Params>(param_list1.front(), current(), param_list1, param_list2, param_list3);
     }
@@ -332,7 +342,7 @@ namespace spade
         if (match(TokenType::COLON))
             param_type = type();
         if (match(TokenType::EQUAL))
-            expr = expression();
+            expr = ternary(); // TODO: change this if needed
         int line_start, col_start, line_end, col_end;
         if (is_const) {
             line_start = is_const->get_line_start();
@@ -410,7 +420,7 @@ namespace spade
             }
             case TokenType::RETURN: {
                 auto token = advance();
-                auto expr = rule_optional<ast::Expression>(std::bind(&Parser::expression, this));
+                auto expr = rule_optional(&Parser::expression);
                 return std::make_shared<ast::stmt::Return>(token, expr);
             }
             case TokenType::YIELD: {
@@ -491,7 +501,7 @@ namespace spade
 #undef BODY
 
     std::shared_ptr<ast::Expression> Parser::expression() {
-        return rule_or<ast::Expression>([&] { return assignment(); }, [&] { return ternary(); });
+        return rule_or(&Parser::assignment, &Parser::ternary);
     }
 
     std::shared_ptr<ast::Expression> Parser::assignment() {
@@ -797,10 +807,10 @@ namespace spade
             from = expression();
         std::shared_ptr<Token> c1 = match(TokenType::COLON);
         if (c1 && peek()->get_type() != TokenType::COLON)
-            to = rule_optional<ast::Expression>([&] { return expression(); });
+            to = rule_optional(&Parser::expression);
         std::shared_ptr<Token> c2 = match(TokenType::COLON);
         if (c2)
-            step = rule_optional<ast::Expression>([&] { return expression(); });
+            step = rule_optional(&Parser::expression);
 
         auto kind = ast::expr::Slice::Kind::SLICE;
         if (from && !c1 && !to && !c2 && !step)
@@ -976,7 +986,7 @@ namespace spade
         std::vector<std::shared_ptr<ast::Type>> list;
         list.push_back(type());
         while (match(TokenType::COMMA)) {
-            if (auto item = rule_optional<ast::Type>([this] { return type(); })) {
+            if (auto item = rule_optional(&Parser::type)) {
                 list.push_back(item);
             } else
                 break;
@@ -988,7 +998,7 @@ namespace spade
         std::vector<std::shared_ptr<ast::Expression>> list;
         list.push_back(postfix());
         while (match(TokenType::COMMA)) {
-            if (auto item = rule_optional<ast::Expression>([this] { return postfix(); })) {
+            if (auto item = rule_optional(&Parser::postfix)) {
                 list.push_back(item);
             } else
                 break;
@@ -1000,7 +1010,7 @@ namespace spade
         std::vector<std::shared_ptr<ast::Expression>> list;
         list.push_back(expression());
         while (match(TokenType::COMMA)) {
-            if (auto item = rule_optional<ast::Expression>([this] { return expression(); })) {
+            if (auto item = rule_optional(&Parser::expression)) {
                 list.push_back(item);
             } else
                 break;
@@ -1012,7 +1022,7 @@ namespace spade
         std::vector<std::shared_ptr<ast::expr::Argument>> list;
         list.push_back(argument());
         while (match(TokenType::COMMA)) {
-            if (auto item = rule_optional<ast::expr::Argument>([this] { return argument(); })) {
+            if (auto item = rule_optional(&Parser::argument)) {
                 list.push_back(item);
             } else
                 break;
@@ -1024,7 +1034,7 @@ namespace spade
         std::vector<std::shared_ptr<ast::expr::Slice>> list;
         list.push_back(slice());
         while (match(TokenType::COMMA)) {
-            if (auto item = rule_optional<ast::expr::Slice>([this] { return slice(); })) {
+            if (auto item = rule_optional(&Parser::slice)) {
                 list.push_back(item);
             } else
                 break;
@@ -1036,7 +1046,7 @@ namespace spade
         std::vector<std::shared_ptr<ast::Reference>> list;
         list.push_back(reference());
         while (match(TokenType::COMMA)) {
-            if (auto item = rule_optional<ast::Reference>([this] { return reference(); })) {
+            if (auto item = rule_optional(&Parser::reference)) {
                 list.push_back(item);
             } else
                 break;
@@ -1046,9 +1056,11 @@ namespace spade
 
     std::vector<std::shared_ptr<ast::decl::Param>> Parser::param_list() {
         std::vector<std::shared_ptr<ast::decl::Param>> list;
-        list.push_back(param());
+        list.push_back(rule_optional(&Parser::param));
+        if (list.front() == null)
+            return {};
         while (match(TokenType::COMMA)) {
-            if (auto item = rule_optional<ast::decl::Param>([this] { return param(); })) {
+            if (auto item = rule_optional(&Parser::param)) {
                 list.push_back(item);
             } else
                 break;
@@ -1060,7 +1072,7 @@ namespace spade
         std::vector<std::shared_ptr<ast::decl::TypeParam>> list;
         list.push_back(type_param());
         while (match(TokenType::COMMA)) {
-            if (auto item = rule_optional<ast::decl::TypeParam>([this] { return type_param(); })) {
+            if (auto item = rule_optional(&Parser::type_param)) {
                 list.push_back(item);
             } else
                 break;
@@ -1072,7 +1084,7 @@ namespace spade
         std::vector<std::shared_ptr<ast::decl::Constraint>> list;
         list.push_back(constraint());
         while (match(TokenType::COMMA)) {
-            if (auto item = rule_optional<ast::decl::Constraint>([this] { return constraint(); })) {
+            if (auto item = rule_optional(&Parser::constraint)) {
                 list.push_back(item);
             } else
                 break;
@@ -1084,7 +1096,7 @@ namespace spade
         std::vector<std::shared_ptr<ast::decl::Parent>> list;
         list.push_back(parent());
         while (match(TokenType::COMMA)) {
-            if (auto item = rule_optional<ast::decl::Parent>([this] { return parent(); })) {
+            if (auto item = rule_optional(&Parser::parent)) {
                 list.push_back(item);
             } else
                 break;
@@ -1096,7 +1108,7 @@ namespace spade
         std::vector<std::shared_ptr<ast::decl::Enumerator>> list;
         list.push_back(enumerator());
         while (match(TokenType::COMMA)) {
-            if (auto item = rule_optional<ast::decl::Enumerator>([this] { return enumerator(); })) {
+            if (auto item = rule_optional(&Parser::enumerator)) {
                 list.push_back(item);
             } else
                 break;
@@ -1108,7 +1120,7 @@ namespace spade
         std::vector<std::shared_ptr<ast::type::TypeBuilderMember>> list;
         list.push_back(type_builder_member());
         while (match(TokenType::COMMA)) {
-            if (auto item = rule_optional<ast::type::TypeBuilderMember>([this] { return type_builder_member(); })) {
+            if (auto item = rule_optional(&Parser::type_builder_member)) {
                 list.push_back(item);
             } else
                 break;

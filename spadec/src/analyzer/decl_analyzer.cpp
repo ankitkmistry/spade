@@ -30,12 +30,10 @@ namespace spade
         pos_only_params.reserve(node.get_pos_only().size());
         for (const auto &param: node.get_pos_only()) {
             param->accept(this);
-            if (_res_param_info.b_default) {
+            if (_res_param_info.b_default)
                 throw error("positional only parameter cannot have default value", param);
-            }
-            if (_res_param_info.b_variadic) {
+            if (_res_param_info.b_variadic)
                 throw error("positional only parameter cannot be variadic", param);
-            }
             pos_only_params.push_back(_res_param_info);
         }
         fun->set_pos_only_params(pos_only_params);
@@ -47,12 +45,12 @@ namespace spade
             if (_res_param_info.b_variadic) {
                 if (found_variadic)
                     throw ErrorGroup<AnalyzerError>()
-                            .error(error("variadic parameters is allowed only once", param))
+                            .error(error("variadic parameter is allowed only once", param))
                             .note(error("already declared here", found_variadic));
                 found_variadic = param;
             }
             if (!_res_param_info.b_default) {
-                if (found_default)
+                if (found_default && !_res_param_info.b_variadic)
                     throw ErrorGroup<AnalyzerError>()
                             .error(error("incorrect ordering of default parameters", param))
                             .note(error("already declared here", found_default));
@@ -64,9 +62,8 @@ namespace spade
         fun->set_pos_kwd_params(pos_kwd_params);
 
         // check for variadic parameters ambiguity
-        if (found_variadic && ((!node.get_pos_only().empty() && node.get_pos_only().back() != found_variadic) ||
-                               (!node.get_pos_kwd().empty() && node.get_pos_kwd().back() != found_variadic)))
-            throw ErrorGroup<AnalyzerError>().error(error("variadic parameter must be the last parameter", found_variadic));
+        if (found_variadic /* && !node.get_pos_kwd().empty() */ && node.get_pos_kwd().back() != found_variadic)
+            throw error("variadic parameter must be the last parameter", found_variadic);
         found_variadic = null;    // variadic parameters is separate for kwd paremeter
 
         std::vector<ParamInfo> kwd_only_params;

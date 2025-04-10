@@ -87,13 +87,35 @@ namespace spade
         }
 
         template<typename T>
-        std::shared_ptr<T> rule_optional(std::function<std::shared_ptr<T>()> rule) {
+        std::shared_ptr<T> rule_optional(std::shared_ptr<T> (Parser::*rule)()) {
             int tok_idx = index;
             try {
-                return rule();
+                return (this->*rule)();
             } catch (const ParserError &) {
                 index = tok_idx;
                 return null;
+            }
+        }
+
+        // template<typename R, typename C1, typename C2>
+        // std::shared_ptr<R> rule_or(std::shared_ptr<C1> (Parser::*rule1)(), std::shared_ptr<C2> (Parser::*rule2)()) {
+        //     int tok_idx = index;
+        //     try {
+        //         return spade::cast<R>(this->*rule1());
+        //     } catch (const ParserError &) {
+        //         index = tok_idx;
+        //         return spade::cast<R>(this->*rule2());
+        //     }
+        // }
+
+        template<typename T>
+        std::shared_ptr<T> rule_or(std::shared_ptr<T> (Parser::*rule1)(), std::shared_ptr<T> (Parser::*rule2)()) {
+            int tok_idx = index;
+            try {
+                return (this->*rule1)();
+            } catch (const ParserError &) {
+                index = tok_idx;
+                return (this->*rule2)();
             }
         }
 
@@ -122,7 +144,7 @@ namespace spade
         std::shared_ptr<ast::Declaration> variable_decl();
         /// function_decl ::= 'fun' IDENTIFIER
         ///                     ('[' type_param_list ']' set context_generics on)?
-        ///                     '(' params ')' ('->' type)? 
+        ///                     '(' params? ')' ('->' type)?
         ///                     (if context_generics "where" constraint_list)?
         ///                     ('=' statement | block)?
         std::shared_ptr<ast::Declaration> function_decl();
@@ -139,7 +161,7 @@ namespace spade
         std::shared_ptr<ast::decl::Enumerator> enumerator();
         /// params ::= param_list ((if last_token != ',' then ',') '*' ',' param_list)? ((if last_token !=',' then ',') '/' ',' param_list)?
         std::shared_ptr<ast::decl::Params> params();
-        /// param ::= 'const'? '*'? IDENTIFIER (':' type)? ('=' expression)?
+        /// param ::= 'const'? '*'? IDENTIFIER (':' type)? ('=' ternary)?
         std::shared_ptr<ast::decl::Param> param();
 
         // Statements
@@ -257,7 +279,7 @@ namespace spade
         std::vector<std::shared_ptr<ast::expr::Slice>> slice_list();
         /// reference_list ::= reference (',' reference)* ','?
         std::vector<std::shared_ptr<ast::Reference>> reference_list();
-        /// param_list ::= param (',' param)* ','?
+        /// param_list ::= (param (',' param)* ','?)?
         std::vector<std::shared_ptr<ast::decl::Param>> param_list();
         /// type_param_list ::= type_param (',' type_param)* ','?
         std::vector<std::shared_ptr<ast::decl::TypeParam>> type_param_list();
