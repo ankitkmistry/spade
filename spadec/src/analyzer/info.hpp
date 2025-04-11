@@ -21,13 +21,10 @@ namespace spade
         std::vector<TypeInfo> type_args;
         /// flag if the type is nullable
         bool b_nullable = false;
-        /// flag if the type or value is null by itself
-        bool b_null = false;
 
         TypeInfo() = default;
 
-        TypeInfo(const TypeInfo &other)
-            : type(other.type), type_args(other.type_args), b_nullable(other.b_nullable), b_null(other.b_null) {}
+        TypeInfo(const TypeInfo &other) : type(other.type), type_args(other.type_args), b_nullable(other.b_nullable) {}
 
         TypeInfo(TypeInfo &&other) noexcept = default;
 
@@ -38,7 +35,6 @@ namespace spade
             else
                 type_args.clear();
             b_nullable = other.b_nullable;
-            b_null = other.b_null;
             return *this;
         }
 
@@ -63,7 +59,6 @@ namespace spade
             if (!type_args.empty())
                 type_args.clear();
             b_nullable = false;
-            b_null = false;
         }
 
         bool is_type_literal() const {
@@ -87,9 +82,19 @@ namespace spade
             scope::FunctionSet *function_set;
         };
 
+        // TODO: Add support
+        /// flag if the value is a lvalue
+        bool b_lvalue = false;
+        // TODO: Add support
+        /// flag if the value is const
+        bool b_const = false;
+        /// flag if value is null
+        bool b_null = false;
+
         ExprInfo() : type_info() {}
 
-        ExprInfo(const ExprInfo &other) : tag(other.tag) {
+        ExprInfo(const ExprInfo &other)
+            : tag(other.tag), b_lvalue(other.b_lvalue), b_const(other.b_const), b_null(other.b_null) {
             switch (tag) {
                 case Type::NORMAL:
                 case Type::STATIC:
@@ -104,7 +109,8 @@ namespace spade
             }
         }
 
-        ExprInfo(ExprInfo &&other) noexcept : tag(other.tag) {
+        ExprInfo(ExprInfo &&other) noexcept
+            : tag(other.tag), b_lvalue(other.b_lvalue), b_const(other.b_const), b_null(other.b_null) {
             switch (tag) {
                 case Type::NORMAL:
                 case Type::STATIC:
@@ -123,6 +129,9 @@ namespace spade
             if (this != &other) {
                 reset();
                 tag = other.tag;
+                b_lvalue = other.b_lvalue;
+                b_const = other.b_const;
+                b_null = other.b_null;
                 switch (tag) {
                     case Type::NORMAL:
                     case Type::STATIC:
@@ -143,6 +152,9 @@ namespace spade
             if (this != &other) {
                 reset();
                 tag = other.tag;
+                b_lvalue = other.b_lvalue;
+                b_const = other.b_const;
+                b_null = other.b_null;
                 switch (tag) {
                     case Type::NORMAL:
                     case Type::STATIC:
@@ -179,10 +191,13 @@ namespace spade
                     break;
             }
             tag = Type::NORMAL;
+            b_lvalue = false;
+            b_const = false;
+            b_null = false;
         }
 
         bool is_null() const {
-            return tag == Type::NORMAL && type_info.b_null && type_info.b_nullable;
+            return tag == Type::NORMAL && b_null && type_info.b_nullable;
         }
 
         string to_string(bool decorated = true) const;

@@ -324,11 +324,11 @@ namespace spade
             param_list3 = param_list();
         }
 
-        if (got_param_list_2 && got_param_list_3)
+        if (!got_param_list_2 && !got_param_list_3)
             return std::make_shared<ast::decl::Params>(param_list1.front(), current(), EMPTY, param_list1, EMPTY);
-        if (got_param_list_2)
+        if (!got_param_list_2)
             return std::make_shared<ast::decl::Params>(param_list1.front(), current(), EMPTY, param_list1, param_list3);
-        if (got_param_list_3)
+        if (!got_param_list_3)
             return std::make_shared<ast::decl::Params>(param_list1.front(), current(), param_list1, param_list2, EMPTY);
         return std::make_shared<ast::decl::Params>(param_list1.front(), current(), param_list1, param_list2, param_list3);
     }

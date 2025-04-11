@@ -577,6 +577,8 @@ namespace spade
                 expr_info.type_info = var_scope->get_type_info();
                 break;
         }
+        if (var_scope->get_variable_node()->get_token()->get_type() == TokenType::CONST)
+            expr_info.b_const = true;
         return expr_info;
     }
 
@@ -807,6 +809,19 @@ namespace spade
                     error_state = true;
             }
         }
+
+        // Set qualified names
+        std::unordered_map<string, scope::Scope::Member> new_members;
+        for (auto &[_1, member]: fun_set->get_members()) {
+            const auto &[_2, scope] = member;
+            string full_name = scope->to_string(false);
+            string name = full_name.substr(0, full_name.find_first_of('('));
+            string final_name = SymbolPath(name).get_name() + full_name.substr(full_name.find_first_of('('));
+            cast<scope::Function>(scope)->get_function_node()->set_qualified_name(final_name);
+            new_members[final_name] = member;
+        }
+
+        fun_set->set_members(new_members);
 
         if (error_state)
             throw err_grp;

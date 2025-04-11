@@ -213,6 +213,7 @@ namespace spade
 
         if (scope->get_eval() == scope::Variable::Eval::NOT_STARTED) {
             scope->set_eval(scope::Variable::Eval::PROGRESS);
+            // resolve_assign automatically sets eval to DONE
             resolve_assign(node.get_type(), node.get_expr(), node);
         }
         end_scope();
@@ -242,6 +243,12 @@ namespace spade
 
     void Analyzer::visit(ast::decl::Compound &node) {
         auto scope = find_scope<scope::Compound>(node.get_name()->get_text());
+        // TODO: Solve this ambiguity
+        // 
+        // class A : B {}
+        // class B : C {}
+        // class C : A {}
+        // 
         if (node.get_parents().empty()) {
             scope->inherit_from(cast<scope::Compound>(internals[Internal::SPADE_ANY]));
         } else {

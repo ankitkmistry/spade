@@ -1,6 +1,7 @@
 #pragma once
 
 #include <unordered_set>
+#include <utility>
 
 #include "info.hpp"
 #include "lexer/token.hpp"
@@ -70,6 +71,15 @@ namespace spade::scope
 
         Scope *get_parent() const {
             return parent;
+        }
+
+        void set_members(std::unordered_map<string, Member> members) {
+            // this->members = members;
+            std::swap(this->members, members);
+        }
+
+        std::unordered_map<string, Member> &get_members() {
+            return members;
         }
 
         const std::unordered_map<string, Member> &get_members() const {
