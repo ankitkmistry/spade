@@ -1,4 +1,7 @@
 #include "color.hpp"
+
+#include <boost/predef.h>
+
 #define MAGIC_OFF
 
 namespace color

@@ -1,7 +1,10 @@
 #include <clocale>
+#include <filesystem>
 #include <ios>
 #include <iostream>
 #include <fstream>
+#include <cpptrace/from_current.hpp>
+#include <cpptrace/formatting.hpp>
 
 #include "utils/color.hpp"
 #include "analyzer/analyzer.hpp"
@@ -11,6 +14,8 @@
 #include "parser/printer.hpp"
 #include "utils/error.hpp"
 #include "utils/error_printer.hpp"
+
+constexpr bool ENABLE_BACKTRACE_FILTER = false;
 
 using namespace spade;
 
@@ -77,20 +82,42 @@ void repl() {
     }
 }
 
-int main() {
-    // try {
-    std::setlocale(LC_CTYPE, ".UTF-8");
-    color::Console::init();
-    // std::ofstream file("output.log");
-    // LOGGER.set_file(file);
-    // std::ios_base::sync_with_stdio(false);
-    LOGGER.set_format("[{4}] {5}");
-    compile();
-    // repl();
-    color::Console::restore();
-    return 0;
-    // } catch (const std::exception &err) {
-    // LOGGER.log_fatal(err.what());
-    // return 1;
-    // }
+int main(int argc, char *argv[]) {
+    CPPTRACE_TRY {
+        std::setlocale(LC_CTYPE, ".UTF-8");
+        color::Console::init();
+        // std::ofstream file("output.log");
+        // LOGGER.set_file(file);
+        // std::ios_base::sync_with_stdio(false);
+        LOGGER.set_format("[{4}] {5}");
+        compile();
+        // repl();
+        color::Console::restore();
+        return 0;
+    }
+    CPPTRACE_CATCH(const std::exception &err) {
+        auto formatter = cpptrace::formatter{}
+                                 .colors(cpptrace::formatter::color_mode::automatic)
+                                 .addresses(cpptrace::formatter::address_mode::object)
+                                 .snippets(false)
+                                 //  .filtered_frame_placeholders(false)
+                                 .filter([](const cpptrace::stacktrace_frame &frame) -> bool {
+                                     if (!ENABLE_BACKTRACE_FILTER)
+                                         return true;
+                                     auto file_path = fs::absolute(fs::path(frame.filename));
+                                     fs::path src_path;
+                                     if (file_path.has_parent_path()) {
+                                         if ((src_path = file_path.parent_path(), file_path.parent_path().stem() == "src") ||
+                                             (file_path.parent_path().has_parent_path() &&
+                                              (src_path = file_path.parent_path().parent_path(),
+                                               file_path.parent_path().parent_path().stem() == "src")))
+                                             return src_path.has_parent_path() && src_path.parent_path().stem() == "spadec";
+                                     }
+                                     return false;
+                                 });
+        std::cerr << std::format("exception occurred:\n    {}: {}\n", cpp_demangle(typeid(err).name()), err.what());
+        // cpptrace::from_current_exception().print();
+        formatter.print(cpptrace::from_current_exception());
+        return 1;
+    }
 }

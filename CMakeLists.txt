@@ -27,6 +27,15 @@ set (BOOST_ROOT "D:\\Programming\\Libraries\\boost_1_87_0")
 set (Boost_USE_STATIC_LIBS ON)
 set (Boost_USE_STATIC_RUNTIME OFF)
 
+# Set up cpptrace
+include (FetchContent)
+FetchContent_Declare (
+  cpptrace
+  GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
+  GIT_TAG v0.8.3 # <HASH or TAG>
+)
+FetchContent_MakeAvailable (cpptrace)
+
 # Target: sputils
 # It is the central utility library used by all other targets
 file (GLOB_RECURSE SPUTILS_SRCS sputils/src/*.cpp)
@@ -35,7 +44,7 @@ file (GLOB_RECURSE SPUTILS_INCLUDES sputils/src/*.hpp)
 add_library (sputils STATIC ${SPUTILS_SRCS} ${SPUTILS_INCLUDES})
 target_include_directories (sputils PUBLIC sputils/src)
 
-find_package (Boost 1.87.0 REQUIRED)
+find_package (Boost 1.74.0 REQUIRED)
 target_include_directories (sputils PUBLIC ${Boost_INCLUDE_DIRS})
 target_link_libraries (sputils ${Boost_LIBRARIES})
 
@@ -57,6 +66,23 @@ file (GLOB_RECURSE SPADEC_INCLUDES spadec/src/*.hpp)
 add_executable (spadec ${SPADEC_SRCS} ${SPADEC_INCLUDES})
 target_include_directories (spadec PUBLIC spadec/src)
 target_include_directories (spadec PUBLIC sputils/src)
-target_link_libraries (spadec sputils)
+target_link_libraries (spadec PUBLIC sputils PUBLIC cpptrace::cpptrace)
+
+if (WIN32)
+  add_custom_command (
+    TARGET spadec POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    $<TARGET_FILE:cpptrace::cpptrace>
+    $<TARGET_FILE_DIR:spadec>
+  )
+endif ()
+
+if(APPLE)
+  add_custom_command(
+    TARGET spadec
+    POST_BUILD
+    COMMAND dsymutil $<TARGET_FILE:spadec>
+  )
+endif()
 
 # TODO: Add tests and install targets if needed.

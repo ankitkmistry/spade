@@ -4,8 +4,6 @@
 #include <format>
 #include <string>
 
-#include <boost/predef.h>
-
 namespace color
 {
     class Color {
@@ -353,7 +351,3 @@ namespace color
 
     inline constexpr Style Style::DEFAULT = Style(color::Black, color::White);
 }    // namespace color
-
-#ifdef COLOR_IMPLEMENTATION
-
-#endif
