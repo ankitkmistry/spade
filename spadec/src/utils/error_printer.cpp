@@ -1,7 +1,9 @@
+#include <string>
+
 #include "error_printer.hpp"
 #include "color.hpp"
 #include "utils/color.hpp"
-#include <string>
+#include "utils/error.hpp"
 
 namespace spade
 {
@@ -39,7 +41,7 @@ namespace spade
         }
 
         string line;
-        string pipe = color::fg(color::Cyan) + "|" + color::attr(color::RESET);
+        string pipe = color::fg(color::from_hex(0x3b9c6c)) + "|" + color::attr(color::RESET);
         for (int lineno = 1; !in.eof(); lineno++) {
             std::getline(in, line);
             if (err.get_line_start() <= lineno && lineno <= err.get_line_end()) {
@@ -89,7 +91,7 @@ namespace spade
         bool quote_open = false;
         string err_what = err.what();
         for (auto c: err_what) {
-            if (c == '\'' || c == '<' || c == '>') {
+            if (c == '\'') {
                 if (!quote_open) {
                     err_str += color::fg(color::from_hex(0xd619e0));
                     err_str += color::attr(color::BOLD);
@@ -115,12 +117,12 @@ namespace spade
             case ErrorType::ERROR:
                 error_type_str = color::fg(color::Red) + color::attr(color::BOLD) + "error" + color::attr(color::RESET);
                 info.underline = true;
-                info.underline_char = color::fg(color::Dark_Red) + '^' + color::attr(color::RESET);
+                info.underline_char = color::fg(color::from_hex(0xfe5455)) + '^' + color::attr(color::RESET);
                 break;
             case ErrorType::WARNING:
                 error_type_str = color::fg(color::Orange) + color::attr(color::BOLD) + "warning" + color::attr(color::RESET);
                 info.underline = true;
-                info.underline_char = color::fg(color::from_hex(0xe0cb2b)) + '~' + color::attr(color::RESET);
+                info.underline_char = color::fg(color::from_hex(0xffbd2a)) + '~' + color::attr(color::RESET);
                 break;
             case ErrorType::NOTE:
                 error_type_str =

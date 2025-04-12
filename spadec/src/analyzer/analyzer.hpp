@@ -23,14 +23,17 @@ namespace spade
 
         /// Performs name resolution
         std::shared_ptr<scope::Scope> find_name(const string &name) const;
-        /// Performs context resolution
+        /**
+         * Performs context resolution for scope in relation with the current scope
+         * @param scope the requested scope
+         * @param node the source ast node used for error messages
+         */
         void resolve_context(const std::shared_ptr<scope::Scope> &scope, const ast::AstNode &node);
         /// Performs cast checking
         void check_cast(scope::Compound *from, scope::Compound *to, const ast::AstNode &node, bool safe);
         /**
          * Performs type resolution for assignments.
          * It checks if the type of the expression is compatible with the type of the variable.
-         * 
          * @param type type to assign
          * @param expr expression to be assigned
          * @param node the source ast node used for error messages
@@ -49,10 +52,8 @@ namespace spade
          */
         TypeInfo resolve_assign(std::shared_ptr<ast::Type> type, std::shared_ptr<ast::Expression> expr,
                                 const ast::AstNode &node);
-        std::vector<std::shared_ptr<scope::Function>> resolve_call_candidates(scope::FunctionSet *fun_set,
-                                                                              std::vector<ArgInfo> arg_infos,
-                                                                              const ast::expr::Call &node,
-                                                                              ErrorGroup<AnalyzerError> *errors = null);
+        bool check_fun_call(scope::Function *function, std::vector<ArgInfo> arg_infos, const ast::expr::Call &node,
+                            ErrorGroup<AnalyzerError> &errors);
         ExprInfo resolve_call(scope::FunctionSet *fun_set, std::vector<ArgInfo> arg_infos, const ast::expr::Call &node);
         /// Performs variable type inference resolution
         ExprInfo get_var_expr_info(std::shared_ptr<scope::Variable> var_scope, const ast::AstNode &node);
@@ -75,6 +76,26 @@ namespace spade
         template<ast::HasLineInfo T>
         void note(const string &msg, T node) {
             printer.print(ErrorType::NOTE, error(msg, node));
+        }
+
+        template<typename Scope_Type, typename Ast_Type>
+            requires std::derived_from<Scope_Type, scope::Scope> && std::derived_from<Ast_Type, ast::AstNode>
+        std::shared_ptr<Scope_Type> begin_scope(Ast_Type &node) {
+            auto scope = std::make_shared<Scope_Type>(&node);
+            cur_scope = &*scope;
+            return scope;
+        }
+
+        template<typename Scope_Type>
+            requires std::derived_from<Scope_Type, scope::Scope>
+        std::shared_ptr<Scope_Type> find_scope(const string &name) {
+            auto scope = get_current_scope()->get_variable(name);
+            cur_scope = &*scope;
+            return cast<Scope_Type>(scope);
+        }
+
+        inline void end_scope() {
+            cur_scope = cur_scope->get_parent();
         }
 
       public:
@@ -159,25 +180,5 @@ namespace spade
         void visit(ast::Import &node);
         void visit(ast::Module &node);
         void visit(ast::FolderModule &node);
-
-        template<typename Scope_Type, typename Ast_Type>
-            requires std::derived_from<Scope_Type, scope::Scope> && std::derived_from<Ast_Type, ast::AstNode>
-        std::shared_ptr<Scope_Type> begin_scope(Ast_Type &node) {
-            auto scope = std::make_shared<Scope_Type>(&node);
-            cur_scope = &*scope;
-            return scope;
-        }
-
-        template<typename Scope_Type>
-            requires std::derived_from<Scope_Type, scope::Scope>
-        std::shared_ptr<Scope_Type> find_scope(const string &name) {
-            auto scope = get_current_scope()->get_variable(name);
-            cur_scope = &*scope;
-            return cast<Scope_Type>(scope);
-        }
-
-        inline void end_scope() {
-            cur_scope = cur_scope->get_parent();
-        }
     };
 }    // namespace spade

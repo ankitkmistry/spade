@@ -8,7 +8,10 @@
 #include "symbol_path.hpp"
 #include "utils/error.hpp"
 #include <algorithm>
+#include <cstddef>
 #include <memory>
+#include <unordered_map>
+#include <vector>
 
 // TODO: implement generics
 
@@ -83,20 +86,21 @@ namespace spade
         return scope;
     }
 
+    // This function check whether `scope` is accessible from `cur_scope`
+    // It uses the accessor rules to determine accessibilty, the accessor rules are given as follows:
+    //
+    // +=======================================================================================================================+
+    // |                                                   ACCESSORS                                                           |
+    // +===================+===================================================================================================+
+    // |   private         | same class                                                                                        |
+    // |   internal        | same class, same module subclass                                                                  |
+    // |   module private  | same class, same module subclass, same module                                                     |
+    // |   protected       | same class, same module subclass, same module, other module subclass                              |
+    // |   public          | same class, same module subclass, same module, other module subclass, other module non-subclass   |
+    // +===================+===================================================================================================+
+    //
+    // If no accessor is provided then the default accessor is taken to be `module private`
     void Analyzer::resolve_context(const std::shared_ptr<scope::Scope> &scope, const ast::AstNode &node) {
-        /*
-            +=======================================================================================================================+
-            |                                                   ACCESSORS                                                           |
-            +===================+===================================================================================================+
-            |   private         | same class                                                                                        | 
-            |   internal        | same class, same module subclass                                                                  | 
-            |   module private  | same class, same module subclass, same module                                                     | 
-            |   protected       | same class, same module subclass, same module, other module subclass                              | 
-            |   public          | same class, same module subclass, same module, other module subclass, other module non-subclass   |
-            +===================+===================================================================================================+
-
-            default acessor is module private
-        */
         auto cur_mod = get_current_scope()->get_enclosing_module();
         auto scope_mod = scope->get_enclosing_module();
         if (!cur_mod || !scope_mod)
@@ -345,10 +349,131 @@ namespace spade
         return type_info;
     }
 
-    std::vector<std::shared_ptr<scope::Function>> Analyzer::resolve_call_candidates(scope::FunctionSet *fun_set,
-                                                                                    std::vector<ArgInfo> arg_infos,
-                                                                                    const ast::expr::Call &node,
-                                                                                    ErrorGroup<AnalyzerError> *errors) {
+    bool Analyzer::check_fun_call(scope::Function *function, std::vector<ArgInfo> arg_infos, const ast::expr::Call &node,
+                                  ErrorGroup<AnalyzerError> &errors) {
+        if (!function->is_variadic() && !function->is_default() && function->param_count() != arg_infos.size()) {
+            errors.error(error(std::format("expected {} arguments but got {}", function->param_count(), arg_infos.size()),
+                               &node))
+                    .note(error("declared here", function->get_decl_site()));
+            return false;
+        }
+        if (arg_infos.size() < function->min_param_count()) {
+            errors.error(error(std::format("expected at least {} arguments but got {}", function->min_param_count(),
+                                           arg_infos.size()),
+                               &node))
+                    .note(error("declared here", function->get_decl_site()));
+            return false;
+        }
+
+        ErrorGroup<AnalyzerError> err_grp;
+
+        // Separate out the value and keyword arguments
+        std::vector<ArgInfo> value_args;
+        std::unordered_map<string, ArgInfo> kwargs;
+        for (const auto arg_info: arg_infos) {
+            if (arg_info.b_kwd)
+                kwargs[arg_info.name] = arg_info;
+            else
+                value_args.push_back(arg_info);
+        }
+
+        size_t arg_id = 0;
+        // Check positional only parameters
+        if (value_args.size() < function->get_pos_only_params().size()) {
+            err_grp.error(error(std::format("expected {} positional arguments but got {}",
+                                            function->get_pos_only_params().size(), arg_infos.size()),
+                                &node));
+        } else
+            for (const auto &param: function->get_pos_only_params()) {
+                auto arg_info = value_args[arg_id];
+                try {
+                    resolve_assign(&param.type_info, &arg_info.expr_info, node);
+                } catch (const AnalyzerError &err) {
+                    err_grp.error(err);
+                }
+                arg_id++;
+            }
+
+        size_t min_kw_arg_count = 0;
+        std::unordered_map<string, ParamInfo> kwd_params;
+        std::optional<ParamInfo> kwd_only_variadic;
+
+        // Consume pos_kwd parameters and then build kwd_params
+        for (const auto &param: function->get_pos_kwd_params()) {
+            if (arg_id >= value_args.size()) {
+                if (!param.b_default && !param.b_variadic)
+                    min_kw_arg_count++;
+                if (!param.b_variadic)
+                    kwd_params[param.name] = param;
+            } else {
+                do {
+                    auto arg_info = value_args[arg_id];
+                    try {
+                        resolve_assign(&param.type_info, &arg_info.expr_info, node);
+                    } catch (const AnalyzerError &err) {
+                        err_grp.error(err);
+                    }
+                    arg_id++;
+                } while (param.b_variadic && arg_id < value_args.size());
+            }
+        }
+        // All value arguments should get consumed
+        if (arg_id < value_args.size())
+            err_grp.error(error(std::format("expected at most {} value arguments but got {} value arguments", arg_id,
+                                            value_args.size()),
+                                &node))
+                    .note(error("declared here", function->get_decl_site()));
+        // Add kwd_only_params to kwd_params map
+        for (const auto &param: function->get_kwd_only_params()) {
+            if (!param.b_default && !param.b_variadic)
+                min_kw_arg_count++;
+            if (param.b_variadic)
+                kwd_only_variadic = param;
+            else
+                kwd_params[param.name] = param;
+        }
+        // Minimum keyword arguments should be present
+        if (kwargs.size() < min_kw_arg_count)
+            err_grp.error(error(std::format("expected at least {} keyword arguments but got {} keyword arguments",
+                                            min_kw_arg_count, kwargs.size()),
+                                &node))
+                    .note(error("declared here", function->get_decl_site()));
+        // Collect all keyword arguments
+        for (const auto &[name, kwarg]: kwargs) {
+            if (kwd_params.contains(name)) {
+                try {
+                    resolve_assign(&kwd_params[name].type_info, &kwarg.expr_info, node);
+                } catch (const AnalyzerError &err) {
+                    err_grp.error(err);
+                }
+                kwd_params.erase(name);
+            } else if (kwd_only_variadic) {
+                try {
+                    resolve_assign(&kwd_only_variadic->type_info, &kwarg.expr_info, node);
+                } catch (const AnalyzerError &err) {
+                    err_grp.error(err);
+                }
+            } else
+                err_grp.error(error(std::format("unexpected keyword argument '{}'", name), kwarg.node));
+        }
+        // give error for remaining keyword arguments if they are not default
+        for (const auto &[name, param]: kwd_params) {
+            if (!param.b_default) {
+                if (param.b_kwd_only)
+                    err_grp.error(error(std::format("missing required keyword argument '{}'", param.name), &node));
+                else
+                    err_grp.error(error(std::format("missing required argument '{}'", param.name), &node));
+            }
+        }
+        if (!err_grp.get_errors().empty()) {
+            err_grp.note(error("declared here", function->get_decl_site()));
+            errors.extend(err_grp);
+            return false;
+        }
+        return true;
+    }
+
+    ExprInfo Analyzer::resolve_call(scope::FunctionSet *fun_set, std::vector<ArgInfo> arg_infos, const ast::expr::Call &node) {
         // Check for redeclarations if any
         if (!fun_set->is_redecl_check()) {
             // fun_set can never be empty (according to scope tree builder)
@@ -363,181 +488,63 @@ namespace spade
             const auto &[decl_site, member_scope] = member;
             auto fun_scope = cast<scope::Function>(member_scope);
 
-            bool next_fun = false;    // flag to skip to next function
-            size_t arg_id = 0;        // index of arg_info in arg_infos
-
-            // Positional only parameters
-            for (const auto &param: fun_scope->get_pos_only_params()) {
-                if (next_fun)
-                    break;
-                auto arg_info = arg_infos[arg_id];
-                if (!param.b_variadic && arg_info.b_kwd) {
-                    err_grp.note(
-                            error(std::format("expected positional argument '{}' but got keyword argument '{}', declared here",
-                                              param.name, arg_info.name),
-                                  decl_site));
-                    next_fun = true;
-                    continue;
-                }
-                if (param.b_variadic) {
-                    for (; arg_id < arg_infos.size(); arg_id++) {
-                        arg_info = arg_infos[arg_id];
-                        // check assignability
-                        resolve_assign(&param.type_info, &arg_info.expr_info, node);
-                        if (arg_info.b_kwd) {
-                            arg_id--;
-                            break;
-                        }
-                    }
-                } else {
-                    // check assignability
-                    resolve_assign(&param.type_info, &arg_info.expr_info, node);
-                }
-                arg_id++;
-            }
-            // Positional or keyword parameters and keyword only parameters
-            std::map<string, ParamInfo> params;
-            // Build the param table
-            for (const auto &param: fun_scope->get_pos_kwd_params()) params[param.name] = param;
-            for (const auto &param: fun_scope->get_kwd_only_params()) params[param.name] = param;
-            const ParamInfo *var_kwargs = null;
-            if (fun_scope->is_variadic_kwd_only()) {
-                var_kwargs = &fun_scope->get_kwd_only_params().back();
-            }
-
-            // Collect arguments
-            while (arg_id < arg_infos.size() && !params.empty()) {
-                if (next_fun)
-                    break;
-                auto arg_info = arg_infos[arg_id];
-                if (arg_info.b_kwd) {
-                    if (params.contains(arg_info.name)) {
-                        auto param = params[arg_info.name];
-                        if (param.b_variadic) {
-                            if (!param.b_kwd_only) {
-                                // if argument is kwd and the param is not kwd only but variadic
-                                err_grp.note(error(std::format("variadic parameter '{}' cannot be used as keyword "
-                                                               "argument, declared here",
-                                                               arg_info.name),
-                                                   decl_site));
-                                next_fun = true;
-                                continue;
-                            } else {
-                                // if argument is kwd and the param kwd only and variadic
-                                // var_kwargs should not be null
-                                if (!var_kwargs)
-                                    throw Unreachable();
-                                // check for assignabilty
-                                resolve_assign(&param.type_info, &arg_info.expr_info, node);
-                            }
-                        } else {
-                            // if argument is kwd and the param is not variadic
-                            // check for assignabilty
-                            resolve_assign(&param.type_info, &arg_info.expr_info, node);
-                        }
-                        params.erase(arg_info.name);    // NOTE: variadic kw param name gets deleted here
-                    } else {
-                        // if argument is kwd but the param is not found
-                        // surely it must be variadic kwargs
-                        if (!var_kwargs) {
-                            err_grp.note(error(std::format("unknown keyword argument '{}', declared here", arg_info.name),
-                                               decl_site));
-                            next_fun = true;
-                            continue;
-                        }
-                        // check for assignabilty
-                        resolve_assign(&var_kwargs->type_info, &arg_info.expr_info, node);
-                    }
-                } else {
-                    auto [param_name, param] = *params.begin();
-                    if (param.b_kwd_only) {
-                        // if argument is value but the param is kwd only
-                        err_grp.note(
-                                error(std::format("expected keyword argument '{}' but got non-keyword argument, declared here",
-                                                  param_name),
-                                      decl_site));
-                        next_fun = true;
-                        continue;
-                    }
-                    if (param.b_variadic) {
-                        // if argument is value and the param is not kwd only but variadic
-                        for (; arg_id < arg_infos.size(); arg_id++) {
-                            arg_info = arg_infos[arg_id];
-                            // check for assignabilty
-                            resolve_assign(&param.type_info, &arg_info.expr_info, node);
-                            if (arg_info.b_kwd) {
-                                arg_id--;
-                                break;
-                            }
-                        }
-                    } else {
-                        // if argument is value and the param is not kwd only
-                        // check for assignabilty
-                        resolve_assign(&param.type_info, &arg_info.expr_info, node);
-                    }
-                    params.erase(param_name);
-                }
-                arg_id++;
-            }
-            if (next_fun) {
-                next_fun = false;
-                continue;
-            }
-            if (arg_id >= arg_infos.size() && !params.empty()) {
-                for (const auto &[param_name, param]: params) {
-                    if (param.b_variadic)
-                        continue;
-                    if (!param.b_default) {
-                        err_grp.note(
-                                error(std::format("missing required argument '{}', declared here", param_name), decl_site));
-                        next_fun = true;
-                        continue;
-                    }
-                }
-            }
-            if (next_fun) {
-                next_fun = false;
-                continue;
-            }
-            if (arg_id < arg_infos.size() && params.empty()) {
-                for (; arg_id < arg_infos.size(); arg_id++) {
-                    auto arg_info = arg_infos[arg_id];
-                    err_grp.note(error(std::format("unexpected argument"), node.get_args()[arg_id]));
-                }
-                err_grp.note(error("declared here", decl_site));
-                continue;
-            }
-
-            candidates.push_back(fun_scope);
+            if (check_fun_call(&*fun_scope, arg_infos, node, err_grp))
+                candidates.push_back(fun_scope);
         }
-        if (errors)
-            *errors = err_grp;
-        return candidates;
-    }
 
-    ExprInfo Analyzer::resolve_call(scope::FunctionSet *fun_set, std::vector<ArgInfo> arg_infos, const ast::expr::Call &node) {
-        ErrorGroup<AnalyzerError> err_grp;
-        auto candidates = resolve_call_candidates(fun_set, arg_infos, node, &err_grp);
         std::shared_ptr<scope::Function> candidate;
         if (candidates.size() == 0)
             throw err_grp;
         else if (candidates.size() == 1) {
             candidate = candidates[0];
         } else if (candidates.size() > 1) {
-            // TODO: Check for most viable call candidate
-            // auto COMP = [&](const std::shared_ptr<scope::Function> fun1, const std::shared_ptr<scope::Function> fun2) {
-            //     return fun1->get_param_count() < fun2->get_param_count();
-            // };
-
-            // std::sort(candidates.begin(), candidates.end(), COMP);
-
-            ErrorGroup<AnalyzerError> err_grp;
-            err_grp.error(error(std::format("ambiguous call to '{}'", fun_set->to_string()), &node));
-            for (const auto &candidate: candidates) {
-                err_grp.note(error(std::format("possible candidate declared here: '{}'", candidate->to_string()),
-                                   candidate->get_node()));
+            std::map<size_t, std::vector<std::shared_ptr<scope::Function>>, std::less<size_t>> candidate_table;
+            for (const auto &fun: candidates) {
+                size_t priority = 0;
+                if (fun->is_variadic())
+                    priority = 0;
+                else if (fun->is_default())
+                    priority = 1;
+                else {
+                    size_t i = 0;
+                    for (auto param: fun->get_pos_only_params()) {
+                        if (priority == 2)
+                            break;
+                        if (param.type_info.type != arg_infos[i].expr_info.type_info.type)
+                            priority = 2;
+                        i++;
+                    }
+                    for (auto param: fun->get_pos_kwd_params()) {
+                        if (priority == 2)
+                            break;
+                        if (param.type_info.type != arg_infos[i].expr_info.type_info.type)
+                            priority = 2;
+                        i++;
+                    }
+                    for (auto param: fun->get_kwd_only_params()) {
+                        if (priority == 2)
+                            break;
+                        if (param.type_info.type != arg_infos[i].expr_info.type_info.type)
+                            priority = 2;
+                        i++;
+                    }
+                    priority = 3;
+                }
+                candidate_table[priority].push_back(fun);
             }
-            throw err_grp;
+            {
+                candidates = candidate_table.rbegin()->second;
+                if (candidates.size() > 1) {
+                    ErrorGroup<AnalyzerError> err_grp;
+                    err_grp.error(error(std::format("ambiguous call to '{}'", fun_set->to_string()), &node));
+                    for (const auto &fun: candidates) {
+                        err_grp.note(error(std::format("possible candidate declared here: '{}'", fun->to_string()),
+                                           fun->get_node()));
+                    }
+                    throw err_grp;
+                }
+                candidate = candidates[0];
+            }
         }
 
         LOGGER.log_debug(std::format("resolved call candidate: {}", candidate->to_string()));
@@ -812,13 +819,14 @@ namespace spade
 
         // Set qualified names
         std::unordered_map<string, scope::Scope::Member> new_members;
-        for (auto &[_1, member]: fun_set->get_members()) {
+        for (const auto &[_1, member]: fun_set->get_members()) {
             const auto &[_2, scope] = member;
             string full_name = scope->to_string(false);
             string name = full_name.substr(0, full_name.find_first_of('('));
-            string final_name = SymbolPath(name).get_name() + full_name.substr(full_name.find_first_of('('));
-            cast<scope::Function>(scope)->get_function_node()->set_qualified_name(final_name);
-            new_members[final_name] = member;
+            auto final_path = SymbolPath(name) + full_name.substr(full_name.find_first_of('('));
+            scope->set_path(final_path);
+            cast<scope::Function>(scope)->get_function_node()->set_qualified_name(final_path.get_name());
+            new_members[final_path.get_name()] = member;
         }
 
         fun_set->set_members(new_members);

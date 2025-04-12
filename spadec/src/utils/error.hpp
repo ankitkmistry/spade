@@ -119,6 +119,11 @@ namespace spade
             return *this;
         }
 
+        ErrorGroup<T> &extend(const ErrorGroup<T> &other) {
+            extend_vec(errors, other.errors);
+            return *this;
+        }
+
         const std::vector<std::pair<ErrorType, T>> &get_errors() const {
             return errors;
         }

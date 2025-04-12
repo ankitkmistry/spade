@@ -266,34 +266,6 @@ namespace spade
         }
     }
 
-    static string build_type_params_string(const std::vector<std::shared_ptr<ast::decl::TypeParam>> &type_params) {
-        return std::accumulate(type_params.begin(), type_params.end(), string(),
-                               [](const string &a, const std::shared_ptr<ast::decl::TypeParam> &b) {
-                                   return a + (a.empty() ? "" : ",") + b->get_name()->get_text();
-                               });
-    }
-
-    string ScopeTreeBuilder::build_params_string(const std::shared_ptr<ast::decl::Params> &params) {
-        if (!params)
-            return "0";
-        return std::to_string(params->get_pos_only().size() + params->get_pos_kwd().size() + params->get_kwd_only().size());
-    }
-
-    string ScopeTreeBuilder::build_function_name(const ast::decl::Function &node) {
-        std::stringstream ss;
-        ss << node.get_name()->get_text();
-        if (auto type_params = node.get_type_params(); !type_params.empty()) {
-            ss << '[';
-            ss << build_type_params_string(node.get_type_params());
-            ss << ']';
-        }
-        auto params = node.get_params();
-        ss << '(';
-        ss << build_params_string(params);
-        ss << ')';
-        return ss.str();
-    }
-
     ScopeTreeBuilder::ScopeTreeBuilder(const std::vector<std::shared_ptr<ast::Module>> &modules) : modules(modules) {
         if (!modules.empty()) {
             root_path = modules[0]->get_file_path().parent_path();
@@ -314,81 +286,21 @@ namespace spade
         }
     }
 
-    void ScopeTreeBuilder::visit(ast::Reference &node) {
-        // _res_type_signature = "";
-        _res_type_signature = std::accumulate(
-                node.get_path().begin(), node.get_path().end(), string(),
-                [](const string &a, const std::shared_ptr<Token> &b) { return a + (a.empty() ? "" : ".") + b->get_text(); });
-    }
+    void ScopeTreeBuilder::visit(ast::Reference &node) {}
 
-    void ScopeTreeBuilder::visit(ast::type::Reference &node) {
-        // _res_type_signature = "";
-        node.get_reference()->accept(this);
-        string result = _res_type_signature;
-        if (!node.get_type_args().empty()) {
-            result += "[";
-            result += std::accumulate(node.get_type_args().begin(), node.get_type_args().end(), string(),
-                                      [&](const string &a, const std::shared_ptr<ast::Type> &b) {
-                                          b->accept(this);
-                                          return a + (a.empty() ? "" : ",") + _res_type_signature;
-                                      });
-            result += "]";
-        }
-        _res_type_signature = result;
-    }
+    void ScopeTreeBuilder::visit(ast::type::Reference &node) {}
 
-    void ScopeTreeBuilder::visit(ast::type::Function &node) {
-        _res_type_signature = "";
-        string result = "(";
-        result += std::accumulate(node.get_param_types().begin(), node.get_param_types().end(), string(),
-                                  [&](const string &a, const std::shared_ptr<ast::Type> &b) {
-                                      b->accept(this);
-                                      return a + (a.empty() ? "" : ",") + _res_type_signature;
-                                  });
-        result += ")->";
-        node.get_return_type()->accept(this);
-        result += _res_type_signature;
-        _res_type_signature = result;
-    }
+    void ScopeTreeBuilder::visit(ast::type::Function &node) {}
 
-    void ScopeTreeBuilder::visit(ast::type::TypeLiteral &node) {
-        _res_type_signature = "type";
-    }
+    void ScopeTreeBuilder::visit(ast::type::TypeLiteral &node) {}
 
-    void ScopeTreeBuilder::visit(ast::type::BinaryOp &node) {
-        _res_type_signature = "";
-        node.get_left()->accept(this);
-        string result = _res_type_signature;
-        result += node.get_op()->get_text();
-        node.get_right()->accept(this);
-        result += _res_type_signature;
-        _res_type_signature = result;
-    }
+    void ScopeTreeBuilder::visit(ast::type::BinaryOp &node) {}
 
-    void ScopeTreeBuilder::visit(ast::type::Nullable &node) {
-        _res_type_signature = "";
-        node.get_type()->accept(this);
-        _res_type_signature += "?";
-    }
+    void ScopeTreeBuilder::visit(ast::type::Nullable &node) {}
 
-    void ScopeTreeBuilder::visit(ast::type::TypeBuilder &node) {
-        _res_type_signature = "";
-        string result = "object{";
-        result += std::accumulate(node.get_members().begin(), node.get_members().end(), string(),
-                                  [&](const string &a, const std::shared_ptr<ast::type::TypeBuilderMember> &b) {
-                                      b->accept(this);
-                                      return a + (a.empty() ? "" : ",") + _res_type_signature;
-                                  });
-        result += "}";
-        _res_type_signature = result;
-    }
+    void ScopeTreeBuilder::visit(ast::type::TypeBuilder &node) {}
 
-    void ScopeTreeBuilder::visit(ast::type::TypeBuilderMember &node) {
-        _res_type_signature = "";
-        string result = node.get_name()->get_text() + ":";
-        node.get_type()->accept(this);
-        _res_type_signature = result + _res_type_signature;
-    }
+    void ScopeTreeBuilder::visit(ast::type::TypeBuilderMember &node) {}
 
     void ScopeTreeBuilder::visit(ast::expr::Constant &node) {}
 

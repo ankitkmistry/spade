@@ -426,6 +426,7 @@ namespace spade
         arg_info.name = arg_info.b_kwd ? node.get_name()->get_text() : "";
         node.get_expr()->accept(this);
         arg_info.expr_info = _res_expr_info;
+        arg_info.node = &node;
 
         _res_arg_info.reset();
         _res_arg_info = arg_info;
@@ -534,20 +535,26 @@ namespace spade
 
         _res_expr_info.reset();
         _res_expr_info.tag = ExprInfo::Type::NORMAL;
-        if (node.get_safe()) {
-            if (expr_info.is_null())
+
+        if (expr_info.is_null()) {
+            if (node.get_safe()) {
                 warning("expression is always 'null'", &node);
-            else {
-                check_cast(expr_info.type_info.type, type_cast_info.type, node, true);
-                type_cast_info.b_nullable = true;
-                _res_expr_info.type_info = type_cast_info;
-            }
-        } else {
-            if (expr_info.is_null())
+                _res_expr_info.value_info.b_null = true;
+            } else
                 throw error("cannot cast 'null'", &node);
-            check_cast(expr_info.type_info.type, type_cast_info.type, node, false);
-            _res_expr_info.type_info = type_cast_info;
         }
+
+        if (type_cast_info.is_type_literal()) {
+            warning("'type' causes dynamic resolution, hence expression becomes 'spade.any?'", &node);
+            _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Analyzer::Internal::SPADE_ANY]);
+            _res_expr_info.type_info.b_nullable = true;
+        } else {
+            if (!expr_info.is_null())
+                check_cast(expr_info.type_info.type, type_cast_info.type, node, node.get_safe() != null);
+            _res_expr_info.type_info = type_cast_info;
+            _res_expr_info.type_info.b_nullable = node.get_safe() != null;
+        }
+
         _res_expr_info.value_info.b_lvalue = false;
         _res_expr_info.value_info.b_const = false;
     }
@@ -657,12 +664,13 @@ lt_le_ge_gt_common:
                                                         left_expr_info.to_string(), right_expr_info.to_string()),
                                             &node);
                             if ((left_expr_info.type_info.type == &*internals[Internal::SPADE_INT] ||
-                                 left_expr_info.type_info.type == &*internals[Internal::SPADE_FLOAT] ||
-                                 left_expr_info.type_info.type == &*internals[Internal::SPADE_STRING]) &&
+                                 left_expr_info.type_info.type == &*internals[Internal::SPADE_FLOAT]) &&
                                 (right_expr_info.type_info.type == &*internals[Internal::SPADE_INT] ||
-                                 right_expr_info.type_info.type == &*internals[Internal::SPADE_FLOAT] ||
-                                 right_expr_info.type_info.type == &*internals[Internal::SPADE_STRING])) {
-                                // plain int|float|string <, <=, >=, > int|float|string
+                                 right_expr_info.type_info.type == &*internals[Internal::SPADE_FLOAT])) {
+                                // plain int|float <, <=, >=, > int|float
+                            } else if (left_expr_info.type_info.type == &*internals[Internal::SPADE_STRING] &&
+                                       right_expr_info.type_info.type == &*internals[Internal::SPADE_STRING]) {
+                                // plain string <, <=, >=, > string
                             } else {
                                 // TODO: check for overloaded operator `ov_op_str`
                                 throw error(std::format("cannot apply binary operator '{}' on '{}' and '{}'", op_str,

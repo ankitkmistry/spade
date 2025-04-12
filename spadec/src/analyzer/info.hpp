@@ -229,6 +229,7 @@ namespace spade
         bool b_kwd = false;
         string name;
         ExprInfo expr_info;
+        ast::expr::Argument *node = null;
 
         void reset() {
             b_kwd = false;

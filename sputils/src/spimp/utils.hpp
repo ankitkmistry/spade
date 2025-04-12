@@ -182,4 +182,17 @@ namespace spade
     int32_t long_to_int(int64_t num);
 
     std::string get_absolute_path(const std::string &path);
+
+    /**
+    * Extends a vector by appending elements from another vector.
+    * @tparam T type of the vector elements
+    * @param dest destination vector to which elements will be appended
+    * @param vec source vector from which elements will be copied
+    */
+    template<typename T>
+    void extend_vec(std::vector<T> &dest, const std::vector<T> &vec) {
+        // Check https://stackoverflow.com/a/64102335/17550173
+        dest.reserve(dest.size() + vec.size());
+        dest.insert(dest.end(), vec.begin(), vec.end());
+    }
 }    // namespace spade

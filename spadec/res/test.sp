@@ -26,11 +26,11 @@ enum Color {
 var a: B?
 var b: any? = a?.b
 
-fun abaxify(parg1,*,ac:int=1,bc=1,*args){}
-fun abaxify(ac:int){}
+fun abaxify(parg1:int,*,ac:int=1,bc=1){}
+fun abaxify(ac:int,bc=1){}
 fun abaxify(ac,bc,dc){}
 
-# var abaxa=abaxify(1)
+var abaxa=abaxify(1)
 
 interface Foo {
 	static var size = 0

@@ -24,8 +24,6 @@ namespace spade
         ~ScopeTreeBuilder() override = default;
 
       private:
-        string _res_type_signature;
-
         template<ast::HasLineInfo T>
         AnalyzerError error(const string &msg, T node) const {
             fs::path path;
@@ -41,9 +39,6 @@ namespace spade
         SymbolPath get_current_path() const;
         void add_symbol(const string &name, const std::shared_ptr<Token> &decl_site, std::shared_ptr<scope::Scope> scope);
         void check_modifiers(ast::AstNode *node, const std::vector<std::shared_ptr<Token>> &modifiers);
-
-        string build_params_string(const std::shared_ptr<ast::decl::Params> &params);
-        string build_function_name(const ast::decl::Function &node);
 
         template<typename Scope_Type, typename Ast_Type>
             requires std::derived_from<Scope_Type, scope::Scope> && std::derived_from<Ast_Type, ast::AstNode>

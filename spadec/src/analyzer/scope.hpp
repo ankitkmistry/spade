@@ -1,5 +1,8 @@
 #pragma once
 
+#include <algorithm>
+#include <cstddef>
+#include <execution>
 #include <unordered_set>
 #include <utility>
 
@@ -307,22 +310,45 @@ namespace spade::scope
         }
 
         bool is_variadic() const {
-            return is_variadic_pos_only() || is_variadic_pos_kwd() || is_variadic_kwd_only();
+            return !pos_only_params.empty() && pos_only_params.back().b_variadic ||
+                   !pos_kwd_params.empty() && pos_kwd_params.back().b_variadic ||
+                   !kwd_only_params.empty() && kwd_only_params.back().b_variadic;
         }
 
-        bool is_variadic_pos_only() const {
-            return !pos_only_params.empty() && pos_only_params.back().b_variadic;
+        bool is_default() const {
+            return std::any_of(std::execution::par_unseq, pos_only_params.begin(), pos_only_params.end(),
+                               [](const auto &param) { return param.b_default; }) ||
+                   std::any_of(std::execution::par_unseq, pos_kwd_params.begin(), pos_kwd_params.end(),
+                               [](const auto &param) { return param.b_default; }) ||
+                   std::any_of(std::execution::par_unseq, kwd_only_params.begin(), kwd_only_params.end(),
+                               [](const auto &param) { return param.b_default; });
         }
 
-        bool is_variadic_pos_kwd() const {
-            return !pos_kwd_params.empty() && pos_kwd_params.back().b_variadic;
-        }
-
-        bool is_variadic_kwd_only() const {
-            return !kwd_only_params.empty() && kwd_only_params.back().b_variadic;
+        size_t min_param_count() const {
+            std::atomic<size_t> result = pos_only_params.size();
+            // Pos only parameters are never default or variadic
+            // std::for_each(std::execution::par_unseq, pos_only_params.begin(), pos_only_params.end(),
+            //               [&](const ParamInfo &param) {
+            //                   if (!param.b_default && !param.b_variadic)
+            //                       result.fetch_add(1, std::memory_order_relaxed);
+            //               });
+            std::for_each(std::execution::par_unseq, pos_kwd_params.begin(), pos_kwd_params.end(), [&](const ParamInfo &param) {
+                if (!param.b_default && !param.b_variadic)
+                    result.fetch_add(1, std::memory_order_relaxed);
+            });
+            std::for_each(std::execution::par_unseq, kwd_only_params.begin(), kwd_only_params.end(),
+                          [&](const ParamInfo &param) {
+                              if (!param.b_default && !param.b_variadic)
+                                  result.fetch_add(1, std::memory_order_relaxed);
+                          });
+            return result;
         }
 
         size_t param_count() const {
+            return pos_only_params.size() + pos_kwd_params.size() + kwd_only_params.size();
+        }
+
+        size_t get_param_count() const {
             return pos_only_params.size() + pos_kwd_params.size() + kwd_only_params.size();
         }
 
@@ -336,10 +362,6 @@ namespace spade::scope
 
         const std::vector<ParamInfo> &get_kwd_only_params() const {
             return kwd_only_params;
-        }
-
-        size_t get_param_count() const {
-            return pos_only_params.size() + pos_kwd_params.size() + kwd_only_params.size();
         }
 
         void set_pos_only_params(const std::vector<ParamInfo> &params) {
