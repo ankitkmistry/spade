@@ -230,10 +230,10 @@ namespace spade
         std::shared_ptr<ast::Expression> unary();
 
         // Postfix
-        /// postfix ::= primary
-        ///                 ('?'? '.' (IDENTIFIER | 'init')     # dot_access or safe_dot_access
+        /// postfix ::= primary ('?'?
+        ///                 ('.' (IDENTIFIER | 'init')          # dot_access or safe_dot_access
         ///               | '(' argument_list? ')'              # call
-        ///               | '[' (slice_list | type_list) ']')?  # indexer or reify
+        ///               | '[' (slice_list | type_list) ']'))* # indexer or reify
         std::shared_ptr<ast::Expression> postfix();
         /// argument ::= (IDENTIFIER ':')? expression
         std::shared_ptr<ast::expr::Argument> argument();

@@ -68,6 +68,24 @@ namespace spade
         string to_string(bool decorated = true) const;
     };
 
+    struct ValueInfo {
+        /// flag if the value is a lvalue
+        bool b_lvalue = false;
+        /// flag if the value is const
+        bool b_const = false;
+        /// flag if value is null
+        bool b_null = false;
+        /// flag if value is self
+        bool b_self = false;
+
+        void reset() {
+            b_lvalue = false;
+            b_const = false;
+            b_null = false;
+            b_self = false;
+        }
+    };
+
     struct ExprInfo {
         enum class Type {
             NORMAL,
@@ -82,19 +100,11 @@ namespace spade
             scope::FunctionSet *function_set;
         };
 
-        // TODO: Add support
-        /// flag if the value is a lvalue
-        bool b_lvalue = false;
-        // TODO: Add support
-        /// flag if the value is const
-        bool b_const = false;
-        /// flag if value is null
-        bool b_null = false;
+        ValueInfo value_info;
 
         ExprInfo() : type_info() {}
 
-        ExprInfo(const ExprInfo &other)
-            : tag(other.tag), b_lvalue(other.b_lvalue), b_const(other.b_const), b_null(other.b_null) {
+        ExprInfo(const ExprInfo &other) : tag(other.tag), value_info(other.value_info) {
             switch (tag) {
                 case Type::NORMAL:
                 case Type::STATIC:
@@ -109,8 +119,7 @@ namespace spade
             }
         }
 
-        ExprInfo(ExprInfo &&other) noexcept
-            : tag(other.tag), b_lvalue(other.b_lvalue), b_const(other.b_const), b_null(other.b_null) {
+        ExprInfo(ExprInfo &&other) noexcept : tag(other.tag), value_info(other.value_info) {
             switch (tag) {
                 case Type::NORMAL:
                 case Type::STATIC:
@@ -129,9 +138,7 @@ namespace spade
             if (this != &other) {
                 reset();
                 tag = other.tag;
-                b_lvalue = other.b_lvalue;
-                b_const = other.b_const;
-                b_null = other.b_null;
+                value_info = other.value_info;
                 switch (tag) {
                     case Type::NORMAL:
                     case Type::STATIC:
@@ -152,9 +159,7 @@ namespace spade
             if (this != &other) {
                 reset();
                 tag = other.tag;
-                b_lvalue = other.b_lvalue;
-                b_const = other.b_const;
-                b_null = other.b_null;
+                value_info = other.value_info;
                 switch (tag) {
                     case Type::NORMAL:
                     case Type::STATIC:
@@ -191,13 +196,11 @@ namespace spade
                     break;
             }
             tag = Type::NORMAL;
-            b_lvalue = false;
-            b_const = false;
-            b_null = false;
+            value_info.reset();
         }
 
         bool is_null() const {
-            return tag == Type::NORMAL && b_null && type_info.b_nullable;
+            return tag == Type::NORMAL && value_info.b_null && type_info.b_nullable;
         }
 
         string to_string(bool decorated = true) const;

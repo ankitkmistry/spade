@@ -129,14 +129,15 @@ namespace spade
                 info.underline_char = ' ';
                 break;
         }
-        auto file_path = color::fg(color::from_hex(0x4e8ed3)) + path.generic_string() + color::attr(color::RESET);
+        auto file_path = color::fg(color::from_hex(0x4e8ed3)) + path.generic_string();
         if (err.has_no_location()) {
             std::cout << std::format("{}: {}\n", error_type_str, err_str);
-            std::cout << std::format("in file: {}\n", file_path);
+            std::cout << std::format("in file: {}{}\n", file_path, color::attr(color::RESET));
         } else {
             std::cout << std::format("[{}:{}]->[{}:{}] {}: {}\n", err.get_line_start(), err.get_col_start(), err.get_line_end(),
                                      err.get_col_end(), error_type_str, err_str);
-            std::cout << std::format("in file: {}\n", file_path);
+            std::cout << std::format("in file: {}:{}:{}{}\n", file_path, err.get_line_start(), err.get_col_start(),
+                                     color::attr(color::RESET));
             print_code(path, err, info);
         }
     }

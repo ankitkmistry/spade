@@ -1,5 +1,7 @@
 #include "parser.hpp"
 #include "lexer/token.hpp"
+#include "parser/ast.hpp"
+#include "spimp/log.hpp"
 
 namespace spade
 {
@@ -342,7 +344,7 @@ namespace spade
         if (match(TokenType::COLON))
             param_type = type();
         if (match(TokenType::EQUAL))
-            expr = ternary(); // TODO: change this if needed
+            expr = ternary();    // TODO: change this if needed
         int line_start, col_start, line_end, col_end;
         if (is_const) {
             line_start = is_const->get_line_start();
@@ -744,16 +746,14 @@ namespace spade
 
     std::shared_ptr<ast::Expression> Parser::postfix() {
         auto caller = primary();
-        std::shared_ptr<Token> safe = null;
+        std::shared_ptr<Token> safe;
         while (true) {
+            safe = match(TokenType::HOOK) ? current() : null;
             switch (peek()->get_type()) {
-                case TokenType::HOOK:
-                    safe = advance();
-                    [[fallthrough]];
                 case TokenType::DOT: {
                     expect(TokenType::DOT);
                     auto member = expect(TokenType::IDENTIFIER, TokenType::INIT);
-                    caller = std::make_shared<ast::expr::DotAccess>(caller, member, safe);
+                    caller = std::make_shared<ast::expr::DotAccess>(caller, safe, member);
                     break;
                 }
                 case TokenType::LPAREN: {
@@ -764,7 +764,7 @@ namespace spade
                         args = argument_list();
                         end = expect(TokenType::RPAREN);
                     }
-                    caller = std::make_shared<ast::expr::Call>(end, caller, args);
+                    caller = std::make_shared<ast::expr::Call>(end, caller, safe, args);
                     break;
                 }
                 case TokenType::LBRACKET: {
@@ -773,12 +773,12 @@ namespace spade
                             [&] {
                                 auto slices = slice_list();
                                 auto end = expect(TokenType::RBRACKET);
-                                return std::make_shared<ast::expr::Index>(end, caller, slices);
+                                return std::make_shared<ast::expr::Index>(end, caller, safe, slices);
                             },
                             [&] {
                                 auto type_args = type_list();
                                 auto end = expect(TokenType::RBRACKET);
-                                return std::make_shared<ast::expr::Reify>(end, caller, type_args);
+                                return std::make_shared<ast::expr::Reify>(end, caller, safe, type_args);
                             });
                     break;
                 }

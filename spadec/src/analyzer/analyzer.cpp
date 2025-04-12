@@ -578,7 +578,7 @@ namespace spade
                 break;
         }
         if (var_scope->get_variable_node()->get_token()->get_type() == TokenType::CONST)
-            expr_info.b_const = true;
+            expr_info.value_info.b_const = true;
         return expr_info;
     }
 

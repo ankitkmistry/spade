@@ -73,10 +73,10 @@ elvis       ::= unary ('??' unary)*;
 unary ::= ('~' | '-' | '+')? postfix;
 
 // Postfix
-postfix     ::= primary
-                ('?'? '.' (IDENTIFIER | 'init')     # dot_access or safe_dot_access
-              | '(' argument_list? ')'              # call
-              | '[' (slice_list | type_list) ']')?; # indexer or reify
+postfix     ::= primary ('?'?
+                ('.' (IDENTIFIER | 'init')              # dot_access
+              | '(' argument_list? ')'                  # call
+              | '[' (slice_list | type_list) ']'))*;    # indexer or reify
 argument    ::= (IDENTIFIER ':')? expression;
 slice       ::= expression
               | expression? ':' expression? (':' expression?)?;

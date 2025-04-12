@@ -73,9 +73,8 @@ namespace spade::scope
             return parent;
         }
 
-        void set_members(std::unordered_map<string, Member> members) {
-            // this->members = members;
-            std::swap(this->members, members);
+        void set_members(const std::unordered_map<string, Member> &members) {
+            this->members = members;
         }
 
         std::unordered_map<string, Member> &get_members() {

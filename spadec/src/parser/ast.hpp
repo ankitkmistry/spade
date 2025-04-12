@@ -403,32 +403,33 @@ namespace spade::ast
         class Postfix : public Expression {
           protected:
             std::shared_ptr<Expression> caller;
+            std::shared_ptr<Token> safe;
 
           public:
-            Postfix(const std::shared_ptr<Token> &end, const std::shared_ptr<Expression> &caller)
-                : Expression(caller, end), caller(caller) {}
+            Postfix(const std::shared_ptr<Token> &end, const std::shared_ptr<Expression> &caller,
+                    const std::shared_ptr<Token> &safe)
+                : Expression(caller, end), caller(caller), safe(safe) {}
 
             const std::shared_ptr<Expression> &get_caller() const {
                 return caller;
+            }
+
+            const std::shared_ptr<Token> &get_safe() const {
+                return safe;
             }
         };
 
         class DotAccess : public Postfix {
           protected:
             std::shared_ptr<Token> member;
-            std::shared_ptr<Token> safe;
 
           public:
-            DotAccess(const std::shared_ptr<Expression> &caller, const std::shared_ptr<Token> &member,
-                      const std::shared_ptr<Token> &safe)
-                : Postfix(member, caller), member(member), safe(safe) {}
+            DotAccess(const std::shared_ptr<Expression> &caller, const std::shared_ptr<Token> &safe,
+                      const std::shared_ptr<Token> &member)
+                : Postfix(member, caller, safe), member(member) {}
 
             const std::shared_ptr<Token> &get_member() const {
                 return member;
-            }
-
-            const std::shared_ptr<Token> &get_safe() const {
-                return safe;
             }
 
             void accept(VisitorBase *visitor) override {
@@ -464,8 +465,8 @@ namespace spade::ast
 
           public:
             Call(const std::shared_ptr<Token> &end, const std::shared_ptr<Expression> &caller,
-                 const std::vector<std::shared_ptr<Argument>> &args)
-                : Postfix(end, caller), args(args) {}
+                 const std::shared_ptr<Token> &safe, const std::vector<std::shared_ptr<Argument>> &args)
+                : Postfix(end, caller, safe), args(args) {}
 
             const std::vector<std::shared_ptr<Argument>> &get_args() const {
                 return args;
@@ -481,8 +482,8 @@ namespace spade::ast
 
           public:
             Reify(const std::shared_ptr<Token> &end, const std::shared_ptr<Expression> &caller,
-                  const std::vector<std::shared_ptr<Type>> &type_args)
-                : Postfix(end, caller), type_args(type_args) {}
+                  const std::shared_ptr<Token> &safe, const std::vector<std::shared_ptr<Type>> &type_args)
+                : Postfix(end, caller, safe), type_args(type_args) {}
 
             const std::vector<std::shared_ptr<Type>> &get_type_args() const {
                 return type_args;
@@ -534,8 +535,8 @@ namespace spade::ast
 
           public:
             Index(const std::shared_ptr<Token> &end, const std::shared_ptr<Expression> &caller,
-                  const std::vector<std::shared_ptr<Slice>> &slices)
-                : Postfix(end, caller), slices(slices) {}
+                  const std::shared_ptr<Token> &safe, const std::vector<std::shared_ptr<Slice>> &slices)
+                : Postfix(end, caller, safe), slices(slices) {}
 
             const std::vector<std::shared_ptr<Slice>> &get_slices() const {
                 return slices;

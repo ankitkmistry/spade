@@ -92,7 +92,7 @@ namespace spade
                 _res_expr_info.tag = ExprInfo::Type::NORMAL;
                 _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_ANY]);
                 _res_expr_info.type_info.b_nullable = true;
-                _res_expr_info.b_null = true;
+                _res_expr_info.value_info.b_null = true;
                 break;
             case TokenType::INTEGER:
                 _res_expr_info.tag = ExprInfo::Type::NORMAL;
@@ -117,19 +117,19 @@ namespace spade
                     case scope::ScopeType::FOLDER_MODULE:
                     case scope::ScopeType::MODULE:
                         _res_expr_info.tag = ExprInfo::Type::MODULE;
-                        _res_expr_info.b_const = true;
+                        _res_expr_info.value_info.b_const = true;
                         _res_expr_info.module = cast<scope::Module>(&*scope);
                         break;
                     case scope::ScopeType::COMPOUND:
                         _res_expr_info.tag = ExprInfo::Type::STATIC;
-                        _res_expr_info.b_const = true;
+                        _res_expr_info.value_info.b_const = true;
                         _res_expr_info.type_info.type = cast<scope::Compound>(&*scope);
                         break;
                     case scope::ScopeType::FUNCTION:
                         throw Unreachable();    // surely some scope tree builder error
                     case scope::ScopeType::FUNCTION_SET:
                         _res_expr_info.tag = ExprInfo::Type::FUNCTION_SET;
-                        _res_expr_info.b_const = true;
+                        _res_expr_info.value_info.b_const = true;
                         _res_expr_info.function_set = cast<scope::FunctionSet>(&*scope);
                         break;
                     case scope::ScopeType::BLOCK:
@@ -140,11 +140,11 @@ namespace spade
                     }
                     case scope::ScopeType::ENUMERATOR:
                         _res_expr_info.tag = ExprInfo::Type::NORMAL;
-                        _res_expr_info.b_const = true;
+                        _res_expr_info.value_info.b_const = true;
                         _res_expr_info.type_info.type = scope->get_enclosing_compound();
                         break;
                 }
-                _res_expr_info.b_lvalue = true;
+                _res_expr_info.value_info.b_lvalue = true;
                 break;
             }
             default:
@@ -177,8 +177,8 @@ namespace spade
         } else
             throw error("super is only allowed in class level functions and constructors only", &node);
 
-        _res_expr_info.b_lvalue = true;
-        _res_expr_info.b_const = true;
+        _res_expr_info.value_info.b_lvalue = true;
+        _res_expr_info.value_info.b_const = true;
     }
 
     void Analyzer::visit(ast::expr::Self &node) {
@@ -193,8 +193,9 @@ namespace spade
             throw error("self is only allowed in class level declarations only", &node);
         }
 
-        _res_expr_info.b_lvalue = true;
-        _res_expr_info.b_const = true;
+        _res_expr_info.value_info.b_lvalue = true;
+        _res_expr_info.value_info.b_const = true;
+        _res_expr_info.value_info.b_self = true;
     }
 
     void Analyzer::visit(ast::expr::DotAccess &node) {
@@ -221,21 +222,20 @@ namespace spade
                     _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_ANY]);
                     _res_expr_info.type_info.b_nullable = true;
                 } else {
-                    if (!caller_info.type_info.type->has_variable(node.get_member()->get_text())) {
+                    if (!caller_info.type_info.type->has_variable(node.get_member()->get_text()))
                         throw error(std::format("cannot access member: '{}'", node.get_member()->get_text()), &node);
-                    }
                     auto member_scope = caller_info.type_info.type->get_variable(node.get_member()->get_text());
                     resolve_context(member_scope, node);
                     switch (member_scope->get_type()) {
                         case scope::ScopeType::COMPOUND:
-                            _res_expr_info.type_info.type = cast<scope::Compound>(&*member_scope);
                             _res_expr_info.tag = ExprInfo::Type::STATIC;
+                            _res_expr_info.type_info.type = cast<scope::Compound>(&*member_scope);
                             break;
                         case scope::ScopeType::FUNCTION:
                             throw Unreachable();    // surely some symbol tree builder error
                         case scope::ScopeType::FUNCTION_SET:
-                            _res_expr_info.function_set = cast<scope::FunctionSet>(&*member_scope);
                             _res_expr_info.tag = ExprInfo::Type::FUNCTION_SET;
+                            _res_expr_info.function_set = cast<scope::FunctionSet>(&*member_scope);
                             break;
                         case scope::ScopeType::VARIABLE:
                             _res_expr_info = get_var_expr_info(cast<scope::Variable>(member_scope), node);
@@ -272,14 +272,14 @@ namespace spade
                     resolve_context(member_scope, node);
                     switch (member_scope->get_type()) {
                         case scope::ScopeType::COMPOUND:
-                            _res_expr_info.type_info.type = cast<scope::Compound>(&*member_scope);
                             _res_expr_info.tag = ExprInfo::Type::STATIC;
+                            _res_expr_info.type_info.type = cast<scope::Compound>(&*member_scope);
                             break;
                         case scope::ScopeType::FUNCTION:
                             throw Unreachable();    // surely some symbol tree builder error
                         case scope::ScopeType::FUNCTION_SET:
-                            _res_expr_info.function_set = cast<scope::FunctionSet>(&*member_scope);
                             _res_expr_info.tag = ExprInfo::Type::FUNCTION_SET;
+                            _res_expr_info.function_set = cast<scope::FunctionSet>(&*member_scope);
                             break;
                         case scope::ScopeType::VARIABLE: {
                             auto var_scope = cast<scope::Variable>(member_scope);
@@ -304,32 +304,30 @@ namespace spade
                 break;
             }
             case ExprInfo::Type::MODULE: {
-                if (node.get_safe()) {
+                if (node.get_safe())
                     throw error("cannot use safe dot access operator on a module", &node);
-                }
-                if (!caller_info.module->has_variable(node.get_member()->get_text())) {
+                if (!caller_info.module->has_variable(node.get_member()->get_text()))
                     throw error(std::format("cannot access member: '{}'", node.get_member()->get_text()), &node);
-                }
                 auto scope = caller_info.module->get_variable(node.get_member()->get_text());
                 switch (scope->get_type()) {
                     case scope::ScopeType::FOLDER_MODULE:
                     case scope::ScopeType::MODULE:
-                        _res_expr_info.module = cast<scope::Module>(&*scope);
                         _res_expr_info.tag = ExprInfo::Type::MODULE;
+                        _res_expr_info.module = cast<scope::Module>(&*scope);
                         break;
                     case scope::ScopeType::COMPOUND:
-                        _res_expr_info.type_info.type = cast<scope::Compound>(&*scope);
                         _res_expr_info.tag = ExprInfo::Type::STATIC;
+                        _res_expr_info.type_info.type = cast<scope::Compound>(&*scope);
                         break;
                     case scope::ScopeType::FUNCTION:
                         throw Unreachable();    // surely some symbol tree builder error
                     case scope::ScopeType::FUNCTION_SET:
-                        _res_expr_info.function_set = cast<scope::FunctionSet>(&*scope);
                         _res_expr_info.tag = ExprInfo::Type::FUNCTION_SET;
+                        _res_expr_info.function_set = cast<scope::FunctionSet>(&*scope);
                         break;
                     case scope::ScopeType::VARIABLE:
-                        _res_expr_info.type_info = cast<scope::Variable>(scope)->get_type_info();
                         _res_expr_info.tag = ExprInfo::Type::NORMAL;
+                        _res_expr_info.type_info = cast<scope::Variable>(scope)->get_type_info();
                         break;
                     default:
                         throw Unreachable();    // surely some parser error
@@ -343,8 +341,11 @@ namespace spade
         // where 'a?.b' returns 'a.b' if 'a' is not null, else returns null
         if (node.get_safe())
             _res_expr_info.type_info.b_nullable = true;
-        _res_expr_info.b_lvalue = true;
-        _res_expr_info.b_const = caller_info.b_const;
+        _res_expr_info.value_info.b_lvalue = true;
+        // Fix for `self.a` const error bcz `self.a` is not constant if it is declared non-const
+        if (!_res_expr_info.value_info.b_const)
+            _res_expr_info.value_info.b_const = caller_info.value_info.b_const && !caller_info.value_info.b_self;
+        _res_expr_info.value_info.b_self = caller_info.value_info.b_self;
     }
 
     void Analyzer::visit(ast::expr::Call &node) {
@@ -415,8 +416,8 @@ namespace spade
                 _res_expr_info = resolve_call(caller_info.function_set, arg_infos, node);
                 break;
         }
-        _res_expr_info.b_lvalue = false;
-        _res_expr_info.b_const = false;
+        _res_expr_info.value_info.b_lvalue = false;
+        _res_expr_info.value_info.b_const = false;
     }
 
     void Analyzer::visit(ast::expr::Argument &node) {
@@ -517,8 +518,8 @@ namespace spade
                                         expr_info.to_string()),
                             &node);
         }
-        _res_expr_info.b_lvalue = false;
-        _res_expr_info.b_const = false;
+        _res_expr_info.value_info.b_lvalue = false;
+        _res_expr_info.value_info.b_const = false;
     }
 
     void Analyzer::visit(ast::expr::Cast &node) {
@@ -547,8 +548,8 @@ namespace spade
             check_cast(expr_info.type_info.type, type_cast_info.type, node, false);
             _res_expr_info.type_info = type_cast_info;
         }
-        _res_expr_info.b_lvalue = false;
-        _res_expr_info.b_const = false;
+        _res_expr_info.value_info.b_lvalue = false;
+        _res_expr_info.value_info.b_const = false;
     }
 
     void Analyzer::visit(ast::expr::Binary &node) {
@@ -614,8 +615,8 @@ namespace spade
             default:
                 throw Unreachable();
         }
-        _res_expr_info.b_lvalue = false;
-        _res_expr_info.b_const = false;
+        _res_expr_info.value_info.b_lvalue = false;
+        _res_expr_info.value_info.b_const = false;
     }
 
     void Analyzer::visit(ast::expr::ChainBinary &node) {
@@ -683,8 +684,8 @@ lt_le_ge_gt_common:
         }
         _res_expr_info.tag = ExprInfo::Type::NORMAL;
         _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_BOOL]);
-        _res_expr_info.b_lvalue = false;
-        _res_expr_info.b_const = false;
+        _res_expr_info.value_info.b_lvalue = false;
+        _res_expr_info.value_info.b_const = false;
     }
 
     void Analyzer::visit(ast::expr::Ternary &node) {
@@ -724,8 +725,8 @@ lt_le_ge_gt_common:
                 // TODO: check if they have the same signature
                 break;
         }
-        _res_expr_info.b_lvalue = expr_info1.b_lvalue && expr_info2.b_lvalue;
-        _res_expr_info.b_const = expr_info1.b_const || expr_info2.b_const;
+        _res_expr_info.value_info.b_lvalue = expr_info1.value_info.b_lvalue && expr_info2.value_info.b_lvalue;
+        _res_expr_info.value_info.b_const = expr_info1.value_info.b_const || expr_info2.value_info.b_const;
     }
 
     void Analyzer::visit(ast::expr::Assignment &node) {
@@ -750,9 +751,9 @@ lt_le_ge_gt_common:
             auto right_expr_info = exprs[i];
             if (node.get_op1()->get_type() == TokenType::EQUAL) {
                 // Plain vanilla assignment
-                if (!left_expr_info.b_lvalue)
+                if (!left_expr_info.value_info.b_lvalue)
                     throw error("cannot assign to a non-lvalue expression", node.get_assignees()[i]);
-                if (left_expr_info.b_const)
+                if (left_expr_info.value_info.b_const)
                     throw error("cannot assign to a constant", node.get_assignees()[i]);
                 if (left_expr_info.tag == ExprInfo::Type::NORMAL)
                     resolve_assign(&left_expr_info.type_info, &right_expr_info, node);
