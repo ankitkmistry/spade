@@ -199,25 +199,57 @@ namespace spade
         };
     };
 
+    struct ElpInfo;
+
+    void copyElp(ElpInfo &dest, const ElpInfo &from);
+    void freeElp(ElpInfo &elp);
+
     struct ElpInfo {
-        ui4 magic;
-        ui4 minorVersion;
-        ui4 majorVersion;
+        ui4 magic = 0;
+        ui4 minorVersion = 0;
+        ui4 majorVersion = 0;
 
-        cpidx compiledFrom;
-        ui1 type;
-        cpidx thisModule;
+        cpidx compiledFrom = 0;
+        ui1 type = 0;
+        cpidx thisModule = 0;
 
-        cpidx init;
-        cpidx entry;
-        cpidx imports;
+        cpidx init = 0;
+        cpidx entry = 0;
+        cpidx imports = 0;
 
-        ui2 constantPoolCount;
-        CpInfo *constantPool;
-        ui2 globalsCount;
-        GlobalInfo *globals;
-        ui2 objectsCount;
-        ObjInfo *objects;
+        ui2 constantPoolCount = 0;
+        CpInfo *constantPool = null;
+        ui2 globalsCount = 0;
+        GlobalInfo *globals = null;
+        ui2 objectsCount = 0;
+        ObjInfo *objects = null;
         MetaInfo meta;
+
+        ElpInfo() {
+            meta.len = 0;
+            meta.table = null;
+        }
+
+        ElpInfo(const ElpInfo &other) {
+            copyElp(*this, other);
+        }
+
+        ElpInfo(ElpInfo &&other) {
+            copyElp(*this, std::move(other));
+        }
+
+        ElpInfo &operator=(const ElpInfo &other) {
+            copyElp(*this, other);
+            return *this;
+        }
+
+        ElpInfo &operator=(ElpInfo &&other) {
+            copyElp(*this, std::move(other));
+            return *this;
+        }
+
+        ~ElpInfo() {
+            freeElp(*this);
+        }
     };
 }    // namespace spade
