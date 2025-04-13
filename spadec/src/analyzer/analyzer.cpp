@@ -1,24 +1,32 @@
+#include <algorithm>
+#include <mutex>
+#include <unordered_set>
+#include <boost/functional/hash.hpp>
+
 #include "analyzer.hpp"
+#include "boost/container_hash/hash.hpp"
 #include "info.hpp"
 #include "lexer/token.hpp"
 #include "parser/ast.hpp"
 #include "scope.hpp"
 #include "scope_tree.hpp"
 #include "spimp/error.hpp"
+#include "spimp/utils.hpp"
 #include "symbol_path.hpp"
 #include "utils/error.hpp"
-#include <algorithm>
-#include <cstddef>
-#include <memory>
-#include <unordered_map>
-#include <vector>
 
 // TODO: implement generics
 
-namespace ranges = std::ranges;
-
 namespace spade
 {
+    scope::Scope *Analyzer::get_parent_scope() const {
+        return cur_scope->get_parent();
+    }
+
+    scope::Scope *Analyzer::get_current_scope() const {
+        return cur_scope;
+    }
+
     void Analyzer::load_internal_modules() {
         // module spade
         auto module = std::make_shared<scope::Module>(null);
@@ -61,14 +69,6 @@ namespace spade
         internals[Internal::SPADE_VOID] = void_class;
 
         module_scopes.emplace(null, ScopeInfo(module));
-    }
-
-    scope::Scope *Analyzer::get_parent_scope() const {
-        return cur_scope->get_parent();
-    }
-
-    scope::Scope *Analyzer::get_current_scope() const {
-        return cur_scope;
     }
 
     std::shared_ptr<scope::Scope> Analyzer::find_name(const string &name) const {
@@ -349,7 +349,7 @@ namespace spade
         return type_info;
     }
 
-    bool Analyzer::check_fun_call(scope::Function *function, std::vector<ArgInfo> arg_infos, const ast::expr::Call &node,
+    bool Analyzer::check_fun_call(scope::Function *function, const std::vector<ArgInfo> &arg_infos, const ast::AstNode &node,
                                   ErrorGroup<AnalyzerError> &errors) {
         if (!function->is_variadic() && !function->is_default() && function->param_count() != arg_infos.size()) {
             errors.error(error(std::format("expected {} arguments but got {}", function->param_count(), arg_infos.size()),
@@ -370,11 +370,11 @@ namespace spade
         // Separate out the value and keyword arguments
         std::vector<ArgInfo> value_args;
         std::unordered_map<string, ArgInfo> kwargs;
-        for (const auto arg_info: arg_infos) {
+        for (const auto &arg_info: arg_infos) {
             if (arg_info.b_kwd)
                 kwargs[arg_info.name] = arg_info;
             else
-                value_args.push_back(arg_info);
+                value_args.emplace_back(arg_info);
         }
 
         size_t arg_id = 0;
@@ -473,7 +473,8 @@ namespace spade
         return true;
     }
 
-    ExprInfo Analyzer::resolve_call(scope::FunctionSet *fun_set, std::vector<ArgInfo> arg_infos, const ast::expr::Call &node) {
+    ExprInfo Analyzer::resolve_call(scope::FunctionSet *fun_set, const std::vector<ArgInfo> &arg_infos,
+                                    const ast::AstNode &node) {
         // Check for redeclarations if any
         if (!fun_set->is_redecl_check()) {
             // fun_set can never be empty (according to scope tree builder)
@@ -539,7 +540,8 @@ namespace spade
                     err_grp.error(error(std::format("ambiguous call to '{}'", fun_set->to_string()), &node));
                     for (const auto &fun: candidates) {
                         err_grp.note(error(std::format("possible candidate declared here: '{}'", fun->to_string()),
-                                           fun->get_node()));
+                                           fun->get_node()))
+                                .note(error("this error should not have occurred, please raise a github issue"));
                     }
                     throw err_grp;
                 }
@@ -589,6 +591,11 @@ namespace spade
         return expr_info;
     }
 
+    static bool check_fun_kwd_params(const std::shared_ptr<scope::Function> &fun1, const std::vector<ParamInfo> &fun1_pos_kwd,
+                                     const std::vector<ParamInfo> &fun1_pos_kwd_default,
+                                     const std::shared_ptr<scope::Function> &fun2, const std::vector<ParamInfo> &fun2_pos_kwd,
+                                     const std::vector<ParamInfo> &fun2_pos_kwd_default);
+
     // In functions, there are three kinds of parameters:
     // - Positional only        `pos_only`
     // - Keyword or positional  `pos_kwd`
@@ -611,17 +618,20 @@ namespace spade
     // - [5] vector      kwd_only_default
     // - [6] optional    kwd_only_variadic
     //
-    // Then, each of the items in the above list is evaluated accordingly
-    // while also saving an `error_state` for each item in `error_states`.
-    // If any error occurs then the messages are sent out accordingly
-    void Analyzer::check_funs(std::shared_ptr<scope::Function> fun1, std::shared_ptr<scope::Function> fun2,
-                              ErrorGroup<AnalyzerError> &errors) {
-        enum class ErrorState { NONE, SAME_PARAMS, SAME_DEFAULT_PARAM, AMBIGUOUS };
-        std::vector<ErrorState> error_states;
-        ErrorState error_state = ErrorState::NONE;
+    // Then, each of the items in the above list is evaluated accordingly.
+    void Analyzer::check_funs(const std::shared_ptr<scope::Function> &fun1, const std::shared_ptr<scope::Function> &fun2,
+                              ErrorGroup<AnalyzerError> &errors) const {
+#define AMBIGUOUS()                                                                                                            \
+    do {                                                                                                                       \
+        errors.error(error(std::format("ambiguous declaration of '{}'", fun1->to_string()), fun1->get_decl_site()))            \
+                .note(error(std::format("check another declaration here: '{}'", fun2->to_string()), fun2->get_decl_site()));   \
+        return;                                                                                                                \
+    } while (false)
 
         if (fun1->get_function_node()->get_name()->get_text() != fun2->get_function_node()->get_name()->get_text())
             return;
+        if (fun1->min_param_count() == 0 && fun2->min_param_count() == 0)
+            AMBIGUOUS();
 
         auto fun1_pos_only = fun1->get_pos_only_params();
         std::vector<ParamInfo> fun1_pos_kwd;
@@ -649,172 +659,179 @@ namespace spade
                 fun2_pos_kwd.push_back(param);
         }
 
-        std::vector<ParamInfo> fun1_kwd_only;
-        std::vector<ParamInfo> fun1_kwd_only_default;
+        {    // Check positional only parameters (with also overlapping pos-kwd parameters)
+            if (!fun1_pos_only.empty() && !fun2_pos_only.empty()) {
+                for (size_t i = 0; i < fun1_pos_only.size() && i < fun2_pos_only.size(); i++) {
+                    if (fun1_pos_only[i].type_info.type != fun2_pos_only[i].type_info.type)
+                        return;
+                }
+                size_t min_size = std::min(fun1_pos_only.size(), fun2_pos_only.size());
+                fun1_pos_only.erase(fun1_pos_only.begin(), fun1_pos_only.begin() + min_size);
+                fun2_pos_only.erase(fun2_pos_only.begin(), fun2_pos_only.begin() + min_size);
+            }
+            if (!fun1_pos_only.empty() && !fun2_pos_kwd.empty()) {
+                for (size_t i = 0; i < fun1_pos_only.size() && i < fun2_pos_kwd.size(); i++) {
+                    if (fun1_pos_only[i].type_info.type != fun2_pos_kwd[i].type_info.type)
+                        return;
+                }
+                size_t min_size = std::min(fun1_pos_only.size(), fun2_pos_kwd.size());
+                fun1_pos_only.erase(fun1_pos_only.begin(), fun1_pos_only.begin() + min_size);
+                fun2_pos_kwd.erase(fun2_pos_kwd.begin(), fun2_pos_kwd.begin() + min_size);
+            }
+            if (!fun1_pos_kwd.empty() && !fun2_pos_only.empty()) {
+                for (size_t i = 0; i < fun1_pos_kwd.size() && i < fun2_pos_only.size(); i++) {
+                    if (fun1_pos_kwd[i].type_info.type != fun2_pos_only[i].type_info.type)
+                        return;
+                }
+                size_t min_size = std::min(fun1_pos_kwd.size(), fun2_pos_only.size());
+                fun1_pos_kwd.erase(fun1_pos_kwd.begin(), fun1_pos_kwd.begin() + min_size);
+                fun2_pos_only.erase(fun2_pos_only.begin(), fun2_pos_only.begin() + min_size);
+            }
+            if (!fun1_pos_only.empty() || !fun2_pos_only.empty())
+                return;
+        }
+
+        {    // Check pos-kwd parameters
+            if (!fun1_pos_kwd.empty() && !fun2_pos_kwd.empty()) {
+                for (size_t i = 0; i < fun1_pos_kwd.size() && i < fun2_pos_kwd.size(); i++) {
+                    if (fun1_pos_kwd[i].type_info.type != fun2_pos_kwd[i].type_info.type) {
+                        if (check_fun_kwd_params(fun1, fun1_pos_kwd, fun1_pos_kwd_default, fun2, fun2_pos_kwd,
+                                                 fun2_pos_kwd_default))
+                            return;
+                        else
+                            AMBIGUOUS();
+                    }
+                }
+                if (fun1_pos_kwd.size() == fun2_pos_kwd.size())
+                    AMBIGUOUS();
+            }
+            if (!fun1_pos_kwd_default.empty() || !fun1_pos_kwd_default.empty()) {
+                // treat default as normal parameters
+                for (size_t i = std::min(fun1_pos_kwd.size(), fun2_pos_kwd.size());
+                     i < fun1_pos_kwd.size() + fun1_pos_kwd_default.size() &&
+                     i < fun2_pos_kwd.size() + fun2_pos_kwd_default.size();
+                     i++) {
+                    auto param1 = i < fun1_pos_kwd.size() ? fun1_pos_kwd[i] : fun1_pos_kwd_default[i - fun1_pos_kwd.size()];
+                    auto param2 = i < fun2_pos_kwd.size() ? fun2_pos_kwd[i] : fun2_pos_kwd_default[i - fun2_pos_kwd.size()];
+                    if (i >= fun1_pos_kwd.size() && i >= fun2_pos_kwd.size()) {
+                        // if both are default then types must be different
+                        if (param1.type_info.type == param2.type_info.type)
+                            AMBIGUOUS();
+                    } else if (param1.type_info.type != param2.type_info.type) {
+                        if (check_fun_kwd_params(fun1, fun1_pos_kwd, fun1_pos_kwd_default, fun2, fun2_pos_kwd,
+                                                 fun2_pos_kwd_default))
+                            return;
+                        else
+                            AMBIGUOUS();
+                    }
+                }
+                AMBIGUOUS();
+            }
+            if (fun1_pos_kwd_variadic && fun2_pos_kwd_variadic)
+                AMBIGUOUS();
+        }
+
+        // Check keyword arguments
+        if (!check_fun_kwd_params(fun1, fun1_pos_kwd, fun1_pos_kwd_default, fun2, fun2_pos_kwd, fun2_pos_kwd_default))
+            AMBIGUOUS();
+
+        AMBIGUOUS();
+#undef AMBIGUOUS
+    }
+
+    static bool check_fun_kwd_params(const std::shared_ptr<scope::Function> &fun1, const std::vector<ParamInfo> &fun1_pos_kwd,
+                                     const std::vector<ParamInfo> &fun1_pos_kwd_default,
+                                     const std::shared_ptr<scope::Function> &fun2, const std::vector<ParamInfo> &fun2_pos_kwd,
+                                     const std::vector<ParamInfo> &fun2_pos_kwd_default) {
         std::optional<ParamInfo> fun1_kwd_only_variadic;
+        std::unordered_map<string, ParamInfo> fun1_kwd;
+        for (const auto &param: fun1_pos_kwd) fun1_kwd[param.name] = param;
+        for (const auto &param: fun1_pos_kwd_default) fun1_kwd[param.name] = param;
         for (const auto &param: fun1->get_kwd_only_params()) {
             if (param.b_variadic)
                 fun1_kwd_only_variadic = param;
-            else if (param.b_default)
-                fun1_kwd_only_default.push_back(param);
             else
-                fun1_kwd_only_default.push_back(param);
+                fun1_kwd[param.name] = param;
         }
-
-        std::vector<ParamInfo> fun2_kwd_only;
-        std::vector<ParamInfo> fun2_kwd_only_default;
+        std::unordered_map<string, ParamInfo> fun2_kwd;
         std::optional<ParamInfo> fun2_kwd_only_variadic;
+        for (const auto &param: fun2_pos_kwd) fun2_kwd[param.name] = param;
+        for (const auto &param: fun2_pos_kwd_default) fun2_kwd[param.name] = param;
         for (const auto &param: fun2->get_kwd_only_params()) {
             if (param.b_variadic)
                 fun2_kwd_only_variadic = param;
-            else if (param.b_default)
-                fun2_kwd_only_default.push_back(param);
             else
-                fun2_kwd_only_default.push_back(param);
+                fun2_kwd[param.name] = param;
         }
-
-        const bool REQUIRED_PARAMS_AVAILABLE =
-                !fun1_pos_only.empty() && !fun2_pos_only.empty() && !fun1_pos_kwd.empty() && !fun2_pos_kwd.empty();
-        const bool REQUIRED_PARAMS_NOT_AVAILABLE =
-                fun1_pos_only.empty() && fun2_pos_only.empty() && fun1_pos_kwd.empty() && fun2_pos_kwd.empty();
-        const bool REQUIRED_KWD_PARAMS_AVAILABLE = !fun1_kwd_only.empty() && !fun2_kwd_only.empty();
-        const bool REQUIRED_KWD_PARAMS_NOT_AVAILABLE = fun1_kwd_only.empty() && fun2_kwd_only.empty();
-
-        // check for positional only parameters
-        // these parameters are required during a function call
-        error_state = ErrorState::NONE;
-        if (fun1_pos_only.empty() && fun2_pos_only.empty())
-            ;
-        else if (fun1_pos_only.size() == fun2_pos_only.size()) {
-            auto [_1, _2] = ranges::mismatch(fun1_pos_only, fun2_pos_only, [&](const auto &fun1_param, const auto &fun2_param) {
-                return fun1_param.type_info == fun2_param.type_info;
-            });
-            if (_1 == ranges::end(fun1_pos_only) && _2 == ranges::end(fun2_pos_only)) {
-                error_state = ErrorState::SAME_PARAMS;
-            }
-        } else
-            return;
-        error_states.push_back(error_state);
-
-        // check for positional or keyword parameters which are not default
-        // these parameters are required during a function call
-        error_state = ErrorState::NONE;
-        if (fun1_pos_kwd.empty() && fun2_pos_kwd.empty())
-            ;
-        else if (fun1_pos_kwd.size() == fun2_pos_kwd.size()) {
-            auto [_1, _2] =
-                    ranges::mismatch(fun1_pos_kwd, fun2_pos_kwd, [&](const ParamInfo &fun1_param, const ParamInfo &fun2_param) {
-                        return fun1_param.type_info == fun2_param.type_info;
-                    });
-            if (_1 == ranges::end(fun1_pos_kwd) && _2 == ranges::end(fun2_pos_kwd)) {
-                error_state = ErrorState::SAME_PARAMS;
-            }
-        } else
-            return;
-        error_states.push_back(error_state);
-
-        {    // check for positional or keyword parameters which are default
-            error_state = ErrorState::NONE;
-            if (fun1_pos_kwd_default.empty() && fun2_pos_kwd_default.empty())
-                ;
-            else {
-                if (error_states[0] == ErrorState::SAME_PARAMS && error_states[1] == ErrorState::SAME_PARAMS) {
-                    auto [_1, _2] = ranges::mismatch(fun1_pos_kwd_default, fun2_pos_kwd_default,
-                                                     [&](const ParamInfo &fun1_param, const ParamInfo &fun2_param) {
-                                                         return fun1_param.type_info != fun2_param.type_info;
-                                                     });
-                    error_state = _1 == ranges::end(fun1_pos_kwd_default) || _2 == ranges::end(fun2_pos_kwd_default)
-                                          ? ErrorState::NONE
-                                          : ErrorState::SAME_DEFAULT_PARAM;
-                }
-                if (REQUIRED_PARAMS_NOT_AVAILABLE)
-                    error_state = ErrorState::AMBIGUOUS;
-            }
-            error_states.push_back(error_state);
+        // Check keyword parameters
+        for (const auto &[name, param]: fun1_kwd) {
+            if (fun2_kwd.contains(name)) {
+                if (param.b_default) {
+                    if (param.type_info.type == fun2_kwd[name].type_info.type)
+                        return false;
+                } else if (param.type_info.type != fun2_kwd[name].type_info.type)
+                    return true;
+                fun2_kwd.erase(name);
+            } else if (param.b_default)
+                continue;
+            else if (!fun2_kwd_only_variadic || param.type_info.type != fun2_kwd_only_variadic->type_info.type)
+                return true;
         }
-
-        // check for variadic positional or keyword parameters
-        error_state = ErrorState::NONE;
-        if (fun1_pos_kwd_variadic || fun2_pos_kwd_variadic) {
-            if (error_states[0] != ErrorState::NONE && error_states[1] != ErrorState::NONE) {
-                error_state = ErrorState::AMBIGUOUS;
-            }
+        for (const auto &[name, param]: fun2_kwd) {
+            if (param.b_default)
+                continue;
+            else if (!fun2_kwd_only_variadic || param.type_info.type != fun2_kwd_only_variadic->type_info.type)
+                return true;
         }
-        error_states.push_back(error_state);
-
-        // check for keyword only parameters which are not default
-        // these parameters are required during a function call
-        error_state = ErrorState::NONE;
-        if (fun1_kwd_only.empty() && fun2_kwd_only.empty())
-            ;
-        else if (fun1_kwd_only.size() == fun2_kwd_only.size()) {
-            auto [_1, _2] = ranges::mismatch(
-                    fun1_kwd_only, fun2_kwd_only, [&](const ParamInfo &fun1_param, const ParamInfo &fun2_param) {
-                        return fun1_param.name == fun2_param.name && fun1_param.type_info == fun2_param.type_info;
-                    });
-            if (_1 == ranges::end(fun1_kwd_only) && _2 == ranges::end(fun2_kwd_only)) {
-                error_state = ErrorState::SAME_PARAMS;
-            }
-        }
-        error_states.push_back(error_state);
-
-        {    // check for keyword only parameters which are default
-            error_state = ErrorState::NONE;
-            if (fun1_kwd_only_default.empty() && fun2_kwd_only_default.empty())
-                ;
-            else {
-                if (error_states[4] == ErrorState::SAME_PARAMS) {
-                    auto [_1, _2] = ranges::mismatch(fun1_kwd_only_default, fun2_kwd_only_default,
-                                                     [&](const ParamInfo &fun1_param, const ParamInfo &fun2_param) {
-                                                         return !(fun1_param.name == fun2_param.name &&
-                                                                  fun1_param.type_info == fun2_param.type_info);
-                                                     });
-                    error_state = _1 == ranges::end(fun1_kwd_only_default) || _2 == ranges::end(fun2_kwd_only_default)
-                                          ? ErrorState::NONE
-                                          : ErrorState::SAME_DEFAULT_PARAM;
-                }
-                if (REQUIRED_KWD_PARAMS_NOT_AVAILABLE)
-                    error_state = ErrorState::AMBIGUOUS;
-            }
-            error_states.push_back(error_state);
-        }
-
-        // check for keyword only parameters
-        error_state = ErrorState::NONE;
-        if (fun1_kwd_only_variadic || fun2_kwd_only_variadic) {
-            if (REQUIRED_KWD_PARAMS_NOT_AVAILABLE || error_states[4] == ErrorState::SAME_PARAMS) {
-                error_state = ErrorState::AMBIGUOUS;
-            }
-        }
-        error_states.push_back(error_state);
-
-        for (const auto &error_state: error_states) {
-            if (error_state != ErrorState::NONE) {
-                errors.error(error(std::format("ambiguous declaration of '{}'", fun1->to_string()), fun1->get_decl_site()))
-                        .note(error(std::format("check another declaration here: '{}'", fun2->to_string()),
-                                    fun2->get_decl_site()));
-                return;
-            }
-        }
+        return false;
     }
 
-    void Analyzer::check_fun_set(std::shared_ptr<scope::FunctionSet> fun_set) {
+    void Analyzer::check_fun_set(const std::shared_ptr<scope::FunctionSet> &fun_set) {
         auto old_cur_scope = get_current_scope();
         cur_scope = &*fun_set;
 
         ErrorGroup<AnalyzerError> err_grp;
-        bool error_state = false;
 
-        for (auto it1 = fun_set->get_members().begin(); it1 != fun_set->get_members().end(); ++it1) {
-            auto fun1 = cast<scope::Function>(it1->second.second);
-
-            for (auto it2 = std::next(it1); it2 != fun_set->get_members().end(); ++it2) {
-                auto fun2 = cast<scope::Function>(it2->second.second);
-
-                check_funs(fun1, fun2, err_grp);
-                if (!err_grp.get_errors().empty())
-                    error_state = true;
+        if (fun_set->get_members().size() < 5) {
+            // sequential algorithm
+            for (auto it1 = fun_set->get_members().begin(); it1 != fun_set->get_members().end(); ++it1) {
+                auto fun1 = cast<scope::Function>(it1->second.second);
+                for (auto it2 = std::next(it1); it2 != fun_set->get_members().end(); ++it2) {
+                    auto fun2 = cast<scope::Function>(it2->second.second);
+                    check_funs(fun1, fun2, err_grp);
+                }
             }
+        } else {
+            // parallel algorithm
+            using FunOperand = std::pair<std::shared_ptr<scope::Function>, std::shared_ptr<scope::Function>>;
+
+            struct FunOperandHash {
+                std::size_t operator()(const FunOperand &value) const noexcept {
+                    size_t seed = 0;
+                    boost::hash_combine(seed, value.first);
+                    boost::hash_combine(seed, value.second);
+                    return seed;
+                }
+            };
+
+            std::unordered_set<FunOperand, FunOperandHash> functions;
+            for (auto it1 = fun_set->get_members().begin(); it1 != fun_set->get_members().end(); ++it1) {
+                auto fun1 = cast<scope::Function>(it1->second.second);
+                for (auto it2 = std::next(it1); it2 != fun_set->get_members().end(); ++it2) {
+                    auto fun2 = cast<scope::Function>(it2->second.second);
+                    functions.emplace(fun1, fun2);
+                }
+            }
+
+            std::mutex err_grp_mutex;
+            std::for_each(std::execution::par, functions.begin(), functions.end(), [&](const FunOperand &item) {
+                ErrorGroup<AnalyzerError> errors;
+                check_funs(item.first, item.second, errors);
+                if (!errors.get_errors().empty()) {
+                    std::lock_guard lg(err_grp_mutex);
+                    err_grp.extend(errors);
+                }
+            });
         }
 
         // Set qualified names
@@ -831,7 +848,7 @@ namespace spade
 
         fun_set->set_members(new_members);
 
-        if (error_state)
+        if (!err_grp.get_errors().empty())
             throw err_grp;
         cur_scope = old_cur_scope;
     }

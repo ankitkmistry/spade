@@ -84,8 +84,8 @@ namespace spade
       public:
         template<ast::HasLineInfo T>
         AnalyzerError(const string &msg, const fs::path &file_path, T node)
-            : CompilerError(msg, file_path, node->get_line_start(), node->get_col_start(), node->get_line_end(),
-                            node->get_col_end()) {}
+            : CompilerError(msg, file_path, node ? node->get_line_start() : -1, node ? node->get_col_start() : -1,
+                            node ? node->get_line_end() : -1, node ? node->get_col_end() : -1) {}
     };
 
     enum class ErrorType { ERROR, WARNING, NOTE };

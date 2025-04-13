@@ -38,7 +38,15 @@ namespace spade
             return *this;
         }
 
-        TypeInfo &operator=(TypeInfo &&other) noexcept = default;
+        TypeInfo &operator=(TypeInfo &&other) noexcept {
+            type = std::move(other.type);
+            if (!other.type_args.empty())
+                type_args = std::move(other.type_args);
+            else
+                type_args.clear();
+            b_nullable = std::move(other.b_nullable);
+            return *this;
+        }
 
         ~TypeInfo() {
             reset();

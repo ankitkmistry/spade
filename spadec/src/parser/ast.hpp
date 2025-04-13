@@ -160,10 +160,10 @@ namespace spade::ast
         template<typename T1, typename T2>
             requires HasLineInfo<T1> && HasLineInfo<T2>
         AstNode(T1 start, T2 end)
-            : line_start(start->get_line_start()),
-              line_end(end->get_line_end()),
-              col_start(start->get_col_start()),
-              col_end(end->get_col_end()) {}
+            : line_start(start ? start->get_line_start() : -1),
+              line_end(end ? end->get_line_end() : -1),
+              col_start(start ? start->get_col_start() : -1),
+              col_end(end ? end->get_col_end() : -1) {}
 
         AstNode(const AstNode &other) = default;
         AstNode(AstNode &&other) noexcept = default;

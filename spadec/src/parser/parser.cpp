@@ -305,34 +305,56 @@ namespace spade
 
     std::shared_ptr<ast::decl::Params> Parser::params() {
         const static std::vector<std::shared_ptr<ast::decl::Param>> EMPTY;
-        bool got_param_list_1 = true, got_param_list_2 = false, got_param_list_3 = false;
         std::vector<std::shared_ptr<ast::decl::Param>> param_list1 = param_list();
         std::vector<std::shared_ptr<ast::decl::Param>> param_list2;
         std::vector<std::shared_ptr<ast::decl::Param>> param_list3;
+        bool got_param_list_1 = !param_list1.empty(), got_param_list_2 = false, got_param_list_3 = false;
 
-        if (current()->get_type() == TokenType::COMMA && peek()->get_type() == TokenType::STAR &&
-            peek(1)->get_type() == TokenType::COMMA) {
-            expect(TokenType::STAR);
-            expect(TokenType::COMMA);
-            got_param_list_2 = true;
-            param_list2 = param_list();
+        if (!got_param_list_1) {
+            if (peek()->get_type() == TokenType::STAR && peek(1)->get_type() == TokenType::COMMA) {
+                expect(TokenType::STAR);
+                expect(TokenType::COMMA);
+                got_param_list_2 = true;
+                param_list2 = param_list();
+            }
+        } else {
+            if (current()->get_type() == TokenType::COMMA && peek()->get_type() == TokenType::STAR &&
+                peek(1)->get_type() == TokenType::COMMA) {
+                expect(TokenType::STAR);
+                expect(TokenType::COMMA);
+                got_param_list_2 = true;
+                param_list2 = param_list();
+            }
         }
 
-        if (current()->get_type() == TokenType::COMMA && peek()->get_type() == TokenType::SLASH &&
-            peek(1)->get_type() == TokenType::COMMA) {
-            expect(TokenType::SLASH);
-            expect(TokenType::COMMA);
-            got_param_list_3 = true;
-            param_list3 = param_list();
+        if (!got_param_list_1 && !got_param_list_2) {
+            if (peek()->get_type() == TokenType::SLASH && peek(1)->get_type() == TokenType::COMMA) {
+                expect(TokenType::SLASH);
+                expect(TokenType::COMMA);
+                got_param_list_3 = true;
+                param_list3 = param_list();
+            }
+        } else {
+            if (current()->get_type() == TokenType::COMMA && peek()->get_type() == TokenType::SLASH &&
+                peek(1)->get_type() == TokenType::COMMA) {
+                expect(TokenType::SLASH);
+                expect(TokenType::COMMA);
+                got_param_list_3 = true;
+                param_list3 = param_list();
+            }
         }
 
         if (!got_param_list_2 && !got_param_list_3)
-            return std::make_shared<ast::decl::Params>(param_list1.front(), current(), EMPTY, param_list1, EMPTY);
+            return std::make_shared<ast::decl::Params>(got_param_list_1 ? param_list1.front() : null, current(), EMPTY,
+                                                       param_list1, EMPTY);
         if (!got_param_list_2)
-            return std::make_shared<ast::decl::Params>(param_list1.front(), current(), EMPTY, param_list1, param_list3);
+            return std::make_shared<ast::decl::Params>(got_param_list_1 ? param_list1.front() : null, current(), EMPTY,
+                                                       param_list1, param_list3);
         if (!got_param_list_3)
-            return std::make_shared<ast::decl::Params>(param_list1.front(), current(), param_list1, param_list2, EMPTY);
-        return std::make_shared<ast::decl::Params>(param_list1.front(), current(), param_list1, param_list2, param_list3);
+            return std::make_shared<ast::decl::Params>(got_param_list_1 ? param_list1.front() : null, current(), param_list1,
+                                                       param_list2, EMPTY);
+        return std::make_shared<ast::decl::Params>(got_param_list_1 ? param_list1.front() : null, current(), param_list1,
+                                                   param_list2, param_list3);
     }
 
     std::shared_ptr<ast::decl::Param> Parser::param() {

@@ -8,29 +8,46 @@
 
 namespace spade
 {
+    /**
+     * @class Analyzer
+     * @brief The Analyzer class is responsible for analyzing the abstract syntax tree (AST) of the program.
+     * 
+     * This class performs various tasks such as name resolution, type checking, context resolution, and
+     * function call analysis. It also provides mechanisms for handling scopes, resolving assignments, 
+     * and checking for ambiguities in function definitions. The Analyzer class is a visitor for different 
+     * AST nodes and processes them accordingly.
+     * 
+     * @note This class is final and cannot be inherited.
+     */
     class Analyzer final : public ast::VisitorBase {
         // Internal modules
         enum class Internal { SPADE, SPADE_ANY, SPADE_INT, SPADE_FLOAT, SPADE_BOOL, SPADE_STRING, SPADE_VOID };
         std::unordered_map<Internal, std::shared_ptr<scope::Scope>> internals;
-        void load_internal_modules();
 
         std::unordered_map<ast::Module *, ScopeInfo> module_scopes;
-        // std::vector<std::shared_ptr<scope::Scope>> scope_stack;
 
         scope::Scope *cur_scope = null;
         scope::Scope *get_parent_scope() const;
         scope::Scope *get_current_scope() const;
 
+        /**
+         * Loads and sets up internal spade modules
+         */
+        void load_internal_modules();
+
         /// Performs name resolution
         std::shared_ptr<scope::Scope> find_name(const string &name) const;
+
         /**
          * Performs context resolution for scope in relation with the current scope
          * @param scope the requested scope
          * @param node the source ast node used for error messages
          */
         void resolve_context(const std::shared_ptr<scope::Scope> &scope, const ast::AstNode &node);
+
         /// Performs cast checking
         void check_cast(scope::Compound *from, scope::Compound *to, const ast::AstNode &node, bool safe);
+
         /**
          * Performs type resolution for assignments.
          * It checks if the type of the expression is compatible with the type of the variable.
@@ -40,11 +57,12 @@ namespace spade
          * @return the correct type info that is assigned
          */
         TypeInfo resolve_assign(const TypeInfo *type_info, const ExprInfo *expr_info, const ast::AstNode &node);
+
         /**
          * Performs type resolution for assignments.
          * It checks if the type of the expression is compatible with the type of the variable.
          * If the current scope is a variable, it automatically sets the type info and evaluation state of the variable
-         * 
+         *
          * @param type type to assign
          * @param expr expression to be assigned
          * @param node the source ast node used for error messages
@@ -52,19 +70,58 @@ namespace spade
          */
         TypeInfo resolve_assign(std::shared_ptr<ast::Type> type, std::shared_ptr<ast::Expression> expr,
                                 const ast::AstNode &node);
-        bool check_fun_call(scope::Function *function, std::vector<ArgInfo> arg_infos, const ast::expr::Call &node,
+
+        /**
+         * This function checks whether @p function can meet the requirements provided by
+         * @p{arg_infos}. If this function returns true then @p errors are not changed
+         * @param function the function to be checked
+         * @param arg_infos the arguments to use
+         * @param node the source ast node used for error messages
+         * @param errors the place where errors are to be reported
+         * @return true if function can take @p arg_infos
+         * @return false if function cannot take @p arg_infos
+         */
+        bool check_fun_call(scope::Function *function, const std::vector<ArgInfo> &arg_infos, const ast::AstNode &node,
                             ErrorGroup<AnalyzerError> &errors);
-        ExprInfo resolve_call(scope::FunctionSet *fun_set, std::vector<ArgInfo> arg_infos, const ast::expr::Call &node);
+
+        /**
+         * This function takes in @p arg_infos and selects the best viable function
+         * from the function set and returns the ExprInfo of its return value
+         * @param fun_set the function set to analyze
+         * @param arg_infos the argument infos of the function call
+         * @param node the source ast node used for error messages
+         * @return ExprInfo the return value expr info of the function
+         */
+        ExprInfo resolve_call(scope::FunctionSet *fun_set, const std::vector<ArgInfo> &arg_infos, const ast::AstNode &node);
+
         /// Performs variable type inference resolution
         ExprInfo get_var_expr_info(std::shared_ptr<scope::Variable> var_scope, const ast::AstNode &node);
-        void check_funs(std::shared_ptr<scope::Function> fun1, std::shared_ptr<scope::Function> fun2,
-                        ErrorGroup<AnalyzerError> &errors);
-        void check_fun_set(std::shared_ptr<scope::FunctionSet> fun_set);
+
+        /**
+         * Checks whether @p fun1 and @p fun2 are ambiguous or not
+         * @param fun1 the first function
+         * @param fun2 the second function
+         * @param errors the place where errors are to be reported
+         */
+        void check_funs(const std::shared_ptr<scope::Function> &fun1, const std::shared_ptr<scope::Function> &fun2,
+                        ErrorGroup<AnalyzerError> &errors) const;
+
+        /**
+         * Checks whether all the functions in @p fun_set are well formed 
+         * i.e. none of them are ambiguous
+         * @param fun_set the set of functions
+         */
+        void check_fun_set(const std::shared_ptr<scope::FunctionSet> &fun_set);
 
         ErrorPrinter printer;
 
+        inline AnalyzerError error(const string &msg) const {
+            return AnalyzerError(msg, get_current_scope()->get_enclosing_module()->get_module_node()->get_file_path(),
+                                 static_cast<ast::AstNode *>(null));
+        }
+
         template<ast::HasLineInfo T>
-        AnalyzerError error(const string &msg, T node) {
+        AnalyzerError error(const string &msg, T node) const {
             return AnalyzerError(msg, get_current_scope()->get_enclosing_module()->get_module_node()->get_file_path(), node);
         }
 

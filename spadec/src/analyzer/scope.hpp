@@ -327,11 +327,7 @@ namespace spade::scope
         size_t min_param_count() const {
             std::atomic<size_t> result = pos_only_params.size();
             // Pos only parameters are never default or variadic
-            // std::for_each(std::execution::par_unseq, pos_only_params.begin(), pos_only_params.end(),
-            //               [&](const ParamInfo &param) {
-            //                   if (!param.b_default && !param.b_variadic)
-            //                       result.fetch_add(1, std::memory_order_relaxed);
-            //               });
+            // So they are counted as min_param_count
             std::for_each(std::execution::par_unseq, pos_kwd_params.begin(), pos_kwd_params.end(), [&](const ParamInfo &param) {
                 if (!param.b_default && !param.b_variadic)
                     result.fetch_add(1, std::memory_order_relaxed);
