@@ -1,4 +1,4 @@
-#include <string>
+#include <cmath>
 
 #include "error_printer.hpp"
 #include "color.hpp"

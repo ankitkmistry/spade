@@ -77,12 +77,18 @@ if (WIN32)
   )
 endif ()
 
-if(APPLE)
-  add_custom_command(
+if (APPLE)
+  add_custom_command (
     TARGET spadec
     POST_BUILD
     COMMAND dsymutil $<TARGET_FILE:spadec>
   )
+endif ()
+
+if(CMAKE_BUILD_TYPE EQUAL "RelWithDebInfo")
+  if(MSVC)
+    target_compile_options(spadec /EHsc)
+  endif()
 endif()
 
 # TODO: Add tests and install targets if needed.

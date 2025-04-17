@@ -309,7 +309,7 @@ namespace spade
                 if (type_info)
                     throw error(std::format("cannot assign a module to type '{}'", type_info->to_string()), &node);
                 else
-                    throw error(std::format("cannot assign a module", type_info->to_string()), &node);
+                    throw error(std::format("cannot assign a module"), &node);
             case ExprInfo::Type::FUNCTION_SET:
                 // TODO: implement function resolution
                 break;

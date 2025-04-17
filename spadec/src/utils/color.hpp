@@ -1,7 +1,11 @@
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
+#include <cstdint>
+#include <cmath>
 #include <format>
+#include <cstring>
 #include <string>
 
 namespace color
@@ -55,7 +59,7 @@ namespace color
             }
 
             double chroma = r - std::min(g, b);
-            double h = fabs(K + (g - b) / (6.f * chroma + 1e-20f));
+            double h = std::abs(K + (g - b) / (6.f * chroma + 1e-20f));
             double s = chroma / (r + 1e-20f);
             double v = r;
             return std::format("(h={:f}, s={:f}, b={:f})", h, s, v);

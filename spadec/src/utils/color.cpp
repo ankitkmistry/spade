@@ -43,7 +43,7 @@ namespace color
 }    // namespace color
 
 // Windows implementation
-#if defined(BOOST_OS_WINDOWS)
+#if defined(_WIN32)
 #    include <windows.h>
 
 namespace color
@@ -157,7 +157,7 @@ namespace color
     }
 }    // namespace color
 
-#elif defined(BOOST_OS_LINUX)
+#elif defined(__linux__)
 
 #    include <cerrno>
 #    include <filesystem>
@@ -168,31 +168,22 @@ namespace color
 #    include <fcntl.h>
 #    include <sys/epoll.h>
 
+#    include "utils/error.hpp"
+
 namespace color
 {
     static void print(const std::string &str) {
         if (write(STDOUT_FILENO, str.c_str(), str.size()) < 0)
-            throw ConsoleError(std::format("failed to write to stdout: {}", std::strerror(errno)));
+            throw std::runtime_error(std::format("failed to write to stdout: {}", std::strerror(errno)));
     }
 
     bool Console::is_terminal_open() {
         return isatty(STDOUT_FILENO);
     }
 
-    static char *old_locale = nullptr;
+    void Console::init() {}
 
-    void Console::init() {
-        // Save the old locale and set the new locale
-        char *locale = std::setlocale(LC_CTYPE, nullptr);
-        old_locale = new char[std::strlen(locale)];
-        std::strcpy(old_locale, locale);
-        std::setlocale(LC_CTYPE, "en_US.utf8");
-    }
-
-    void Console::restore() {
-        std::setlocale(LC_CTYPE, old_locale);
-        delete old_locale;
-    }
+    void Console::restore() {}
 
     std::pair<size_t, size_t> Console::size() {
         winsize w;

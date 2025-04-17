@@ -14,6 +14,7 @@
 #include "parser/printer.hpp"
 #include "utils/error.hpp"
 #include "utils/error_printer.hpp"
+#include "utils/graph.hpp"
 
 constexpr bool ENABLE_BACKTRACE_FILTER = false;
 
@@ -82,6 +83,28 @@ void repl() {
     }
 }
 
+void graph_test() {
+    DirectedGraph<int> graph;
+    graph.insert_vertex(0);
+    graph.insert_vertex(1);
+    graph.insert_vertex(2);
+    graph.insert_vertex(3);
+    graph.insert_edge(0, 1);
+    graph.insert_edge(0, 2);
+    graph.insert_edge(1, 3);
+    std::cout << "Vertices: ";
+    for (const auto &vertex: graph.vertices()) {
+        std::cout << vertex << " ";
+    }
+    std::cout << std::endl;
+    std::cout << "Edges:\n";
+    for (const auto &vertex: graph.vertices()) {
+        for (const auto &edge: graph.edges(vertex)) {
+            std::cout << edge.origin() << " -> " << edge.destination() << "\n";
+        }
+    }
+}
+
 int main(int argc, char *argv[]) {
     CPPTRACE_TRY {
         std::setlocale(LC_CTYPE, ".UTF-8");
@@ -90,8 +113,9 @@ int main(int argc, char *argv[]) {
         // LOGGER.set_file(file);
         // std::ios_base::sync_with_stdio(false);
         LOGGER.set_format("[{4}] {5}");
-        compile();
+        // compile();
         // repl();
+        graph_test();
         color::Console::restore();
         return 0;
     }
