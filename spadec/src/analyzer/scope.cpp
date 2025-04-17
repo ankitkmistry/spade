@@ -50,6 +50,16 @@ namespace spade::scope
         }
     }
 
+    bool Compound::has_super(Compound *super) const {
+        if (supers.contains(super))
+            return true;
+        for (const auto &p: supers) {
+            if (p->has_super(super))
+                return true;
+        }
+        return false;
+    }
+
     string Function::to_string(bool decorated) const {
         string result = parent->get_path().to_string();
         // TODO: add support for type arguments

@@ -9,7 +9,6 @@
 #include "lexer/token.hpp"
 #include "parser/ast.hpp"
 #include "scope.hpp"
-#include "scope_tree.hpp"
 #include "spimp/error.hpp"
 #include "spimp/utils.hpp"
 #include "symbol_path.hpp"
@@ -100,59 +99,98 @@ namespace spade
     // +===================+===================================================================================================+
     //
     // If no accessor is provided then the default accessor is taken to be `module private`
-    void Analyzer::resolve_context(const std::shared_ptr<scope::Scope> &scope, const ast::AstNode &node) {
-        auto cur_mod = get_current_scope()->get_enclosing_module();
-        auto scope_mod = scope->get_enclosing_module();
-        if (!cur_mod || !scope_mod)
-            throw Unreachable();    // this cannot happen
+    void Analyzer::resolve_context(const scope::Scope *from_scope, const scope::Scope *to_scope, const ast::AstNode &node,
+                                   ErrorGroup<AnalyzerError> &errors) const {
+        auto cur_mod = from_scope->get_enclosing_module();
+        auto scope_mod = to_scope->get_enclosing_module();
+
+        if (to_scope->get_type() == scope::ScopeType::FUNCTION_SET)
+            return;    // spare function sets
+
+        {    // static context code
+            bool static_context = false;
+            if (auto fun = from_scope->get_enclosing_function()) {
+                static_context = fun->is_static();
+            } else if (from_scope->get_type() == scope::ScopeType::VARIABLE) {
+                static_context = cast<const scope::Variable>(from_scope)->is_static();
+            }
+
+            if (static_context) {
+                switch (to_scope->get_type()) {
+                    case scope::ScopeType::FOLDER_MODULE:    // modules can be referenced from static ctx
+                    case scope::ScopeType::MODULE:           // modules can be referenced from static ctx
+                    case scope::ScopeType::COMPOUND:         // compounds can be referenced from static ctx
+                        break;
+                    case scope::ScopeType::FUNCTION:    // only static functions can be referenced from static ctx
+                        if (!cast<const scope::Function>(to_scope)->is_static()) {
+                            errors.error(error(std::format("cannot access non-static '{}' from static context",
+                                                           to_scope->to_string()),
+                                               &node))
+                                    .note(error("declared here", to_scope));
+                            return;
+                        }
+                        break;
+                    case scope::ScopeType::VARIABLE:    // only static variables can be referenced from static ctx
+                        if (!cast<const scope::Variable>(to_scope)->is_static()) {
+                            errors.error(error(std::format("cannot access non-static '{}' from static context",
+                                                           to_scope->to_string()),
+                                               &node))
+                                    .note(error("declared here", to_scope));
+                            return;
+                        }
+                        break;
+                    case scope::ScopeType::ENUMERATOR:    // enumerators can be referenced from static ctx
+                        break;
+                    case scope::ScopeType::FUNCTION_SET:    // spare function sets
+                    case scope::ScopeType::BLOCK:
+                        throw Unreachable();
+                }
+            }
+        }
 
         std::vector<std::shared_ptr<Token>> modifiers;
-        // scope is a variable of scope::Compound
-        // scope.get_enclosing_compound() is never null
-        switch (scope->get_type()) {
+        switch (to_scope->get_type()) {
+            case scope::ScopeType::FOLDER_MODULE:
+            case scope::ScopeType::MODULE:
+                return;
             case scope::ScopeType::COMPOUND:
             case scope::ScopeType::FUNCTION:
             case scope::ScopeType::VARIABLE:
             case scope::ScopeType::ENUMERATOR:
-                modifiers = cast<ast::Declaration>(scope->get_node())->get_modifiers();
+                modifiers = cast<ast::Declaration>(to_scope->get_node())->get_modifiers();
                 break;
-            default:
+            case scope::ScopeType::FUNCTION_SET:
+            case scope::ScopeType::BLOCK:
                 throw Unreachable();    // surely some parser error
         }
         for (const auto &modifier: modifiers) {
             switch (modifier->get_type()) {
                 case TokenType::PRIVATE: {
                     // private here
-                    auto cur_class = get_current_scope()->get_enclosing_compound();
-                    auto scope_class = scope->get_enclosing_compound();
+                    auto cur_class = from_scope->get_enclosing_compound();
+                    auto scope_class = to_scope->get_enclosing_compound();
                     if (!cur_class || cur_class != scope_class)
-                        throw ErrorGroup<AnalyzerError>()
-                                .error(error("cannot access 'private' member", &node))
-                                .note(error("declared here", scope));
+                        errors.error(error("cannot access 'private' member", &node)).note(error("declared here", to_scope));
                     return;
                 }
                 case TokenType::INTERNAL: {
                     // internal here
                     if (cur_mod != scope_mod) {
-                        throw ErrorGroup<AnalyzerError>()
-                                .error(error("cannot access 'internal' member", &node))
-                                .note(error("declared here", scope));
+                        errors.error(error("cannot access 'internal' member", &node)).note(error("declared here", to_scope));
+                        return;
                     }
-                    auto cur_class = get_current_scope()->get_enclosing_compound();
-                    auto scope_class = scope->get_enclosing_compound();
+                    auto cur_class = from_scope->get_enclosing_compound();
+                    auto scope_class = to_scope->get_enclosing_compound();
                     if (!cur_class || cur_class != scope_class || !cur_class->has_super(scope_class))
-                        throw ErrorGroup<AnalyzerError>()
-                                .error(error("cannot access 'internal' member", &node))
-                                .note(error("declared here", scope));
+                        errors.error(error("cannot access 'internal' member", &node)).note(error("declared here", to_scope));
                     return;
                 }
                 case TokenType::PROTECTED: {
-                    auto cur_class = get_current_scope()->get_enclosing_compound();
-                    auto scope_class = scope->get_enclosing_compound();
+                    auto cur_class = from_scope->get_enclosing_compound();
+                    auto scope_class = to_scope->get_enclosing_compound();
                     if (cur_mod != scope_mod && (!cur_class || !cur_class->has_super(scope_class))) {
-                        throw ErrorGroup<AnalyzerError>()
-                                .error(error("cannot access 'protected' member", &node))
-                                .note(error("declared here", scope));
+                        errors.error(error("cannot access 'protected' member", &node)).note(error("declared here", to_scope));
+                        return;
                     }
                     // protected here
                     return;
@@ -167,10 +205,22 @@ namespace spade
         }
         // module private here
         if (cur_mod != scope_mod) {
-            throw ErrorGroup<AnalyzerError>()
-                    .error(error("cannot access 'module private' member", &node))
-                    .note(error("declared here", scope));
+            errors.error(error("cannot access 'module private' member", &node)).note(error("declared here", to_scope));
         }
+    }
+
+    void Analyzer::resolve_context(const scope::Scope *scope, const ast::AstNode &node) const {
+        ErrorGroup<AnalyzerError> errors;
+        resolve_context(get_current_scope(), scope, node, errors);
+        if (!errors.get_errors().empty())
+            throw errors;
+    }
+
+    void Analyzer::resolve_context(const std::shared_ptr<scope::Scope> scope, const ast::AstNode &node) const {
+        ErrorGroup<AnalyzerError> errors;
+        resolve_context(get_current_scope(), &*scope, node, errors);
+        if (!errors.get_errors().empty())
+            throw errors;
     }
 
     void Analyzer::check_cast(scope::Compound *from, scope::Compound *to, const ast::AstNode &node, bool safe) {
@@ -193,9 +243,8 @@ namespace spade
         // duck typing
         // check if the members of 'to' is subset of members of 'from'
         for (const auto &[to_member_name, to_member]: to->get_members()) {
-            const auto &[to_member_decl_site, to_member_scope] = to_member;
+            const auto &[_, to_member_scope] = to_member;
             if (from->has_variable(to_member_name)) {
-                auto from_member_decl_site = from->get_decl_site(to_member_name);
                 auto from_member_scope = from->get_variable(to_member_name);
                 // check if the scope type is same
                 if (from_member_scope->get_type() == to_member_scope->get_type()) {
@@ -206,10 +255,10 @@ namespace spade
                             if (!error_state)
                                 error_state = true;
                             err_grp.note(error(std::format("see '{}' in '{}'", to_member_scope->to_string(), to->to_string()),
-                                               to_member_decl_site))
+                                               to_member_scope))
                                     .note(error(std::format("also see '{}' in '{}'", from_member_scope->to_string(),
                                                             from->to_string()),
-                                                from_member_decl_site));
+                                                from_member_scope));
                         }
                     } else if (from_member_scope->get_type() == scope::ScopeType::VARIABLE) {
                         // check if they are the same type of variable (var, const)
@@ -218,10 +267,10 @@ namespace spade
                             if (!error_state)
                                 error_state = true;
                             err_grp.note(error(std::format("see '{}' in '{}'", to_member_scope->to_string(), to->to_string()),
-                                               to_member_decl_site))
+                                               to_member_scope))
                                     .note(error(std::format("also see '{}' in '{}'", from_member_scope->to_string(),
                                                             from->to_string()),
-                                                from_member_decl_site));
+                                                from_member_scope));
                         }
                     }
                 } else {
@@ -354,14 +403,14 @@ namespace spade
         if (!function->is_variadic() && !function->is_default() && function->param_count() != arg_infos.size()) {
             errors.error(error(std::format("expected {} arguments but got {}", function->param_count(), arg_infos.size()),
                                &node))
-                    .note(error("declared here", function->get_decl_site()));
+                    .note(error("declared here", function));
             return false;
         }
         if (arg_infos.size() < function->min_param_count()) {
             errors.error(error(std::format("expected at least {} arguments but got {}", function->min_param_count(),
                                            arg_infos.size()),
                                &node))
-                    .note(error("declared here", function->get_decl_site()));
+                    .note(error("declared here", function));
             return false;
         }
 
@@ -422,7 +471,7 @@ namespace spade
             err_grp.error(error(std::format("expected at most {} value arguments but got {} value arguments", arg_id,
                                             value_args.size()),
                                 &node))
-                    .note(error("declared here", function->get_decl_site()));
+                    .note(error("declared here", function));
         // Add kwd_only_params to kwd_params map
         for (const auto &param: function->get_kwd_only_params()) {
             if (!param.b_default && !param.b_variadic)
@@ -437,7 +486,7 @@ namespace spade
             err_grp.error(error(std::format("expected at least {} keyword arguments but got {} keyword arguments",
                                             min_kw_arg_count, kwargs.size()),
                                 &node))
-                    .note(error("declared here", function->get_decl_site()));
+                    .note(error("declared here", function));
         // Collect all keyword arguments
         for (const auto &[name, kwarg]: kwargs) {
             if (kwd_params.contains(name)) {
@@ -466,88 +515,88 @@ namespace spade
             }
         }
         if (!err_grp.get_errors().empty()) {
-            err_grp.note(error("declared here", function->get_decl_site()));
+            err_grp.note(error("declared here", function));
             errors.extend(err_grp);
             return false;
         }
         return true;
     }
 
-    ExprInfo Analyzer::resolve_call(scope::FunctionSet *fun_set, const std::vector<ArgInfo> &arg_infos,
-                                    const ast::AstNode &node) {
+    ExprInfo Analyzer::resolve_call(const FunctionInfo &funs, const std::vector<ArgInfo> &arg_infos, const ast::AstNode &node) {
         // Check for redeclarations if any
-        if (!fun_set->is_redecl_check()) {
-            // fun_set can never be empty (according to scope tree builder)
-            fun_set->get_members().begin()->second.second->get_node()->accept(this);
+        for (const auto &[_, fun_set]: funs.get_function_sets()) {
+            if (!fun_set->is_redecl_check()) {
+                // fun_set can never be empty (according to scope tree builder)
+                auto old_cur_scope = get_current_scope();
+                cur_scope = fun_set->get_parent();
+                fun_set->get_members().begin()->second.second->get_node()->accept(this);
+                cur_scope = old_cur_scope;
+            }
         }
 
         ErrorGroup<AnalyzerError> err_grp;
         err_grp.error(error("call candidate cannot be resolved", &node));
-        std::vector<std::shared_ptr<scope::Function>> candidates;
+        std::vector<scope::Function *> candidates;
+        scope::Function *candidate = null;
 
-        for (const auto &[member_name, member]: fun_set->get_members()) {
-            const auto &[decl_site, member_scope] = member;
-            auto fun_scope = cast<scope::Function>(member_scope);
-
-            if (check_fun_call(&*fun_scope, arg_infos, node, err_grp))
-                candidates.push_back(fun_scope);
+        for (const auto &[_, fun]: funs.get_functions()) {
+            if (check_fun_call(&*fun, arg_infos, node, err_grp))
+                candidates.push_back(fun);
         }
 
-        std::shared_ptr<scope::Function> candidate;
         if (candidates.size() == 0)
             throw err_grp;
         else if (candidates.size() == 1) {
             candidate = candidates[0];
         } else if (candidates.size() > 1) {
-            std::map<size_t, std::vector<std::shared_ptr<scope::Function>>, std::less<size_t>> candidate_table;
+            std::map<size_t, std::vector<scope::Function *>, std::less<size_t>> candidate_table;
             for (const auto &fun: candidates) {
                 size_t priority = 0;
                 if (fun->is_variadic())
-                    priority = 0;
-                else if (fun->is_default())
                     priority = 1;
+                else if (fun->is_default())
+                    priority = 2;
                 else {
                     size_t i = 0;
                     for (auto param: fun->get_pos_only_params()) {
-                        if (priority == 2)
+                        if (priority == 3)
                             break;
                         if (param.type_info.type != arg_infos[i].expr_info.type_info.type)
-                            priority = 2;
+                            priority = 3;
                         i++;
                     }
                     for (auto param: fun->get_pos_kwd_params()) {
-                        if (priority == 2)
+                        if (priority == 3)
                             break;
                         if (param.type_info.type != arg_infos[i].expr_info.type_info.type)
-                            priority = 2;
+                            priority = 3;
                         i++;
                     }
                     for (auto param: fun->get_kwd_only_params()) {
-                        if (priority == 2)
+                        if (priority == 3)
                             break;
                         if (param.type_info.type != arg_infos[i].expr_info.type_info.type)
-                            priority = 2;
+                            priority = 3;
                         i++;
                     }
-                    priority = 3;
+                    priority = priority == 0 ? 4 : 3;
                 }
                 candidate_table[priority].push_back(fun);
             }
-            {
-                candidates = candidate_table.rbegin()->second;
-                if (candidates.size() > 1) {
-                    ErrorGroup<AnalyzerError> err_grp;
-                    err_grp.error(error(std::format("ambiguous call to '{}'", fun_set->to_string()), &node));
-                    for (const auto &fun: candidates) {
-                        err_grp.note(error(std::format("possible candidate declared here: '{}'", fun->to_string()),
-                                           fun->get_node()))
-                                .note(error("this error should not have occurred, please raise a github issue"));
-                    }
-                    throw err_grp;
-                }
-                candidate = candidates[0];
+            candidates = candidate_table.rbegin()->second;
+            if (candidates.size() > 1) {
+                ErrorGroup<AnalyzerError> err_grp;
+                err_grp.error(error(std::format("ambiguous call to '{}'", funs.to_string()), &node));
+                for (const auto &fun: candidates)
+                    err_grp.note(error(std::format("possible candidate declared here: '{}'", fun->to_string()),
+                                       fun->get_node()))
+                            .note(error("this error should not have occurred, please raise a github issue"));
+                throw err_grp;
             }
+            candidate = candidates[0];
         }
+
+        resolve_context(candidate, node);
 
         LOGGER.log_debug(std::format("resolved call candidate: {}", candidate->to_string()));
 
@@ -623,8 +672,8 @@ namespace spade
                               ErrorGroup<AnalyzerError> &errors) const {
 #define AMBIGUOUS()                                                                                                            \
     do {                                                                                                                       \
-        errors.error(error(std::format("ambiguous declaration of '{}'", fun1->to_string()), fun1->get_decl_site()))            \
-                .note(error(std::format("check another declaration here: '{}'", fun2->to_string()), fun2->get_decl_site()));   \
+        errors.error(error(std::format("ambiguous declaration of '{}'", fun1->to_string()), fun1))                             \
+                .note(error(std::format("check another declaration here: '{}'", fun2->to_string()), fun2));                    \
         return;                                                                                                                \
     } while (false)
 
@@ -853,13 +902,7 @@ namespace spade
         cur_scope = old_cur_scope;
     }
 
-    void Analyzer::analyze(const std::vector<std::shared_ptr<ast::Module>> &modules) {
-        if (modules.empty())
-            return;
-        // Build scope tree
-        ScopeTreeBuilder builder(modules);
-        module_scopes = builder.build();
-
+    void Analyzer::analyze() {
         load_internal_modules();
 
         // Print scope tree
@@ -871,8 +914,10 @@ namespace spade
         // Start analysis
         for (auto [_, module_scope_info]: module_scopes) {
             if (module_scope_info.is_original())
-                if (auto node = module_scope_info.get_scope()->get_node())
+                if (auto node = module_scope_info.get_scope()->get_node()) {
+                    cur_scope = null;
                     node->accept(this);
+                }
         }
     }
 

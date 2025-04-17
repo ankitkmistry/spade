@@ -1,4 +1,7 @@
 #include "analyzer.hpp"
+#include "parser/ast.hpp"
+#include "scope.hpp"
+#include "utils/error.hpp"
 
 namespace spade
 {
@@ -87,98 +90,92 @@ namespace spade
     }
 
     void Analyzer::visit(ast::decl::Function &node) {
+        // TODO: check for function level declarations
         std::shared_ptr<scope::FunctionSet> fun_set = find_scope<scope::FunctionSet>(node.get_name()->get_text());
         std::shared_ptr<scope::Function> scope = find_scope<scope::Function>(node.get_qualified_name());
 
-        // TODO: check for function level declarations
+        if (mode == Mode::DECLARATION) {
+            if (scope->get_proto_eval() == scope::Function::ProtoEval::NOT_STARTED) {
+                scope->set_proto_eval(scope::Function::ProtoEval::PROGRESS);
 
-        if (scope->get_proto_eval() == scope::Function::ProtoEval::NOT_STARTED) {
-            scope->set_proto_eval(scope::Function::ProtoEval::PROGRESS);
+                if (auto type = node.get_return_type()) {
+                    type->accept(this);
+                    scope->set_ret_type(_res_type_info);
+                } else {
+                    TypeInfo return_type;
+                    return_type.type = scope->is_init() ? scope->get_enclosing_compound()
+                                                        : cast<scope::Compound>(&*internals[Internal::SPADE_VOID]);
+                    scope->set_ret_type(return_type);
+                }
 
-            if (auto type = node.get_return_type()) {
-                type->accept(this);
-                scope->set_ret_type(_res_type_info);
-            } else {
-                TypeInfo return_type;
-                return_type.type = scope->is_init() ? scope->get_enclosing_compound()
-                                                    : cast<scope::Compound>(&*internals[Internal::SPADE_VOID]);
-                scope->set_ret_type(return_type);
+                if (auto params = node.get_params())
+                    params->accept(this);
+
+                scope->set_proto_eval(scope::Function::ProtoEval::DONE);
+                function_scopes.push_back(scope);
             }
 
-            if (auto params = node.get_params())
-                params->accept(this);
-
-            scope->set_proto_eval(scope::Function::ProtoEval::DONE);
-        }
-
-        if (!fun_set->is_redecl_check()) {
-            fun_set->set_redecl_check(true);
-            auto old_cur_scope = get_current_scope();    // save the context
-            end_scope();                                 // pop the function
-            end_scope();                                 // pop the function set
-            // Collect all other defintions
-            for (const auto &[member_name, member]: fun_set->get_members()) {
-                const auto &[_, member_scope] = member;
-                if (scope != member_scope)
-                    member_scope->get_node()->accept(this);
+            if (!fun_set->is_redecl_check()) {
+                fun_set->set_redecl_check(true);
+                auto old_cur_scope = get_current_scope();    // save the context
+                end_scope();                                 // pop the function
+                end_scope();                                 // pop the function set
+                // Collect all other defintions
+                for (const auto &[member_name, member]: fun_set->get_members()) {
+                    const auto &[_, member_scope] = member;
+                    if (scope != member_scope)
+                        member_scope->get_node()->accept(this);
+                }
+                check_fun_set(fun_set);
+                cur_scope = old_cur_scope;    // restore context
             }
-            check_fun_set(fun_set);
-            cur_scope = old_cur_scope;    // restore context
-        }
 
-        auto definition = node.get_definition();
+            auto definition = node.get_definition();
 
-        if (scope->get_enclosing_function() != null) {
-            if (definition == null)
-                throw error("function must have a definition", &node);
-        } else if (auto compound = scope->get_enclosing_compound()) {
-            switch (compound->get_compound_node()->get_token()->get_type()) {
-                case TokenType::CLASS: {
-                    if (scope->is_init() && definition == null) {
-                        throw error("constructor must have a definition", &node);
-                    }
-                    if (scope->is_abstract()) {
-                        if (definition != null)
-                            throw error("abstract function cannot have a definition", &node);
-                    } else {
+            if (scope->get_enclosing_function() != null) {
+                if (definition == null)
+                    throw error("function must have a definition", &node);
+            } else if (auto compound = scope->get_enclosing_compound()) {
+                switch (compound->get_compound_node()->get_token()->get_type()) {
+                    case TokenType::CLASS:
+                        if (scope->is_init() && definition == null)
+                            throw error("constructor must have a definition", &node);
+                        if (scope->is_abstract()) {
+                            if (definition != null)
+                                throw error("abstract function cannot have a definition", &node);
+                        } else {
+                            if (definition == null)
+                                throw error("function must have a definition", &node);
+                        }
+                        break;
+                    case TokenType::INTERFACE:
+                        if (scope->is_static() && definition == null)
+                            throw error("static function must have a definition", &node);
+                        break;
+                    case TokenType::ENUM:
+                        if (scope->is_init() && definition == null)
+                            throw error("constructor must have a definition", &node);
                         if (definition == null)
                             throw error("function must have a definition", &node);
-                    }
-                    break;
-                }
-                case TokenType::INTERFACE: {
-                    if (scope->is_static()) {
+                        break;
+                    case TokenType::ANNOTATION:
+                        if (scope->is_init() && definition == null)
+                            throw error("constructor must have a definition", &node);
                         if (definition == null)
-                            throw error("static function must have a definition", &node);
-                    }
-                    break;
+                            throw error("function must have a definition", &node);
+                        break;
+                    default:
+                        throw Unreachable();    // surely some parser error
                 }
-                case TokenType::ENUM: {
-                    if (scope->is_init() && definition == null) {
-                        throw error("constructor must have a definition", &node);
-                    }
-                    if (definition == null)
-                        throw error("function must have a definition", &node);
-                    break;
-                }
-                case TokenType::ANNOTATION: {
-                    if (scope->is_init() && definition == null) {
-                        throw error("constructor must have a definition", &node);
-                    }
-                    if (definition == null)
-                        throw error("function must have a definition", &node);
-                    break;
-                }
-                default:
-                    throw Unreachable();    // surely some parser error
+            } else {
+                if (definition == null)
+                    throw error("function must have a definition", &node);
             }
-        } else {
-            if (definition == null)
-                throw error("function must have a definition", &node);
         }
 
-        if (definition)
-            definition->accept(this);
+        if (mode == Mode::DEFINITION)
+            if (auto definition = node.get_definition())
+                definition->accept(this);
 
         end_scope();    // pop the function
         end_scope();    // pop the function set
@@ -220,7 +217,6 @@ namespace spade
     }
 
     void Analyzer::visit(ast::decl::Parent &node) {
-        _res_type_info.reset();
         node.get_reference()->accept(this);
         // Check if the super class is a scope::Compound
         if (_res_reference->get_type() != scope::ScopeType::COMPOUND)
@@ -231,11 +227,13 @@ namespace spade
         TypeInfo parent_type_info;
         parent_type_info.type = cast<scope::Compound>(&*_res_reference);
         if (!node.get_type_args().empty()) {
+            parent_type_info.type_args.reserve(node.get_type_args().size());
             for (auto type_arg: node.get_type_args()) {
                 type_arg->accept(this);
                 parent_type_info.type_args.push_back(_res_type_info);
             }
         }
+        _res_type_info.reset();
         _res_type_info = parent_type_info;
     }
 
@@ -244,11 +242,11 @@ namespace spade
     void Analyzer::visit(ast::decl::Compound &node) {
         auto scope = find_scope<scope::Compound>(node.get_name()->get_text());
         // TODO: Solve this ambiguity
-        // 
+        //
         // class A : B {}
         // class B : C {}
         // class C : A {}
-        // 
+        //
         if (node.get_parents().empty()) {
             scope->inherit_from(cast<scope::Compound>(internals[Internal::SPADE_ANY]));
         } else {
@@ -280,11 +278,10 @@ namespace spade
     }
 
     void Analyzer::visit(ast::Module &node) {
-        if (get_current_scope() == null) {
-            auto scope = module_scopes.at(&node).get_scope();
-            cur_scope = &*scope;
-        } else {
+        if (get_current_scope())
             find_scope<scope::Module>(node.get_name());
+        else {
+            cur_scope = &*module_scopes.at(&node).get_scope();
         }
 
         for (auto import: node.get_imports()) import->accept(this);
@@ -295,11 +292,11 @@ namespace spade
 
     void Analyzer::visit(ast::FolderModule &node) {
         std::shared_ptr<scope::Scope> scope;
-        if (get_current_scope() == null) {
+        if (get_current_scope())
+            scope = find_scope<scope::Module>(node.get_name());
+        else {
             scope = module_scopes.at(&node).get_scope();
             cur_scope = &*scope;
-        } else {
-            scope = find_scope<scope::Module>(node.get_name());
         }
 
         for (auto [name, member]: scope->get_members()) {

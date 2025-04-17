@@ -3,18 +3,20 @@
 #include <ios>
 #include <iostream>
 #include <fstream>
+#include <cpptrace/utils.hpp>
 #include <cpptrace/from_current.hpp>
 #include <cpptrace/formatting.hpp>
 
 #include "utils/color.hpp"
-#include "analyzer/analyzer.hpp"
-#include "lexer/lexer.hpp"
-#include "parser/import.hpp"
-#include "parser/parser.hpp"
-#include "parser/printer.hpp"
 #include "utils/error.hpp"
 #include "utils/error_printer.hpp"
 #include "utils/graph.hpp"
+#include "lexer/lexer.hpp"
+#include "parser/parser.hpp"
+#include "parser/import.hpp"
+#include "parser/printer.hpp"
+#include "analyzer/scope_tree.hpp"
+#include "analyzer/analyzer.hpp"
 
 constexpr bool ENABLE_BACKTRACE_FILTER = false;
 
@@ -39,8 +41,10 @@ void compile() {
             modules = resolver.resolve_imports();
         }
         {
-            Analyzer analyzer{error_printer};
-            analyzer.analyze(modules);
+            ScopeTreeBuilder builder(modules);
+            auto module_scopes = builder.build();
+            Analyzer analyzer{module_scopes, error_printer};
+            analyzer.analyze();
         }
         // for (const auto &module: modules) {
         //     ast::Printer printer{module};
@@ -106,6 +110,7 @@ void graph_test() {
 }
 
 int main(int argc, char *argv[]) {
+    cpptrace::experimental::set_cache_mode(cpptrace::cache_mode::prioritize_memory);
     CPPTRACE_TRY {
         std::setlocale(LC_CTYPE, ".UTF-8");
         color::Console::init();
@@ -113,9 +118,9 @@ int main(int argc, char *argv[]) {
         // LOGGER.set_file(file);
         // std::ios_base::sync_with_stdio(false);
         LOGGER.set_format("[{4}] {5}");
-        // compile();
+        compile();
         // repl();
-        graph_test();
+        // graph_test();
         color::Console::restore();
         return 0;
     }

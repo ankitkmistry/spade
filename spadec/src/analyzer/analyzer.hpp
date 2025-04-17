@@ -25,6 +25,10 @@ namespace spade
         std::unordered_map<Internal, std::shared_ptr<scope::Scope>> internals;
 
         std::unordered_map<ast::Module *, ScopeInfo> module_scopes;
+        std::vector<std::shared_ptr<scope::Function>> function_scopes;
+
+        enum class Mode { DECLARATION, DEFINITION };
+        Mode mode = Mode::DECLARATION;
 
         scope::Scope *cur_scope = null;
         scope::Scope *get_parent_scope() const;
@@ -38,12 +42,16 @@ namespace spade
         /// Performs name resolution
         std::shared_ptr<scope::Scope> find_name(const string &name) const;
 
+        void resolve_context(const scope::Scope *from_scope, const scope::Scope *to_scope, const ast::AstNode &node,
+                             ErrorGroup<AnalyzerError> &errors) const;
+
         /**
          * Performs context resolution for scope in relation with the current scope
          * @param scope the requested scope
          * @param node the source ast node used for error messages
          */
-        void resolve_context(const std::shared_ptr<scope::Scope> &scope, const ast::AstNode &node);
+        void resolve_context(const scope::Scope *scope, const ast::AstNode &node) const;
+        void resolve_context(const std::shared_ptr<scope::Scope> scope, const ast::AstNode &node) const;
 
         /// Performs cast checking
         void check_cast(scope::Compound *from, scope::Compound *to, const ast::AstNode &node, bool safe);
@@ -92,7 +100,7 @@ namespace spade
          * @param node the source ast node used for error messages
          * @return ExprInfo the return value expr info of the function
          */
-        ExprInfo resolve_call(scope::FunctionSet *fun_set, const std::vector<ArgInfo> &arg_infos, const ast::AstNode &node);
+        ExprInfo resolve_call(const FunctionInfo &funs, const std::vector<ArgInfo> &arg_infos, const ast::AstNode &node);
 
         /// Performs variable type inference resolution
         ExprInfo get_var_expr_info(std::shared_ptr<scope::Variable> var_scope, const ast::AstNode &node);
@@ -156,9 +164,10 @@ namespace spade
         }
 
       public:
-        explicit Analyzer(ErrorPrinter printer) : printer(printer) {}
+        explicit Analyzer(const std::unordered_map<ast::Module *, ScopeInfo> &module_scopes, ErrorPrinter printer)
+            : module_scopes(module_scopes), printer(printer) {}
 
-        void analyze(const std::vector<std::shared_ptr<ast::Module>> &modules);
+        void analyze();
 
       private:
         std::shared_ptr<scope::Scope> _res_reference;

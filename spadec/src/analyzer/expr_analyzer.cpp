@@ -112,6 +112,8 @@ namespace spade
                 // Yell if the scope cannot be located
                 if (!scope)
                     throw error("undefined reference", &node);
+                // Resolve the context
+                resolve_context(scope, node);
                 // Now set the expr info accordingly
                 switch (scope->get_type()) {
                     case scope::ScopeType::FOLDER_MODULE:
@@ -130,7 +132,7 @@ namespace spade
                     case scope::ScopeType::FUNCTION_SET:
                         _res_expr_info.tag = ExprInfo::Type::FUNCTION_SET;
                         _res_expr_info.value_info.b_const = true;
-                        _res_expr_info.function_set = cast<scope::FunctionSet>(&*scope);
+                        _res_expr_info.functions = cast<scope::FunctionSet>(&*scope);
                         break;
                     case scope::ScopeType::BLOCK:
                         throw Unreachable();    // surely some parser error
@@ -235,7 +237,7 @@ namespace spade
                             throw Unreachable();    // surely some symbol tree builder error
                         case scope::ScopeType::FUNCTION_SET:
                             _res_expr_info.tag = ExprInfo::Type::FUNCTION_SET;
-                            _res_expr_info.function_set = cast<scope::FunctionSet>(&*member_scope);
+                            _res_expr_info.functions = cast<scope::FunctionSet>(&*member_scope);
                             break;
                         case scope::ScopeType::VARIABLE:
                             _res_expr_info = get_var_expr_info(cast<scope::Variable>(member_scope), node);
@@ -269,6 +271,7 @@ namespace spade
                     if (!caller_info.type_info.type->has_variable(node.get_member()->get_text()))
                         throw error(std::format("cannot access member: '{}'", node.get_member()->get_text()), &node);
                     auto member_scope = caller_info.type_info.type->get_variable(node.get_member()->get_text());
+
                     resolve_context(member_scope, node);
                     switch (member_scope->get_type()) {
                         case scope::ScopeType::COMPOUND:
@@ -279,17 +282,22 @@ namespace spade
                             throw Unreachable();    // surely some symbol tree builder error
                         case scope::ScopeType::FUNCTION_SET:
                             _res_expr_info.tag = ExprInfo::Type::FUNCTION_SET;
-                            _res_expr_info.function_set = cast<scope::FunctionSet>(&*member_scope);
+                            _res_expr_info.functions = cast<scope::FunctionSet>(&*member_scope);
+                            _res_expr_info.functions.remove_if([](const std::pair<SymbolPath, scope::Function *> &item) {
+                                return !item.second->is_static();
+                            });
+                            if (_res_expr_info.functions.empty()) {
+                                throw error(std::format("cannot access non-static '{}' of '{}'",
+                                                                 member_scope->to_string(), caller_info.to_string()),
+                                                     &node);
+                            }
                             break;
                         case scope::ScopeType::VARIABLE: {
                             auto var_scope = cast<scope::Variable>(member_scope);
-                            if (!var_scope->is_static()) {
-                                throw ErrorGroup<AnalyzerError>()
-                                        .error(error(std::format("cannot access non-static variable '{}' of '{}'",
+                            if (!var_scope->is_static())
+                                throw error(std::format("cannot access non-static '{}' of '{}'",
                                                                  var_scope->to_string(), caller_info.to_string()),
-                                                     &node))
-                                        .note(error("declared here", var_scope));
-                            }
+                                                     &node);
                             _res_expr_info = get_var_expr_info(var_scope, node);
                             break;
                         }
@@ -309,6 +317,7 @@ namespace spade
                 if (!caller_info.module->has_variable(node.get_member()->get_text()))
                     throw error(std::format("cannot access member: '{}'", node.get_member()->get_text()), &node);
                 auto scope = caller_info.module->get_variable(node.get_member()->get_text());
+                resolve_context(scope, node);
                 switch (scope->get_type()) {
                     case scope::ScopeType::FOLDER_MODULE:
                     case scope::ScopeType::MODULE:
@@ -323,7 +332,7 @@ namespace spade
                         throw Unreachable();    // surely some symbol tree builder error
                     case scope::ScopeType::FUNCTION_SET:
                         _res_expr_info.tag = ExprInfo::Type::FUNCTION_SET;
-                        _res_expr_info.function_set = cast<scope::FunctionSet>(&*scope);
+                        _res_expr_info.functions = cast<scope::FunctionSet>(&*scope);
                         break;
                     case scope::ScopeType::VARIABLE:
                         _res_expr_info.tag = ExprInfo::Type::NORMAL;
@@ -413,7 +422,7 @@ namespace spade
             case ExprInfo::Type::FUNCTION_SET:
                 // this is the actual thing: FUNCTION RESOLUTION
                 _res_expr_info.reset();
-                _res_expr_info = resolve_call(caller_info.function_set, arg_infos, node);
+                _res_expr_info = resolve_call(caller_info.functions, arg_infos, node);
                 break;
         }
         _res_expr_info.value_info.b_lvalue = false;
@@ -546,7 +555,7 @@ namespace spade
 
         if (type_cast_info.is_type_literal()) {
             warning("'type' causes dynamic resolution, hence expression becomes 'spade.any?'", &node);
-            _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Analyzer::Internal::SPADE_ANY]);
+            _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_ANY]);
             _res_expr_info.type_info.b_nullable = true;
         } else {
             if (!expr_info.is_null())

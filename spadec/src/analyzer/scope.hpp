@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <bitset>
 #include <cstddef>
 #include <execution>
 #include <unordered_set>
@@ -41,19 +42,19 @@ namespace spade::scope
         virtual ~Scope() = default;
 
         int get_line_start() const {
-            return get_decl_site() ? get_decl_site()->get_line_start() : node->get_line_start();
+            return get_decl_site() ? get_decl_site()->get_line_start() : node ? node->get_line_start() : -1;
         }
 
         int get_line_end() const {
-            return get_decl_site() ? get_decl_site()->get_line_end() : node->get_line_end();
+            return get_decl_site() ? get_decl_site()->get_line_end() : node ? node->get_line_end() : -1;
         }
 
         int get_col_start() const {
-            return get_decl_site() ? get_decl_site()->get_col_start() : node->get_col_start();
+            return get_decl_site() ? get_decl_site()->get_col_start() : node ? node->get_col_start() : -1;
         }
 
         int get_col_end() const {
-            return get_decl_site() ? get_decl_site()->get_col_end() : node->get_col_end();
+            return get_decl_site() ? get_decl_site()->get_col_end() : node ? node->get_col_end() : -1;
         }
 
         ScopeType get_type() const {
@@ -148,53 +149,92 @@ namespace spade::scope
     };
 
     class Compound final : public Scope {
+        /**
+         * @brief a bitset of modifiers
+         * 
+         * 0 -> abstract
+         * 1 -> final
+         * 2 -> static
+         * 3 -> override
+         */
+        std::bitset<4> modifiers;
         string name;
         std::unordered_set<Compound *> supers;
 
       public:
         Compound(string name) : Scope(ScopeType::COMPOUND, null), name(name) {}
 
-        Compound(ast::decl::Compound *node) : Scope(ScopeType::COMPOUND, node), name(node->get_name()->get_text()) {}
-
-        void inherit_from(const std::shared_ptr<Compound> &super) {
-            for (const auto &[name, member]: super->members) {
-                new_variable(name, member.first, member.second);
+        Compound(ast::decl::Compound *node) : Scope(ScopeType::COMPOUND, node), name(node->get_name()->get_text()) {
+            const auto &mod_toks = get_compound_node()->get_modifiers();
+            for (const auto &mod_tok: mod_toks) {
+                switch (mod_tok->get_type()) {
+                    case TokenType::ABSTRACT:
+                        modifiers[0] = true;
+                        break;
+                    case TokenType::FINAL:
+                        modifiers[1] = true;
+                        break;
+                    case TokenType::STATIC:
+                        modifiers[2] = true;
+                        break;
+                    case TokenType::OVERRIDE:
+                        modifiers[3] = true;
+                        break;
+                    default:
+                        break;
+                }
             }
-            supers.insert(&*super);
         }
 
-        void inherit_from(Compound *super) {
-            for (const auto &[name, member]: super->members) {
-                new_variable(name, member.first, member.second);
-            }
-            supers.insert(super);
+        bool is_abstract() const {
+            return modifiers[0];
+        }
+
+        bool is_final() const {
+            return modifiers[1];
+        }
+
+        bool is_static() const {
+            return modifiers[2];
+        }
+
+        bool is_override() const {
+            return modifiers[3];
+        }
+
+        void set_abstract(bool value) {
+            modifiers[0] = value;
+        }
+
+        void set_final(bool value) {
+            modifiers[1] = value;
+        }
+
+        void set_static(bool value) {
+            modifiers[2] = value;
+        }
+
+        void set_override(bool value) {
+            modifiers[3] = value;
         }
 
         const string &get_name() const {
             return name;
         }
 
-        bool has_super(const std::shared_ptr<Compound> &super) const {
-            if (supers.contains(&*super))
-                return true;
-            else {
-                for (const auto &p: supers) {
-                    if (p->has_super(super))
-                        return true;
-                }
-                return false;
-            }
+        void inherit_from(const std::shared_ptr<Compound> &super) {
+            inherit_from(&*super);
         }
 
-        bool has_super(Compound *super) const {
-            if (supers.contains(super))
-                return true;
-            for (const auto &p: supers) {
-                if (p->has_super(super))
-                    return true;
-            }
-            return false;
+        void inherit_from(Compound *super) {
+            supers.insert(super);
         }
+
+        bool has_super(const std::shared_ptr<Compound> &super) const {
+            has_super(&*super);
+        }
+
+        bool has_super(Compound *super) const;
 
         const std::unordered_set<Compound *> &get_supers() const {
             return supers;
@@ -229,6 +269,15 @@ namespace spade::scope
         enum class ProtoEval { NOT_STARTED, PROGRESS, DONE };
 
       private:
+        /**
+         * @brief a bitset of modifiers
+         * 
+         * 0 -> abstract
+         * 1 -> final
+         * 2 -> static
+         * 3 -> override
+         */
+        std::bitset<4> modifiers;
         /// Flag if the function prototype is being evaluated
         ProtoEval proto_eval = ProtoEval::NOT_STARTED;
         std::vector<ParamInfo> pos_only_params;
@@ -237,7 +286,27 @@ namespace spade::scope
         TypeInfo ret_type;
 
       public:
-        Function(ast::decl::Function *node) : Scope(ScopeType::FUNCTION, node) {}
+        Function(ast::decl::Function *node) : Scope(ScopeType::FUNCTION, node) {
+            const auto &mod_toks = get_function_node()->get_modifiers();
+            for (const auto &mod_tok: mod_toks) {
+                switch (mod_tok->get_type()) {
+                    case TokenType::ABSTRACT:
+                        modifiers[0] = true;
+                        break;
+                    case TokenType::FINAL:
+                        modifiers[1] = true;
+                        break;
+                    case TokenType::STATIC:
+                        modifiers[2] = true;
+                        break;
+                    case TokenType::OVERRIDE:
+                        modifiers[3] = true;
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
 
         ast::decl::Function *get_function_node() const {
             return cast<ast::decl::Function>(node);
@@ -248,31 +317,35 @@ namespace spade::scope
         }
 
         bool is_abstract() const {
-            const auto &modifiers = get_function_node()->get_modifiers();
-            return std::find_if(modifiers.begin(), modifiers.end(), [](const std::shared_ptr<Token> &modifier) {
-                       return modifier->get_type() == TokenType::ABSTRACT;
-                   }) != modifiers.end();
+            return modifiers[0];
         }
 
         bool is_final() const {
-            const auto &modifiers = get_function_node()->get_modifiers();
-            return std::find_if(modifiers.begin(), modifiers.end(), [](const std::shared_ptr<Token> &modifier) {
-                       return modifier->get_type() == TokenType::FINAL;
-                   }) != modifiers.end();
-        }
-
-        bool is_override() const {
-            const auto &modifiers = get_function_node()->get_modifiers();
-            return std::find_if(modifiers.begin(), modifiers.end(), [](const std::shared_ptr<Token> &modifier) {
-                       return modifier->get_type() == TokenType::OVERRIDE;
-                   }) != modifiers.end();
+            return modifiers[1];
         }
 
         bool is_static() const {
-            const auto &modifiers = get_function_node()->get_modifiers();
-            return std::find_if(modifiers.begin(), modifiers.end(), [](const std::shared_ptr<Token> &modifier) {
-                       return modifier->get_type() == TokenType::STATIC;
-                   }) != modifiers.end();
+            return modifiers[2];
+        }
+
+        bool is_override() const {
+            return modifiers[3];
+        }
+
+        void set_abstract(bool value) {
+            modifiers[0] = value;
+        }
+
+        void set_final(bool value) {
+            modifiers[1] = value;
+        }
+
+        void set_static(bool value) {
+            modifiers[2] = value;
+        }
+
+        void set_override(bool value) {
+            modifiers[3] = value;
         }
 
         bool has_param(const string &name) const {

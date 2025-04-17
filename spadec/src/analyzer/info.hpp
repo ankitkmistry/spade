@@ -1,6 +1,7 @@
 #pragma once
 
 #include "parser/ast.hpp"
+#include "symbol_path.hpp"
 #include "utils/common.hpp"
 
 namespace spade
@@ -11,6 +12,7 @@ namespace spade
         class Compound;
         class Module;
         class Init;
+        class Function;
         class FunctionSet;
     }    // namespace scope
 
@@ -94,6 +96,57 @@ namespace spade
         }
     };
 
+    class FunctionInfo {
+        std::unordered_map<SymbolPath, scope::Function *> functions;
+
+      public:
+        FunctionInfo() = default;
+
+        FunctionInfo(const FunctionInfo &other) = default;
+        FunctionInfo(FunctionInfo &&other) = default;
+        FunctionInfo(const scope::FunctionSet *fun_set);
+        FunctionInfo &operator=(const FunctionInfo &other) = default;
+        FunctionInfo &operator=(FunctionInfo &&other) = default;
+        FunctionInfo &operator=(const scope::FunctionSet *fun_set);
+        ~FunctionInfo() = default;
+
+        scope::Function *operator[](const SymbolPath &path) const {
+            return get(path);
+        }
+
+        scope::Function *get(const SymbolPath &path) const {
+            return functions.contains(path) ? functions.at(path) : null;
+        }
+
+        scope::Function *get_or(const SymbolPath &path, scope::Function *or_else) const {
+            return functions.contains(path) ? functions.at(path) : or_else;
+        }
+
+        bool empty() const {
+            return functions.empty();
+        }
+
+        void add(const SymbolPath &path, scope::Function *function, bool override = true);
+
+        void extend(const FunctionInfo &other, bool override = true);
+
+        void clear() {
+            functions.clear();
+        }
+
+        bool remove_if(std::function<bool(std::pair<SymbolPath, scope::Function *>)> pred) {
+            return std::erase_if(functions, pred) > 0;
+        }
+
+        std::unordered_map<SymbolPath, scope::Function *> get_functions() const {
+            return functions;
+        }
+
+        std::unordered_map<SymbolPath, scope::FunctionSet *> get_function_sets() const;
+
+        string to_string(bool decorated = true) const;
+    };
+
     struct ExprInfo {
         enum class Type {
             NORMAL,
@@ -105,8 +158,13 @@ namespace spade
         union {
             TypeInfo type_info;
             scope::Module *module;
-            scope::FunctionSet *function_set;
         };
+
+        // Placed this outside the union due to some union related runtime errors.
+        // The cause of the error is that FunctionInfo is a object which has a STL container
+        // and during construction of the object everything is initialized to zero which corrupts
+        // the state of the STL container. This is why it is necessary to put functions outside the union
+        FunctionInfo functions;
 
         ValueInfo value_info;
 
@@ -122,7 +180,7 @@ namespace spade
                     module = other.module;
                     break;
                 case Type::FUNCTION_SET:
-                    function_set = other.function_set;
+                    functions = other.functions;
                     break;
             }
         }
@@ -137,7 +195,7 @@ namespace spade
                     module = std::move(other.module);
                     break;
                 case Type::FUNCTION_SET:
-                    function_set = std::move(other.function_set);
+                    functions = std::move(other.functions);
                     break;
             }
         }
@@ -156,7 +214,7 @@ namespace spade
                         module = other.module;
                         break;
                     case Type::FUNCTION_SET:
-                        function_set = other.function_set;
+                        functions = other.functions;
                         break;
                 }
             }
@@ -177,7 +235,7 @@ namespace spade
                         module = std::move(other.module);
                         break;
                     case Type::FUNCTION_SET:
-                        function_set = std::move(other.function_set);
+                        functions = std::move(other.functions);
                         break;
                 }
             }
@@ -200,7 +258,7 @@ namespace spade
                     module = null;
                     break;
                 case Type::FUNCTION_SET:
-                    function_set = null;
+                    functions.clear();
                     break;
             }
             tag = Type::NORMAL;

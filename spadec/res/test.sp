@@ -32,12 +32,14 @@ fun abaxify(a,/,b:string,c="a",*args){}
 
 var abaxa=abaxify(a:1,b:2)
 
-interface Foo {
-	static var size = 0
-	public final static fun build() {
+class Foo {
+	static var size = build()
+	static fun build() -> int {
 		self.bar(Color.RED)
 	}
 }
+
+const diddy = Foo.build()
 
 abstract class A : Foo {
 	var color: Color=Color.RED

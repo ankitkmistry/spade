@@ -1,5 +1,3 @@
-#include <numeric>
-
 #include "info.hpp"
 #include "scope.hpp"
 #include "spimp/error.hpp"
@@ -29,7 +27,7 @@ namespace spade
             case Type::MODULE:
                 return module->to_string(decorated);
             case Type::FUNCTION_SET:
-                return function_set->to_string(decorated);
+                return functions.to_string(decorated);
             default:
                 throw Unreachable();    // to remove MSVC warning
         }
@@ -41,5 +39,57 @@ namespace spade
 
     string ArgInfo::to_string(bool decorated) const {
         return expr_info.to_string(decorated);
+    }
+
+    FunctionInfo::FunctionInfo(const scope::FunctionSet *fun_set) {
+        if (fun_set) {
+            for (const auto &[_, member]: fun_set->get_members()) {
+                auto path = member.second->get_path();
+                auto fun = cast<scope::Function>(&*member.second);
+                functions[path] = fun;
+            }
+        }
+    }
+
+    FunctionInfo &FunctionInfo::operator=(const scope::FunctionSet *fun_set) {
+        std::unordered_map<SymbolPath, scope::Function *> new_functions;
+        if (fun_set) {
+            for (const auto &[_, member]: fun_set->get_members()) {
+                auto path = member.second->get_path();
+                auto fun = cast<scope::Function>(&*member.second);
+                new_functions[path] = fun;
+            }
+        }
+        functions = new_functions;
+        return *this;
+    }
+
+    void FunctionInfo::add(const SymbolPath &path, scope::Function *function, bool override) {
+        if (override || !functions.contains(path))
+            functions[path] = function;
+    }
+
+    void FunctionInfo::extend(const FunctionInfo &other, bool override) {
+        for (const auto &[path, fun]: other.functions) {
+            add(path, fun, override);
+        }
+    }
+
+    std::unordered_map<SymbolPath, scope::FunctionSet *> FunctionInfo::get_function_sets() const {
+        std::unordered_map<SymbolPath, scope::FunctionSet *> fun_sets;
+        for (const auto &[path, fun]: functions)
+            fun_sets[fun->get_parent()->get_path()] = cast<scope::FunctionSet>(fun->get_parent());
+        return fun_sets;
+    }
+
+    string FunctionInfo::to_string(bool decorated) const {
+        const auto &fun_sets = get_function_sets();
+        string result;
+        for (const auto &[_, fun_set]: fun_sets) {
+            result += fun_set->to_string(decorated) + ", ";
+        }
+        result.pop_back();
+        result.pop_back();
+        return result;
     }
 }    // namespace spade

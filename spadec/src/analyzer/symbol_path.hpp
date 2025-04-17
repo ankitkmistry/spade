@@ -1,5 +1,7 @@
 #pragma once
 
+#include <boost/functional/hash.hpp>
+
 #include "utils/common.hpp"
 
 namespace spade
@@ -88,6 +90,10 @@ template<>
 class std::hash<spade::SymbolPath> {
   public:
     size_t operator()(const spade::SymbolPath &path) const {
-        return std::hash<std::string>{}(path.to_string());
+        size_t seed = 0;
+        for (const auto &elm: path.get_elements()) {
+            boost::hash_combine(seed, elm);
+        }
+        return seed;
     }
 };

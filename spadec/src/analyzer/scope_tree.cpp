@@ -115,15 +115,11 @@ namespace spade
         // Get the count of each modifier
         for (const auto &modifier: modifiers) {
             try {
-                modifier_counts.at(modifier->get_type())++;
+                // Check for duplicate modifiers
+                if (modifier_counts.at(modifier->get_type())++ > 1)
+                    throw error(std::format("duplicate modifier: {}", modifier->get_text()), modifier);
             } catch (const std::out_of_range &) {
                 throw Unreachable();    // surely some parser error
-            }
-        }
-        // Check for duplicate modifiers
-        for (const auto &[modifier, count]: modifier_counts) {
-            if (count > 1) {
-                throw error(std::format("duplicate modifier: {}", TokenInfo::get_repr(modifier)), node);
             }
         }
 
@@ -156,26 +152,29 @@ namespace spade
                     throw error("'abstract' and 'static' are mutually exclusive", node);
             } catch (const CastError &) {
                 throw error("'abstract' and 'static' are mutually exclusive", node);
-            } catch (const std::out_of_range &) {
-                throw Unreachable();    // not a folder module expected a file module
             }
         }
 
         // Module level declaration specific checks
-        try {
-            if (scope_stack.back()->get_type() == scope::ScopeType::MODULE) {
-                if (modifier_counts[TokenType::STATIC] > 0)
-                    throw error("module level declarations cannot be 'static'", node);
-                if (modifier_counts[TokenType::OVERRIDE] > 0)
-                    throw error("module level declarations cannot be 'override'", node);
+        if (scope_stack.back()->get_type() == scope::ScopeType::MODULE) {
+            if (modifier_counts[TokenType::PRIVATE] > 0)
+                throw error("module level declarations cannot be 'private'", node);
+            if (modifier_counts[TokenType::INTERNAL] > 0)
+                throw error("module level declarations cannot be 'internal'", node);
+            if (modifier_counts[TokenType::PROTECTED] > 0)
+                throw error("module level declarations cannot be 'protected'", node);
 
-                if (is<ast::decl::Function>(node)) {
-                    if (modifier_counts[TokenType::ABSTRACT] > 0)
-                        throw error("global functions cannot be 'abstract'", node);
-                }
+            if (modifier_counts[TokenType::STATIC] > 0)
+                throw error("module level declarations cannot be 'static'", node);
+            if (modifier_counts[TokenType::OVERRIDE] > 0)
+                throw error("module level declarations cannot be 'override'", node);
+
+            if (is<ast::decl::Function>(node)) {
+                if (modifier_counts[TokenType::ABSTRACT] > 0)
+                    throw error("global functions cannot be 'abstract'", node);
+                if (modifier_counts[TokenType::FINAL] > 0)
+                    throw error("global functions cannot be 'final'", node);
             }
-        } catch (const std::out_of_range &) {
-            throw Unreachable();    // not a folder module expected a file module
         }
         // Variable specific checks
         if (is<ast::decl::Variable>(node)) {
@@ -187,80 +186,79 @@ namespace spade
                 throw error("variables/constants cannot be 'override'", node);
         }
         // Compound declaration specific checks
-        try {
-            if (auto compound = dynamic_cast<ast::decl::Compound *>(node)) {
-                switch (compound->get_token()->get_type()) {
-                    case TokenType::CLASS:
-                        if (modifier_counts[TokenType::OVERRIDE] > 0)
-                            throw error("classes cannot be 'override'", node);
-                        break;
-                    case TokenType::ENUM:
-                        if (modifier_counts[TokenType::ABSTRACT] > 0)
-                            throw error("enums cannot be 'abstract'", node);
-                        if (modifier_counts[TokenType::OVERRIDE] > 0)
-                            throw error("enums cannot be 'override'", node);
-                        break;
-                    case TokenType::INTERFACE:
-                        if (modifier_counts[TokenType::ABSTRACT] > 0)
-                            throw error("interfaces cannot be 'abstract'", node);
-                        if (modifier_counts[TokenType::OVERRIDE] > 0)
-                            throw error("interfaces cannot be 'override'", node);
-                        if (modifier_counts[TokenType::FINAL] > 0)
-                            throw error("interfaces cannot be 'final'", node);
-                        break;
-                    case TokenType::ANNOTATION:
-                        if (modifier_counts[TokenType::ABSTRACT] > 0)
-                            throw error("annotations cannot be 'abstract'", node);
-                        if (modifier_counts[TokenType::OVERRIDE] > 0)
-                            throw error("annotations cannot be 'override'", node);
-                        break;
-                    default:
-                        throw Unreachable();    // surely some parser error
-                }
+        if (auto compound = dynamic_cast<ast::decl::Compound *>(node)) {
+            switch (compound->get_token()->get_type()) {
+                case TokenType::CLASS:
+                    if (modifier_counts[TokenType::OVERRIDE] > 0)
+                        throw error("classes cannot be 'override'", node);
+                    break;
+                case TokenType::ENUM:
+                    if (modifier_counts[TokenType::ABSTRACT] > 0)
+                        throw error("enums cannot be 'abstract'", node);
+                    if (modifier_counts[TokenType::OVERRIDE] > 0)
+                        throw error("enums cannot be 'override'", node);
+                    break;
+                case TokenType::INTERFACE:
+                    if (modifier_counts[TokenType::ABSTRACT] > 0)
+                        throw error("interfaces cannot be 'abstract'", node);
+                    if (modifier_counts[TokenType::FINAL] > 0)
+                        throw error("interfaces cannot be 'final'", node);
+                    if (modifier_counts[TokenType::OVERRIDE] > 0)
+                        throw error("interfaces cannot be 'override'", node);
+                    break;
+                case TokenType::ANNOTATION:
+                    if (modifier_counts[TokenType::ABSTRACT] > 0)
+                        throw error("annotations cannot be 'abstract'", node);
+                    if (modifier_counts[TokenType::OVERRIDE] > 0)
+                        throw error("annotations cannot be 'override'", node);
+                    break;
+                default:
+                    throw Unreachable();    // surely some parser error
             }
-        } catch (const std::out_of_range &) {
-            throw Unreachable();    // not a folder module expected a file module
         }
         // Parent class/compound specific checks
-        try {
-            if (auto compound = dynamic_cast<ast::decl::Compound *>(scope_stack.back()->get_node())) {
-                switch (compound->get_token()->get_type()) {
-                    case TokenType::CLASS:
-                        break;
-                    case TokenType::ENUM:
-                        if (modifier_counts[TokenType::ABSTRACT] > 0)
-                            throw error("'abstract' members are not allowed in enums", node);
-                        if (modifier_counts[TokenType::FINAL] > 0)
-                            throw error("'final' members are not allowed in enums", node);
-                        break;
-                    case TokenType::INTERFACE:
-                        if (modifier_counts[TokenType::ABSTRACT] > 0)
-                            throw error("'abstract' members are not allowed in interfaces", node);
-                        if (modifier_counts[TokenType::OVERRIDE] > 0)
-                            throw error("'override' members are not allowed in interfaces", node);
-                        if (modifier_counts[TokenType::FINAL] > 0 && modifier_counts[TokenType::STATIC] == 0)
-                            throw error("'final' members are not allowed in interfaces (but final static is allowed)", node);
-                        break;
-                    case TokenType::ANNOTATION:
-                        if (modifier_counts[TokenType::ABSTRACT] > 0)
-                            throw error("'abstract' members are not allowed in annotations", node);
-                        break;
-                    default:
-                        throw Unreachable();    // surely some parser error
-                }
+        if (auto compound = dynamic_cast<ast::decl::Compound *>(scope_stack.back()->get_node())) {
+            switch (compound->get_token()->get_type()) {
+                case TokenType::CLASS:
+                    break;
+                case TokenType::ENUM:
+                    if (modifier_counts[TokenType::ABSTRACT] > 0)
+                        throw error("'abstract' members are not allowed in enums", node);
+                    if (modifier_counts[TokenType::FINAL] > 0)
+                        throw error("'final' members are not allowed in enums", node);
+                    break;
+                case TokenType::INTERFACE:
+                    if (modifier_counts[TokenType::ABSTRACT] > 0)
+                        throw error("'abstract' members are not allowed in interfaces", node);
+                    if (modifier_counts[TokenType::FINAL] > 0 && modifier_counts[TokenType::STATIC] == 0)
+                        throw error("'final' members are not allowed in interfaces (but final static is allowed)", node);
+                    if (modifier_counts[TokenType::OVERRIDE] > 0)
+                        throw error("'override' members are not allowed in interfaces", node);
+
+                    // constants and static variables are allowed in interfaces
+                    if (auto field = dynamic_cast<ast::decl::Variable *>(node)) {
+                        if (field->get_token()->get_type() != TokenType::CONST && modifier_counts[TokenType::STATIC] == 0) {
+                            throw error("fields are not allowed in interfaces (static and const fields are allowed)", node);
+                        }
+                    }
+                    break;
+                case TokenType::ANNOTATION:
+                    if (modifier_counts[TokenType::ABSTRACT] > 0)
+                        throw error("'abstract' members are not allowed in annotations", node);
+                    break;
+                default:
+                    throw Unreachable();    // surely some parser error
             }
-        } catch (const std::out_of_range &) {
-            throw Unreachable();    // not a folder module expected a file module
         }
         // Constructor specific checks
         if (auto fun_node = dynamic_cast<ast::decl::Function *>(node);
             fun_node && fun_node->get_name()->get_type() == TokenType::INIT) {
             if (modifier_counts[TokenType::ABSTRACT] > 0)
                 throw error("constructor cannot be 'abstract'", fun_node);
+            if (modifier_counts[TokenType::FINAL] > 0)
+                throw error("constructor cannot be 'final'", fun_node);
             if (modifier_counts[TokenType::STATIC] > 0)
                 throw error("constructor cannot be 'static'", fun_node);
-            if (modifier_counts[TokenType::STATIC] > 0)
-                throw error("constructor cannot be 'final'", fun_node);
             if (modifier_counts[TokenType::OVERRIDE] > 0)
                 throw error("constructor cannot be 'override'", fun_node);
         }
@@ -372,9 +370,7 @@ namespace spade
             throw Unreachable();    // surely some parser error
         } else if (node.get_name()->get_type() == TokenType::INIT) {
             if (scope_stack.back()->get_type() == scope::ScopeType::COMPOUND &&
-                cast<scope::Compound>(scope_stack.back())->get_compound_node()->get_token()->get_type() != TokenType::INTERFACE)
-                ;
-            else
+                cast<scope::Compound>(scope_stack.back())->get_compound_node()->get_token()->get_type() == TokenType::INTERFACE)
                 throw error("constructors are not allowed in interfaces", &node);
         }
 
@@ -385,19 +381,7 @@ namespace spade
 
     void ScopeTreeBuilder::visit(ast::decl::Variable &node) {
         check_modifiers(&node, node.get_modifiers());
-        if (!scope_stack.empty()) {
-            // constants and static variables are allowed in interfaces
-            if (scope_stack.back()->get_type() == scope::ScopeType::COMPOUND &&
-                cast<scope::Compound>(scope_stack.back())->get_compound_node()->get_token()->get_type() ==
-                        TokenType::INTERFACE) {
-                if (node.get_token()->get_type() != TokenType::CONST &&
-                    std::find_if(node.get_modifiers().begin(), node.get_modifiers().end(),
-                                 [](const std::shared_ptr<Token> &modifier) {
-                                     return modifier->get_type() == TokenType::STATIC;
-                                 }) == node.get_modifiers().end())
-                    throw error("fields are not allowed in interfaces (static and const fields are allowed)", &node);
-            }
-        } else
+        if (scope_stack.empty())
             throw Unreachable();    // surely some parser error
 
         auto scope = begin_scope<scope::Variable>(node);
@@ -424,6 +408,8 @@ namespace spade
     }
 
     void ScopeTreeBuilder::visit(ast::decl::Compound &node) {
+        bool effectively_static = false;
+
         check_modifiers(&node, node.get_modifiers());
         if (!scope_stack.empty()) {
             if (scope_stack.back()->get_type() != scope::ScopeType::MODULE &&
@@ -440,7 +426,6 @@ namespace spade
                             throw error("nested enums are not allowed", &node);
                         if (node.get_token()->get_type() == TokenType::ANNOTATION)
                             throw error("annotations are not allowed in enums", &node);
-                        break;
                         break;
                     case TokenType::INTERFACE:
                         if (node.get_token()->get_type() == TokenType::CLASS)
@@ -461,12 +446,16 @@ namespace spade
                     default:
                         throw Unreachable();    // surely some parser error
                 }
+                effectively_static = true;
             }
         } else {
             throw Unreachable();    // surely some parser error
         }
 
         auto scope = begin_scope<scope::Compound>(node);
+        if (effectively_static)
+            scope->set_static(true);
+
         add_symbol(node.get_name()->get_text(), node.get_name(), scope);
         for (auto enumerator: node.get_enumerators()) {
             enumerator->accept(this);
