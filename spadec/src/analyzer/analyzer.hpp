@@ -21,7 +21,17 @@ namespace spade
      */
     class Analyzer final : public ast::VisitorBase {
         // Internal modules
-        enum class Internal { SPADE, SPADE_ANY, SPADE_INT, SPADE_FLOAT, SPADE_BOOL, SPADE_STRING, SPADE_VOID };
+        enum class Internal {
+            SPADE,
+            SPADE_ANY,
+            SPADE_ENUM,
+            SPADE_ANNOTATION,
+            SPADE_INT,
+            SPADE_FLOAT,
+            SPADE_BOOL,
+            SPADE_STRING,
+            SPADE_VOID
+        };
         std::unordered_map<Internal, std::shared_ptr<scope::Scope>> internals;
 
         std::unordered_map<ast::Module *, ScopeInfo> module_scopes;
@@ -40,7 +50,7 @@ namespace spade
         void load_internal_modules();
 
         /// Performs name resolution
-        std::shared_ptr<scope::Scope> find_name(const string &name) const;
+        std::shared_ptr<scope::Scope> find_name(const string &name);
 
         void resolve_context(const scope::Scope *from_scope, const scope::Scope *to_scope, const ast::AstNode &node,
                              ErrorGroup<AnalyzerError> &errors) const;
@@ -111,8 +121,7 @@ namespace spade
          * @param fun2 the second function
          * @param errors the place where errors are to be reported
          */
-        void check_funs(const std::shared_ptr<scope::Function> &fun1, const std::shared_ptr<scope::Function> &fun2,
-                        ErrorGroup<AnalyzerError> &errors) const;
+        void check_funs(const scope::Function *fun1, const scope::Function *fun2, ErrorGroup<AnalyzerError> &errors) const;
 
         /**
          * Checks whether all the functions in @p fun_set are well formed 
@@ -120,6 +129,10 @@ namespace spade
          * @param fun_set the set of functions
          */
         void check_fun_set(const std::shared_ptr<scope::FunctionSet> &fun_set);
+
+        void check_compatible_supers(const std::shared_ptr<scope::Compound> &klass,
+                                     const std::vector<scope::Compound *> &supers,
+                                     const std::vector<std::shared_ptr<ast::decl::Parent>> &nodes) const;
 
         ErrorPrinter printer;
 

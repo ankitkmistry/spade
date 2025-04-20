@@ -1,6 +1,7 @@
 #pragma once
 
 #include "lexer/token.hpp"
+#include <concepts>
 
 namespace spade::ast
 {
@@ -140,6 +141,7 @@ namespace spade::ast
 
     template<typename T>
     concept HasLineInfo = requires(T t) {
+        { static_cast<bool>(t) } -> std::same_as<bool>;
         { t->get_line_start() } -> std::same_as<int>;
         { t->get_line_end() } -> std::same_as<int>;
         { t->get_col_start() } -> std::same_as<int>;
@@ -1416,3 +1418,67 @@ namespace spade::ast
         }
     };
 }    // namespace spade::ast
+
+namespace spade
+{
+    template<ast::HasLineInfo T>
+    class LineInfoVector {
+        int line_start = -1;
+        int line_end = -1;
+        int col_start = -1;
+        int col_end = -1;
+
+      public:
+        explicit LineInfoVector(const std::vector<T> &items)
+            : line_start(items.empty() ? -1 : items.front()->get_line_start()),
+              line_end(items.empty() ? -1 : items.back()->get_line_end()),
+              col_start(items.empty() ? -1 : items.front()->get_col_start()),
+              col_end(items.empty() ? -1 : items.back()->get_col_end()) {}
+
+        LineInfoVector() = default;
+        LineInfoVector(const LineInfoVector &other) = default;
+        LineInfoVector(LineInfoVector &&other) noexcept = default;
+        LineInfoVector &operator=(const LineInfoVector &other) = default;
+        LineInfoVector &operator=(LineInfoVector &&other) noexcept = default;
+        ~LineInfoVector() = default;
+
+        LineInfoVector &operator*() {
+            return *this;
+        }
+
+        const LineInfoVector &operator*() const {
+            return *this;
+        }
+
+        LineInfoVector *operator->() {
+            return this;
+        }
+
+        const LineInfoVector *operator->() const {
+            return this;
+        }
+
+        constexpr operator bool() const {
+            return true;
+        }
+
+        int get_line_start() const {
+            return line_start;
+        }
+
+        int get_line_end() const {
+            return line_end;
+        }
+
+        int get_col_start() const {
+            return col_start;
+        }
+
+        int get_col_end() const {
+            return col_end;
+        }
+    };
+
+    static_assert(ast::HasLineInfo<LineInfoVector<ast::AstNode *>>,
+                  "spade::LineInfoVector must satisfy spade::ast::HasLineInfo concept");
+}    // namespace spade

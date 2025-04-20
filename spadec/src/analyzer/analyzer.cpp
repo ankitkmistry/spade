@@ -1,10 +1,8 @@
 #include <algorithm>
 #include <mutex>
-#include <unordered_set>
 #include <boost/functional/hash.hpp>
 
 #include "analyzer.hpp"
-#include "boost/container_hash/hash.hpp"
 #include "info.hpp"
 #include "lexer/token.hpp"
 #include "parser/ast.hpp"
@@ -31,51 +29,45 @@ namespace spade
         auto module = std::make_shared<scope::Module>(null);
         module->set_path(SymbolPath("spade"));
 
-        // class any
-        auto any_class = std::make_shared<scope::Compound>("any");
-        any_class->set_path(SymbolPath("spade.any"));
-        module->new_variable("any", null, any_class);
-        internals[Internal::SPADE_ANY] = any_class;
-        // class int
-        auto int_class = std::make_shared<scope::Compound>("int");
-        int_class->set_path(SymbolPath("spade.int"));
-        int_class->inherit_from(any_class);
-        module->new_variable("int", null, int_class);
-        internals[Internal::SPADE_INT] = int_class;
-        // class float
-        auto float_class = std::make_shared<scope::Compound>("float");
-        float_class->set_path(SymbolPath("spade.float"));
-        float_class->inherit_from(any_class);
-        module->new_variable("float", null, float_class);
-        internals[Internal::SPADE_FLOAT] = float_class;
-        // class bool
-        auto bool_class = std::make_shared<scope::Compound>("bool");
-        bool_class->set_path(SymbolPath("spade.bool"));
-        bool_class->inherit_from(any_class);
-        module->new_variable("bool", null, bool_class);
-        internals[Internal::SPADE_BOOL] = bool_class;
-        // class string
-        auto string_class = std::make_shared<scope::Compound>("string");
-        string_class->set_path(SymbolPath("spade.string"));
-        string_class->inherit_from(any_class);
-        module->new_variable("string", null, string_class);
-        internals[Internal::SPADE_STRING] = string_class;
-        // class void
-        auto void_class = std::make_shared<scope::Compound>("void");
-        void_class->set_path(SymbolPath("spade.void"));
-        void_class->inherit_from(any_class);
-        module->new_variable("void", null, void_class);
-        internals[Internal::SPADE_VOID] = void_class;
+        const auto declare_class = [&](const string &name, Internal tag,
+                                       const std::shared_ptr<scope::Compound> &super) -> std::shared_ptr<scope::Compound> {
+            auto klass = std::make_shared<scope::Compound>(name);
+            klass->set_path(module->get_path() / name);
+            if (super)
+                klass->inherit_from(&*super);
+            module->new_variable(name, null, klass);
+            internals[tag] = klass;
+            return klass;
+        };
+
+        auto any_class = declare_class("any", Internal::SPADE_ANY, null);
+        declare_class("Enum", Internal::SPADE_ENUM, any_class);
+        declare_class("Annotation", Internal::SPADE_ANNOTATION, any_class);
+
+        declare_class("int", Internal::SPADE_INT, any_class);
+        declare_class("float", Internal::SPADE_FLOAT, any_class);
+        declare_class("bool", Internal::SPADE_BOOL, any_class);
+        declare_class("string", Internal::SPADE_STRING, any_class);
+        declare_class("void", Internal::SPADE_VOID, any_class);
 
         module_scopes.emplace(null, ScopeInfo(module));
     }
 
-    std::shared_ptr<scope::Scope> Analyzer::find_name(const string &name) const {
+    std::shared_ptr<scope::Scope> Analyzer::find_name(const string &name) {
         std::shared_ptr<scope::Scope> scope;
         for (auto itr = get_current_scope(); itr != null; itr = itr->get_parent()) {
             if (itr->has_variable(name)) {
                 scope = itr->get_variable(name);
                 break;
+            }
+            if (itr->get_type() == scope::ScopeType::COMPOUND) {
+                auto compound = cast<scope::Compound>(itr);
+                if (compound->get_eval() == scope::Compound::Eval::NOT_STARTED) {
+                    auto old_cur_scope = get_current_scope();
+                    cur_scope = compound->get_parent();
+                    compound->get_node()->accept(this);
+                    cur_scope = old_cur_scope;
+                }
             }
         }
         // Check for null module
@@ -640,9 +632,9 @@ namespace spade
         return expr_info;
     }
 
-    static bool check_fun_kwd_params(const std::shared_ptr<scope::Function> &fun1, const std::vector<ParamInfo> &fun1_pos_kwd,
-                                     const std::vector<ParamInfo> &fun1_pos_kwd_default,
-                                     const std::shared_ptr<scope::Function> &fun2, const std::vector<ParamInfo> &fun2_pos_kwd,
+    static bool check_fun_kwd_params(const scope::Function *fun1, const std::vector<ParamInfo> &fun1_pos_kwd,
+                                     const std::vector<ParamInfo> &fun1_pos_kwd_default, const scope::Function *fun2,
+                                     const std::vector<ParamInfo> &fun2_pos_kwd,
                                      const std::vector<ParamInfo> &fun2_pos_kwd_default);
 
     // In functions, there are three kinds of parameters:
@@ -668,7 +660,7 @@ namespace spade
     // - [6] optional    kwd_only_variadic
     //
     // Then, each of the items in the above list is evaluated accordingly.
-    void Analyzer::check_funs(const std::shared_ptr<scope::Function> &fun1, const std::shared_ptr<scope::Function> &fun2,
+    void Analyzer::check_funs(const scope::Function *fun1, const scope::Function *fun2,
                               ErrorGroup<AnalyzerError> &errors) const {
 #define AMBIGUOUS()                                                                                                            \
     do {                                                                                                                       \
@@ -681,6 +673,9 @@ namespace spade
             return;
         if (fun1->min_param_count() == 0 && fun2->min_param_count() == 0)
             AMBIGUOUS();
+        if (!fun1->is_default() && !fun1->is_variadic() && !fun2->is_default() && !fun2->is_variadic())
+            if (fun1->param_count() != fun2->param_count())
+                return;
 
         auto fun1_pos_only = fun1->get_pos_only_params();
         std::vector<ParamInfo> fun1_pos_kwd;
@@ -784,13 +779,13 @@ namespace spade
         if (!check_fun_kwd_params(fun1, fun1_pos_kwd, fun1_pos_kwd_default, fun2, fun2_pos_kwd, fun2_pos_kwd_default))
             AMBIGUOUS();
 
-        AMBIGUOUS();
+            // AMBIGUOUS();
 #undef AMBIGUOUS
     }
 
-    static bool check_fun_kwd_params(const std::shared_ptr<scope::Function> &fun1, const std::vector<ParamInfo> &fun1_pos_kwd,
-                                     const std::vector<ParamInfo> &fun1_pos_kwd_default,
-                                     const std::shared_ptr<scope::Function> &fun2, const std::vector<ParamInfo> &fun2_pos_kwd,
+    static bool check_fun_kwd_params(const scope::Function *fun1, const std::vector<ParamInfo> &fun1_pos_kwd,
+                                     const std::vector<ParamInfo> &fun1_pos_kwd_default, const scope::Function *fun2,
+                                     const std::vector<ParamInfo> &fun2_pos_kwd,
                                      const std::vector<ParamInfo> &fun2_pos_kwd_default) {
         std::optional<ParamInfo> fun1_kwd_only_variadic;
         std::unordered_map<string, ParamInfo> fun1_kwd;
@@ -847,35 +842,30 @@ namespace spade
                 auto fun1 = cast<scope::Function>(it1->second.second);
                 for (auto it2 = std::next(it1); it2 != fun_set->get_members().end(); ++it2) {
                     auto fun2 = cast<scope::Function>(it2->second.second);
-                    check_funs(fun1, fun2, err_grp);
+                    check_funs(&*fun1, &*fun2, err_grp);
                 }
             }
         } else {
             // parallel algorithm
             using FunOperand = std::pair<std::shared_ptr<scope::Function>, std::shared_ptr<scope::Function>>;
 
-            struct FunOperandHash {
-                std::size_t operator()(const FunOperand &value) const noexcept {
-                    size_t seed = 0;
-                    boost::hash_combine(seed, value.first);
-                    boost::hash_combine(seed, value.second);
-                    return seed;
-                }
-            };
-
-            std::unordered_set<FunOperand, FunOperandHash> functions;
+            std::vector<FunOperand> functions;
+            // Reserve space for the number of combinations
+            // Number of combinations = nC2 = n(n-1)/2
+            // where n is the number of functions in the set
+            functions.reserve(fun_set->get_members().size() * (fun_set->get_members().size() - 1) / 2);
             for (auto it1 = fun_set->get_members().begin(); it1 != fun_set->get_members().end(); ++it1) {
                 auto fun1 = cast<scope::Function>(it1->second.second);
                 for (auto it2 = std::next(it1); it2 != fun_set->get_members().end(); ++it2) {
                     auto fun2 = cast<scope::Function>(it2->second.second);
-                    functions.emplace(fun1, fun2);
+                    functions.emplace_back(fun1, fun2);
                 }
             }
 
             std::mutex err_grp_mutex;
             std::for_each(std::execution::par, functions.begin(), functions.end(), [&](const FunOperand &item) {
                 ErrorGroup<AnalyzerError> errors;
-                check_funs(item.first, item.second, errors);
+                check_funs(&*item.first, &*item.second, errors);
                 if (!errors.get_errors().empty()) {
                     std::lock_guard lg(err_grp_mutex);
                     err_grp.extend(errors);

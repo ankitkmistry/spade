@@ -83,7 +83,7 @@ namespace spade
     }
 
     string FunctionInfo::to_string(bool decorated) const {
-        const auto &fun_sets = get_function_sets();
+        auto fun_sets = get_function_sets();
         string result;
         for (const auto &[_, fun_set]: fun_sets) {
             result += fun_set->to_string(decorated) + ", ";

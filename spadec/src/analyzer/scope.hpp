@@ -148,7 +148,8 @@ namespace spade::scope
         }
     };
 
-    class Compound final : public Scope {
+    class ModifierMixin {
+      protected:
         /**
          * @brief a bitset of modifiers
          * 
@@ -156,35 +157,53 @@ namespace spade::scope
          * 1 -> final
          * 2 -> static
          * 3 -> override
+         * 4 -> private
+         * 5 -> internal
+         * 6 -> module private
+         * 7 -> protected
+         * 8 -> public
          */
-        std::bitset<4> modifiers;
-        string name;
-        std::unordered_set<Compound *> supers;
+        std::bitset<9> modifiers;
 
-      public:
-        Compound(string name) : Scope(ScopeType::COMPOUND, null), name(name) {}
+        ModifierMixin() = default;
 
-        Compound(ast::decl::Compound *node) : Scope(ScopeType::COMPOUND, node), name(node->get_name()->get_text()) {
-            const auto &mod_toks = get_compound_node()->get_modifiers();
+        ModifierMixin(const std::vector<std::shared_ptr<Token>> &mod_toks) {
             for (const auto &mod_tok: mod_toks) {
                 switch (mod_tok->get_type()) {
                     case TokenType::ABSTRACT:
-                        modifiers[0] = true;
+                        modifiers[0] = true;    // abstract
                         break;
                     case TokenType::FINAL:
-                        modifiers[1] = true;
+                        modifiers[1] = true;    // final
                         break;
                     case TokenType::STATIC:
-                        modifiers[2] = true;
+                        modifiers[2] = true;    // static
                         break;
                     case TokenType::OVERRIDE:
-                        modifiers[3] = true;
+                        modifiers[3] = true;    // override
+                        break;
+                    case TokenType::PRIVATE:
+                        modifiers[4] = true;    // private
+                        break;
+                    case TokenType::INTERNAL:
+                        modifiers[5] = true;    // internal
+                        break;
+                    case TokenType::PROTECTED:
+                        modifiers[7] = true;    // protected
+                        break;
+                    case TokenType::PUBLIC:
+                        modifiers[8] = true;    // public
                         break;
                     default:
                         break;
                 }
             }
+            if (!modifiers[4] && !modifiers[5] && !modifiers[7] && !modifiers[8])
+                modifiers[6] = true;    // module private
         }
+
+      public:
+        virtual ~ModifierMixin() = default;
 
         bool is_abstract() const {
             return modifiers[0];
@@ -200,6 +219,26 @@ namespace spade::scope
 
         bool is_override() const {
             return modifiers[3];
+        }
+
+        bool is_private() const {
+            return modifiers[4];
+        }
+
+        bool is_internal() const {
+            return modifiers[5];
+        }
+
+        bool is_module_private() const {
+            return modifiers[6];
+        }
+
+        bool is_protected() const {
+            return modifiers[7];
+        }
+
+        bool is_public() const {
+            return modifiers[8];
         }
 
         void set_abstract(bool value) {
@@ -218,23 +257,79 @@ namespace spade::scope
             modifiers[3] = value;
         }
 
+        void set_private(bool value) {
+            modifiers[4] = value;
+        }
+
+        void set_internal(bool value) {
+            modifiers[5] = value;
+        }
+
+        void set_module_private(bool value) {
+            modifiers[6] = value;
+        }
+
+        void set_protected(bool value) {
+            modifiers[7] = value;
+        }
+
+        void set_public(bool value) {
+            modifiers[8] = value;
+        }
+    };
+
+    class Variable;
+
+    class Compound final : public Scope, public ModifierMixin {
+      public:
+        enum class Eval { NOT_STARTED, PROGRESS, DONE };
+
+      private:
+        string name;
+        std::unordered_set<Compound *> supers;
+        std::unordered_map<string, std::shared_ptr<Variable>> super_fields;
+        std::unordered_map<string, FunctionInfo> super_functions;
+        Eval eval = Eval::NOT_STARTED;
+
+      public:
+        Compound(string name) : Scope(ScopeType::COMPOUND, null), name(name) {}
+
+        Compound(ast::decl::Compound *node)
+            : Scope(ScopeType::COMPOUND, node), ModifierMixin(node->get_modifiers()), name(node->get_name()->get_text()) {}
+
         const string &get_name() const {
             return name;
         }
 
-        void inherit_from(const std::shared_ptr<Compound> &super) {
-            inherit_from(&*super);
+        Eval get_eval() const {
+            return eval;
+        }
+
+        void set_eval(Eval value) {
+            eval = value;
         }
 
         void inherit_from(Compound *super) {
             supers.insert(super);
         }
 
-        bool has_super(const std::shared_ptr<Compound> &super) const {
-            has_super(&*super);
+        bool has_super(Compound *super) const;
+
+        const std::unordered_map<string, std::shared_ptr<Variable>> &get_super_fields() const {
+            return super_fields;
         }
 
-        bool has_super(Compound *super) const;
+        void set_super_fields(const std::unordered_map<string, std::shared_ptr<Variable>> &fields) {
+            super_fields = fields;
+        }
+
+        const std::unordered_map<string, FunctionInfo> &get_super_functions() const {
+            return super_functions;
+        }
+
+        void set_super_functions(const std::unordered_map<string, FunctionInfo> &functions) {
+            super_functions = functions;
+        }
 
         const std::unordered_set<Compound *> &get_supers() const {
             return supers;
@@ -264,20 +359,11 @@ namespace spade::scope
         }
     };
 
-    class Function final : public Scope {
+    class Function final : public Scope, public ModifierMixin {
       public:
         enum class ProtoEval { NOT_STARTED, PROGRESS, DONE };
 
       private:
-        /**
-         * @brief a bitset of modifiers
-         * 
-         * 0 -> abstract
-         * 1 -> final
-         * 2 -> static
-         * 3 -> override
-         */
-        std::bitset<4> modifiers;
         /// Flag if the function prototype is being evaluated
         ProtoEval proto_eval = ProtoEval::NOT_STARTED;
         std::vector<ParamInfo> pos_only_params;
@@ -286,27 +372,7 @@ namespace spade::scope
         TypeInfo ret_type;
 
       public:
-        Function(ast::decl::Function *node) : Scope(ScopeType::FUNCTION, node) {
-            const auto &mod_toks = get_function_node()->get_modifiers();
-            for (const auto &mod_tok: mod_toks) {
-                switch (mod_tok->get_type()) {
-                    case TokenType::ABSTRACT:
-                        modifiers[0] = true;
-                        break;
-                    case TokenType::FINAL:
-                        modifiers[1] = true;
-                        break;
-                    case TokenType::STATIC:
-                        modifiers[2] = true;
-                        break;
-                    case TokenType::OVERRIDE:
-                        modifiers[3] = true;
-                        break;
-                    default:
-                        break;
-                }
-            }
-        }
+        Function(ast::decl::Function *node) : Scope(ScopeType::FUNCTION, node), ModifierMixin(node->get_modifiers()) {}
 
         ast::decl::Function *get_function_node() const {
             return cast<ast::decl::Function>(node);
@@ -314,38 +380,6 @@ namespace spade::scope
 
         bool is_init() const {
             return get_function_node()->get_name()->get_type() == TokenType::INIT;
-        }
-
-        bool is_abstract() const {
-            return modifiers[0];
-        }
-
-        bool is_final() const {
-            return modifiers[1];
-        }
-
-        bool is_static() const {
-            return modifiers[2];
-        }
-
-        bool is_override() const {
-            return modifiers[3];
-        }
-
-        void set_abstract(bool value) {
-            modifiers[0] = value;
-        }
-
-        void set_final(bool value) {
-            modifiers[1] = value;
-        }
-
-        void set_static(bool value) {
-            modifiers[2] = value;
-        }
-
-        void set_override(bool value) {
-            modifiers[3] = value;
         }
 
         bool has_param(const string &name) const {
@@ -389,9 +423,8 @@ namespace spade::scope
         }
 
         bool is_default() const {
-            return std::any_of(std::execution::par_unseq, pos_only_params.begin(), pos_only_params.end(),
-                               [](const auto &param) { return param.b_default; }) ||
-                   std::any_of(std::execution::par_unseq, pos_kwd_params.begin(), pos_kwd_params.end(),
+            // pos_only parameters are never default
+            return std::any_of(std::execution::par_unseq, pos_kwd_params.begin(), pos_kwd_params.end(),
                                [](const auto &param) { return param.b_default; }) ||
                    std::any_of(std::execution::par_unseq, kwd_only_params.begin(), kwd_only_params.end(),
                                [](const auto &param) { return param.b_default; });
@@ -414,10 +447,6 @@ namespace spade::scope
         }
 
         size_t param_count() const {
-            return pos_only_params.size() + pos_kwd_params.size() + kwd_only_params.size();
-        }
-
-        size_t get_param_count() const {
             return pos_only_params.size() + pos_kwd_params.size() + kwd_only_params.size();
         }
 
@@ -505,7 +534,7 @@ namespace spade::scope
         }
     };
 
-    class Variable final : public Scope {
+    class Variable final : public Scope, public ModifierMixin {
       public:
         enum class Eval { NOT_STARTED, PROGRESS, DONE };
 
@@ -516,17 +545,10 @@ namespace spade::scope
         TypeInfo type_info;
 
       public:
-        Variable(ast::decl::Variable *node) : Scope(ScopeType::VARIABLE, node) {}
+        Variable(ast::decl::Variable *node) : Scope(ScopeType::VARIABLE, node), ModifierMixin(node->get_modifiers()) {}
 
         bool is_const() const {
             return get_variable_node()->get_token()->get_type() == TokenType::CONST;
-        }
-
-        bool is_static() const {
-            const auto &modifiers = get_variable_node()->get_modifiers();
-            return std::find_if(modifiers.begin(), modifiers.end(), [](const std::shared_ptr<Token> &modifier) {
-                       return modifier->get_type() == TokenType::STATIC;
-                   }) != modifiers.end();
         }
 
         const TypeInfo &get_type_info() const {

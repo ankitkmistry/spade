@@ -55,8 +55,7 @@ namespace spade
         }
 
         bool operator==(const TypeInfo &other) const {
-            return type == other.type && b_nullable == other.b_nullable && /* b_null == other.b_null && */
-                   type_args == other.type_args;
+            return type == other.type && b_nullable == other.b_nullable && type_args == other.type_args;
         }
 
         bool operator!=(const TypeInfo &other) const {
@@ -126,6 +125,10 @@ namespace spade
             return functions.empty();
         }
 
+        size_t size() const {
+            return functions.size();
+        }
+
         void add(const SymbolPath &path, scope::Function *function, bool override = true);
 
         void extend(const FunctionInfo &other, bool override = true);
@@ -134,11 +137,11 @@ namespace spade
             functions.clear();
         }
 
-        bool remove_if(std::function<bool(std::pair<SymbolPath, scope::Function *>)> pred) {
+        bool remove_if(std::function<bool(const std::pair<const SymbolPath &, const scope::Function *> &)> pred) {
             return std::erase_if(functions, pred) > 0;
         }
 
-        std::unordered_map<SymbolPath, scope::Function *> get_functions() const {
+        const std::unordered_map<SymbolPath, scope::Function *> &get_functions() const {
             return functions;
         }
 

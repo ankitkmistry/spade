@@ -116,7 +116,7 @@ namespace spade
         for (const auto &modifier: modifiers) {
             try {
                 // Check for duplicate modifiers
-                if (modifier_counts.at(modifier->get_type())++ > 1)
+                if (++modifier_counts.at(modifier->get_type()) > 1)
                     throw error(std::format("duplicate modifier: {}", modifier->get_text()), modifier);
             } catch (const std::out_of_range &) {
                 throw Unreachable();    // surely some parser error
@@ -376,6 +376,10 @@ namespace spade
 
         auto scope = begin_scope<scope::Function>(node);
         add_symbol(node.get_name()->get_text(), node.get_name(), scope);
+        // make undefined interface functions implicitly abstract
+        if (auto compound = scope->get_enclosing_compound())
+            if (compound->get_compound_node()->get_token()->get_type() == TokenType::INTERFACE && !node.get_definition())
+                scope->set_abstract(true);
         end_scope();
     }
 
@@ -386,6 +390,10 @@ namespace spade
 
         auto scope = begin_scope<scope::Variable>(node);
         add_symbol(node.get_name()->get_text(), node.get_name(), scope);
+        // make interface constants implicitly static
+        if (auto compound = scope->get_enclosing_compound())
+            if (compound->get_compound_node()->get_token()->get_type() == TokenType::INTERFACE && scope->is_const())
+                scope->set_static(true);
         end_scope();
     }
 
