@@ -39,7 +39,8 @@ statement       ::= if_stmt | while_stmt | do_while_stmt | try_stmt
                   | 'continue' | 'break'
                   | 'throw' expression
                   | 'return' expression?
-                  | 'yield' expression;
+                  | 'yield' expression
+                  | expression;
 if_stmt         ::= 'if' expression (':' statement | block) ('else' (':' statement | block))?;
 while_stmt      ::= 'while' expression (':' statement | block) ('else' (':' statement | block))?;
 do_while_stmt   ::= 'do' block 'while' expression ('else' (':' statement | block))?;

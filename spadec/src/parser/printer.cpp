@@ -352,7 +352,8 @@ namespace spade::ast
         ss << "decl::Enumerator";
         print(node.get_name(), "name");
         print(node.get_expr(), "expr");
-        print(node.get_args(), "args");
+        if (node.get_args())
+            print(*node.get_args(), "args");
     }
 
     void Printer::visit(decl::Function &node) {
@@ -383,7 +384,7 @@ namespace spade::ast
         print(node.get_name(), "name");
         print(node.get_expr(), "expr");
     }
-    
+
     void Printer::visit(decl::Compound &node) {
         write_repr(&node);
         ss << "decl::Compound";

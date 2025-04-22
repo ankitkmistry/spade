@@ -96,6 +96,10 @@ namespace spade
     };
 
     class FunctionInfo {
+      public:
+        bool b_nullable = false;
+
+      private:
         std::unordered_map<SymbolPath, scope::Function *> functions;
 
       public:

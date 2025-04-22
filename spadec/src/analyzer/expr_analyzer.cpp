@@ -107,62 +107,9 @@ namespace spade
                 _res_expr_info.tag = ExprInfo::Type::NORMAL;
                 _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_STRING]);
                 break;
-            case TokenType::IDENTIFIER: {
-                // Find the scope where name is located
-                string name = node.get_token()->get_text();
-                auto scope = find_name(name);
-                if (!scope) {
-                    if (auto compound = get_current_scope()->get_enclosing_compound()) {
-                        if (compound->get_super_fields().contains(name)) {
-                            scope = compound->get_super_fields().at(name);
-                        } else if (compound->get_super_functions().contains(name)) {
-                            _res_expr_info.tag = ExprInfo::Type::FUNCTION_SET;
-                            _res_expr_info.value_info.b_const = true;
-                            _res_expr_info.value_info.b_lvalue = true;
-                            _res_expr_info.functions = compound->get_super_functions().at(name);
-                            return;
-                        }
-                    }
-                }
-                // Yell if the scope cannot be located
-                if (!scope)
-                    throw error("undefined reference", &node);
-                // Resolve the context
-                resolve_context(scope, node);
-                // Now set the expr info accordingly
-                switch (scope->get_type()) {
-                    case scope::ScopeType::FOLDER_MODULE:
-                    case scope::ScopeType::MODULE:
-                        _res_expr_info.tag = ExprInfo::Type::MODULE;
-                        _res_expr_info.value_info.b_const = true;
-                        _res_expr_info.module = cast<scope::Module>(&*scope);
-                        break;
-                    case scope::ScopeType::COMPOUND:
-                        _res_expr_info.tag = ExprInfo::Type::STATIC;
-                        _res_expr_info.value_info.b_const = true;
-                        _res_expr_info.type_info.type = cast<scope::Compound>(&*scope);
-                        break;
-                    case scope::ScopeType::FUNCTION:
-                        throw Unreachable();    // surely some scope tree builder error
-                    case scope::ScopeType::FUNCTION_SET:
-                        _res_expr_info.tag = ExprInfo::Type::FUNCTION_SET;
-                        _res_expr_info.value_info.b_const = true;
-                        _res_expr_info.functions = cast<scope::FunctionSet>(&*scope);
-                        break;
-                    case scope::ScopeType::BLOCK:
-                        throw Unreachable();    // surely some parser error
-                    case scope::ScopeType::VARIABLE:
-                        _res_expr_info = get_var_expr_info(cast<scope::Variable>(scope), node);
-                        break;
-                    case scope::ScopeType::ENUMERATOR:
-                        _res_expr_info.tag = ExprInfo::Type::NORMAL;
-                        _res_expr_info.value_info.b_const = true;
-                        _res_expr_info.type_info.type = scope->get_enclosing_compound();
-                        break;
-                }
-                _res_expr_info.value_info.b_lvalue = true;
+            case TokenType::IDENTIFIER:
+                _res_expr_info = resolve_name(node.get_token()->get_text(), node);
                 break;
-            }
             default:
                 throw Unreachable();    // surely some parser error
         }
@@ -209,20 +156,22 @@ namespace spade
     void Analyzer::visit(ast::expr::DotAccess &node) {
         node.get_caller()->accept(this);
         auto caller_info = _res_expr_info;
-        _res_expr_info.reset();
         string member_name = node.get_member()->get_text();
+        _res_expr_info.reset();
         switch (caller_info.tag) {
             case ExprInfo::Type::NORMAL: {
                 if (caller_info.is_null())
                     throw error("cannot access 'null'", &node);
                 if (caller_info.type_info.b_nullable && !node.get_safe()) {
                     throw ErrorGroup<AnalyzerError>()
-                            .error(error("cannot access member of nullable type", &node))
+                            .error(error(std::format("cannot access member of nullable '{}'", caller_info.to_string()), &node))
                             .note(error("use safe dot access operator '?.'", &node));
                 }
                 if (!caller_info.type_info.b_nullable && node.get_safe()) {
                     throw ErrorGroup<AnalyzerError>()
-                            .error(error("cannot use safe dot access operator on non-nullable type", &node))
+                            .error(error(std::format("cannot use safe dot access operator on non-nullable '{}'",
+                                                     caller_info.to_string()),
+                                         &node))
                             .note(error("remove the safe dot access operator '?.'", &node));
                 }
                 if (caller_info.type_info.is_type_literal()) {
@@ -285,12 +234,14 @@ namespace spade
             case ExprInfo::Type::STATIC: {
                 if (caller_info.type_info.b_nullable && !node.get_safe()) {
                     throw ErrorGroup<AnalyzerError>()
-                            .error(error("cannot access member of nullable type", &node))
+                            .error(error(std::format("cannot access member of nullable '{}'", caller_info.to_string()), &node))
                             .note(error("use safe dot access operator '?.'", &node));
                 }
                 if (!caller_info.type_info.b_nullable && node.get_safe()) {
                     throw ErrorGroup<AnalyzerError>()
-                            .error(error("cannot use safe dot access operator on non-nullable type", &node))
+                            .error(error(std::format("cannot use safe dot access operator on non-nullable '{}'",
+                                                     caller_info.to_string()),
+                                         &node))
                             .note(error("remove the safe dot access operator '?.'", &node));
                 }
                 if (caller_info.type_info.is_type_literal()) {
@@ -382,8 +333,7 @@ namespace spade
                         _res_expr_info.functions = cast<scope::FunctionSet>(&*member_scope);
                         break;
                     case scope::ScopeType::VARIABLE:
-                        _res_expr_info.tag = ExprInfo::Type::NORMAL;
-                        _res_expr_info.type_info = cast<scope::Variable>(member_scope)->get_type_info();
+                        _res_expr_info = get_var_expr_info(cast<scope::Variable>(member_scope), node);
                         break;
                     default:
                         throw Unreachable();    // surely some parser error
@@ -395,19 +345,29 @@ namespace spade
         }
         // This is the property of safe dot operator
         // where 'a?.b' returns 'a.b' if 'a' is not null, else returns null
-        if (node.get_safe())
-            _res_expr_info.type_info.b_nullable = true;
+        if (node.get_safe()) {
+            switch (_res_expr_info.tag) {
+                case ExprInfo::Type::NORMAL:
+                case ExprInfo::Type::STATIC:
+                    _res_expr_info.type_info.b_nullable = true;
+                    break;
+                case ExprInfo::Type::MODULE:
+                    break;
+                case ExprInfo::Type::FUNCTION_SET:
+                    _res_expr_info.functions.b_nullable = true;
+                    break;
+            }
+        }
         _res_expr_info.value_info.b_lvalue = true;
         // Fix for `self.a` const error bcz `self.a` is not constant if it is declared non-const
         if (!_res_expr_info.value_info.b_const)
             _res_expr_info.value_info.b_const = caller_info.value_info.b_const && !caller_info.value_info.b_self;
-        _res_expr_info.value_info.b_self = caller_info.value_info.b_self;
+        _res_expr_info.value_info.b_self = false;
     }
 
     void Analyzer::visit(ast::expr::Call &node) {
         node.get_caller()->accept(this);
         auto caller_info = _res_expr_info;
-        _res_expr_info.reset();
 
         std::vector<ArgInfo> arg_infos;
         arg_infos.reserve(node.get_args().size());
@@ -419,31 +379,51 @@ namespace spade
             arg_infos.push_back(_res_arg_info);
         }
 
+        _res_expr_info.reset();
         switch (caller_info.tag) {
             case ExprInfo::Type::NORMAL: {
                 if (caller_info.is_null())
                     throw error("null is not callable", &node);
+                if (caller_info.type_info.b_nullable && !node.get_safe()) {
+                    throw ErrorGroup<AnalyzerError>()
+                            .error(error(std::format("cannot call nullable '{}'", caller_info.to_string()), &node))
+                            .note(error("use safe call operator '?()'", &node));
+                }
+                if (!caller_info.type_info.b_nullable && node.get_safe()) {
+                    throw ErrorGroup<AnalyzerError>()
+                            .error(error(
+                                    std::format("cannot use safe call operator on non-nullable '{}'", caller_info.to_string()),
+                                    &node))
+                            .note(error("remove the safe call operator '?()'", &node));
+                }
                 if (caller_info.type_info.is_type_literal()) {
                     warning("'type' causes dynamic resolution, hence expression becomes 'spade.any?'", &node);
                     _res_expr_info.tag = ExprInfo::Type::NORMAL;
                     _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_ANY]);
                     _res_expr_info.type_info.b_nullable = true;
                 } else {
+                    // also supports self(...) syntax
                     // check for call operator
-                    auto fun_set = caller_info.type_info.type->get_variable(OV_OP_CALL);
-                    if (fun_set) {
-                        _res_expr_info.reset();
+                    if (auto fun_set = caller_info.type_info.type->get_variable(OV_OP_CALL)) {
                         _res_expr_info = resolve_call(&*cast<scope::FunctionSet>(fun_set), arg_infos, node);
-                    } else {
-                        throw ErrorGroup<AnalyzerError>()
-                                .error(error(std::format("'{}' does not provide a constructor", caller_info.to_string()),
-                                             &node))
-                                .note(error("declared here", caller_info.type_info.type));
-                    }
+                    } else
+                        throw error(std::format("object of '{}' is not callable", caller_info.to_string()), &node);
                 }
                 break;
             }
             case ExprInfo::Type::STATIC: {
+                if (caller_info.type_info.b_nullable && !node.get_safe()) {
+                    throw ErrorGroup<AnalyzerError>()
+                            .error(error(std::format("cannot call nullable '{}'", caller_info.to_string()), &node))
+                            .note(error("use safe call operator '?()'", &node));
+                }
+                if (!caller_info.type_info.b_nullable && node.get_safe()) {
+                    throw ErrorGroup<AnalyzerError>()
+                            .error(error(
+                                    std::format("cannot use safe call operator on non-nullable '{}'", caller_info.to_string()),
+                                    &node))
+                            .note(error("remove the safe call operator '?()'", &node));
+                }
                 if (caller_info.type_info.is_type_literal()) {
                     warning("'type' causes dynamic resolution, hence expression becomes 'spade.any?'", &node);
                     _res_expr_info.tag = ExprInfo::Type::NORMAL;
@@ -451,8 +431,7 @@ namespace spade
                     _res_expr_info.type_info.b_nullable = true;
                 } else {
                     // check for constructor
-                    auto fun_set = caller_info.type_info.type->get_variable("init");
-                    if (fun_set) {
+                    if (auto fun_set = caller_info.type_info.type->get_variable("init")) {
                         _res_expr_info.reset();
                         _res_expr_info = resolve_call(&*cast<scope::FunctionSet>(fun_set), arg_infos, node);
                     } else {
@@ -467,10 +446,37 @@ namespace spade
             case ExprInfo::Type::MODULE:
                 throw error("module is not callable", &node);
             case ExprInfo::Type::FUNCTION_SET:
+                if (caller_info.functions.b_nullable && !node.get_safe()) {
+                    throw ErrorGroup<AnalyzerError>()
+                            .error(error(std::format("cannot call nullable '{}'", caller_info.to_string()), &node))
+                            .note(error("use safe call operator '?()'", &node));
+                }
+                if (!caller_info.functions.b_nullable && node.get_safe()) {
+                    throw ErrorGroup<AnalyzerError>()
+                            .error(error(
+                                    std::format("cannot use safe call operator on non-nullable '{}'", caller_info.to_string()),
+                                    &node))
+                            .note(error("remove the safe call operator '?()'", &node));
+                }
                 // this is the actual thing: FUNCTION RESOLUTION
                 _res_expr_info.reset();
                 _res_expr_info = resolve_call(caller_info.functions, arg_infos, node);
                 break;
+        }
+        // This is the property of safe call operator
+        // where 'a?(...)' returns 'a(...)' if 'a' is not null, else returns null
+        if (node.get_safe()) {
+            switch (_res_expr_info.tag) {
+                case ExprInfo::Type::NORMAL:
+                case ExprInfo::Type::STATIC:
+                    _res_expr_info.type_info.b_nullable = true;
+                    break;
+                case ExprInfo::Type::MODULE:
+                    break;
+                case ExprInfo::Type::FUNCTION_SET:
+                    _res_expr_info.functions.b_nullable = true;
+                    break;
+            }
         }
         _res_expr_info.value_info.b_lvalue = false;
         _res_expr_info.value_info.b_const = false;
@@ -766,11 +772,11 @@ lt_le_ge_gt_common:
                 if (expr_info1.type_info.type != expr_info2.type_info.type)
                     if (!expr_info1.is_null() && expr_info2.is_null())
                         throw error("cannot infer type of the expression", &node);
-                // TODO: check type args for covariance and contravariance
                 _res_expr_info.tag = ExprInfo::Type::NORMAL;
                 _res_expr_info.type_info.type =    // should get optimized out!!
                         expr_info1.is_null() ? (expr_info2.is_null() ? expr_info1.type_info.type : expr_info2.type_info.type)
                                              : (expr_info2.is_null() ? expr_info1.type_info.type : expr_info2.type_info.type);
+                // TODO: check type args for covariance and contravariance
                 // _res_expr_info.type_info.type_args = expr_info1.type_info.type_args;
                 if (expr_info1.type_info.b_nullable || expr_info2.type_info.b_nullable)
                     _res_expr_info.type_info.b_nullable = true;
@@ -800,11 +806,19 @@ lt_le_ge_gt_common:
         for (const auto &assignee: node.get_assignees()) {
             assignee->accept(this);
             assignees.push_back(_res_expr_info);
+            // avoid assigning `void`
+            if ((_res_expr_info.tag == ExprInfo::Type::NORMAL || _res_expr_info.tag == ExprInfo::Type::STATIC) &&
+                _res_expr_info.type_info.type == &*internals[Internal::SPADE_VOID])
+                throw error(std::format("cannot assign to '{}'", _res_expr_info.to_string()), assignee);
         }
 
         for (const auto &expr: node.get_exprs()) {
             expr->accept(this);
             assignees.push_back(_res_expr_info);
+            // avoid assigning `void`
+            if ((_res_expr_info.tag == ExprInfo::Type::NORMAL || _res_expr_info.tag == ExprInfo::Type::STATIC) &&
+                _res_expr_info.type_info.type == &*internals[Internal::SPADE_VOID])
+                throw error(std::format("cannot assign '{}' to an object", _res_expr_info.to_string()), expr);
         }
 
         if (assignees.size() != exprs.size())
@@ -820,7 +834,7 @@ lt_le_ge_gt_common:
                 if (left_expr_info.value_info.b_const)
                     throw error("cannot assign to a constant", node.get_assignees()[i]);
                 if (left_expr_info.tag == ExprInfo::Type::NORMAL)
-                    resolve_assign(&left_expr_info.type_info, &right_expr_info, node);
+                    resolve_assign(left_expr_info.type_info, right_expr_info, node);
             } else {
                 switch (node.get_op2()->get_type()) {
                     case TokenType::PLUS:

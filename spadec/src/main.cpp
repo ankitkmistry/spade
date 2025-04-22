@@ -43,7 +43,7 @@ void compile() {
         {
             ScopeTreeBuilder builder(modules);
             auto module_scopes = builder.build();
-            Analyzer analyzer{module_scopes, error_printer};
+            Analyzer analyzer(module_scopes, error_printer);
             analyzer.analyze();
         }
         // for (const auto &module: modules) {

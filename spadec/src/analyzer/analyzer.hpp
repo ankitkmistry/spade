@@ -1,5 +1,6 @@
 #pragma once
 
+#include "lexer/token.hpp"
 #include "utils/error.hpp"
 #include "utils/error_printer.hpp"
 #include "parser/ast.hpp"
@@ -26,6 +27,7 @@ namespace spade
             SPADE_ANY,
             SPADE_ENUM,
             SPADE_ANNOTATION,
+            SPADE_THROWABLE,
             SPADE_INT,
             SPADE_FLOAT,
             SPADE_BOOL,
@@ -43,6 +45,7 @@ namespace spade
         scope::Scope *cur_scope = null;
         scope::Scope *get_parent_scope() const;
         scope::Scope *get_current_scope() const;
+        scope::Function *get_current_function() const;
 
         /**
          * Loads and sets up internal spade modules
@@ -50,7 +53,7 @@ namespace spade
         void load_internal_modules();
 
         /// Performs name resolution
-        std::shared_ptr<scope::Scope> find_name(const string &name);
+        ExprInfo resolve_name(const string &name, const ast::AstNode &node);
 
         void resolve_context(const scope::Scope *from_scope, const scope::Scope *to_scope, const ast::AstNode &node,
                              ErrorGroup<AnalyzerError> &errors) const;
@@ -74,7 +77,7 @@ namespace spade
          * @param node the source ast node used for error messages
          * @return the correct type info that is assigned
          */
-        TypeInfo resolve_assign(const TypeInfo *type_info, const ExprInfo *expr_info, const ast::AstNode &node);
+        TypeInfo resolve_assign(const TypeInfo &type_info, const ExprInfo &expr_info, const ast::AstNode &node);
 
         /**
          * Performs type resolution for assignments.
@@ -114,6 +117,8 @@ namespace spade
 
         /// Performs variable type inference resolution
         ExprInfo get_var_expr_info(std::shared_ptr<scope::Variable> var_scope, const ast::AstNode &node);
+        /// Declares a variable in the current block if it is a function
+        std::shared_ptr<scope::Variable> declare_variable(const std::shared_ptr<Token> &name);
 
         /**
          * Checks whether @p fun1 and @p fun2 are ambiguous or not
@@ -156,10 +161,10 @@ namespace spade
             printer.print(ErrorType::NOTE, error(msg, node));
         }
 
-        template<typename Scope_Type, typename Ast_Type>
-            requires std::derived_from<Scope_Type, scope::Scope> && std::derived_from<Ast_Type, ast::AstNode>
-        std::shared_ptr<Scope_Type> begin_scope(Ast_Type &node) {
-            auto scope = std::make_shared<Scope_Type>(&node);
+        inline std::shared_ptr<scope::Block> begin_block(ast::stmt::Block &node) {
+            static size_t counter = 0;
+            auto scope = std::make_shared<scope::Block>(&node);
+            get_current_scope()->new_variable(std::format("%block{}", counter), null, scope);
             cur_scope = &*scope;
             return scope;
         }
@@ -181,9 +186,6 @@ namespace spade
             : module_scopes(module_scopes), printer(printer) {}
 
         void analyze();
-
-      private:
-        std::shared_ptr<scope::Scope> _res_reference;
 
       public:
         // Visitor
@@ -226,6 +228,11 @@ namespace spade
         void visit(ast::expr::ChainBinary &node);
         void visit(ast::expr::Ternary &node);
         void visit(ast::expr::Assignment &node);
+
+      private:
+        bool is_loop = false;
+
+      public:
         // Statement visitor
         void visit(ast::stmt::Block &node);
         void visit(ast::stmt::If &node);

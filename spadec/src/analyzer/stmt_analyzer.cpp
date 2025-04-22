@@ -1,30 +1,130 @@
 #include "analyzer.hpp"
+#include "parser/ast.hpp"
+#include "scope.hpp"
+
+// NOTE: During statement analysis, get_current_function() is never null
 
 namespace spade
 {
-    void Analyzer::visit(ast::stmt::Block &node) {}
+    void Analyzer::visit(ast::stmt::Block &node) {
+        auto scope = begin_block(node);
+        for (const auto &stmt: node.get_statements()) {
+            stmt->accept(this);
+        }
+        end_scope();
+    }
 
-    void Analyzer::visit(ast::stmt::If &node) {}
+    void Analyzer::visit(ast::stmt::If &node) {
+        node.get_condition()->accept(this);
+        node.get_body()->accept(this);
+        if (auto body = node.get_else_body())
+            body->accept(this);
+    }
 
-    void Analyzer::visit(ast::stmt::While &node) {}
+    void Analyzer::visit(ast::stmt::While &node) {
+        bool old_is_loop_val = is_loop;
 
-    void Analyzer::visit(ast::stmt::DoWhile &node) {}
+        node.get_condition()->accept(this);
 
-    void Analyzer::visit(ast::stmt::Throw &node) {}
+        is_loop = true;
+        node.get_body()->accept(this);
+        is_loop = old_is_loop_val;
 
-    void Analyzer::visit(ast::stmt::Catch &node) {}
+        if (auto body = node.get_else_body())
+            body->accept(this);
+    }
 
-    void Analyzer::visit(ast::stmt::Try &node) {}
+    void Analyzer::visit(ast::stmt::DoWhile &node) {
+        bool old_is_loop_val = is_loop;
 
-    void Analyzer::visit(ast::stmt::Continue &node) {}
+        is_loop = true;
+        node.get_body()->accept(this);
+        is_loop = old_is_loop_val;
 
-    void Analyzer::visit(ast::stmt::Break &node) {}
+        node.get_condition()->accept(this);
+        if (auto body = node.get_else_body())
+            body->accept(this);
+    }
 
-    void Analyzer::visit(ast::stmt::Return &node) {}
+    void Analyzer::visit(ast::stmt::Throw &node) {
+        node.get_expression()->accept(this);
+        switch (_res_expr_info.tag) {
+            case ExprInfo::Type::NORMAL:
+                if (!_res_expr_info.type_info.type->has_super(cast<scope::Compound>(&*internals[Internal::SPADE_THROWABLE])))
+                    throw error(std::format("expression type must be a subtype of '{}'",
+                                            internals[Internal::SPADE_THROWABLE]->to_string()),
+                                node.get_expression());
+                break;
+            case ExprInfo::Type::STATIC:
+                throw error("cannot throw a type", &node);
+            case ExprInfo::Type::MODULE:
+                throw error("cannot throw a module", &node);
+            case ExprInfo::Type::FUNCTION_SET:
+                throw error("cannot throw a function", &node);
+        }
+    }
 
-    void Analyzer::visit(ast::stmt::Yield &node) {}
+    void Analyzer::visit(ast::stmt::Catch &node) {
+        for (const auto &ref: node.get_references()) {
+            ref->accept(this);
+            if (_res_expr_info.tag != ExprInfo::Type::STATIC)
+                throw error("reference must be a type", ref);
+            else if (!_res_expr_info.type_info.type->has_super(cast<scope::Compound>(&*internals[Internal::SPADE_THROWABLE])))
+                throw error(
+                        std::format("reference must be a subtype of '{}'", internals[Internal::SPADE_THROWABLE]->to_string()),
+                        ref);
+        }
+        declare_variable(node.get_symbol());
+        node.get_body()->accept(this);
+    }
 
-    void Analyzer::visit(ast::stmt::Expr &node) {}
+    void Analyzer::visit(ast::stmt::Try &node) {
+        node.get_body()->accept(this);
+        for (const auto &catch_stmt: node.get_catches()) {
+            catch_stmt->accept(this);
+        }
+        if (auto finally = node.get_finally())
+            finally->accept(this);
+    }
 
-    void Analyzer::visit(ast::stmt::Declaration &node) {}
+    void Analyzer::visit(ast::stmt::Continue &node) {
+        if (!is_loop)
+            throw error("continue statement is not inside a loop", &node);
+    }
+
+    void Analyzer::visit(ast::stmt::Break &node) {
+        if (!is_loop)
+            throw error("break statement is not inside a loop", &node);
+    }
+
+    void Analyzer::visit(ast::stmt::Return &node) {
+        auto ret_type = get_current_function()->get_ret_type();
+        if (ret_type.type == &*internals[Internal::SPADE_VOID]) {
+            if (node.get_expression())
+                throw error("void function cannot return a value", node.get_expression());
+        } else if (auto expression = node.get_expression()) {
+            expression->accept(this);
+            resolve_assign(ret_type, _res_expr_info, node);
+        } else
+            throw error("function must return a value", &node);
+    }
+
+    void Analyzer::visit(ast::stmt::Yield &node) {
+        // TODO: Improve yield statement
+        node.get_expression()->accept(this);
+    }
+
+    void Analyzer::visit(ast::stmt::Expr &node) {
+        node.get_expression()->accept(this);
+    }
+
+    void Analyzer::visit(ast::stmt::Declaration &node) {
+        auto decl = node.get_declaration();
+        if (is<ast::decl::Variable>(decl)) {
+            decl->accept(this);
+        } else {
+            // TODO: implement this
+            warning("declarations other than variables and constants are not implemented yet", &node);
+        }
+    }
 }    // namespace spade

@@ -18,8 +18,4 @@ class B {
 	# static var b/*: any*/ = A.a
 }
 
-fun hello() {
-	print("hello foo")
-}
-
 # class hello

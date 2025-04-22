@@ -517,7 +517,7 @@ namespace spade::scope
         }
 
         string to_string(bool decorated = true) const override {
-            return (decorated ? (is_init() ? "init " : "function ") : "") + path.to_string();
+            return (decorated ? (is_init() ? "ctor " : "function ") : "") + path.to_string();
         }
     };
 

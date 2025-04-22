@@ -24,6 +24,11 @@ namespace spade
         return cur_scope;
     }
 
+    scope::Function *Analyzer::get_current_function() const {
+        return get_current_scope()->get_type() == scope::ScopeType::FUNCTION ? cast<scope::Function>(get_current_scope())
+                                                                             : get_current_scope()->get_enclosing_function();
+    }
+
     void Analyzer::load_internal_modules() {
         // module spade
         auto module = std::make_shared<scope::Module>(null);
@@ -43,6 +48,7 @@ namespace spade
         auto any_class = declare_class("any", Internal::SPADE_ANY, null);
         declare_class("Enum", Internal::SPADE_ENUM, any_class);
         declare_class("Annotation", Internal::SPADE_ANNOTATION, any_class);
+        declare_class("Throwable", Internal::SPADE_THROWABLE, any_class);
 
         declare_class("int", Internal::SPADE_INT, any_class);
         declare_class("float", Internal::SPADE_FLOAT, any_class);
@@ -53,13 +59,12 @@ namespace spade
         module_scopes.emplace(null, ScopeInfo(module));
     }
 
-    std::shared_ptr<scope::Scope> Analyzer::find_name(const string &name) {
+    ExprInfo Analyzer::resolve_name(const string &name, const ast::AstNode &node) {
+        ExprInfo expr_info;
+        auto parent_compound = get_current_scope()->get_enclosing_compound();
+
         std::shared_ptr<scope::Scope> scope;
-        for (auto itr = get_current_scope(); itr != null; itr = itr->get_parent()) {
-            if (itr->has_variable(name)) {
-                scope = itr->get_variable(name);
-                break;
-            }
+        for (auto itr = get_current_scope(); itr; itr = itr->get_parent()) {
             if (itr->get_type() == scope::ScopeType::COMPOUND) {
                 auto compound = cast<scope::Compound>(itr);
                 if (compound->get_eval() == scope::Compound::Eval::NOT_STARTED) {
@@ -69,12 +74,62 @@ namespace spade
                     cur_scope = old_cur_scope;
                 }
             }
+            if (itr->has_variable(name)) {
+                scope = itr->get_variable(name);
+                break;
+            } else if (parent_compound && itr == parent_compound) {
+                if (parent_compound->get_super_fields().contains(name)) {
+                    scope = parent_compound->get_super_fields().at(name);
+                } else if (parent_compound->get_super_functions().contains(name)) {
+                    expr_info.tag = ExprInfo::Type::FUNCTION_SET;
+                    expr_info.value_info.b_const = true;
+                    expr_info.value_info.b_lvalue = true;
+                    expr_info.functions = parent_compound->get_super_functions().at(name);
+                    return expr_info;
+                }
+            }
         }
         // Check for null module
         if (!scope && module_scopes.at(null).get_scope()->has_variable(name)) {
             scope = module_scopes.at(null).get_scope()->get_variable(name);
         }
-        return scope;
+        // Yell if the scope cannot be located
+        if (!scope)
+            throw error("undefined reference", &node);
+        // Resolve the context
+        resolve_context(scope, node);
+        switch (scope->get_type()) {
+            case scope::ScopeType::FOLDER_MODULE:
+            case scope::ScopeType::MODULE:
+                expr_info.tag = ExprInfo::Type::MODULE;
+                expr_info.value_info.b_const = true;
+                expr_info.module = cast<scope::Module>(&*scope);
+                break;
+            case scope::ScopeType::COMPOUND:
+                expr_info.tag = ExprInfo::Type::STATIC;
+                expr_info.value_info.b_const = true;
+                expr_info.type_info.type = cast<scope::Compound>(&*scope);
+                break;
+            case scope::ScopeType::FUNCTION:
+                throw Unreachable();    // surely some scope tree builder error
+            case scope::ScopeType::FUNCTION_SET:
+                expr_info.tag = ExprInfo::Type::FUNCTION_SET;
+                expr_info.value_info.b_const = true;
+                expr_info.functions = cast<scope::FunctionSet>(&*scope);
+                break;
+            case scope::ScopeType::BLOCK:
+                throw Unreachable();    // surely some parser error
+            case scope::ScopeType::VARIABLE:
+                expr_info = get_var_expr_info(cast<scope::Variable>(scope), node);
+                break;
+            case scope::ScopeType::ENUMERATOR:
+                expr_info.tag = ExprInfo::Type::NORMAL;
+                expr_info.value_info.b_const = true;
+                expr_info.type_info.type = scope->get_enclosing_compound();
+                break;
+        }
+        expr_info.value_info.b_lvalue = true;
+        return expr_info;
     }
 
     // This function check whether `scope` is accessible from `cur_scope`
@@ -148,9 +203,15 @@ namespace spade
             case scope::ScopeType::COMPOUND:
             case scope::ScopeType::FUNCTION:
             case scope::ScopeType::VARIABLE:
-            case scope::ScopeType::ENUMERATOR:
+            case scope::ScopeType::ENUMERATOR: {
+                using namespace std::string_literals;
+                if (!to_scope->get_node() && to_scope->get_enclosing_module()->get_path() == "spade"s) {
+                    // if this belongs to internal module then do no context resolution
+                    return;
+                }
                 modifiers = cast<ast::Declaration>(to_scope->get_node())->get_modifiers();
                 break;
+            }
             case scope::ScopeType::FUNCTION_SET:
             case scope::ScopeType::BLOCK:
                 throw Unreachable();    // surely some parser error
@@ -290,67 +351,53 @@ namespace spade
         return;
     }
 
-    TypeInfo Analyzer::resolve_assign(const TypeInfo *type_info, const ExprInfo *expr_info, const ast::AstNode &node) {
+    TypeInfo Analyzer::resolve_assign(const TypeInfo &type_info, const ExprInfo &expr_info, const ast::AstNode &node) {
         TypeInfo result;
         // Check type inference
-        switch (expr_info->tag) {
+        switch (expr_info.tag) {
             case ExprInfo::Type::NORMAL:
-                if (type_info) {
-                    result = *type_info;
-                    if (!expr_info->is_null() && type_info->type != expr_info->type_info.type &&
-                        !expr_info->type_info.type->has_super(type_info->type))
-                        throw error(std::format("cannot assign value of type '{}' to type '{}'",
-                                                expr_info->type_info.to_string(), type_info->to_string()),
-                                    &node);
-                    if (!type_info->b_nullable && expr_info->type_info.b_nullable) {
-                        expr_info->is_null()
-                                ? throw error(std::format("cannot assign 'null' to type '{}'", type_info->to_string()), &node)
-                                : throw error(std::format("cannot assign value of type '{}' to type '{}'",
-                                                          expr_info->type_info.to_string(), type_info->to_string()),
-                                              &node);
-                    }
-                    if (type_info->type_args.empty() && expr_info->type_info.type_args.empty()) {
-                        // no type args, plain vanilla
-                    } else if (/* type_info.type_args.empty() &&  */ !expr_info->type_info.type_args.empty()) {
-                        // deduce from type_info
-                        result.type_args = expr_info->type_info.type_args;
-                    } else if (!type_info->type_args.empty() /*  && expr_info.type_info.type_args.empty() */) {
-                        // deduce from expr_info
-                        // TODO: check type args
-                    } else /* if(!type_info.type_args.empty() && !expr_info.type_info.type_args.empty()) */ {
-                        if (type_info->type_args.size() != expr_info->type_info.type_args.size())
-                            throw error(std::format("failed to deduce type arguments"), &node);    // failed deducing
-                        // now both type_info and expr_info have typeargs (same size)
-                        // check if both of them are same
-                        // TODO: implement covariance and contravariance
-                    }
-                } else {
-                    // deduce variable type from expression
-                    result = expr_info->type_info;
+                result = type_info;
+                if (!expr_info.is_null() && type_info.type != expr_info.type_info.type &&
+                    !expr_info.type_info.type->has_super(type_info.type))
+                    throw error(std::format("cannot assign value of type '{}' to type '{}'", expr_info.type_info.to_string(),
+                                            type_info.to_string()),
+                                &node);
+                if (!type_info.b_nullable && expr_info.type_info.b_nullable) {
+                    expr_info.is_null()
+                            ? throw error(std::format("cannot assign 'null' to type '{}'", type_info.to_string()), &node)
+                            : throw error(std::format("cannot assign value of type '{}' to type '{}'",
+                                                      expr_info.type_info.to_string(), type_info.to_string()),
+                                          &node);
+                }
+                if (type_info.type_args.empty() && expr_info.type_info.type_args.empty()) {
+                    // no type args, plain vanilla
+                } else if (/* type_info.type_args.empty() &&  */ !expr_info.type_info.type_args.empty()) {
+                    // deduce from type_info
+                    result.type_args = expr_info.type_info.type_args;
+                } else if (!type_info.type_args.empty() /*  && expr_info.type_info.type_args.empty() */) {
+                    // deduce from expr_info
+                    // TODO: check type args
+                } else /* if(!type_info.type_args.empty() && !expr_info.type_info.type_args.empty()) */ {
+                    if (type_info.type_args.size() != expr_info.type_info.type_args.size())
+                        throw error(std::format("failed to deduce type arguments"), &node);    // failed deducing
+                    // now both type_info and expr_info have typeargs (same size)
+                    // check if both of them are same
+                    // TODO: implement covariance and contravariance
                 }
                 break;
             case ExprInfo::Type::STATIC:
-                if (type_info) {
-                    result = *type_info;
-                    if (!type_info->is_type_literal())
-                        throw error(std::format("cannot assign value of type '{}' to type '{}'",
-                                                expr_info->type_info.to_string(), type_info->to_string()),
-                                    &node);
-                    if (!type_info->b_nullable && expr_info->type_info.b_nullable)
-                        throw error(std::format("cannot assign value of type '{}' to type '{}'",
-                                                expr_info->type_info.to_string(), type_info->to_string()),
-                                    &node);
-                } else {
-                    // deduce variable type as type literal, also set nullable if any
-                    result.reset();
-                    result.b_nullable = expr_info->type_info.b_nullable;
-                }
+                result = type_info;
+                if (!type_info.is_type_literal())
+                    throw error(std::format("cannot assign value of type '{}' to type '{}'", expr_info.type_info.to_string(),
+                                            type_info.to_string()),
+                                &node);
+                if (!type_info.b_nullable && expr_info.type_info.b_nullable)
+                    throw error(std::format("cannot assign value of type '{}' to type '{}'", expr_info.type_info.to_string(),
+                                            type_info.to_string()),
+                                &node);
                 break;
             case ExprInfo::Type::MODULE:
-                if (type_info)
-                    throw error(std::format("cannot assign a module to type '{}'", type_info->to_string()), &node);
-                else
-                    throw error(std::format("cannot assign a module"), &node);
+                throw error(std::format("cannot assign a module to type '{}'", type_info.to_string()), &node);
             case ExprInfo::Type::FUNCTION_SET:
                 // TODO: implement function resolution
                 break;
@@ -361,7 +408,7 @@ namespace spade
     TypeInfo Analyzer::resolve_assign(std::shared_ptr<ast::Type> type, std::shared_ptr<ast::Expression> expr,
                                       const ast::AstNode &node) {
         TypeInfo type_info;
-        if (type) {
+        if (type && expr) {
             type->accept(this);
             type_info = _res_type_info;
 
@@ -369,23 +416,38 @@ namespace spade
                 scope->set_type_info(type_info);
                 scope->set_eval(scope::Variable::Eval::DONE);    // mimic as if type resolution is completed
             }
-        }
-        if (expr) {
+
             expr->accept(this);
             auto expr_info = _res_expr_info;
-            type_info = resolve_assign(type ? &type_info : null, &expr_info, node);
-        }
-        if (!type && !expr) {
+            type_info = resolve_assign(type_info, expr_info, node);
+        } else if (type) {
+            type->accept(this);
+            type_info = _res_type_info;
+        } else if (expr) {
+            expr->accept(this);
+            switch (_res_expr_info.tag) {
+                case ExprInfo::Type::NORMAL:
+                    type_info = _res_expr_info.type_info;
+                    break;
+                case ExprInfo::Type::STATIC:
+                    type_info.reset();    // `type` literal
+                    break;
+                case ExprInfo::Type::MODULE:
+                    throw error("cannot assign a module to a variable", &node);
+                case ExprInfo::Type::FUNCTION_SET:
+                    // TODO: implement function types
+                    throw Unreachable();
+            }
+        } else {
             // type_info.reset();
-            type_info.type = cast<scope::Compound>(&*internals[Analyzer::Internal::SPADE_ANY]);
-            // non nullable by default
+            type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_ANY]);
+            // nullable by default
+            type_info.b_nullable = true;
         }
         // Assigning to a variable, so set the type info
         if (auto scope = dynamic_cast<scope::Variable *>(get_current_scope())) {
-            if (scope->get_eval() != scope::Variable::Eval::DONE) {
-                scope->set_type_info(type_info);
-                scope->set_eval(scope::Variable::Eval::DONE);
-            }
+            scope->set_type_info(type_info);
+            scope->set_eval(scope::Variable::Eval::DONE);
         }
         return type_info;
     }
@@ -428,7 +490,7 @@ namespace spade
             for (const auto &param: function->get_pos_only_params()) {
                 auto arg_info = value_args[arg_id];
                 try {
-                    resolve_assign(&param.type_info, &arg_info.expr_info, node);
+                    resolve_assign(param.type_info, arg_info.expr_info, node);
                 } catch (const AnalyzerError &err) {
                     err_grp.error(err);
                 }
@@ -450,7 +512,7 @@ namespace spade
                 do {
                     auto arg_info = value_args[arg_id];
                     try {
-                        resolve_assign(&param.type_info, &arg_info.expr_info, node);
+                        resolve_assign(param.type_info, arg_info.expr_info, node);
                     } catch (const AnalyzerError &err) {
                         err_grp.error(err);
                     }
@@ -483,14 +545,14 @@ namespace spade
         for (const auto &[name, kwarg]: kwargs) {
             if (kwd_params.contains(name)) {
                 try {
-                    resolve_assign(&kwd_params[name].type_info, &kwarg.expr_info, node);
+                    resolve_assign(kwd_params[name].type_info, kwarg.expr_info, node);
                 } catch (const AnalyzerError &err) {
                     err_grp.error(err);
                 }
                 kwd_params.erase(name);
             } else if (kwd_only_variadic) {
                 try {
-                    resolve_assign(&kwd_only_variadic->type_info, &kwarg.expr_info, node);
+                    resolve_assign(kwd_only_variadic->type_info, kwarg.expr_info, node);
                 } catch (const AnalyzerError &err) {
                     err_grp.error(err);
                 }
@@ -618,7 +680,7 @@ namespace spade
                         break;
                     }
                 }
-                expr_info.type_info.type = cast<scope::Compound>(&*internals[Analyzer::Internal::SPADE_ANY]);
+                expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_ANY]);
                 expr_info.type_info.b_nullable = true;
                 warning(std::format("type inference is ambiguous, defaulting to '{}'", expr_info.type_info.to_string()), &node);
                 note("declared here", var_scope);
@@ -630,6 +692,23 @@ namespace spade
         if (var_scope->get_variable_node()->get_token()->get_type() == TokenType::CONST)
             expr_info.value_info.b_const = true;
         return expr_info;
+    }
+
+    std::shared_ptr<scope::Variable> Analyzer::declare_variable(const std::shared_ptr<Token> &name) {
+        std::shared_ptr<scope::Variable> scope;
+        if (auto fun = get_current_function()) {
+            // Check if the variable is not overshadowing parameters
+            if (fun->has_param(name->get_text()))
+                throw ErrorGroup<AnalyzerError>()
+                        .error(error(std::format("function parameters cannot be overshadowed '{}'", name->get_text()), name))
+                        .note(error("already declared here", fun->get_param(name->get_text()).node));
+            // Add the variable to the parent scope
+            if (!get_parent_scope()->new_variable(name, scope))
+                throw ErrorGroup<AnalyzerError>()
+                        .error(error(std::format("redeclaration of '{}'", name->get_text()), name))
+                        .note(error("already declared here", scope));
+        }
+        return scope;
     }
 
     static bool check_fun_kwd_params(const scope::Function *fun1, const std::vector<ParamInfo> &fun1_pos_kwd,
@@ -902,6 +981,7 @@ namespace spade
         //     }
         // }
         // Start analysis
+        mode = Mode::DECLARATION;
         for (auto [_, module_scope_info]: module_scopes) {
             if (module_scope_info.is_original())
                 if (auto node = module_scope_info.get_scope()->get_node()) {
@@ -909,34 +989,74 @@ namespace spade
                     node->accept(this);
                 }
         }
+        mode = Mode::DEFINITION;
+        for (auto function: function_scopes) {
+            cur_scope = function->get_parent()->get_parent();
+            function->get_node()->accept(this);
+        }
     }
 
     void Analyzer::visit(ast::Reference &node) {
-        _res_reference = null;
         // Find the scope where name is located
-        auto scope = find_name(node.get_path()[0]->get_text());
-        // Yell if the scope cannot be located
-        if (!scope)
-            throw error("undefined reference", &node);
+        scope::Scope *scope = null;
+        auto expr_info = resolve_name(node.get_path()[0]->get_text(), node);
+        switch (expr_info.tag) {
+            case ExprInfo::Type::NORMAL:
+                scope = expr_info.type_info.type;
+                break;
+            case ExprInfo::Type::STATIC:
+                scope = expr_info.type_info.type;
+                break;
+            case ExprInfo::Type::MODULE:
+                scope = expr_info.module;
+                break;
+            case ExprInfo::Type::FUNCTION_SET:
+                break;
+        }
+        if (!node.get_path().empty() && !scope)
+            throw error("functions do not have members", &node);
         // Now check for references inside the scope
         for (size_t i = 1; i < node.get_path().size(); i++) {
             auto path_element = node.get_path()[i]->get_text();
             if (!scope->has_variable(path_element))
                 throw error("undefined reference", &node);
-            scope = scope->get_variable(path_element);
+            scope = &*scope->get_variable(path_element);
         }
-        _res_reference = scope;
+        _res_expr_info.reset();
+        _res_expr_info.value_info = expr_info.value_info;
+        switch (scope->get_type()) {
+            case scope::ScopeType::FOLDER_MODULE:
+            case scope::ScopeType::MODULE:
+                _res_expr_info.tag = ExprInfo::Type::MODULE;
+                _res_expr_info.module = cast<scope::Module>(scope);
+                break;
+            case scope::ScopeType::COMPOUND:
+                _res_expr_info.tag = ExprInfo::Type::STATIC;
+                _res_expr_info.type_info.type = cast<scope::Compound>(scope);
+                break;
+            case scope::ScopeType::FUNCTION:
+                throw Unreachable();
+            case scope::ScopeType::FUNCTION_SET:
+                _res_expr_info.tag = ExprInfo::Type::FUNCTION_SET;
+                _res_expr_info.functions = expr_info.functions;
+                break;
+            case scope::ScopeType::BLOCK:
+                throw Unreachable();
+            case scope::ScopeType::VARIABLE:
+            case scope::ScopeType::ENUMERATOR:
+                _res_expr_info.tag = ExprInfo::Type::NORMAL;
+                _res_expr_info.type_info.type = cast<scope::Compound>(scope);
+                break;
+        }
     }
 
     void Analyzer::visit(ast::type::Reference &node) {
         // Find the type scope
         node.get_reference()->accept(this);
-        auto type_scope = _res_reference;
         // Check if the reference is a type
-        if (type_scope->get_type() != scope::ScopeType::COMPOUND)
-            throw ErrorGroup<AnalyzerError>()
-                    .error(error("reference is not a type", &node))
-                    .note(error("declared here", type_scope));
+        if (_res_expr_info.tag != ExprInfo::Type::STATIC)
+            throw error("reference is not a type", &node);
+        auto type_scope = _res_expr_info.type_info.type;
         // Check for type arguments
         std::vector<TypeInfo> type_args;
         for (auto type_arg: node.get_type_args()) {
@@ -944,7 +1064,7 @@ namespace spade
             type_args.push_back(_res_type_info);
         }
         _res_type_info.reset();
-        _res_type_info.type = cast<scope::Compound>(&*type_scope);
+        _res_type_info.type = type_scope;
         _res_type_info.type_args = type_args;
     }
 

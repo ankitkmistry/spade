@@ -86,7 +86,7 @@ namespace spade
         auto fun_sets = get_function_sets();
         string result;
         for (const auto &[_, fun_set]: fun_sets) {
-            result += fun_set->to_string(decorated) + ", ";
+            result += fun_set->to_string(decorated) + (b_nullable ? "?" : "") + ", ";
         }
         result.pop_back();
         result.pop_back();

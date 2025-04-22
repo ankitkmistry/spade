@@ -5,10 +5,6 @@
 #include "scope.hpp"
 #include "spimp/error.hpp"
 #include "utils/error.hpp"
-#include <memory>
-#include <unordered_map>
-#include <unordered_set>
-#include <vector>
 
 namespace spade
 {
@@ -97,7 +93,12 @@ namespace spade
     }
 
     void Analyzer::visit(ast::decl::Function &node) {
-        // TODO: check for function level declarations
+        if (auto fun_level = get_current_scope()->get_enclosing_function();
+            get_current_scope()->get_type() == scope::ScopeType::FUNCTION || fun_level) {
+            // TODO: check for function level declarations
+            return;
+        }
+
         std::shared_ptr<scope::FunctionSet> fun_set = find_scope<scope::FunctionSet>(node.get_name()->get_text());
         std::shared_ptr<scope::Function> scope = find_scope<scope::Function>(node.get_qualified_name());
 
@@ -190,30 +191,10 @@ namespace spade
 
     void Analyzer::visit(ast::decl::Variable &node) {
         std::shared_ptr<scope::Variable> scope;
-        if (get_current_scope()->get_type() == scope::ScopeType::FUNCTION) {
-            scope = begin_scope<scope::Variable>(node);
-            // Add the variable to the parent scope
-            auto parent_scope = get_parent_scope();
-            if (!parent_scope->new_variable(node.get_name(), scope)) {
-                auto org_def = scope->get_decl_site(node.get_name()->get_text());
-                throw ErrorGroup<AnalyzerError>()
-                        .error(error(std::format("redeclaration of '{}'", node.get_name()->get_text()), node.get_name()))
-                        .note(error("already declared here", org_def));
-            };
-            // Check if the variable is not overshadowing parameters
-            if (auto fun = scope->get_enclosing_function()) {
-                if (fun->has_param(node.get_name()->get_text())) {
-                    auto param = fun->get_param(node.get_name()->get_text());
-                    throw ErrorGroup<AnalyzerError>()
-                            .error(error(
-                                    std::format("function parameters cannot be overshadowed '{}'", node.get_name()->get_text()),
-                                    node.get_name()))
-                            .note(error("already declared here", param.node));
-                }
-            }
-        } else {
+        if (get_current_scope()->get_type() == scope::ScopeType::FUNCTION || get_current_scope()->get_enclosing_function()) {
+            scope = declare_variable(node.get_name());
+        } else
             scope = find_scope<scope::Variable>(node.get_name()->get_text());
-        }
 
         if (scope->get_eval() == scope::Variable::Eval::NOT_STARTED) {
             scope->set_eval(scope::Variable::Eval::PROGRESS);
@@ -226,13 +207,10 @@ namespace spade
     void Analyzer::visit(ast::decl::Parent &node) {
         node.get_reference()->accept(this);
         // Check if the super class is a scope::Compound
-        if (_res_reference->get_type() != scope::ScopeType::COMPOUND)
-            throw ErrorGroup<AnalyzerError>()
-                    .error(error("reference is not a type", &node))
-                    .note(error("declared here", _res_reference));
+        if (_res_expr_info.tag != ExprInfo::Type::STATIC)
+            throw error("reference is not a type", &node);
         // Get the parent type info and type args if any
-        TypeInfo parent_type_info;
-        parent_type_info.type = cast<scope::Compound>(&*_res_reference);
+        TypeInfo parent_type_info = _res_expr_info.type_info;
         if (!node.get_type_args().empty()) {
             parent_type_info.type_args.reserve(node.get_type_args().size());
             for (auto type_arg: node.get_type_args()) {
@@ -244,7 +222,32 @@ namespace spade
         _res_type_info = parent_type_info;
     }
 
-    void Analyzer::visit(ast::decl::Enumerator &node) {}
+    void Analyzer::visit(ast::decl::Enumerator &node) {
+        auto scope = find_scope<scope::Enumerator>(node.get_name()->get_text());
+        auto parent_enum = scope->get_enclosing_compound();
+        if (node.get_expr()) {
+            if (parent_enum->has_variable("init"))
+                throw error(std::format("enumerator cannot have an initializer due to '{}'",
+                                        parent_enum->get_variable("init")->to_string()),
+                            node.get_expr());
+        } else if (node.get_args()) {
+            auto args = *node.get_args();
+            if (!parent_enum->has_variable("init"))
+                throw error("enumerator cannot be called with ctor, no declaration provided", node.get_expr());
+            FunctionInfo fn_infos(&*cast<scope::FunctionSet>(parent_enum->get_variable("init")));
+            // Build args
+            std::vector<ArgInfo> arg_infos;
+            arg_infos.reserve(args.size());
+            for (auto arg: args) {
+                arg->accept(this);
+                if (!arg_infos.empty() && arg_infos.back().b_kwd && !_res_arg_info.b_kwd)
+                    throw error("mixing non-keyword and keyword arguments is not allowed", arg);
+                arg_infos.push_back(_res_arg_info);
+            }
+            resolve_call(fn_infos, arg_infos, node);
+        }
+        end_scope();
+    }
 
     static bool check_fun_exactly_same(const scope::Function *fun1, const scope::Function *fun2) {
         if (fun1->is_private() != fun2->is_private())
@@ -511,9 +514,8 @@ namespace spade
     void Analyzer::visit(ast::Module &node) {
         if (get_current_scope())
             find_scope<scope::Module>(node.get_name());
-        else {
+        else
             cur_scope = &*module_scopes.at(&node).get_scope();
-        }
 
         for (auto import: node.get_imports()) import->accept(this);
         for (auto member: node.get_members()) member->accept(this);

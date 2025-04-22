@@ -1225,7 +1225,7 @@ namespace spade::ast
         class Enumerator final : public Declaration {
             std::shared_ptr<Token> name;
             std::shared_ptr<Expression> expr;
-            std::vector<std::shared_ptr<expr::Argument>> args;
+            std::optional<std::vector<std::shared_ptr<expr::Argument>>> args;
 
           public:
             explicit Enumerator(const std::shared_ptr<Token> &name) : Declaration(name, name), name(name) {}
@@ -1246,7 +1246,7 @@ namespace spade::ast
                 return expr;
             }
 
-            const std::vector<std::shared_ptr<expr::Argument>> &get_args() const {
+            const std::optional<std::vector<std::shared_ptr<expr::Argument>>> &get_args() const {
                 return args;
             }
 

@@ -104,6 +104,6 @@ namespace spade::scope
                 result += "";
             result += ")";
         }
-        return (decorated ? (is_init() ? "init " : "function ") : "") + result;
+        return (decorated ? (is_init() ? "ctor " : "function ") : "") + result;
     }
 }    // namespace spade::scope

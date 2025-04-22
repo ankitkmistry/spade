@@ -174,6 +174,7 @@ namespace spade
         //              | 'throw' expression
         //              | 'return' expression?
         //              | 'yield' expression
+        //              | expression
         std::shared_ptr<ast::Statement> statement();
         /// if_stmt ::= 'if' expression (':' statement | block) ('else' (':' statement | block))?
         std::shared_ptr<ast::Statement> if_stmt();
