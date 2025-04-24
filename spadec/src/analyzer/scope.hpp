@@ -545,7 +545,9 @@ namespace spade::scope
         TypeInfo type_info;
 
       public:
-        Variable(ast::decl::Variable *node) : Scope(ScopeType::VARIABLE, node), ModifierMixin(node->get_modifiers()) {}
+        Variable(ast::decl::Variable *node)
+            : Scope(ScopeType::VARIABLE, node),
+              ModifierMixin(node ? node->get_modifiers() : std::vector<std::shared_ptr<Token>>{}) {}
 
         bool is_const() const {
             return get_variable_node()->get_token()->get_type() == TokenType::CONST;

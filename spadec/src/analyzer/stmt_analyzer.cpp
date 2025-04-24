@@ -74,7 +74,7 @@ namespace spade
                         std::format("reference must be a subtype of '{}'", internals[Internal::SPADE_THROWABLE]->to_string()),
                         ref);
         }
-        declare_variable(node.get_symbol());
+        declare_variable(*node.get_symbol());
         node.get_body()->accept(this);
     }
 
@@ -106,7 +106,7 @@ namespace spade
             expression->accept(this);
             resolve_assign(ret_type, _res_expr_info, node);
         } else
-            throw error("function must return a value", &node);
+            throw error("return statement must have an expression", &node);
     }
 
     void Analyzer::visit(ast::stmt::Yield &node) {

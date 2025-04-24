@@ -515,9 +515,13 @@ namespace spade
     std::shared_ptr<ast::Statement> Parser::catch_stmt() {
         auto token = expect(TokenType::CATCH);
         auto refs = reference_list();
-        std::shared_ptr<Token> symbol;
-        if (match(TokenType::AS))
-            symbol = expect(TokenType::IDENTIFIER);
+        std::shared_ptr<ast::decl::Variable> symbol;
+        if (match(TokenType::AS)) {
+            auto symbol_token = expect(TokenType::IDENTIFIER);
+            auto var_tok =
+                    std::make_shared<Token>(TokenType::CONST, "const", symbol_token->get_line(), symbol_token->get_col());
+            symbol = std::make_shared<ast::decl::Variable>(var_tok, symbol_token, symbol_token, null, null);
+        }
         auto body = BODY();
         return std::make_shared<ast::stmt::Catch>(token, refs, symbol, body);
     }

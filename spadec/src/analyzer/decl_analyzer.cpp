@@ -192,7 +192,7 @@ namespace spade
     void Analyzer::visit(ast::decl::Variable &node) {
         std::shared_ptr<scope::Variable> scope;
         if (get_current_scope()->get_type() == scope::ScopeType::FUNCTION || get_current_scope()->get_enclosing_function()) {
-            scope = declare_variable(node.get_name());
+            scope = declare_variable(node);
         } else
             scope = find_scope<scope::Variable>(node.get_name()->get_text());
 
@@ -249,7 +249,7 @@ namespace spade
         end_scope();
     }
 
-    static bool check_fun_exactly_same(const scope::Function *fun1, const scope::Function *fun2) {
+    bool Analyzer::check_fun_exactly_same(const scope::Function *fun1, const scope::Function *fun2) {
         if (fun1->is_private() != fun2->is_private())
             return false;
         if (fun1->is_internal() != fun2->is_internal())

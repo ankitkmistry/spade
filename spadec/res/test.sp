@@ -37,7 +37,7 @@ var b_obj: B?
 # var test_obj = b_obj?.b(Color.RED) 
 var test_obj = b_obj?.b?(Color.RED) 
 
-fun print(data:string=""){
+fun print(data:string="",/,end:string="\n") {
 	# test_obj()
 	# test_obj?()
 
@@ -54,11 +54,12 @@ fun print(data:string=""){
 	# 		continue
 	# 	# break
 	# }
-	
+	var result = data + end
+	var sahur = null as? string + "null"
 	return
 }
 
 fun main() { 
-	print("hello, world! my name is aashita")
+	print("hello, world! my name is aashita", end: "")
 	print()
 }

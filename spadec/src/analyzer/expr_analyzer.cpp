@@ -1,82 +1,80 @@
 #include "analyzer.hpp"
 #include "info.hpp"
 #include "lexer/token.hpp"
+#include "scope.hpp"
 #include "spimp/error.hpp"
 #include "utils/error.hpp"
 #include <vector>
 
 namespace spade
 {
-    // Names of functions that represent overloaded operators
+// Names of functions that represent overloaded operators
 
-    // Binary ops
-    // `a + b` is same as `a.__add__(b)` if `a` has defined `__add__` function
-    static const string OV_OP_POW = "__pow__";
-    static const string OV_OP_MUL = "__mul__";
-    static const string OV_OP_DIV = "__div__";
-    static const string OV_OP_MOD = "__mod__";
-    static const string OV_OP_ADD = "__add__";
-    static const string OV_OP_SUB = "__sub__";
-    static const string OV_OP_LSHIFT = "__lshift__";
-    static const string OV_OP_RSHIFT = "__rshift__";
-    static const string OV_OP_URSHIFT = "__urshift__";
-    static const string OV_OP_AND = "__and__";
-    static const string OV_OP_XOR = "__xor__";
-    static const string OV_OP_OR = "__or__";
-    // `a + b` is same as `b.__rev_add__(a)` if `a` has not defined `__add__` function
-    static const string OV_OP_REV_POW = "__rev_pow__";
-    static const string OV_OP_REV_MUL = "__rev_mul__";
-    static const string OV_OP_REV_DIV = "__rev_div__";
-    static const string OV_OP_REV_MOD = "__rev_mod__";
-    static const string OV_OP_REV_ADD = "__rev_add__";
-    static const string OV_OP_REV_SUB = "__rev_sub__";
-    static const string OV_OP_REV_LSHIFT = "__rev_lshift__";
-    static const string OV_OP_REV_RSHIFT = "__rev_rshift__";
-    static const string OV_OP_REV_URSHIFT = "__rev_urshift__";
-    static const string OV_OP_REV_AND = "__rev_and__";
-    static const string OV_OP_REV_XOR = "__rev_xor__";
-    static const string OV_OP_REV_OR = "__rev_or__";
-    // `a += b` is same as `b.__aug_add__(a)`
-    static const string OV_OP_AUG_POW = "__aug_pow__";
-    static const string OV_OP_AUG_MUL = "__aug_mul__";
-    static const string OV_OP_AUG_DIV = "__aug_div__";
-    static const string OV_OP_AUG_MOD = "__aug_mod__";
-    static const string OV_OP_AUG_ADD = "__aug_add__";
-    static const string OV_OP_AUG_SUB = "__aug_sub__";
-    static const string OV_OP_AUG_LSHIFT = "__aug_lshift__";
-    static const string OV_OP_AUG_RSHIFT = "__aug_rshift__";
-    static const string OV_OP_AUG_URSHIFT = "__aug_urshift__";
-    static const string OV_OP_AUG_AND = "__aug_and__";
-    static const string OV_OP_AUG_XOR = "__aug_xor__";
-    static const string OV_OP_AUG_OR = "__aug_or__";
-    // Comparison operators
-    static const string OV_OP_LT = "__lt__";
-    static const string OV_OP_LE = "__le__";
-    static const string OV_OP_EQ = "__eq__";
-    static const string OV_OP_NE = "__ne__";
-    static const string OV_OP_GE = "__ge__";
-    static const string OV_OP_GT = "__gt__";
+// Binary ops
+// `a + b` is same as `a.__add__(b)` if `a` has defined `__add__` function
+#define OV_OP_POW     (std::string("__pow__"))
+#define OV_OP_MUL     (std::string("__mul__"))
+#define OV_OP_DIV     (std::string("__div__"))
+#define OV_OP_MOD     (std::string("__mod__"))
+#define OV_OP_ADD     (std::string("__add__"))
+#define OV_OP_SUB     (std::string("__sub__"))
+#define OV_OP_LSHIFT  (std::string("__lshift__"))
+#define OV_OP_RSHIFT  (std::string("__rshift__"))
+#define OV_OP_URSHIFT (std::string("__urshift__"))
+#define OV_OP_AND     (std::string("__and__"))
+#define OV_OP_XOR     (std::string("__xor__"))
+#define OV_OP_OR      (std::string("__or__"))
+// `a + b` is same as `b.__rev_add__(a)` if `a` has not defined `__add__` function
+#define OV_OP_REV_POW     (std::string("__rev_pow__"))
+#define OV_OP_REV_MUL     (std::string("__rev_mul__"))
+#define OV_OP_REV_DIV     (std::string("__rev_div__"))
+#define OV_OP_REV_MOD     (std::string("__rev_mod__"))
+#define OV_OP_REV_ADD     (std::string("__rev_add__"))
+#define OV_OP_REV_SUB     (std::string("__rev_sub__"))
+#define OV_OP_REV_LSHIFT  (std::string("__rev_lshift__"))
+#define OV_OP_REV_RSHIFT  (std::string("__rev_rshift__"))
+#define OV_OP_REV_URSHIFT (std::string("__rev_urshift__"))
+#define OV_OP_REV_AND     (std::string("__rev_and__"))
+#define OV_OP_REV_XOR     (std::string("__rev_xor__"))
+#define OV_OP_REV_OR      (std::string("__rev_or__"))
+// `a += b` is same as `b.__aug_add__(a)`
+#define OV_OP_AUG_POW     (std::string("__aug_pow__"))
+#define OV_OP_AUG_MUL     (std::string("__aug_mul__"))
+#define OV_OP_AUG_DIV     (std::string("__aug_div__"))
+#define OV_OP_AUG_MOD     (std::string("__aug_mod__"))
+#define OV_OP_AUG_ADD     (std::string("__aug_add__"))
+#define OV_OP_AUG_SUB     (std::string("__aug_sub__"))
+#define OV_OP_AUG_LSHIFT  (std::string("__aug_lshift__"))
+#define OV_OP_AUG_RSHIFT  (std::string("__aug_rshift__"))
+#define OV_OP_AUG_URSHIFT (std::string("__aug_urshift__"))
+#define OV_OP_AUG_AND     (std::string("__aug_and__"))
+#define OV_OP_AUG_XOR     (std::string("__aug_xor__"))
+#define OV_OP_AUG_OR      (std::string("__aug_or__"))
+// Comparison operators
+#define OV_OP_LT (std::string("__lt__"))
+#define OV_OP_LE (std::string("__le__"))
+#define OV_OP_EQ (std::string("__eq__"))
+#define OV_OP_NE (std::string("__ne__"))
+#define OV_OP_GE (std::string("__ge__"))
+#define OV_OP_GT (std::string("__gt__"))
 
-    // Postfix operators
-    // `a(arg1, arg2, ...)` is same as `a.__call__(arg1, arg2, ...)`
-    static const string OV_OP_CALL = "__call__";
-    // `a[arg1, arg2, ...]` is same as `a.__get_item__(arg1, arg2, ...)`
-    static const string OV_OP_GET_ITEM = "__get_item__";
-    // `a[arg1, arg2, ...] = value` is same as `a.__set_item__(arg1, arg2, ..., value)`
-    static const string OV_OP_SET_ITEM = "__set_item__";
-    // `a in b` is same as `b.__contains__(a)`
-    static const string OV_OP_CONTAINS = "__contains__";
+// Postfix operators
+// `a(arg1, arg2, ...)` is same as `a.__call__(arg1, arg2, ...)`
+#define OV_OP_CALL (std::string("__call__"))
+// `a[arg1, arg2, ...]` is same as `a.__get_item__(arg1, arg2, ...)`
+#define OV_OP_GET_ITEM (std::string("__get_item__"))
+// `a[arg1, arg2, ...] = value` is same as `a.__set_item__(arg1, arg2, ..., value)`
+#define OV_OP_SET_ITEM (std::string("__set_item__"))
+// `a in b` is same as `b.__contains__(a)`
+#define OV_OP_CONTAINS (std::string("__contains__"))
 
-    // Unary operators
-    // `~a` is same as `a.__inv__()`
-    static const string OV_OP_INV = "__inv__";
-    // `-a` is same as `a.__neg__()`
-    static const string OV_OP_NEG = "__neg__";
-    // `+a` is same as `a.__pos__()`
-    static const string OV_OP_POS = "__pos__";
-
-    // This function overloads the truthiness of an object
-    static const string OV_OP_BOOL = "__bool__";
+// Unary operators
+// `~a` is same as `a.__inv__()`
+#define OV_OP_INV (std::string("__inv__"))
+// `-a` is same as `a.__neg__()`
+#define OV_OP_NEG (std::string("__neg__"))
+// `+a` is same as `a.__pos__()`
+#define OV_OP_POS (std::string("__pos__"))
 
     void Analyzer::visit(ast::expr::Constant &node) {
         _res_expr_info.reset();
@@ -157,212 +155,7 @@ namespace spade
         node.get_caller()->accept(this);
         auto caller_info = _res_expr_info;
         string member_name = node.get_member()->get_text();
-        _res_expr_info.reset();
-        switch (caller_info.tag) {
-            case ExprInfo::Type::NORMAL: {
-                if (caller_info.is_null())
-                    throw error("cannot access 'null'", &node);
-                if (caller_info.type_info.b_nullable && !node.get_safe()) {
-                    throw ErrorGroup<AnalyzerError>()
-                            .error(error(std::format("cannot access member of nullable '{}'", caller_info.to_string()), &node))
-                            .note(error("use safe dot access operator '?.'", &node));
-                }
-                if (!caller_info.type_info.b_nullable && node.get_safe()) {
-                    throw ErrorGroup<AnalyzerError>()
-                            .error(error(std::format("cannot use safe dot access operator on non-nullable '{}'",
-                                                     caller_info.to_string()),
-                                         &node))
-                            .note(error("remove the safe dot access operator '?.'", &node));
-                }
-                if (caller_info.type_info.is_type_literal()) {
-                    warning("'type' causes dynamic resolution, hence expression becomes 'spade.any?'", &node);
-                    _res_expr_info.tag = ExprInfo::Type::NORMAL;
-                    _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_ANY]);
-                    _res_expr_info.type_info.b_nullable = true;
-                } else {
-                    if (!caller_info.type_info.type->has_variable(member_name))
-                        throw error(std::format("cannot access member: '{}'", member_name), &node);
-                    auto member_scope = caller_info.type_info.type->get_variable(member_name);
-                    if (!member_scope) {
-                        // Provision of super fields and functions
-                        if (auto compound = get_current_scope()->get_enclosing_compound()) {
-                            if (compound->get_super_fields().contains(member_name)) {
-                                member_scope = compound->get_super_fields().at(member_name);
-                            } else if (compound->get_super_functions().contains(member_name)) {
-                                _res_expr_info.tag = ExprInfo::Type::FUNCTION_SET;
-                                _res_expr_info.value_info.b_const = true;
-                                _res_expr_info.value_info.b_lvalue = true;
-                                _res_expr_info.functions = compound->get_super_functions().at(member_name);
-                                break;
-                            }
-                        }
-                    }
-                    if (!member_scope)
-                        throw error(std::format("'{}' has no member named '{}'", caller_info.to_string(), member_name), &node);
-                    resolve_context(member_scope, node);
-                    switch (member_scope->get_type()) {
-                        case scope::ScopeType::COMPOUND:
-                            _res_expr_info.tag = ExprInfo::Type::STATIC;
-                            _res_expr_info.value_info.b_const = true;
-                            _res_expr_info.value_info.b_lvalue = true;
-                            _res_expr_info.type_info.type = cast<scope::Compound>(&*member_scope);
-                            break;
-                        case scope::ScopeType::FUNCTION:
-                            throw Unreachable();    // surely some symbol tree builder error
-                        case scope::ScopeType::FUNCTION_SET:
-                            _res_expr_info.tag = ExprInfo::Type::FUNCTION_SET;
-                            _res_expr_info.value_info.b_const = true;
-                            _res_expr_info.value_info.b_lvalue = true;
-                            _res_expr_info.functions = cast<scope::FunctionSet>(&*member_scope);
-                            break;
-                        case scope::ScopeType::VARIABLE:
-                            _res_expr_info = get_var_expr_info(cast<scope::Variable>(member_scope), node);
-                            break;
-                        case scope::ScopeType::ENUMERATOR:
-                            throw ErrorGroup<AnalyzerError>()
-                                    .error(error("cannot access enumerator from an object (you should use the type)", &node))
-                                    .note(error(
-                                            std::format("use {}.{}", caller_info.type_info.type->to_string(false), member_name),
-                                            &node));
-                            break;
-                        default:
-                            throw Unreachable();    // surely some parser error
-                    }
-                }
-                break;
-            }
-            case ExprInfo::Type::STATIC: {
-                if (caller_info.type_info.b_nullable && !node.get_safe()) {
-                    throw ErrorGroup<AnalyzerError>()
-                            .error(error(std::format("cannot access member of nullable '{}'", caller_info.to_string()), &node))
-                            .note(error("use safe dot access operator '?.'", &node));
-                }
-                if (!caller_info.type_info.b_nullable && node.get_safe()) {
-                    throw ErrorGroup<AnalyzerError>()
-                            .error(error(std::format("cannot use safe dot access operator on non-nullable '{}'",
-                                                     caller_info.to_string()),
-                                         &node))
-                            .note(error("remove the safe dot access operator '?.'", &node));
-                }
-                if (caller_info.type_info.is_type_literal()) {
-                    warning("'type' causes dynamic resolution, hence expression becomes 'spade.any?'", &node);
-                    _res_expr_info.tag = ExprInfo::Type::NORMAL;
-                    _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_ANY]);
-                    _res_expr_info.type_info.b_nullable = true;
-                } else {
-                    if (!caller_info.type_info.type->has_variable(member_name))
-                        throw error(std::format("cannot access member: '{}'", member_name), &node);
-                    auto member_scope = caller_info.type_info.type->get_variable(member_name);
-                    if (!member_scope)
-                        throw error(std::format("'{}' has no member named '{}'", caller_info.to_string(), member_name), &node);
-                    resolve_context(member_scope, node);
-                    switch (member_scope->get_type()) {
-                        case scope::ScopeType::COMPOUND:
-                            _res_expr_info.tag = ExprInfo::Type::STATIC;
-                            _res_expr_info.value_info.b_const = true;
-                            _res_expr_info.value_info.b_lvalue = true;
-                            _res_expr_info.type_info.type = cast<scope::Compound>(&*member_scope);
-                            break;
-                        case scope::ScopeType::FUNCTION:
-                            throw Unreachable();    // surely some symbol tree builder error
-                        case scope::ScopeType::FUNCTION_SET:
-                            _res_expr_info.tag = ExprInfo::Type::FUNCTION_SET;
-                            _res_expr_info.value_info.b_const = true;
-                            _res_expr_info.value_info.b_lvalue = true;
-                            _res_expr_info.functions = cast<scope::FunctionSet>(&*member_scope);
-                            _res_expr_info.functions.remove_if(
-                                    [](const std::pair<const SymbolPath &, const scope::Function *> &item) {
-                                        return !item.second->is_static();
-                                    });
-                            if (_res_expr_info.functions.empty()) {
-                                throw error(std::format("cannot access non-static '{}' of '{}'", member_scope->to_string(),
-                                                        caller_info.to_string()),
-                                            &node);
-                            }
-                            break;
-                        case scope::ScopeType::VARIABLE: {
-                            auto var_scope = cast<scope::Variable>(member_scope);
-                            if (!var_scope->is_static())
-                                throw error(std::format("cannot access non-static '{}' of '{}'", var_scope->to_string(),
-                                                        caller_info.to_string()),
-                                            &node);
-                            _res_expr_info = get_var_expr_info(var_scope, node);
-                            break;
-                        }
-                        case scope::ScopeType::ENUMERATOR:
-                            _res_expr_info.type_info.type = caller_info.type_info.type;
-                            _res_expr_info.value_info.b_const = true;
-                            _res_expr_info.value_info.b_lvalue = true;
-                            _res_expr_info.tag = ExprInfo::Type::NORMAL;
-                            break;
-                        default:
-                            throw Unreachable();    // surely some parser error
-                    }
-                }
-                break;
-            }
-            case ExprInfo::Type::MODULE: {
-                if (node.get_safe())
-                    throw error("cannot use safe dot access operator on a module", &node);
-                if (!caller_info.module->has_variable(member_name))
-                    throw error(std::format("cannot access member: '{}'", member_name), &node);
-                auto member_scope = caller_info.module->get_variable(member_name);
-                if (!member_scope)
-                    throw error(std::format("'{}' has no member named '{}'", caller_info.to_string(), member_name), &node);
-                resolve_context(member_scope, node);
-                switch (member_scope->get_type()) {
-                    case scope::ScopeType::FOLDER_MODULE:
-                    case scope::ScopeType::MODULE:
-                        _res_expr_info.tag = ExprInfo::Type::MODULE;
-                        _res_expr_info.value_info.b_const = true;
-                        _res_expr_info.value_info.b_lvalue = true;
-                        _res_expr_info.module = cast<scope::Module>(&*member_scope);
-                        break;
-                    case scope::ScopeType::COMPOUND:
-                        _res_expr_info.tag = ExprInfo::Type::STATIC;
-                        _res_expr_info.value_info.b_const = true;
-                        _res_expr_info.value_info.b_lvalue = true;
-                        _res_expr_info.type_info.type = cast<scope::Compound>(&*member_scope);
-                        break;
-                    case scope::ScopeType::FUNCTION:
-                        throw Unreachable();    // surely some symbol tree builder error
-                    case scope::ScopeType::FUNCTION_SET:
-                        _res_expr_info.tag = ExprInfo::Type::FUNCTION_SET;
-                        _res_expr_info.value_info.b_const = true;
-                        _res_expr_info.value_info.b_lvalue = true;
-                        _res_expr_info.functions = cast<scope::FunctionSet>(&*member_scope);
-                        break;
-                    case scope::ScopeType::VARIABLE:
-                        _res_expr_info = get_var_expr_info(cast<scope::Variable>(member_scope), node);
-                        break;
-                    default:
-                        throw Unreachable();    // surely some parser error
-                }
-                break;
-            }
-            case ExprInfo::Type::FUNCTION_SET:
-                throw error("cannot access member of callable type", &node);
-        }
-        // This is the property of safe dot operator
-        // where 'a?.b' returns 'a.b' if 'a' is not null, else returns null
-        if (node.get_safe()) {
-            switch (_res_expr_info.tag) {
-                case ExprInfo::Type::NORMAL:
-                case ExprInfo::Type::STATIC:
-                    _res_expr_info.type_info.b_nullable = true;
-                    break;
-                case ExprInfo::Type::MODULE:
-                    break;
-                case ExprInfo::Type::FUNCTION_SET:
-                    _res_expr_info.functions.b_nullable = true;
-                    break;
-            }
-        }
-        _res_expr_info.value_info.b_lvalue = true;
-        // Fix for `self.a` const error bcz `self.a` is not constant if it is declared non-const
-        if (!_res_expr_info.value_info.b_const)
-            _res_expr_info.value_info.b_const = caller_info.value_info.b_const && !caller_info.value_info.b_self;
-        _res_expr_info.value_info.b_self = false;
+        _res_expr_info = get_member(caller_info, member_name, node.get_safe() != null, node);
     }
 
     void Analyzer::visit(ast::expr::Call &node) {
@@ -404,10 +197,17 @@ namespace spade
                 } else {
                     // also supports self(...) syntax
                     // check for call operator
-                    if (auto fun_set = caller_info.type_info.type->get_variable(OV_OP_CALL)) {
-                        _res_expr_info = resolve_call(&*cast<scope::FunctionSet>(fun_set), arg_infos, node);
-                    } else
-                        throw error(std::format("object of '{}' is not callable", caller_info.to_string()), &node);
+                    auto member = get_member(caller_info, OV_OP_CALL, node.get_safe() != null, node);
+                    switch (member.tag) {
+                        case ExprInfo::Type::NORMAL:
+                        case ExprInfo::Type::STATIC:
+                        case ExprInfo::Type::MODULE:
+                            throw error(std::format("object of '{}' is not callable", caller_info.to_string()), &node);
+                        case ExprInfo::Type::FUNCTION_SET: {
+                            _res_expr_info = resolve_call(member.functions, arg_infos, node);
+                            break;
+                        }
+                    }
                 }
                 break;
             }
@@ -431,14 +231,19 @@ namespace spade
                     _res_expr_info.type_info.b_nullable = true;
                 } else {
                     // check for constructor
-                    if (auto fun_set = caller_info.type_info.type->get_variable("init")) {
-                        _res_expr_info.reset();
-                        _res_expr_info = resolve_call(&*cast<scope::FunctionSet>(fun_set), arg_infos, node);
-                    } else {
-                        throw ErrorGroup<AnalyzerError>()
-                                .error(error(std::format("'{}' does not provide a constructor", caller_info.to_string()),
-                                             &node))
-                                .note(error("declared here", caller_info.type_info.type));
+                    auto member = get_member(caller_info, "init", node.get_safe() != null, node);
+                    switch (member.tag) {
+                        case ExprInfo::Type::NORMAL:
+                        case ExprInfo::Type::STATIC:
+                        case ExprInfo::Type::MODULE:
+                            throw ErrorGroup<AnalyzerError>()
+                                    .error(error(std::format("'{}' does not provide a constructor", caller_info.to_string()),
+                                                 &node))
+                                    .note(error("declared here", caller_info.type_info.type));
+                        case ExprInfo::Type::FUNCTION_SET: {
+                            _res_expr_info = resolve_call(member.functions, arg_infos, node);
+                            break;
+                        }
                     }
                 }
                 break;
@@ -538,9 +343,20 @@ namespace spade
                             if (type_info.type == &*internals[Internal::SPADE_INT]) {
                                 _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_INT]);
                             } else {
-                                // TODO: Check for overloaded operator ~
-                                throw error(std::format("cannot apply unary operator '~' on '{}'", type_info.type->to_string()),
-                                            &node);
+                                // Check for overloaded operator ~
+                                auto member = get_member(expr_info, OV_OP_INV, node);
+                                switch (member.tag) {
+                                    case ExprInfo::Type::NORMAL:
+                                    case ExprInfo::Type::STATIC:
+                                    case ExprInfo::Type::MODULE:
+                                        throw error(
+                                                std::format("cannot apply unary operator '~' on '{}'", type_info.to_string()),
+                                                &node);
+                                    case ExprInfo::Type::FUNCTION_SET: {
+                                        _res_expr_info = resolve_call(member.functions, {}, node);
+                                        break;
+                                    }
+                                }
                             }
                             break;
                         }
@@ -550,9 +366,20 @@ namespace spade
                             } else if (type_info.type == &*internals[Internal::SPADE_FLOAT]) {
                                 _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_FLOAT]);
                             } else {
-                                // TODO: Check for overloaded operator -
-                                throw error(std::format("cannot apply unary operator '-' on '{}'", type_info.type->to_string()),
-                                            &node);
+                                // Check for overloaded operator -
+                                auto member = get_member(expr_info, OV_OP_SUB, node);
+                                switch (member.tag) {
+                                    case ExprInfo::Type::NORMAL:
+                                    case ExprInfo::Type::STATIC:
+                                    case ExprInfo::Type::MODULE:
+                                        throw error(
+                                                std::format("cannot apply unary operator '-' on '{}'", type_info.to_string()),
+                                                &node);
+                                    case ExprInfo::Type::FUNCTION_SET: {
+                                        _res_expr_info = resolve_call(member.functions, {}, node);
+                                        break;
+                                    }
+                                }
                             }
                             break;
                         }
@@ -562,9 +389,20 @@ namespace spade
                             } else if (type_info.type == &*internals[Internal::SPADE_FLOAT]) {
                                 _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_FLOAT]);
                             } else {
-                                // TODO: Check for overloaded operator +
-                                throw error(std::format("cannot apply unary operator '+' on '{}'", type_info.type->to_string()),
-                                            &node);
+                                // Check for overloaded operator +
+                                auto member = get_member(expr_info, OV_OP_ADD, node);
+                                switch (member.tag) {
+                                    case ExprInfo::Type::NORMAL:
+                                    case ExprInfo::Type::STATIC:
+                                    case ExprInfo::Type::MODULE:
+                                        throw error(
+                                                std::format("cannot apply unary operator '+' on '{}'", type_info.to_string()),
+                                                &node);
+                                    case ExprInfo::Type::FUNCTION_SET: {
+                                        _res_expr_info = resolve_call(member.functions, {}, node);
+                                        break;
+                                    }
+                                }
                             }
                             break;
                         }
@@ -621,71 +459,291 @@ namespace spade
         _res_expr_info.value_info.b_const = false;
     }
 
+#define is_number_type(type_info)                                                                                              \
+    ((type_info).type == &*internals[Internal::SPADE_INT] || (type_info).type == &*internals[Internal::SPADE_FLOAT])
+#define is_string_type(type_info) ((type_info).type == &*internals[Internal::SPADE_STRING])
+
     void Analyzer::visit(ast::expr::Binary &node) {
+#define find_user_defined_op_no_rev(OPERATOR)                                                                                  \
+    do {                                                                                                                       \
+        ErrorGroup<AnalyzerError> errors;                                                                                      \
+        auto member = get_member(left_expr_info, OV_OP_##OPERATOR, node, errors);                                              \
+        if (!errors.get_errors().empty())                                                                                      \
+            throw error(std::format("cannot apply binary operator '{}' on '{}' and '{}'", op_str, left_expr_info.to_string(),  \
+                                    right_expr_info.to_string()),                                                              \
+                        &node);                                                                                                \
+        switch (member.tag) {                                                                                                  \
+            case ExprInfo::Type::NORMAL:                                                                                       \
+            case ExprInfo::Type::STATIC:                                                                                       \
+            case ExprInfo::Type::MODULE:                                                                                       \
+                throw error(std::format("cannot apply binary operator '{}' on '{}' and '{}'", op_str,                          \
+                                        left_expr_info.to_string(), right_expr_info.to_string()),                              \
+                            &node);                                                                                            \
+                break;                                                                                                         \
+            case ExprInfo::Type::FUNCTION_SET: {                                                                               \
+                std::vector<ArgInfo> args(1);                                                                                  \
+                args[0] = ArgInfo{false, "", right_expr_info, &node};                                                          \
+                _res_expr_info = resolve_call(member.functions, args, node);                                                   \
+                break;                                                                                                         \
+            }                                                                                                                  \
+        }                                                                                                                      \
+    } while (false)
+#define find_user_defined_op(OPERATOR)                                                                                         \
+    do {                                                                                                                       \
+        ErrorGroup<AnalyzerError> errors;                                                                                      \
+        auto member = get_member(left_expr_info, OV_OP_##OPERATOR, node, errors);                                              \
+        bool find_rev_op = !errors.get_errors().empty();                                                                       \
+        if (!find_rev_op) {                                                                                                    \
+            switch (member.tag) {                                                                                              \
+                case ExprInfo::Type::NORMAL:                                                                                   \
+                case ExprInfo::Type::STATIC:                                                                                   \
+                case ExprInfo::Type::MODULE:                                                                                   \
+                    find_rev_op = true;                                                                                        \
+                    break;                                                                                                     \
+                case ExprInfo::Type::FUNCTION_SET: {                                                                           \
+                    std::vector<ArgInfo> args(1);                                                                              \
+                    args[0] = ArgInfo{false, "", right_expr_info, &node};                                                      \
+                    _res_expr_info = resolve_call(member.functions, args, node);                                               \
+                    break;                                                                                                     \
+                }                                                                                                              \
+            }                                                                                                                  \
+        }                                                                                                                      \
+        if (find_rev_op) {                                                                                                     \
+            ErrorGroup<AnalyzerError> errors;                                                                                  \
+            auto member = get_member(right_expr_info, OV_OP_REV_##OPERATOR, node, errors);                                     \
+            if (!errors.get_errors().empty())                                                                                  \
+                throw error(std::format("cannot apply binary operator '{}' on '{}' and '{}'", op_str,                          \
+                                        left_expr_info.to_string(), right_expr_info.to_string()),                              \
+                            &node);                                                                                            \
+            switch (member.tag) {                                                                                              \
+                case ExprInfo::Type::NORMAL:                                                                                   \
+                case ExprInfo::Type::STATIC:                                                                                   \
+                case ExprInfo::Type::MODULE:                                                                                   \
+                    throw error(std::format("cannot apply binary operator '{}' on '{}' and '{}'", op_str,                      \
+                                            left_expr_info.to_string(), right_expr_info.to_string()),                          \
+                                &node);                                                                                        \
+                case ExprInfo::Type::FUNCTION_SET: {                                                                           \
+                    std::vector<ArgInfo> args(1);                                                                              \
+                    args[0] = ArgInfo{false, "", left_expr_info, &node};                                                       \
+                    _res_expr_info = resolve_call(member.functions, args, node);                                               \
+                    break;                                                                                                     \
+                }                                                                                                              \
+            }                                                                                                                  \
+        }                                                                                                                      \
+    } while (false)
+#define check_non_null()                                                                                                       \
+    do {                                                                                                                       \
+        if (left_expr_info.type_info.b_nullable || right_expr_info.type_info.b_nullable)                                       \
+            throw error(std::format("cannot apply binary operator '{}' on '{}' and '{}'", op_str, left_expr_info.to_string(),  \
+                                    right_expr_info.to_string()),                                                              \
+                        &node);                                                                                                \
+    } while (false)
         string op_str = (node.get_op1() ? node.get_op1()->get_text() : "") + (node.get_op2() ? node.get_op2()->get_text() : "");
 
         node.get_left()->accept(this);
         auto left_expr_info = _res_expr_info;
         node.get_right()->accept(this);
         auto right_expr_info = _res_expr_info;
-
-        if (left_expr_info.is_null() || right_expr_info.is_null())
-            throw error(std::format("cannot apply binary operator '{}' on 'null'", op_str), &node);
-        if (((left_expr_info.tag == ExprInfo::Type::NORMAL || left_expr_info.tag == ExprInfo::Type::STATIC) &&
-             left_expr_info.type_info.is_type_literal()) ||
-            ((right_expr_info.tag == ExprInfo::Type::NORMAL || right_expr_info.tag == ExprInfo::Type::STATIC) &&
-             right_expr_info.type_info.is_type_literal())) {
-            warning("'type' causes dynamic resolution, hence expression becomes 'spade.any?'", &node);
-            _res_expr_info.tag = ExprInfo::Type::NORMAL;
-            _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_ANY]);
-            _res_expr_info.type_info.b_nullable = true;
-        }
-        switch (node.get_op1()->get_type()) {
-            case TokenType::STAR_STAR:
-                break;
-            case TokenType::STAR:
-                break;
-            case TokenType::SLASH:
-                break;
-            case TokenType::PERCENT:
-                break;
-            case TokenType::PLUS:
-                break;
-            case TokenType::DASH:
-                break;
-            case TokenType::LSHIFT:
-                break;
-            case TokenType::RSHIFT:
-                break;
-            case TokenType::URSHIFT:
-                break;
-            case TokenType::AMPERSAND:
-                break;
-            case TokenType::CARET:
-                break;
-            case TokenType::PIPE:
-                break;
-            case TokenType::IS:
-                if (node.get_op2() && node.get_op2()->get_type() == TokenType::NOT) {
-                } else {
+        switch (left_expr_info.tag) {
+            case ExprInfo::Type::NORMAL: {
+                auto type_info = left_expr_info.type_info;
+                if (type_info.is_type_literal()) {
+                    warning("'type' causes dynamic resolution, hence expression becomes 'spade.any?'", &node);
+                    _res_expr_info.tag = ExprInfo::Type::NORMAL;
+                    _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_ANY]);
+                    _res_expr_info.type_info.b_nullable = true;
+                    return;
                 }
                 break;
-            case TokenType::NOT:
-                if (node.get_op2() && node.get_op2()->get_type() == TokenType::IN) {
-                } else
-                    throw Unreachable();    // surely some parser error
+            }
+            case ExprInfo::Type::STATIC:
+            case ExprInfo::Type::MODULE:
+            case ExprInfo::Type::FUNCTION_SET:
+                throw error(std::format("cannot apply binary operator '{}' on '{}'", op_str, left_expr_info.to_string()),
+                            &node);
+        }
+        switch (right_expr_info.tag) {
+            case ExprInfo::Type::NORMAL: {
+                auto type_info = right_expr_info.type_info;
+                if (type_info.is_type_literal()) {
+                    warning("'type' causes dynamic resolution, hence expression becomes 'spade.any?'", &node);
+                    _res_expr_info.tag = ExprInfo::Type::NORMAL;
+                    _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_ANY]);
+                    _res_expr_info.type_info.b_nullable = true;
+                    return;
+                }
                 break;
+            }
+            case ExprInfo::Type::STATIC:
+            case ExprInfo::Type::MODULE:
+            case ExprInfo::Type::FUNCTION_SET:
+                throw error(std::format("cannot apply binary operator '{}' on '{}'", op_str, right_expr_info.to_string()),
+                            &node);
+        }
+        _res_expr_info.reset();
+        _res_expr_info.tag = ExprInfo::Type::NORMAL;
+        switch (node.get_op1()->get_type()) {
+            case TokenType::STAR_STAR:
+                if (is_number_type(left_expr_info.type_info) && is_number_type(right_expr_info.type_info)) {
+                    check_non_null();
+                    if (left_expr_info.type_info.type == &*internals[Internal::SPADE_FLOAT] ||
+                        right_expr_info.type_info.type == &*internals[Internal::SPADE_FLOAT])
+                        _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_FLOAT]);
+                    else
+                        _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_INT]);
+                } else
+                    // Check for overloaded operator **
+                    find_user_defined_op(POW);
+                break;
+            case TokenType::STAR:
+                if (is_number_type(left_expr_info.type_info) && is_number_type(right_expr_info.type_info)) {
+                    check_non_null();
+                    if (left_expr_info.type_info.type == &*internals[Internal::SPADE_FLOAT] ||
+                        right_expr_info.type_info.type == &*internals[Internal::SPADE_FLOAT])
+                        _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_FLOAT]);
+                    else
+                        _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_INT]);
+                } else if (is_string_type(left_expr_info.type_info) &&
+                           right_expr_info.type_info.type == &*internals[Internal::SPADE_INT]) {
+                    // `string` * `int` -> `string`
+                    check_non_null();
+                    _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_STRING]);
+                } else
+                    // Check for overloaded operator *
+                    find_user_defined_op(MUL);
+                break;
+            case TokenType::SLASH:
+                if (is_number_type(left_expr_info.type_info) && is_number_type(right_expr_info.type_info)) {
+                    check_non_null();
+                    if (left_expr_info.type_info.type == &*internals[Internal::SPADE_FLOAT] ||
+                        right_expr_info.type_info.type == &*internals[Internal::SPADE_FLOAT])
+                        _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_FLOAT]);
+                    else
+                        _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_INT]);
+                } else
+                    // Check for overloaded operator /
+                    find_user_defined_op(DIV);
+                break;
+            case TokenType::PERCENT:
+                if (left_expr_info.type_info.type == &*internals[Internal::SPADE_INT] &&
+                    right_expr_info.type_info.type == &*internals[Internal::SPADE_INT]) {
+                    check_non_null();
+                    _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_INT]);
+                } else
+                    // Check for overloaded operator %
+                    find_user_defined_op(MOD);
+                break;
+            case TokenType::PLUS:
+                if (is_number_type(left_expr_info.type_info) && is_number_type(right_expr_info.type_info)) {
+                    // `int` + `int` -> `int`
+                    // `float` + `float` or `int` + `float` or `float` + `int` -> `float`
+                    check_non_null();
+                    if (left_expr_info.type_info.type == &*internals[Internal::SPADE_FLOAT] ||
+                        right_expr_info.type_info.type == &*internals[Internal::SPADE_FLOAT])
+                        _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_FLOAT]);
+                    else
+                        _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_INT]);
+                } else if (is_string_type(left_expr_info.type_info) || is_string_type(right_expr_info.type_info)) {
+                    // `any` + `string` or `string` + `any` or `string` + `string` -> `string`
+                    // check_non_null(); // E.g. `"val: " + val` can be "val: null"
+                    if (left_expr_info.type_info.b_nullable && right_expr_info.type_info.b_nullable)
+                        throw error(std::format("cannot apply binary operator '{}' on '{}' and '{}'", op_str,
+                                                left_expr_info.to_string(), right_expr_info.to_string()),
+                                    &node);
+                    _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_STRING]);
+                } else
+                    // Check for overloaded operator +
+                    find_user_defined_op(ADD);
+                break;
+            case TokenType::DASH:
+                if (is_number_type(left_expr_info.type_info) && is_number_type(right_expr_info.type_info)) {
+                    check_non_null();
+                    if (left_expr_info.type_info.type == &*internals[Internal::SPADE_FLOAT] ||
+                        right_expr_info.type_info.type == &*internals[Internal::SPADE_FLOAT])
+                        _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_FLOAT]);
+                    else
+                        _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_INT]);
+                } else
+                    // Check for overloaded operator -
+                    find_user_defined_op(SUB);
+                break;
+            case TokenType::LSHIFT:
+                if (left_expr_info.type_info.type == &*internals[Internal::SPADE_INT] &&
+                    right_expr_info.type_info.type == &*internals[Internal::SPADE_INT]) {
+                    check_non_null();
+                    _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_INT]);
+                } else
+                    // Check for overloaded operator <<
+                    find_user_defined_op(LSHIFT);
+                break;
+            case TokenType::RSHIFT:
+                if (left_expr_info.type_info.type == &*internals[Internal::SPADE_INT] &&
+                    right_expr_info.type_info.type == &*internals[Internal::SPADE_INT]) {
+                    check_non_null();
+                    _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_INT]);
+                } else
+                    // Check for overloaded operator >>
+                    find_user_defined_op(RSHIFT);
+                break;
+            case TokenType::URSHIFT:
+                if (left_expr_info.type_info.type == &*internals[Internal::SPADE_INT] &&
+                    right_expr_info.type_info.type == &*internals[Internal::SPADE_INT]) {
+                    check_non_null();
+                    _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_INT]);
+                } else
+                    // Check for overloaded operator >>>
+                    find_user_defined_op(URSHIFT);
+                break;
+            case TokenType::AMPERSAND:
+                if (left_expr_info.type_info.type == &*internals[Internal::SPADE_INT] &&
+                    right_expr_info.type_info.type == &*internals[Internal::SPADE_INT]) {
+                    check_non_null();
+                    _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_INT]);
+                } else
+                    // Check for overloaded operator &
+                    find_user_defined_op(AND);
+                break;
+            case TokenType::CARET:
+                if (left_expr_info.type_info.type == &*internals[Internal::SPADE_INT] &&
+                    right_expr_info.type_info.type == &*internals[Internal::SPADE_INT]) {
+                    check_non_null();
+                    _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_INT]);
+                } else
+                    // Check for overloaded operator ^
+                    find_user_defined_op(XOR);
+                break;
+            case TokenType::PIPE:
+                if (left_expr_info.type_info.type == &*internals[Internal::SPADE_INT] &&
+                    right_expr_info.type_info.type == &*internals[Internal::SPADE_INT]) {
+                    check_non_null();
+                    _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_INT]);
+                } else
+                    // Check for overloaded operator |
+                    find_user_defined_op(OR);
+                break;
+            case TokenType::IS:
+                // Either `is` or `is not` operator
+                _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_BOOL]);
+                // _res_expr_info.type_info.b_nullable = false; // by default it is false
+                break;
+            case TokenType::NOT:
             case TokenType::IN:
+                // Either `in` or `not in` operator
+                find_user_defined_op_no_rev(CONTAINS);
                 break;
             case TokenType::AND:
+                _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_BOOL]);
                 break;
             case TokenType::OR:
+                _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_BOOL]);
                 break;
             default:
-                throw Unreachable();
+                throw Unreachable();    // surely some parser error
         }
         _res_expr_info.value_info.b_lvalue = false;
         _res_expr_info.value_info.b_const = false;
+#undef find_user_defined_op
+#undef check_non_null
     }
 
     void Analyzer::visit(ast::expr::ChainBinary &node) {
@@ -696,62 +754,100 @@ namespace spade
             auto right_expr_info = _res_expr_info;
             if (prev_expr_opt) {
                 auto left_expr_info = *prev_expr_opt;
-                if (((left_expr_info.tag == ExprInfo::Type::NORMAL || left_expr_info.tag == ExprInfo::Type::STATIC) &&
-                     left_expr_info.type_info.is_type_literal()) ||
-                    ((right_expr_info.tag == ExprInfo::Type::NORMAL || right_expr_info.tag == ExprInfo::Type::STATIC) &&
-                     right_expr_info.type_info.is_type_literal())) {
-                    warning("'type' causes dynamic resolution", &node);
-                } else {
-                    string op_str = node.get_ops()[i - 1]->get_text();
-                    string ov_op_str;
-                    switch (node.get_ops()[i - 1]->get_type()) {
-                        case TokenType::LT:
-                            ov_op_str = OV_OP_LT;
-                            goto lt_le_ge_gt_common;
-                        case TokenType::LE:
-                            ov_op_str = OV_OP_LE;
-                            goto lt_le_ge_gt_common;
-                        case TokenType::GE:
-                            ov_op_str = OV_OP_GE;
-                            goto lt_le_ge_gt_common;
-                        case TokenType::GT:
-                            ov_op_str = OV_OP_GT;
-lt_le_ge_gt_common:
-                            if (left_expr_info.tag != ExprInfo::Type::NORMAL || right_expr_info.tag != ExprInfo::Type::NORMAL)
-                                throw error(std::format("cannot apply binary operator '{}' on '{}' and '{}'", op_str,
-                                                        left_expr_info.to_string(), right_expr_info.to_string()),
-                                            &node);
-                            if (left_expr_info.type_info.b_nullable || right_expr_info.type_info.b_nullable)
-                                throw error(std::format("cannot apply binary operator '{}' on '{}' and '{}'", op_str,
-                                                        left_expr_info.to_string(), right_expr_info.to_string()),
-                                            &node);
-                            if ((left_expr_info.type_info.type == &*internals[Internal::SPADE_INT] ||
-                                 left_expr_info.type_info.type == &*internals[Internal::SPADE_FLOAT]) &&
-                                (right_expr_info.type_info.type == &*internals[Internal::SPADE_INT] ||
-                                 right_expr_info.type_info.type == &*internals[Internal::SPADE_FLOAT])) {
-                                // plain int|float <, <=, >=, > int|float
-                            } else if (left_expr_info.type_info.type == &*internals[Internal::SPADE_STRING] &&
-                                       right_expr_info.type_info.type == &*internals[Internal::SPADE_STRING]) {
-                                // plain string <, <=, >=, > string
-                            } else {
-                                // TODO: check for overloaded operator `ov_op_str`
-                                throw error(std::format("cannot apply binary operator '{}' on '{}' and '{}'", op_str,
-                                                        left_expr_info.to_string(), right_expr_info.to_string()),
-                                            &node);
-                            }
-                            break;
-                        case TokenType::EQ:
-                            break;
-                        case TokenType::NE:
-                            break;
-                        default:
-                            throw Unreachable();    // surely some parser error
+                string op_str = node.get_ops()[i - 1]->get_text();
+                string ov_op_str;
+                switch (left_expr_info.tag) {
+                    case ExprInfo::Type::NORMAL: {
+                        auto type_info = left_expr_info.type_info;
+                        if (type_info.is_type_literal()) {
+                            warning("'type' causes dynamic resolution", &node);
+                            continue;
+                        }
+                        break;
                     }
+                    case ExprInfo::Type::STATIC:
+                    case ExprInfo::Type::MODULE:
+                    case ExprInfo::Type::FUNCTION_SET:
+                        throw error(std::format("cannot apply binary operator '{}' on '{}' and '{}'", op_str,
+                                                left_expr_info.to_string(), right_expr_info.to_string()),
+                                    &node);
+                }
+                switch (right_expr_info.tag) {
+                    case ExprInfo::Type::NORMAL: {
+                        auto type_info = right_expr_info.type_info;
+                        if (type_info.is_type_literal()) {
+                            warning("'type' causes dynamic resolution", &node);
+                            continue;
+                        }
+                        break;
+                    }
+                    case ExprInfo::Type::STATIC:
+                    case ExprInfo::Type::MODULE:
+                    case ExprInfo::Type::FUNCTION_SET:
+                        throw error(std::format("cannot apply binary operator '{}' on '{}' and '{}'", op_str,
+                                                left_expr_info.to_string(), right_expr_info.to_string()),
+                                    &node);
+                }
+                switch (node.get_ops()[i - 1]->get_type()) {
+                    case TokenType::LT:
+                        ov_op_str = OV_OP_LT;
+                        goto lt_le_ge_gt_common;
+                    case TokenType::LE:
+                        ov_op_str = OV_OP_LE;
+                        goto lt_le_ge_gt_common;
+                    case TokenType::GE:
+                        ov_op_str = OV_OP_GE;
+                        goto lt_le_ge_gt_common;
+                    case TokenType::GT:
+                        ov_op_str = OV_OP_GT;
+lt_le_ge_gt_common:
+                        if (left_expr_info.type_info.b_nullable || right_expr_info.type_info.b_nullable)
+                            throw error(std::format("cannot apply binary operator '{}' on '{}' and '{}'", op_str,
+                                                    left_expr_info.to_string(), right_expr_info.to_string()),
+                                        &node);
+                        if (left_expr_info.tag != ExprInfo::Type::NORMAL || right_expr_info.tag != ExprInfo::Type::NORMAL)
+                            throw error(std::format("cannot apply binary operator '{}' on '{}' and '{}'", op_str,
+                                                    left_expr_info.to_string(), right_expr_info.to_string()),
+                                        &node);
+                        if (left_expr_info.type_info.b_nullable || right_expr_info.type_info.b_nullable)
+                            throw error(std::format("cannot apply binary operator '{}' on '{}' and '{}'", op_str,
+                                                    left_expr_info.to_string(), right_expr_info.to_string()),
+                                        &node);
+                        if (is_number_type(left_expr_info.type_info) && is_number_type(right_expr_info.type_info)) {
+                            // plain int|float <, <=, >=, > int|float
+                        } else if (is_string_type(left_expr_info.type_info) && is_string_type(right_expr_info.type_info)) {
+                            // plain string <, <=, >=, > string
+                        } else {
+                            // Check for overloaded operator <, <=, >=, >
+                            auto member = get_member(left_expr_info, ov_op_str, node);
+                            switch (member.tag) {
+                                case ExprInfo::Type::NORMAL:
+                                case ExprInfo::Type::STATIC:
+                                case ExprInfo::Type::MODULE:
+                                    throw error(std::format("cannot apply binary operator '{}' on '{}' and '{}'", op_str,
+                                                            left_expr_info.to_string(), right_expr_info.to_string()),
+                                                &node);
+                                case ExprInfo::Type::FUNCTION_SET: {
+                                    std::vector<ArgInfo> args(1);
+                                    args[0] = ArgInfo{false, "", right_expr_info, &node};
+                                    resolve_call(member.functions, args, node);
+                                    break;
+                                }
+                            }
+                        }
+                        break;
+                    case TokenType::EQ:
+                        break;
+                    case TokenType::NE:
+                        break;
+                    default:
+                        throw Unreachable();    // surely some parser error
                 }
             }
             prev_expr_opt = right_expr_info;
             i++;
         }
+
         _res_expr_info.tag = ExprInfo::Type::NORMAL;
         _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_BOOL]);
         _res_expr_info.value_info.b_lvalue = false;

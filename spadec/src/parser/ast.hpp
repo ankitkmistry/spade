@@ -839,19 +839,19 @@ namespace spade::ast
 
         class Catch final : public Statement {
             std::vector<std::shared_ptr<Reference>> references;
-            std::shared_ptr<Token> symbol;
+            std::shared_ptr<ast::decl::Variable> symbol;
             std::shared_ptr<Statement> body;
 
           public:
             Catch(const std::shared_ptr<Token> &token, const std::vector<std::shared_ptr<Reference>> &references,
-                  const std::shared_ptr<Token> &symbol, const std::shared_ptr<Statement> &body)
+                  const std::shared_ptr<ast::decl::Variable> &symbol, const std::shared_ptr<Statement> &body)
                 : Statement(token, body), references(references), symbol(symbol), body(body) {}
 
             const std::vector<std::shared_ptr<Reference>> &get_references() const {
                 return references;
             }
 
-            const std::shared_ptr<Token> &get_symbol() const {
+            const std::shared_ptr<ast::decl::Variable> &get_symbol() const {
                 return symbol;
             }
 

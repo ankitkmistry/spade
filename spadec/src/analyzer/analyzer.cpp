@@ -74,7 +74,36 @@ namespace spade
                     cur_scope = old_cur_scope;
                 }
             }
-            if (itr->has_variable(name)) {
+            if (itr->get_type() == scope::ScopeType::FUNCTION) {
+                auto function = cast<scope::Function>(itr);
+                for (const auto &param: function->get_pos_only_params()) {
+                    if (param.name == name) {
+                        expr_info.tag = ExprInfo::Type::NORMAL;
+                        expr_info.value_info.b_const = param.b_const;
+                        expr_info.value_info.b_lvalue = true;
+                        expr_info.type_info = param.type_info;
+                        return expr_info;
+                    }
+                }
+                for (const auto &param: function->get_pos_kwd_params()) {
+                    if (param.name == name) {
+                        expr_info.tag = ExprInfo::Type::NORMAL;
+                        expr_info.value_info.b_const = param.b_const;
+                        expr_info.value_info.b_lvalue = true;
+                        expr_info.type_info = param.type_info;
+                        return expr_info;
+                    }
+                }
+                for (const auto &param: function->get_kwd_only_params()) {
+                    if (param.name == name) {
+                        expr_info.tag = ExprInfo::Type::NORMAL;
+                        expr_info.value_info.b_const = param.b_const;
+                        expr_info.value_info.b_lvalue = true;
+                        expr_info.type_info = param.type_info;
+                        return expr_info;
+                    }
+                }
+            } else if (itr->has_variable(name)) {
                 scope = itr->get_variable(name);
                 break;
             } else if (parent_compound && itr == parent_compound) {
@@ -694,8 +723,9 @@ namespace spade
         return expr_info;
     }
 
-    std::shared_ptr<scope::Variable> Analyzer::declare_variable(const std::shared_ptr<Token> &name) {
-        std::shared_ptr<scope::Variable> scope;
+    std::shared_ptr<scope::Variable> Analyzer::declare_variable(ast::decl::Variable &node) {
+        auto scope = std::make_shared<scope::Variable>(&node);
+        auto name = node.get_name();
         if (auto fun = get_current_function()) {
             // Check if the variable is not overshadowing parameters
             if (fun->has_param(name->get_text()))
@@ -703,11 +733,12 @@ namespace spade
                         .error(error(std::format("function parameters cannot be overshadowed '{}'", name->get_text()), name))
                         .note(error("already declared here", fun->get_param(name->get_text()).node));
             // Add the variable to the parent scope
-            if (!get_parent_scope()->new_variable(name, scope))
+            if (!get_current_scope()->new_variable(name, scope))
                 throw ErrorGroup<AnalyzerError>()
                         .error(error(std::format("redeclaration of '{}'", name->get_text()), name))
                         .note(error("already declared here", scope));
         }
+        cur_scope = &*scope;
         return scope;
     }
 
@@ -969,6 +1000,263 @@ namespace spade
         if (!err_grp.get_errors().empty())
             throw err_grp;
         cur_scope = old_cur_scope;
+    }
+
+    ExprInfo Analyzer::get_member(const ExprInfo &caller_info, const string &member_name, bool safe, const ast::AstNode &node,
+                                  ErrorGroup<AnalyzerError> &errors) {
+        ExprInfo expr_info;
+        switch (caller_info.tag) {
+            case ExprInfo::Type::NORMAL: {
+                if (caller_info.is_null()) {
+                    errors.error(error("cannot access 'null'", &node));
+                    return expr_info;
+                }
+                if (caller_info.type_info.b_nullable && !safe) {
+                    errors.error(error(std::format("cannot access member of nullable '{}'", caller_info.to_string()), &node))
+                            .note(error("use safe dot access operator '?.'", &node));
+                    return expr_info;
+                }
+                if (!caller_info.type_info.b_nullable && safe) {
+                    errors.error(error(std::format("cannot use safe dot access operator on non-nullable '{}'",
+                                                   caller_info.to_string()),
+                                       &node))
+                            .note(error("remove the safe dot access operator '?.'", &node));
+                    return expr_info;
+                }
+                if (caller_info.type_info.is_type_literal()) {
+                    warning("'type' causes dynamic resolution, hence expression becomes 'spade.any?'", &node);
+                    expr_info.tag = ExprInfo::Type::NORMAL;
+                    expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_ANY]);
+                    expr_info.type_info.b_nullable = true;
+                } else {
+                    if (!caller_info.type_info.type->has_variable(member_name)) {
+                        errors.error(error(std::format("cannot access member: '{}'", member_name), &node));
+                        return expr_info;
+                    }
+                    auto member_scope = caller_info.type_info.type->get_variable(member_name);
+                    if (!member_scope) {
+                        // Provision of super fields and functions
+                        if (auto compound = get_current_scope()->get_enclosing_compound()) {
+                            if (compound->get_super_fields().contains(member_name)) {
+                                member_scope = compound->get_super_fields().at(member_name);
+                            } else if (compound->get_super_functions().contains(member_name)) {
+                                expr_info.tag = ExprInfo::Type::FUNCTION_SET;
+                                expr_info.value_info.b_const = true;
+                                expr_info.value_info.b_lvalue = true;
+                                expr_info.functions = compound->get_super_functions().at(member_name);
+                                break;
+                            }
+                        }
+                    }
+                    if (!member_scope) {
+                        errors.error(error(std::format("'{}' has no member named '{}'", caller_info.to_string(), member_name),
+                                           &node));
+                        return expr_info;
+                    }
+                    resolve_context(member_scope, node);
+                    switch (member_scope->get_type()) {
+                        case scope::ScopeType::COMPOUND:
+                            expr_info.tag = ExprInfo::Type::STATIC;
+                            expr_info.value_info.b_const = true;
+                            expr_info.value_info.b_lvalue = true;
+                            expr_info.type_info.type = cast<scope::Compound>(&*member_scope);
+                            break;
+                        case scope::ScopeType::FUNCTION:
+                            throw Unreachable();    // surely some symbol tree builder error
+                        case scope::ScopeType::FUNCTION_SET:
+                            expr_info.tag = ExprInfo::Type::FUNCTION_SET;
+                            expr_info.value_info.b_const = true;
+                            expr_info.value_info.b_lvalue = true;
+                            expr_info.functions = cast<scope::FunctionSet>(&*member_scope);
+                            break;
+                        case scope::ScopeType::VARIABLE:
+                            expr_info = get_var_expr_info(cast<scope::Variable>(member_scope), node);
+                            break;
+                        case scope::ScopeType::ENUMERATOR:
+                            errors.error(error("cannot access enumerator from an object (you should use the type)", &node))
+                                    .note(error(
+                                            std::format("use {}.{}", caller_info.type_info.type->to_string(false), member_name),
+                                            &node));
+                            return expr_info;
+                        default:
+                            throw Unreachable();    // surely some parser error
+                    }
+                }
+                break;
+            }
+            case ExprInfo::Type::STATIC: {
+                if (caller_info.type_info.b_nullable && !safe) {
+                    errors.error(error(std::format("cannot access member of nullable '{}'", caller_info.to_string()), &node))
+                            .note(error("use safe dot access operator '?.'", &node));
+                    return expr_info;
+                }
+                if (!caller_info.type_info.b_nullable && safe) {
+                    errors.error(error(std::format("cannot use safe dot access operator on non-nullable '{}'",
+                                                   caller_info.to_string()),
+                                       &node))
+                            .note(error("remove the safe dot access operator '?.'", &node));
+                    return expr_info;
+                }
+                if (caller_info.type_info.is_type_literal()) {
+                    warning("'type' causes dynamic resolution, hence expression becomes 'spade.any?'", &node);
+                    expr_info.tag = ExprInfo::Type::NORMAL;
+                    expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_ANY]);
+                    expr_info.type_info.b_nullable = true;
+                } else {
+                    if (!caller_info.type_info.type->has_variable(member_name)) {
+                        errors.error(error(std::format("cannot access member: '{}'", member_name), &node));
+                        return expr_info;
+                    }
+                    auto member_scope = caller_info.type_info.type->get_variable(member_name);
+                    if (!member_scope) {
+                        errors.error(error(std::format("'{}' has no member named '{}'", caller_info.to_string(), member_name),
+                                           &node));
+                        return expr_info;
+                    }
+                    resolve_context(member_scope, node);
+                    switch (member_scope->get_type()) {
+                        case scope::ScopeType::COMPOUND:
+                            expr_info.tag = ExprInfo::Type::STATIC;
+                            expr_info.value_info.b_const = true;
+                            expr_info.value_info.b_lvalue = true;
+                            expr_info.type_info.type = cast<scope::Compound>(&*member_scope);
+                            break;
+                        case scope::ScopeType::FUNCTION:
+                            throw Unreachable();    // surely some symbol tree builder error
+                        case scope::ScopeType::FUNCTION_SET:
+                            expr_info.tag = ExprInfo::Type::FUNCTION_SET;
+                            expr_info.value_info.b_const = true;
+                            expr_info.value_info.b_lvalue = true;
+                            expr_info.functions = cast<scope::FunctionSet>(&*member_scope);
+                            expr_info.functions.remove_if(
+                                    [](const std::pair<const SymbolPath &, const scope::Function *> &item) {
+                                        return !item.second->is_static();
+                                    });
+                            if (expr_info.functions.empty()) {
+                                errors.error(error(std::format("cannot access non-static '{}' of '{}'",
+                                                               member_scope->to_string(), caller_info.to_string()),
+                                                   &node));
+                                return expr_info;
+                            }
+                            break;
+                        case scope::ScopeType::VARIABLE: {
+                            auto var_scope = cast<scope::Variable>(member_scope);
+                            if (!var_scope->is_static()) {
+                                errors.error(error(std::format("cannot access non-static '{}' of '{}'", var_scope->to_string(),
+                                                               caller_info.to_string()),
+                                                   &node));
+                                return expr_info;
+                            }
+                            expr_info = get_var_expr_info(var_scope, node);
+                            break;
+                        }
+                        case scope::ScopeType::ENUMERATOR:
+                            expr_info.type_info.type = caller_info.type_info.type;
+                            expr_info.value_info.b_const = true;
+                            expr_info.value_info.b_lvalue = true;
+                            expr_info.tag = ExprInfo::Type::NORMAL;
+                            break;
+                        default:
+                            throw Unreachable();    // surely some parser error
+                    }
+                }
+                break;
+            }
+            case ExprInfo::Type::MODULE: {
+                if (safe) {
+                    errors.error(error("cannot use safe dot access operator on a module", &node));
+                    return expr_info;
+                }
+                if (!caller_info.module->has_variable(member_name)) {
+                    errors.error(error(std::format("cannot access member: '{}'", member_name), &node));
+                    return expr_info;
+                }
+                auto member_scope = caller_info.module->get_variable(member_name);
+                if (!member_scope) {
+                    errors.error(
+                            error(std::format("'{}' has no member named '{}'", caller_info.to_string(), member_name), &node));
+                    return expr_info;
+                }
+                resolve_context(member_scope, node);
+                switch (member_scope->get_type()) {
+                    case scope::ScopeType::FOLDER_MODULE:
+                    case scope::ScopeType::MODULE:
+                        expr_info.tag = ExprInfo::Type::MODULE;
+                        expr_info.value_info.b_const = true;
+                        expr_info.value_info.b_lvalue = true;
+                        expr_info.module = cast<scope::Module>(&*member_scope);
+                        break;
+                    case scope::ScopeType::COMPOUND:
+                        expr_info.tag = ExprInfo::Type::STATIC;
+                        expr_info.value_info.b_const = true;
+                        expr_info.value_info.b_lvalue = true;
+                        expr_info.type_info.type = cast<scope::Compound>(&*member_scope);
+                        break;
+                    case scope::ScopeType::FUNCTION:
+                        throw Unreachable();    // surely some symbol tree builder error
+                    case scope::ScopeType::FUNCTION_SET:
+                        expr_info.tag = ExprInfo::Type::FUNCTION_SET;
+                        expr_info.value_info.b_const = true;
+                        expr_info.value_info.b_lvalue = true;
+                        expr_info.functions = cast<scope::FunctionSet>(&*member_scope);
+                        break;
+                    case scope::ScopeType::VARIABLE:
+                        expr_info = get_var_expr_info(cast<scope::Variable>(member_scope), node);
+                        break;
+                    default:
+                        throw Unreachable();    // surely some parser error
+                }
+                break;
+            }
+            case ExprInfo::Type::FUNCTION_SET: {
+                errors.error(error("cannot access member of callable type", &node));
+                return expr_info;
+            }
+        }
+
+        // This is the property of safe dot operator
+        // where 'a?.b' returns 'a.b' if 'a' is not null, else returns null
+        if (safe) {
+            switch (expr_info.tag) {
+                case ExprInfo::Type::NORMAL:
+                case ExprInfo::Type::STATIC:
+                    expr_info.type_info.b_nullable = true;
+                    break;
+                case ExprInfo::Type::MODULE:
+                    break;
+                case ExprInfo::Type::FUNCTION_SET:
+                    expr_info.functions.b_nullable = true;
+                    break;
+            }
+        }
+        expr_info.value_info.b_lvalue = true;
+        // Fix for `self.a` const error bcz `self.a` is not constant if it is declared non-const
+        if (!expr_info.value_info.b_const)
+            expr_info.value_info.b_const = caller_info.value_info.b_const && !caller_info.value_info.b_self;
+        expr_info.value_info.b_self = false;
+
+        return expr_info;
+    }
+
+    ExprInfo Analyzer::get_member(const ExprInfo &caller_info, const string &member_name, const ast::AstNode &node,
+                                  ErrorGroup<AnalyzerError> &errors) {
+        return get_member(caller_info, member_name, false, node, errors);
+    }
+
+    ExprInfo Analyzer::get_member(const ExprInfo &caller_info, const string &member_name, bool safe, const ast::AstNode &node) {
+        ErrorGroup<AnalyzerError> errors;
+        auto expr_info = get_member(caller_info, member_name, safe, node, errors);
+        if (!errors.get_errors().empty())
+            throw errors;
+        return expr_info;
+    }
+
+    ExprInfo Analyzer::get_member(const ExprInfo &caller_info, const string &member_name, const ast::AstNode &node) {
+        ErrorGroup<AnalyzerError> errors;
+        auto expr_info = get_member(caller_info, member_name, node, errors);
+        if (!errors.get_errors().empty())
+            throw errors;
+        return expr_info;
     }
 
     void Analyzer::analyze() {

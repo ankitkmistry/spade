@@ -86,7 +86,7 @@ namespace spade
         }
     }
 
-    void ErrorPrinter::print(ErrorType type, const CompilerError &err) {
+    void ErrorPrinter::print(ErrorType type, const CompilerError &err)const {
         string err_str;
         bool quote_open = false;
         string err_what = err.what();

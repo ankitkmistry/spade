@@ -118,7 +118,7 @@ namespace spade
         /// Performs variable type inference resolution
         ExprInfo get_var_expr_info(std::shared_ptr<scope::Variable> var_scope, const ast::AstNode &node);
         /// Declares a variable in the current block if it is a function
-        std::shared_ptr<scope::Variable> declare_variable(const std::shared_ptr<Token> &name);
+        std::shared_ptr<scope::Variable> declare_variable(ast::decl::Variable &node);
 
         /**
          * Checks whether @p fun1 and @p fun2 are ambiguous or not
@@ -135,9 +135,18 @@ namespace spade
          */
         void check_fun_set(const std::shared_ptr<scope::FunctionSet> &fun_set);
 
+        static bool check_fun_exactly_same(const scope::Function *fun1, const scope::Function *fun2);
+
         void check_compatible_supers(const std::shared_ptr<scope::Compound> &klass,
                                      const std::vector<scope::Compound *> &supers,
                                      const std::vector<std::shared_ptr<ast::decl::Parent>> &nodes) const;
+
+        ExprInfo get_member(const ExprInfo &caller_info, const string &member_name, bool safe, const ast::AstNode &node,
+                            ErrorGroup<AnalyzerError> &errors);
+        ExprInfo get_member(const ExprInfo &caller_info, const string &member_name, const ast::AstNode &node,
+                            ErrorGroup<AnalyzerError> &errors);
+        ExprInfo get_member(const ExprInfo &caller_info, const string &member_name, bool safe, const ast::AstNode &node);
+        ExprInfo get_member(const ExprInfo &caller_info, const string &member_name, const ast::AstNode &node);
 
         ErrorPrinter printer;
 
@@ -152,12 +161,12 @@ namespace spade
         }
 
         template<ast::HasLineInfo T>
-        void warning(const string &msg, T node) {
+        void warning(const string &msg, T node) const {
             printer.print(ErrorType::WARNING, error(msg, node));
         }
 
         template<ast::HasLineInfo T>
-        void note(const string &msg, T node) {
+        void note(const string &msg, T node) const {
             printer.print(ErrorType::NOTE, error(msg, node));
         }
 
@@ -203,11 +212,12 @@ namespace spade
         void visit(ast::type::Nullable &node);
         void visit(ast::type::TypeBuilder &node);
         void visit(ast::type::TypeBuilderMember &node);
-        // Expression visitor
+
       private:
         ExprInfo _res_expr_info;
 
       public:
+        // Expression visitor
         void visit(ast::expr::Constant &node);
         void visit(ast::expr::Super &node);
         void visit(ast::expr::Self &node);
