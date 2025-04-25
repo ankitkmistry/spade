@@ -34,7 +34,8 @@ namespace spade
     }
 
     string ParamInfo::to_string(bool decorated) const {
-        return std::format("{}{}{}", (b_variadic ? "*" : ""), (b_kwd_only ? name + ":" : ""), type_info.to_string(decorated));
+        return std::format("{}{}{}{}", (b_const ? "const " : ""), (b_variadic ? "*" : ""), (b_kwd_only ? name + ":" : ""),
+                           type_info.to_string(decorated));
     }
 
     string ArgInfo::to_string(bool decorated) const {

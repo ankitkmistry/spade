@@ -445,7 +445,7 @@ namespace spade
             case TokenType::RETURN: {
                 auto token = advance();
                 auto expr = rule_optional(&Parser::expression);
-                return std::make_shared<ast::stmt::Return>(token, expr);
+                return expr ? std::make_shared<ast::stmt::Return>(token, expr) : std::make_shared<ast::stmt::Return>(token);
             }
             case TokenType::YIELD: {
                 auto token = advance();

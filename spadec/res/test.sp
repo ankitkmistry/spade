@@ -25,13 +25,17 @@ const diddy = Foo.build()
 # class B : C {}
 # class C : A {}
 
-class A {
+abstract class A {
+	fun f(){}
 	abstract fun b(a:Enum)->int
 }
 interface B {
 	fun b(a:Enum)->int
 }
-class C : A, B {}
+class C : A, B {
+	override fun f() {}
+	fun b(a:Enum)->int = 0
+}
 
 var b_obj: B?
 # var test_obj = b_obj?.b(Color.RED) 
@@ -54,8 +58,10 @@ fun print(data:string="",/,end:string="\n") {
 	# 		continue
 	# 	# break
 	# }
+	var c: C
+	c.f()
 	var result = data + end
-	var sahur = null as? string + "null"
+	# var sahur = null as? string + "null"
 	return
 }
 

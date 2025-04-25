@@ -913,6 +913,8 @@ namespace spade::ast
             std::shared_ptr<Expression> expression;
 
           public:
+            Return(const std::shared_ptr<Token> &token) : Statement(token, token), expression() {}
+
             Return(const std::shared_ptr<Token> &token, const std::shared_ptr<Expression> &expression)
                 : Statement(token, expression), expression(expression) {}
 

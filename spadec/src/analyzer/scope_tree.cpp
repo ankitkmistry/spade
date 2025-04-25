@@ -465,6 +465,10 @@ namespace spade
             scope->set_static(true);
 
         add_symbol(node.get_name()->get_text(), node.get_name(), scope);
+        if (node.get_token()->get_type() == TokenType::INTERFACE) {
+            // Set interface to abstract by default
+            scope->set_abstract(true);
+        }
         for (auto enumerator: node.get_enumerators()) {
             enumerator->accept(this);
         }

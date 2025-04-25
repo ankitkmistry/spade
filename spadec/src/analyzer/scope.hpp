@@ -327,6 +327,10 @@ namespace spade::scope
             return super_functions;
         }
 
+        std::unordered_map<string, FunctionInfo> &get_super_functions() {
+            return super_functions;
+        }
+
         void set_super_functions(const std::unordered_map<string, FunctionInfo> &functions) {
             super_functions = functions;
         }

@@ -1,9 +1,12 @@
+#include <unordered_set>
+
 #include "analyzer.hpp"
 #include "info.hpp"
 #include "lexer/token.hpp"
 #include "parser/ast.hpp"
 #include "scope.hpp"
 #include "spimp/error.hpp"
+#include "symbol_path.hpp"
 #include "utils/error.hpp"
 
 namespace spade
@@ -118,6 +121,47 @@ namespace spade
 
                 if (auto params = node.get_params())
                     params->accept(this);
+
+                // Check for abstract, final and override functions
+                // This code provides the semantics for the `abstract`, `final` and `override` keywords
+                if (auto compound = get_current_scope()->get_enclosing_compound(); compound) {
+                    if (scope->is_abstract() && !compound->is_abstract())
+                        throw error("abstract function cannot be declared in non-abstract class", &node);
+                    if (!scope->is_abstract() && compound->get_super_functions().contains(node.get_name()->get_text())) {
+                        auto &super_fun_info = compound->get_super_functions()[node.get_name()->get_text()];
+                        ErrorGroup<AnalyzerError> errors;
+                        std::unordered_set<SymbolPath> to_be_removed;
+                        for (const auto &[super_fun_path, super_fun]: super_fun_info.get_functions()) {
+                            if (check_fun_exactly_same(&*scope, super_fun)) {
+                                if (super_fun->is_abstract()) {
+                                    to_be_removed.insert(super_fun_path);
+                                    continue;
+                                }
+                                if (super_fun->is_final()) {
+                                    errors.error(error(std::format("function is marked as final in super '{}'",
+                                                                   super_fun->get_enclosing_compound()->to_string()),
+                                                       scope))
+                                            .note(error("declared here", super_fun));
+                                    continue;
+                                }
+                                if (!scope->is_override()) {
+                                    errors.error(error("function overrides another function but is not marked as override",
+                                                       scope))
+                                            .note(error("declared here", super_fun));
+                                    continue;
+                                }
+                            } else
+                                // also check if there is any conflict with the super function
+                                check_funs(&*scope, super_fun, errors);
+                        }
+                        // remove super function that are marked as abstract (but implemented in the child class)
+                        super_fun_info.remove_if([&](const std::pair<const SymbolPath &, const scope::Function *> &pair) {
+                            return to_be_removed.contains(pair.first);
+                        });
+                        if (!errors.get_errors().empty())
+                            throw errors;
+                    }
+                }
 
                 scope->set_proto_eval(scope::Function::ProtoEval::DONE);
                 function_scopes.push_back(scope);
@@ -260,6 +304,8 @@ namespace spade
             return false;
         if (fun1->is_public() != fun2->is_public())
             return false;
+        if (fun1->get_pos_only_params().size() != fun2->get_pos_only_params().size())
+            return false;
         for (const auto &param1: fun1->get_pos_only_params()) {
             for (const auto &param2: fun2->get_pos_only_params()) {
                 if (param1.b_const != param2.b_const)
@@ -268,6 +314,8 @@ namespace spade
                     return false;
             }
         }
+        if (fun1->get_pos_kwd_params().size() != fun2->get_pos_kwd_params().size())
+            return false;
         for (const auto &param1: fun1->get_pos_kwd_params()) {
             for (const auto &param2: fun2->get_pos_kwd_params()) {
                 if (param1.b_const != param2.b_const || param1.b_variadic != param2.b_variadic ||
@@ -275,6 +323,8 @@ namespace spade
                     return false;
             }
         }
+        if (fun1->get_kwd_only_params().size() != fun2->get_kwd_only_params().size())
+            return false;
         for (const auto &param1: fun1->get_kwd_only_params()) {
             for (const auto &param2: fun2->get_kwd_only_params()) {
                 if (param1.b_const != param2.b_const || param1.b_variadic != param2.b_variadic ||
@@ -330,8 +380,6 @@ namespace spade
         }
 
         for (const auto &[member_name, members]: member_table) {
-            if (members.size() <= 1)
-                continue;
             // IMPORTANT SIDE-EFFECT OF INHERITANCE RULES
             // ----------------------------------------------------------------------------
             //
@@ -351,27 +399,88 @@ namespace spade
             for (const auto &member: members) {
                 FunctionInfo fn_infos(&*cast<scope::FunctionSet>(member));
                 fn_infos.remove_if([](const std::pair<const spade::SymbolPath &, const spade::scope::Function *> &fn_pair) {
-                    return fn_pair.second->is_static();    // static functions are never inherited
+                    return fn_pair.second->is_static() ||
+                           fn_pair.second->is_init();    // static functions and constructors are never inherited
                 });
                 if (!fn_infos.empty())
                     mem_fns.extend(fn_infos);
             }
-            if (mem_fns.size() <= 1)
-                continue;
-            // Check if they are ambiguous
-            const auto &fun_map = mem_fns.get_functions();
-            for (auto it1 = fun_map.begin(); it1 != fun_map.end(); ++it1) {
-                auto fun1 = cast<scope::Function>(it1->second);
-                for (auto it2 = std::next(it1); it2 != fun_map.end(); ++it2) {
-                    auto fun2 = cast<scope::Function>(it2->second);
-                    ErrorGroup<AnalyzerError> err_grp;
-                    check_funs(fun1, fun2, err_grp);
-                    if (!err_grp.get_errors().empty()) {
-                        if (!fun1->is_abstract() && !fun2->is_abstract())
-                            errors.extend(err_grp);
-                        else if (!check_fun_exactly_same(fun1, fun2))
-                            errors.extend(err_grp);
+            if (mem_fns.size() > 1) {
+                // Check if they are ambiguous
+                const auto &fun_map = mem_fns.get_functions();
+                if (fun_map.size() < MAX_FUN_CHECK_SEQ) {
+                    // sequential algorithm
+                    std::unordered_set<SymbolPath> to_be_removed;
+                    for (auto it1 = fun_map.begin(); it1 != fun_map.end(); ++it1) {
+                        auto fun1 = cast<scope::Function>(it1->second);
+                        for (auto it2 = std::next(it1); it2 != fun_map.end(); ++it2) {
+                            auto fun2 = cast<scope::Function>(it2->second);
+                            ErrorGroup<AnalyzerError> err_grp;
+                            check_funs(fun1, fun2, err_grp);
+                            if (!err_grp.get_errors().empty()) {
+                                if (!fun1->is_abstract() && !fun2->is_abstract()) {
+                                    errors.extend(err_grp);
+                                    break;
+                                }
+                                if (!check_fun_exactly_same(fun1, fun2)) {
+                                    errors.extend(err_grp);
+                                    break;
+                                }
+                                if (!fun1->is_abstract() || !fun2->is_abstract()) {
+                                    // Remove the abstract function if the implementation
+                                    // is already provided by another class
+                                    auto abstract_fn_path = fun1->is_abstract() ? fun1->get_path() : fun2->get_path();
+                                    to_be_removed.insert(abstract_fn_path);
+                                }
+                            }
+                        }
                     }
+                    // Remove the abstract prototypes of the implemented abstract fns
+                    for (const auto &path: to_be_removed) {
+                        mem_fns.remove(path);
+                    }
+                } else {
+                    // parallel algorithm
+                    using FunOperand = std::pair<scope::Function *, scope::Function *>;
+
+                    std::vector<FunOperand> functions;
+                    // Reserve space for the number of combinations
+                    // Number of combinations = nC2 = n(n-1)/2
+                    // where n is the number of functions in the set
+                    functions.reserve(fun_map.size() * (fun_map.size() - 1) / 2);
+                    for (auto it1 = fun_map.begin(); it1 != fun_map.end(); ++it1) {
+                        auto fun1 = cast<scope::Function>(it1->second);
+                        for (auto it2 = std::next(it1); it2 != fun_map.end(); ++it2) {
+                            auto fun2 = cast<scope::Function>(it2->second);
+                            functions.emplace_back(fun1, fun2);
+                        }
+                    }
+
+                    std::mutex for_each_mutex;
+                    std::for_each(std::execution::par, functions.begin(), functions.end(), [&](const FunOperand &item) {
+                        ErrorGroup<AnalyzerError> err_grp;
+                        check_funs(item.first, item.second, err_grp);
+                        if (!err_grp.get_errors().empty()) {
+                            if (!item.first->is_abstract() && !item.second->is_abstract()) {
+                                std::lock_guard lg(for_each_mutex);
+                                errors.extend(err_grp);
+                                return;
+                            }
+                            if (!check_fun_exactly_same(item.first, item.second)) {
+                                std::lock_guard lg(for_each_mutex);
+                                errors.extend(err_grp);
+                                return;
+                            }
+                            if (!item.first->is_abstract() || !item.second->is_abstract()) {
+                                std::lock_guard lg(for_each_mutex);
+                                // Remove the abstract function prototype if the implementation
+                                // is already provided by another class
+                                auto abstract_fn_path =
+                                        item.first->is_abstract() ? item.first->get_path() : item.second->get_path();
+                                mem_fns.remove(abstract_fn_path);
+                            }
+                        }
+                    });
                 }
             }
             if (!errors.get_errors().empty()) {
@@ -385,7 +494,7 @@ namespace spade
                         .error(error(std::format("incompatible super classes {}", msg), LineInfoVector(nodes)))
                         .extend(errors);
             }
-            super_functions[member_name] = mem_fns;
+            super_functions[member_name].extend(mem_fns);
         }
         // Set the super fields and functions in the class
         klass->set_super_fields(super_fields);
@@ -487,7 +596,22 @@ namespace spade
                 // perform inheritance
                 for (const auto &super: supers) scope->inherit_from(super);
             }
+            // visit the members
             for (auto member: node.get_members()) member->accept(this);
+            // check for undeclared abstract functions if the compound is not abstract or interface
+            // NOTE: interfaces are abstract by default
+            if (!scope->is_abstract()) {
+                ErrorGroup<AnalyzerError> errors;
+                for (const auto &[_, fun_infos]: scope->get_super_functions()) {
+                    for (const auto &[_, fun]: fun_infos.get_functions()) {
+                        if (fun->is_abstract())
+                            errors.error(error(std::format("'{}' is not implemented", fun->to_string()), scope))
+                                    .note(error("declared here", fun));
+                    }
+                }
+                if (!errors.get_errors().empty())
+                    throw errors;
+            }
             scope->set_eval(scope::Compound::Eval::DONE);
         }
         end_scope();
