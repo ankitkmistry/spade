@@ -17,6 +17,8 @@ namespace spade
         SymbolPath &operator=(SymbolPath &&other) noexcept = default;
         ~SymbolPath() = default;
 
+        SymbolPath(const char *name) : SymbolPath(string(name)) {}
+
         bool operator==(const SymbolPath &other) const {
             return elements == other.elements;
         }

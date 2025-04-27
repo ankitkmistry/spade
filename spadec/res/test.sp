@@ -1,5 +1,6 @@
 import foo as bar
 import mod.bar as foo
+import lib
 
 enum Color {
 	RED, BLUE, GREEN, WHITE, BLACK
@@ -41,7 +42,7 @@ var b_obj: B?
 # var test_obj = b_obj?.b(Color.RED) 
 var test_obj = b_obj?.b?(Color.RED) 
 
-fun print(data:string="",/,end:string="\n") {
+fun print(*items:any?,/,end:string="\n", sep=" ") {
 	# test_obj()
 	# test_obj?()
 
@@ -58,14 +59,36 @@ fun print(data:string="",/,end:string="\n") {
 	# 		continue
 	# 	# break
 	# }
-	var c: C
-	c.f()
-	var result = data + end
+	var result = "" + items + sep + items + end
 	# var sahur = null as? string + "null"
 	return
 }
 
+class CounterFn {
+	private var i = 0
+
+	public init() {}
+
+	public fun __call__() -> int {
+		i += 1
+		return i - 1
+	}
+}
+
+const do_count = CounterFn()
+
 fun main() { 
+	var str_buf: lib.StringBuilder? = lib.StringBuilder("west ")
+	print(do_count(), do_count(), do_count(), sep: ", ")
+	while false {}
+	(str_buf ??= lib.StringBuilder()) += lib.StringBuilder("bengal\n")
+	print(lib.StringBuilder()
+		.appendln("hello")
+		.appendln("this is from spade")
+		.appendln("this text is built from lib.StringBuilder")
+		.keep(0, 5)
+		.clear()
+		.as_string())
 	print("hello, world! my name is aashita", end: "")
 	print()
 }

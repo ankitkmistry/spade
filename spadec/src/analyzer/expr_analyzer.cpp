@@ -8,74 +8,6 @@
 
 namespace spade
 {
-// Names of functions that represent overloaded operators
-
-// Binary ops
-// `a + b` is same as `a.__add__(b)` if `a` has defined `__add__` function
-#define OV_OP_POW     (std::string("__pow__"))
-#define OV_OP_MUL     (std::string("__mul__"))
-#define OV_OP_DIV     (std::string("__div__"))
-#define OV_OP_MOD     (std::string("__mod__"))
-#define OV_OP_ADD     (std::string("__add__"))
-#define OV_OP_SUB     (std::string("__sub__"))
-#define OV_OP_LSHIFT  (std::string("__lshift__"))
-#define OV_OP_RSHIFT  (std::string("__rshift__"))
-#define OV_OP_URSHIFT (std::string("__urshift__"))
-#define OV_OP_AND     (std::string("__and__"))
-#define OV_OP_XOR     (std::string("__xor__"))
-#define OV_OP_OR      (std::string("__or__"))
-// `a + b` is same as `b.__rev_add__(a)` if `a` has not defined `__add__` function
-#define OV_OP_REV_POW     (std::string("__rev_pow__"))
-#define OV_OP_REV_MUL     (std::string("__rev_mul__"))
-#define OV_OP_REV_DIV     (std::string("__rev_div__"))
-#define OV_OP_REV_MOD     (std::string("__rev_mod__"))
-#define OV_OP_REV_ADD     (std::string("__rev_add__"))
-#define OV_OP_REV_SUB     (std::string("__rev_sub__"))
-#define OV_OP_REV_LSHIFT  (std::string("__rev_lshift__"))
-#define OV_OP_REV_RSHIFT  (std::string("__rev_rshift__"))
-#define OV_OP_REV_URSHIFT (std::string("__rev_urshift__"))
-#define OV_OP_REV_AND     (std::string("__rev_and__"))
-#define OV_OP_REV_XOR     (std::string("__rev_xor__"))
-#define OV_OP_REV_OR      (std::string("__rev_or__"))
-// `a += b` is same as `b.__aug_add__(a)`
-#define OV_OP_AUG_POW     (std::string("__aug_pow__"))
-#define OV_OP_AUG_MUL     (std::string("__aug_mul__"))
-#define OV_OP_AUG_DIV     (std::string("__aug_div__"))
-#define OV_OP_AUG_MOD     (std::string("__aug_mod__"))
-#define OV_OP_AUG_ADD     (std::string("__aug_add__"))
-#define OV_OP_AUG_SUB     (std::string("__aug_sub__"))
-#define OV_OP_AUG_LSHIFT  (std::string("__aug_lshift__"))
-#define OV_OP_AUG_RSHIFT  (std::string("__aug_rshift__"))
-#define OV_OP_AUG_URSHIFT (std::string("__aug_urshift__"))
-#define OV_OP_AUG_AND     (std::string("__aug_and__"))
-#define OV_OP_AUG_XOR     (std::string("__aug_xor__"))
-#define OV_OP_AUG_OR      (std::string("__aug_or__"))
-// Comparison operators
-#define OV_OP_LT (std::string("__lt__"))
-#define OV_OP_LE (std::string("__le__"))
-#define OV_OP_EQ (std::string("__eq__"))
-#define OV_OP_NE (std::string("__ne__"))
-#define OV_OP_GE (std::string("__ge__"))
-#define OV_OP_GT (std::string("__gt__"))
-
-// Postfix operators
-// `a(arg1, arg2, ...)` is same as `a.__call__(arg1, arg2, ...)`
-#define OV_OP_CALL (std::string("__call__"))
-// `a[arg1, arg2, ...]` is same as `a.__get_item__(arg1, arg2, ...)`
-#define OV_OP_GET_ITEM (std::string("__get_item__"))
-// `a[arg1, arg2, ...] = value` is same as `a.__set_item__(arg1, arg2, ..., value)`
-#define OV_OP_SET_ITEM (std::string("__set_item__"))
-// `a in b` is same as `b.__contains__(a)`
-#define OV_OP_CONTAINS (std::string("__contains__"))
-
-// Unary operators
-// `~a` is same as `a.__inv__()`
-#define OV_OP_INV (std::string("__inv__"))
-// `-a` is same as `a.__neg__()`
-#define OV_OP_NEG (std::string("__neg__"))
-// `+a` is same as `a.__pos__()`
-#define OV_OP_POS (std::string("__pos__"))
-
     void Analyzer::visit(ast::expr::Constant &node) {
         _res_expr_info.reset();
         switch (node.get_token()->get_type()) {
@@ -105,6 +37,7 @@ namespace spade
                 _res_expr_info.tag = ExprInfo::Type::NORMAL;
                 _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_STRING]);
                 break;
+            case TokenType::INIT:
             case TokenType::IDENTIFIER:
                 _res_expr_info = resolve_name(node.get_token()->get_text(), node);
                 break;
@@ -492,7 +425,7 @@ namespace spade
     do {                                                                                                                       \
         ErrorGroup<AnalyzerError> errors;                                                                                      \
         auto member = get_member(left_expr_info, OV_OP_##OPERATOR, node, errors);                                              \
-        bool find_rev_op = !errors.get_errors().empty();                                                                       \
+        bool find_rev_op = left_expr_info.type_info.b_nullable || !errors.get_errors().empty();                                \
         if (!find_rev_op) {                                                                                                    \
             switch (member.tag) {                                                                                              \
                 case ExprInfo::Type::NORMAL:                                                                                   \
@@ -511,7 +444,7 @@ namespace spade
         if (find_rev_op) {                                                                                                     \
             ErrorGroup<AnalyzerError> errors;                                                                                  \
             auto member = get_member(right_expr_info, OV_OP_REV_##OPERATOR, node, errors);                                     \
-            if (!errors.get_errors().empty())                                                                                  \
+            if (right_expr_info.type_info.b_nullable || !errors.get_errors().empty())                                          \
                 throw error(std::format("cannot apply binary operator '{}' on '{}' and '{}'", op_str,                          \
                                         left_expr_info.to_string(), right_expr_info.to_string()),                              \
                             &node);                                                                                            \
@@ -583,6 +516,26 @@ namespace spade
         _res_expr_info.reset();
         _res_expr_info.tag = ExprInfo::Type::NORMAL;
         switch (node.get_op1()->get_type()) {
+            case TokenType::ELVIS: {
+                if (left_expr_info.is_null())
+                    warning(std::format("left hand expression of '{}' operator is never evaluated", op_str), node.get_left());
+                if (!left_expr_info.type_info.b_nullable)
+                    warning(std::format("right hand expression of '{}' operator is never evaluated", op_str), node.get_right());
+                if (left_expr_info.is_null() && right_expr_info.is_null()) {
+                    _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_ANY]);
+                } else if (left_expr_info.is_null()) {
+                    _res_expr_info.type_info.type = right_expr_info.type_info.type;
+                } else if (right_expr_info.is_null()) {
+                    _res_expr_info.type_info.type = left_expr_info.type_info.type;
+                } else if (left_expr_info.type_info.type != right_expr_info.type_info.type) {
+                    throw error("cannot infer type of the expression", &node);
+                } else
+                    _res_expr_info.type_info.type = left_expr_info.type_info.type;
+                // TODO: check type args for covariance and contravariance
+                // _res_expr_info.type_info.type_args = left_expr_info.type_info.type_args;
+                _res_expr_info.type_info.b_nullable = right_expr_info.type_info.b_nullable;
+                break;
+            }
             case TokenType::STAR_STAR:
                 if (is_number_type(left_expr_info.type_info) && is_number_type(right_expr_info.type_info)) {
                     check_non_null();
@@ -743,6 +696,7 @@ namespace spade
         _res_expr_info.value_info.b_lvalue = false;
         _res_expr_info.value_info.b_const = false;
 #undef find_user_defined_op
+#undef find_user_defined_op_no_rev
 #undef check_non_null
     }
 
@@ -865,25 +819,27 @@ lt_le_ge_gt_common:
         _res_expr_info.reset();
         switch (expr_info1.tag) {
             case ExprInfo::Type::NORMAL: {
-                if (expr_info1.type_info.type != expr_info2.type_info.type)
-                    if (!expr_info1.is_null() && expr_info2.is_null())
-                        throw error("cannot infer type of the expression", &node);
                 _res_expr_info.tag = ExprInfo::Type::NORMAL;
-                _res_expr_info.type_info.type =    // should get optimized out!!
-                        expr_info1.is_null() ? (expr_info2.is_null() ? expr_info1.type_info.type : expr_info2.type_info.type)
-                                             : (expr_info2.is_null() ? expr_info1.type_info.type : expr_info2.type_info.type);
+                if (expr_info1.is_null() && expr_info2.is_null()) {
+                    _res_expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_ANY]);
+                } else if (expr_info1.is_null()) {
+                    _res_expr_info.type_info.type = expr_info2.type_info.type;
+                } else if (expr_info2.is_null()) {
+                    _res_expr_info.type_info.type = expr_info1.type_info.type;
+                } else if (expr_info1.type_info.type != expr_info2.type_info.type) {
+                    throw error("cannot infer type of the expression", &node);
+                } else
+                    _res_expr_info.type_info.type = expr_info1.type_info.type;
                 // TODO: check type args for covariance and contravariance
                 // _res_expr_info.type_info.type_args = expr_info1.type_info.type_args;
-                if (expr_info1.type_info.b_nullable || expr_info2.type_info.b_nullable)
-                    _res_expr_info.type_info.b_nullable = true;
+                _res_expr_info.type_info.b_nullable = expr_info1.type_info.b_nullable || expr_info2.type_info.b_nullable;
                 break;
             }
             case ExprInfo::Type::STATIC:
                 // expr returns 'type'
                 _res_expr_info.type_info.type = null;
                 _res_expr_info.type_info.type_args = {};
-                if (expr_info1.type_info.b_nullable || expr_info2.type_info.b_nullable)
-                    _res_expr_info.type_info.b_nullable = true;
+                _res_expr_info.type_info.b_nullable = expr_info1.type_info.b_nullable || expr_info2.type_info.b_nullable;
                 break;
             case ExprInfo::Type::MODULE:
                 throw error("cannot infer type of the expression", &node);
@@ -910,7 +866,7 @@ lt_le_ge_gt_common:
 
         for (const auto &expr: node.get_exprs()) {
             expr->accept(this);
-            assignees.push_back(_res_expr_info);
+            exprs.push_back(_res_expr_info);
             // avoid assigning `void`
             if ((_res_expr_info.tag == ExprInfo::Type::NORMAL || _res_expr_info.tag == ExprInfo::Type::STATIC) &&
                 _res_expr_info.type_info.type == &*internals[Internal::SPADE_VOID])
@@ -920,42 +876,165 @@ lt_le_ge_gt_common:
         if (assignees.size() != exprs.size())
             throw error(std::format("expected {} values but got {}", assignees.size(), exprs.size()), &node);
 
+        ExprInfo last_expr_info;
         for (size_t i = 0; i < assignees.size(); i++) {
             auto left_expr_info = assignees[i];
             auto right_expr_info = exprs[i];
+            // expression checks
+            if (left_expr_info.tag != ExprInfo::Type::NORMAL)
+                throw error(std::format("cannot assign to '{}'", left_expr_info.to_string()), node.get_assignees()[i]);
+            if (!left_expr_info.value_info.b_lvalue)
+                throw error("cannot assign to a non-lvalue expression", node.get_assignees()[i]);
+            if (left_expr_info.value_info.b_const)
+                throw error("cannot assign to a constant", node.get_assignees()[i]);
+            if (!left_expr_info.type_info.b_nullable && right_expr_info.type_info.b_nullable)
+                throw error(std::format("cannot assign nullable '{}' to non-nullable '{}'", right_expr_info.to_string(),
+                                        left_expr_info.to_string()),
+                            node.get_exprs()[i]);
+            // Plain vanilla assignment
             if (node.get_op1()->get_type() == TokenType::EQUAL) {
-                // Plain vanilla assignment
-                if (!left_expr_info.value_info.b_lvalue)
-                    throw error("cannot assign to a non-lvalue expression", node.get_assignees()[i]);
-                if (left_expr_info.value_info.b_const)
-                    throw error("cannot assign to a constant", node.get_assignees()[i]);
-                if (left_expr_info.tag == ExprInfo::Type::NORMAL)
-                    resolve_assign(left_expr_info.type_info, right_expr_info, node);
-            } else {
-                switch (node.get_op2()->get_type()) {
-                    case TokenType::PLUS:
-                        break;
-                    case TokenType::DASH:
-                        break;
-                    case TokenType::STAR:
-                        break;
-                    case TokenType::SLASH:
-                        break;
-                    case TokenType::PERCENT:
+                last_expr_info.tag = ExprInfo::Type::NORMAL;
+                last_expr_info.type_info = resolve_assign(left_expr_info.type_info, right_expr_info, node);
+                last_expr_info.value_info = left_expr_info.value_info;
+            } else if (node.get_op2()->get_type() == TokenType::EQUAL) {
+                // Augmented assignment
+                string op_str = node.get_op1()->get_text() + node.get_op2()->get_text();
+#define find_user_defined_aug_op(OPERATOR)                                                                                     \
+    do {                                                                                                                       \
+        ErrorGroup<AnalyzerError> errors;                                                                                      \
+        auto member = get_member(left_expr_info, OV_OP_AUG_##OPERATOR, node, errors);                                          \
+        if (left_expr_info.type_info.b_nullable || !errors.get_errors().empty())                                               \
+            throw error(std::format("cannot apply operator '{}' on '{}' and '{}'", op_str, left_expr_info.to_string(),         \
+                                    right_expr_info.to_string()),                                                              \
+                        &node);                                                                                                \
+        switch (member.tag) {                                                                                                  \
+            case ExprInfo::Type::NORMAL:                                                                                       \
+            case ExprInfo::Type::STATIC:                                                                                       \
+            case ExprInfo::Type::MODULE:                                                                                       \
+                throw error(std::format("cannot apply operator '{}' on '{}' and '{}'", op_str, left_expr_info.to_string(),     \
+                                        right_expr_info.to_string()),                                                          \
+                            &node);                                                                                            \
+                break;                                                                                                         \
+            case ExprInfo::Type::FUNCTION_SET: {                                                                               \
+                std::vector<ArgInfo> args(1);                                                                                  \
+                args[0] = ArgInfo{false, "", right_expr_info, &node};                                                          \
+                last_expr_info = resolve_call(member.functions, args, node);                                                   \
+                break;                                                                                                         \
+            }                                                                                                                  \
+        }                                                                                                                      \
+    } while (false)
+                switch (node.get_op1()->get_type()) {
+                    case TokenType::ELVIS:
+                        if (!left_expr_info.type_info.b_nullable)
+                            warning(std::format("right hand expression of '{}' operator is never evaluated", op_str),
+                                    node.get_exprs()[i]);
+                        if (left_expr_info.type_info.type != right_expr_info.type_info.type) {
+                            throw error("cannot infer type of the expression", &node);
+                        } else
+                            last_expr_info.type_info.type = left_expr_info.type_info.type;
+                        last_expr_info.type_info.b_nullable = right_expr_info.type_info.b_nullable;
+                        last_expr_info.value_info = left_expr_info.value_info;
                         break;
                     case TokenType::STAR_STAR:
+                        if (is_number_type(left_expr_info.type_info) &&
+                            (is_number_type(right_expr_info.type_info) ||
+                             (left_expr_info.type_info.b_nullable && right_expr_info.is_null()))) {
+                            last_expr_info = left_expr_info;
+                        } else
+                            find_user_defined_aug_op(POW);
+                        break;
+                    case TokenType::STAR:
+                        if (is_number_type(left_expr_info.type_info) &&
+                                    (is_number_type(right_expr_info.type_info) ||
+                                     (left_expr_info.type_info.b_nullable && right_expr_info.is_null())) ||
+                            is_string_type(left_expr_info.type_info) &&
+                                    right_expr_info.type_info.type == &*internals[Internal::SPADE_INT]) {
+                            last_expr_info = left_expr_info;
+                        } else
+                            find_user_defined_aug_op(MUL);
+                        break;
+                    case TokenType::SLASH:
+                        if (is_number_type(left_expr_info.type_info) &&
+                            (is_number_type(right_expr_info.type_info) ||
+                             (left_expr_info.type_info.b_nullable && right_expr_info.is_null()))) {
+                            last_expr_info = left_expr_info;
+                        } else
+                            find_user_defined_aug_op(DIV);
+                        break;
+                    case TokenType::PERCENT:
+                        if (left_expr_info.type_info.type == &*internals[Internal::SPADE_INT] &&
+                            (right_expr_info.type_info.type == &*internals[Internal::SPADE_INT] ||
+                             (left_expr_info.type_info.b_nullable && right_expr_info.is_null()))) {
+                            last_expr_info = left_expr_info;
+                        } else
+                            find_user_defined_aug_op(MOD);
+                        break;
+                    case TokenType::PLUS: {
+                        if (is_number_type(left_expr_info.type_info) &&
+                            (is_number_type(right_expr_info.type_info) ||
+                             (left_expr_info.type_info.b_nullable && right_expr_info.is_null()))) {
+                            last_expr_info = left_expr_info;
+                        } else if (is_string_type(left_expr_info.type_info) || is_string_type(right_expr_info.type_info)) {
+                            last_expr_info = left_expr_info;
+                        } else
+                            find_user_defined_aug_op(ADD);
+                        break;
+                    }
+                    case TokenType::DASH:
+                        if (is_number_type(left_expr_info.type_info) &&
+                            (is_number_type(right_expr_info.type_info) ||
+                             (left_expr_info.type_info.b_nullable && right_expr_info.is_null()))) {
+                            last_expr_info = left_expr_info;
+                        } else
+                            find_user_defined_aug_op(SUB);
                         break;
                     case TokenType::LSHIFT:
+                        if (left_expr_info.type_info.type == &*internals[Internal::SPADE_INT] &&
+                            (right_expr_info.type_info.type == &*internals[Internal::SPADE_INT] ||
+                             (left_expr_info.type_info.b_nullable && right_expr_info.is_null()))) {
+                            last_expr_info = left_expr_info;
+                        } else
+                            find_user_defined_aug_op(LSHIFT);
                         break;
                     case TokenType::RSHIFT:
+                        if (left_expr_info.type_info.type == &*internals[Internal::SPADE_INT] &&
+                            (right_expr_info.type_info.type == &*internals[Internal::SPADE_INT] ||
+                             (left_expr_info.type_info.b_nullable && right_expr_info.is_null()))) {
+                            last_expr_info = left_expr_info;
+                        } else
+                            find_user_defined_aug_op(RSHIFT);
                         break;
                     case TokenType::URSHIFT:
+                        if (left_expr_info.type_info.type == &*internals[Internal::SPADE_INT] &&
+                            (right_expr_info.type_info.type == &*internals[Internal::SPADE_INT] ||
+                             (left_expr_info.type_info.b_nullable && right_expr_info.is_null()))) {
+                            last_expr_info = left_expr_info;
+                        } else
+                            find_user_defined_aug_op(RSHIFT);
                         break;
                     case TokenType::AMPERSAND:
+                        if (left_expr_info.type_info.type == &*internals[Internal::SPADE_INT] &&
+                            (right_expr_info.type_info.type == &*internals[Internal::SPADE_INT] ||
+                             (left_expr_info.type_info.b_nullable && right_expr_info.is_null()))) {
+                            last_expr_info = left_expr_info;
+                        } else
+                            find_user_defined_aug_op(AND);
                         break;
                     case TokenType::PIPE:
+                        if (left_expr_info.type_info.type == &*internals[Internal::SPADE_INT] &&
+                            (right_expr_info.type_info.type == &*internals[Internal::SPADE_INT] ||
+                             (left_expr_info.type_info.b_nullable && right_expr_info.is_null()))) {
+                            last_expr_info = left_expr_info;
+                        } else
+                            find_user_defined_aug_op(OR);
                         break;
                     case TokenType::CARET:
+                        if (left_expr_info.type_info.type == &*internals[Internal::SPADE_INT] &&
+                            (right_expr_info.type_info.type == &*internals[Internal::SPADE_INT] ||
+                             (left_expr_info.type_info.b_nullable && right_expr_info.is_null()))) {
+                            last_expr_info = left_expr_info;
+                        } else
+                            find_user_defined_aug_op(XOR);
                         break;
                     default:
                         throw Unreachable();    // surely some parser error
@@ -963,6 +1042,7 @@ lt_le_ge_gt_common:
             }
         }
         // return the value of the last expression
-        _res_expr_info = assignees.back();
+        _res_expr_info = last_expr_info;
+#undef find_user_defined_aug_op
     }
 }    // namespace spade

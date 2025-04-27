@@ -122,6 +122,21 @@ namespace spade
                 if (auto params = node.get_params())
                     params->accept(this);
 
+#define check_ret_type_bool(OPERATOR)                                                                                          \
+    if (node.get_name()->get_text() == OV_OP_##OPERATOR &&                                                                     \
+        scope->get_ret_type().type != cast<scope::Compound>(&*internals[Internal::SPADE_BOOL])) {                              \
+        throw error(std::format("'{}' must return a '{}'", scope->to_string(), internals[Internal::SPADE_BOOL]->to_string()),  \
+                    scope);                                                                                                    \
+    }
+                // relational operators specific check
+                check_ret_type_bool(CONTAINS);
+                check_ret_type_bool(LT);
+                check_ret_type_bool(LE);
+                check_ret_type_bool(EQ);
+                check_ret_type_bool(NE);
+                check_ret_type_bool(GE);
+                check_ret_type_bool(GT);
+#undef check_ret_type_bool
                 // Check for abstract, final and override functions
                 // This code provides the semantics for the `abstract`, `final` and `override` keywords
                 if (auto compound = get_current_scope()->get_enclosing_compound(); compound) {
@@ -533,6 +548,10 @@ namespace spade
                 for (auto parent: node.get_parents()) {
                     parent->accept(this);
                     auto parent_compound = _res_type_info.type;
+                    if (parent_compound->is_final())
+                        throw ErrorGroup<AnalyzerError>()
+                                .error(error(std::format("cannot inherit final '{}'", parent_compound->to_string()), parent))
+                                .note(error("declared here", parent_compound));
                     // check for cyclical inheritance
                     switch (parent_compound->get_eval()) {
                         case scope::Compound::Eval::NOT_STARTED: {

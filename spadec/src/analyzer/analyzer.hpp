@@ -160,6 +160,16 @@ namespace spade
             return AnalyzerError(msg, get_current_scope()->get_enclosing_module()->get_module_node()->get_file_path(), node);
         }
 
+        template<>
+        AnalyzerError error(const string &msg, const scope::Scope *node) const {
+            return AnalyzerError(msg, node->get_enclosing_module()->get_module_node()->get_file_path(), node);
+        }
+
+        template<>
+        AnalyzerError error(const string &msg, const std::shared_ptr<scope::Scope> &node) const {
+            return AnalyzerError(msg, node->get_enclosing_module()->get_module_node()->get_file_path(), node);
+        }
+
         template<ast::HasLineInfo T>
         void warning(const string &msg, T node) const {
             printer.print(ErrorType::WARNING, error(msg, node));
@@ -278,3 +288,71 @@ namespace spade
         void visit(ast::FolderModule &node);
     };
 }    // namespace spade
+
+// Names of functions that represent overloaded operators
+
+// Binary ops
+// `a + b` is same as `a.__add__(b)` if `a` has defined `__add__` function
+#define OV_OP_POW     (std::string("__pow__"))
+#define OV_OP_MUL     (std::string("__mul__"))
+#define OV_OP_DIV     (std::string("__div__"))
+#define OV_OP_MOD     (std::string("__mod__"))
+#define OV_OP_ADD     (std::string("__add__"))
+#define OV_OP_SUB     (std::string("__sub__"))
+#define OV_OP_LSHIFT  (std::string("__lshift__"))
+#define OV_OP_RSHIFT  (std::string("__rshift__"))
+#define OV_OP_URSHIFT (std::string("__urshift__"))
+#define OV_OP_AND     (std::string("__and__"))
+#define OV_OP_XOR     (std::string("__xor__"))
+#define OV_OP_OR      (std::string("__or__"))
+// `a + b` is same as `b.__rev_add__(a)` if `a` has not defined `__add__` function
+#define OV_OP_REV_POW     (std::string("__rev_pow__"))
+#define OV_OP_REV_MUL     (std::string("__rev_mul__"))
+#define OV_OP_REV_DIV     (std::string("__rev_div__"))
+#define OV_OP_REV_MOD     (std::string("__rev_mod__"))
+#define OV_OP_REV_ADD     (std::string("__rev_add__"))
+#define OV_OP_REV_SUB     (std::string("__rev_sub__"))
+#define OV_OP_REV_LSHIFT  (std::string("__rev_lshift__"))
+#define OV_OP_REV_RSHIFT  (std::string("__rev_rshift__"))
+#define OV_OP_REV_URSHIFT (std::string("__rev_urshift__"))
+#define OV_OP_REV_AND     (std::string("__rev_and__"))
+#define OV_OP_REV_XOR     (std::string("__rev_xor__"))
+#define OV_OP_REV_OR      (std::string("__rev_or__"))
+// `a += b` is same as `b.__aug_add__(a)`
+#define OV_OP_AUG_POW     (std::string("__aug_pow__"))
+#define OV_OP_AUG_MUL     (std::string("__aug_mul__"))
+#define OV_OP_AUG_DIV     (std::string("__aug_div__"))
+#define OV_OP_AUG_MOD     (std::string("__aug_mod__"))
+#define OV_OP_AUG_ADD     (std::string("__aug_add__"))
+#define OV_OP_AUG_SUB     (std::string("__aug_sub__"))
+#define OV_OP_AUG_LSHIFT  (std::string("__aug_lshift__"))
+#define OV_OP_AUG_RSHIFT  (std::string("__aug_rshift__"))
+#define OV_OP_AUG_URSHIFT (std::string("__aug_urshift__"))
+#define OV_OP_AUG_AND     (std::string("__aug_and__"))
+#define OV_OP_AUG_XOR     (std::string("__aug_xor__"))
+#define OV_OP_AUG_OR      (std::string("__aug_or__"))
+// Comparison operators
+#define OV_OP_LT (std::string("__lt__"))
+#define OV_OP_LE (std::string("__le__"))
+#define OV_OP_EQ (std::string("__eq__"))
+#define OV_OP_NE (std::string("__ne__"))
+#define OV_OP_GE (std::string("__ge__"))
+#define OV_OP_GT (std::string("__gt__"))
+
+// Postfix operators
+// `a(arg1, arg2, ...)` is same as `a.__call__(arg1, arg2, ...)`
+#define OV_OP_CALL (std::string("__call__"))
+// `a[arg1, arg2, ...]` is same as `a.__get_item__(arg1, arg2, ...)`
+#define OV_OP_GET_ITEM (std::string("__get_item__"))
+// `a[arg1, arg2, ...] = value` is same as `a.__set_item__(arg1, arg2, ..., value)`
+#define OV_OP_SET_ITEM (std::string("__set_item__"))
+// `a in b` is same as `b.__contains__(a)`
+#define OV_OP_CONTAINS (std::string("__contains__"))
+
+// Unary operators
+// `~a` is same as `a.__inv__()`
+#define OV_OP_INV (std::string("__inv__"))
+// `-a` is same as `a.__neg__()`
+#define OV_OP_NEG (std::string("__neg__"))
+// `+a` is same as `a.__pos__()`
+#define OV_OP_POS (std::string("__pos__"))

@@ -376,7 +376,9 @@ namespace spade::scope
         TypeInfo ret_type;
 
       public:
-        Function(ast::decl::Function *node) : Scope(ScopeType::FUNCTION, node), ModifierMixin(node->get_modifiers()) {}
+        Function(ast::decl::Function *node)
+            : Scope(ScopeType::FUNCTION, node),
+              ModifierMixin(node ? node->get_modifiers() : std::vector<std::shared_ptr<Token>>()) {}
 
         ast::decl::Function *get_function_node() const {
             return cast<ast::decl::Function>(node);

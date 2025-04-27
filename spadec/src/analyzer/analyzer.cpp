@@ -183,13 +183,15 @@ namespace spade
         if (to_scope->get_type() == scope::ScopeType::FUNCTION_SET)
             return;    // spare function sets
 
+        // Do not check static context if we are accessing a ctor
         {    // static context code
             bool static_context = false;
-            if (auto fun = from_scope->get_enclosing_function()) {
+            if (auto fun = get_current_function())
                 static_context = fun->is_static();
-            } else if (from_scope->get_type() == scope::ScopeType::VARIABLE) {
+            if (from_scope->get_type() == scope::ScopeType::VARIABLE)
                 static_context = cast<const scope::Variable>(from_scope)->is_static();
-            }
+            if (to_scope->get_type() == scope::ScopeType::FUNCTION && cast<const scope::Function>(to_scope)->is_init())
+                static_context = false;
 
             if (static_context) {
                 switch (to_scope->get_type()) {
@@ -1130,7 +1132,7 @@ namespace spade
                             expr_info.functions = cast<scope::FunctionSet>(&*member_scope);
                             expr_info.functions.remove_if(
                                     [](const std::pair<const SymbolPath &, const scope::Function *> &item) {
-                                        return !item.second->is_static();
+                                        return !item.second->is_static() && !item.second->is_init();
                                     });
                             if (expr_info.functions.empty()) {
                                 errors.error(error(std::format("cannot access non-static '{}' of '{}'",

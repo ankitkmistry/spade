@@ -1,7 +1,6 @@
 #include "parser.hpp"
 #include "lexer/token.hpp"
 #include "parser/ast.hpp"
-#include "spimp/log.hpp"
 
 namespace spade
 {
@@ -366,7 +365,7 @@ namespace spade
         if (match(TokenType::COLON))
             param_type = type();
         if (match(TokenType::EQUAL))
-            expr = ternary();    // TODO: change this if needed
+            expr = ternary();
         int line_start, col_start, line_end, col_end;
         if (is_const) {
             line_start = is_const->get_line_start();
@@ -892,6 +891,7 @@ namespace spade
             case TokenType::FLOAT:
             case TokenType::STRING:
             case TokenType::IDENTIFIER:
+            case TokenType::INIT:
                 return std::make_shared<ast::expr::Constant>(advance());
 
             case TokenType::SUPER: {

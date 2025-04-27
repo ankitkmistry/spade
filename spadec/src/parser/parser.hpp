@@ -245,7 +245,7 @@ namespace spade
         // Primary
         /// primary ::= 'true' | 'false' | 'null'
         ///           | INTEGER | FLOAT | STRING | IDENTIFIER
-        ///           | 'super' | 'self'
+        ///           | 'super' | 'self' | 'init'
         ///           | '(' expression ')'
         std::shared_ptr<ast::Expression> primary();
 
