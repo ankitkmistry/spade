@@ -1,5 +1,7 @@
+#include <cassert>
 #include <clocale>
 #include <filesystem>
+#include <format>
 #include <ios>
 #include <iostream>
 #include <fstream>
@@ -14,15 +16,15 @@
 #include "lexer/lexer.hpp"
 #include "parser/parser.hpp"
 #include "parser/import.hpp"
-#include "parser/printer.hpp"
 #include "analyzer/scope_tree.hpp"
 #include "analyzer/analyzer.hpp"
 
 constexpr bool ENABLE_BACKTRACE_FILTER = false;
 
-using namespace spade;
+namespace fs = std::filesystem;
 
 void compile() {
+    using namespace spade;
     fs::path file_path;
     ErrorPrinter error_printer;
     try {
@@ -57,36 +59,6 @@ void compile() {
     }
 }
 
-void repl() {
-    try {
-        while (true) {
-            std::stringstream code;
-            std::cout << ">>> ";
-            while (true) {
-                if (!code.str().empty())
-                    std::cout << "... ";
-                string line;
-                std::getline(std::cin, line);
-                if (!line.empty() && line.back() == ';') {
-                    if (line.size() > 1)
-                        code << line.substr(0, line.size() - 1) << '\n';
-                    break;
-                }
-                code << line << '\n';
-            }
-            if (code.str() == "exit" || code.str() == "quit")
-                return;
-            Lexer lexer("", code.str());
-            Parser parser("", &lexer);
-            auto tree = parser.parse();
-            ast::Printer printer{tree};
-            std::cout << printer;
-        }
-    } catch (const CompilerError &err) {
-        std::cerr << std::format("error [{}:{}]: {}\n", err.get_line_start(), err.get_col_start(), err.what());
-    }
-}
-
 void graph_test() {
     DirectedGraph<int> graph;
     graph.insert_vertex(0);
@@ -109,6 +81,18 @@ void graph_test() {
     }
 }
 
+void opcode_test() {
+    using namespace spade;
+    std::cout << "num opcodes: " << OpcodeInfo::OPCODE_COUNT << "\n";
+    std::cout << std::format("{}          {}   {}\n", "opcode", "p_cnt", "take");
+    std::cout << "-------------------------------\n";
+    for (const auto &opcode: OpcodeInfo::all_opcodes()) {
+        assert(opcode == OpcodeInfo::from_string(OpcodeInfo::to_string(opcode)));
+        std::cout << std::format("{:15} ({})\t{}\n", OpcodeInfo::to_string(opcode), OpcodeInfo::get_params(opcode),
+                                 OpcodeInfo::take_from_const_pool(opcode));
+    }
+}
+
 int main(int argc, char *argv[]) {
     cpptrace::experimental::set_cache_mode(cpptrace::cache_mode::prioritize_memory);
     CPPTRACE_TRY {
@@ -117,10 +101,10 @@ int main(int argc, char *argv[]) {
         // std::ofstream file("output.log");
         // LOGGER.set_file(file);
         // std::ios_base::sync_with_stdio(false);
-        LOGGER.set_format("[{4}] {5}");
+        spade::LOGGER.set_format("[{4}] {5}");
         compile();
-        // repl();
         // graph_test();
+        // opcode_test();
         color::Console::restore();
         return 0;
     }
@@ -137,14 +121,13 @@ int main(int argc, char *argv[]) {
                                      fs::path src_path;
                                      if (file_path.has_parent_path()) {
                                          if ((src_path = file_path.parent_path(), file_path.parent_path().stem() == "src") ||
-                                             (file_path.parent_path().has_parent_path() &&
-                                              (src_path = file_path.parent_path().parent_path(),
-                                               file_path.parent_path().parent_path().stem() == "src")))
+                                             (file_path.parent_path().has_parent_path() && (src_path = file_path.parent_path().parent_path(),
+                                                                                            file_path.parent_path().parent_path().stem() == "src")))
                                              return src_path.has_parent_path() && src_path.parent_path().stem() == "spadec";
                                      }
                                      return false;
                                  });
-        std::cerr << std::format("exception occurred:\n    {}: {}\n", cpp_demangle(typeid(err).name()), err.what());
+        std::cerr << std::format("exception occurred:\n    {}: {}\n", spade::cpp_demangle(typeid(err).name()), err.what());
         // cpptrace::from_current_exception().print();
         formatter.print(cpptrace::from_current_exception());
         return 1;

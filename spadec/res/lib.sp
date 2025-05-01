@@ -26,7 +26,7 @@ public class StringBuilder {
         var new_data = ""
         var i = 0
         while i < self.size() {
-            new_data = new_data + self.__get_item__(i)
+            new_data = new_data + self[i]
             i += 1
         }
         self.data = new_data
@@ -37,7 +37,7 @@ public class StringBuilder {
         var data = ""
         var i = 0
         while i < self.size() {
-            if start <= i < end: data += self.__get_item__(i)
+            if start <= i < end: data += self[i]
             i += 1
         }
         return StringBuilder(data)
@@ -49,7 +49,7 @@ public class StringBuilder {
         var data = ""
         var i = 0
         while i < self.size() {
-            if start <= i < end: data += self.__get_item__(i)
+            if start <= i < end: data += self[i]
             i += 1
         }
         self.data = data
@@ -67,10 +67,10 @@ public class StringBuilder {
 		return self
 	}
 
-    public fun __get_item__(index: int) -> string = ""
+    public fun __get_item__(index: int) -> string = self.data[index]
+    public fun __set_item__(index: int, value: string) -> void = ""
 
     public fun size() -> int = 0
     public fun capacity() -> int = 0
-	public fun as_string() -> string = self.data
-	public fun to_string() -> string = self.data
+	public override fun to_string() -> string = self.data
 }

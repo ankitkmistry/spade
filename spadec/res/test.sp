@@ -7,20 +7,6 @@ enum Color {
 	static var value: int = 0
 }
 
-fun abaxify(parg1:int,*,ac:string){}
-fun abaxify(a:int,b:int,c="1"){}
-fun abaxify(a,/,b:string,c="a",*args){}
-
-var abaxa=abaxify(a:1,b:2)
-
-class Foo {
-	static var size = build()
-	public static fun build() -> int {
-	}
-}
-
-const diddy = Foo.build()
-
 # You cannot do this
 # class A : B {}
 # class B : C {}
@@ -78,8 +64,14 @@ class CounterFn {
 const do_count = CounterFn()
 
 fun main() { 
+	var text = "hello, world"
+	text = text[::-1] # "dlrow ,olleh"
+
 	var str_buf: lib.StringBuilder? = lib.StringBuilder("west ")
 	print(do_count(), do_count(), do_count(), sep: ", ")
+	var char = str_buf?[1]
+	while false {}
+	str_buf?[0] = " "
 	while false {}
 	(str_buf ??= lib.StringBuilder()) += lib.StringBuilder("bengal\n")
 	print(lib.StringBuilder()
@@ -88,7 +80,9 @@ fun main() {
 		.appendln("this text is built from lib.StringBuilder")
 		.keep(0, 5)
 		.clear()
-		.as_string())
+		.to_string()
+	)
+	print((0).to_string())
 	print("hello, world! my name is aashita", end: "")
 	print()
 }

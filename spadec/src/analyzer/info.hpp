@@ -317,6 +317,22 @@ namespace spade
         string to_string(bool decorated = true) const;
     };
 
+    struct IndexerInfo {
+        ExprInfo caller_info;
+        std::vector<ArgInfo> arg_infos;
+        ast::AstNode *node = null;
+
+        operator bool() const {
+            return node != null;
+        }
+
+        void reset() {
+            caller_info.reset();
+            arg_infos.clear();
+            node = null;
+        }
+    };
+
     class ScopeInfo {
         std::shared_ptr<scope::Scope> scope;
         bool original;
@@ -336,6 +352,10 @@ namespace spade
 
         bool is_original() const {
             return original;
+        }
+
+        void set_original(bool value) {
+            original = value;
         }
     };
 }    // namespace spade

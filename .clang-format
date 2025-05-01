@@ -54,7 +54,7 @@ BreakInheritanceList: BeforeColon
 EmptyLineAfterAccessModifier: Never
 EmptyLineBeforeAccessModifier: LogicalBlock
 FixNamespaceComments: true
-ColumnLimit: 128
+ColumnLimit: 150
 CompactNamespaces: false
 ContinuationIndentWidth: 8
 

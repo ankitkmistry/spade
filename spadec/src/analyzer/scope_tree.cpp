@@ -28,15 +28,13 @@ namespace spade
         return path;
     }
 
-    void ScopeTreeBuilder::add_symbol(const string &name, const std::shared_ptr<Token> &decl_site,
-                                      std::shared_ptr<scope::Scope> scope) {
+    void ScopeTreeBuilder::add_symbol(const string &name, const std::shared_ptr<Token> &decl_site, std::shared_ptr<scope::Scope> scope) {
         if (scope_stack.size() == 1) {
             if (scope->get_type() == scope::ScopeType::FOLDER_MODULE) {
                 if (module_scopes.contains(cast<ast::FolderModule>(scope->get_node()))) {
                     auto module_scope = module_scopes.at(cast<ast::FolderModule>(scope->get_node())).get_scope();
-                    throw ErrorGroup<AnalyzerError>(
-                            std::pair(ErrorType::ERROR, error(std::format("redeclaration of '{}'", name), scope)),
-                            std::pair(ErrorType::NOTE, error("already declared here", module_scope)));
+                    throw ErrorGroup<AnalyzerError>(std::pair(ErrorType::ERROR, error(std::format("redeclaration of '{}'", name), scope)),
+                                                    std::pair(ErrorType::NOTE, error("already declared here", module_scope)));
                 } else {
                     scope->set_path(get_current_path().to_string());
                     module_scopes.emplace(cast<ast::FolderModule>(scope->get_node()), ScopeInfo(scope));
@@ -44,9 +42,8 @@ namespace spade
             } else if (scope->get_type() == scope::ScopeType::MODULE) {
                 if (module_scopes.contains(cast<ast::Module>(scope->get_node()))) {
                     auto module_scope = module_scopes.at(cast<ast::Module>(scope->get_node())).get_scope();
-                    throw ErrorGroup<AnalyzerError>(
-                            std::pair(ErrorType::ERROR, error(std::format("redeclaration of '{}'", name), scope)),
-                            std::pair(ErrorType::NOTE, error("already declared here", module_scope)));
+                    throw ErrorGroup<AnalyzerError>(std::pair(ErrorType::ERROR, error(std::format("redeclaration of '{}'", name), scope)),
+                                                    std::pair(ErrorType::NOTE, error("already declared here", module_scope)));
                 } else {
                     scope->set_path(get_current_path().to_string());
                     module_scopes.emplace(cast<ast::Module>(scope->get_node()), ScopeInfo(scope));
@@ -81,8 +78,7 @@ namespace spade
                 parent_scope->new_variable(name, null, fun_set);    // add the function set to the parent scope
             }
 
-            auto fun_name = fun_scope->get_function_node()->get_name()->get_text() + "#" +
-                            std::to_string(fun_set->get_members().size());
+            auto fun_name = fun_scope->get_function_node()->get_name()->get_text() + "#" + std::to_string(fun_set->get_members().size());
             auto fun_sym_path = get_current_path() / fun_name;
             fun_scope->set_path(fun_sym_path);                               // set the symbol path of the function
             fun_scope->get_function_node()->set_qualified_name(fun_name);    // set the qualified name of the function
@@ -123,11 +119,10 @@ namespace spade
             }
         }
 
-#define CHECK_EXCLUSIVE(a, b)                                                                                                  \
-    do {                                                                                                                       \
-        if (modifier_counts[a] + modifier_counts[b] > 1)                                                                       \
-            throw error(std::format("{} and {} are mutually exclusive", TokenInfo::get_repr(a), TokenInfo::get_repr(b)),       \
-                        node);                                                                                                 \
+#define CHECK_EXCLUSIVE(a, b)                                                                                                                        \
+    do {                                                                                                                                             \
+        if (modifier_counts[a] + modifier_counts[b] > 1)                                                                                             \
+            throw error(std::format("{} and {} are mutually exclusive", TokenInfo::get_repr(a), TokenInfo::get_repr(b)), node);                      \
     } while (false)
 
         CHECK_EXCLUSIVE(TokenType::ABSTRACT, TokenType::FINAL);
@@ -251,8 +246,7 @@ namespace spade
             }
         }
         // Constructor specific checks
-        if (auto fun_node = dynamic_cast<ast::decl::Function *>(node);
-            fun_node && fun_node->get_name()->get_type() == TokenType::INIT) {
+        if (auto fun_node = dynamic_cast<ast::decl::Function *>(node); fun_node && fun_node->get_name()->get_type() == TokenType::INIT) {
             if (modifier_counts[TokenType::ABSTRACT] > 0)
                 throw error("constructor cannot be 'abstract'", fun_node);
             if (modifier_counts[TokenType::FINAL] > 0)
@@ -275,8 +269,7 @@ namespace spade
                 auto common_it = root_path.begin();
                 auto current_it = current_path.begin();
 
-                for (; common_it != root_path.end() && current_it != current_path.end() && *common_it == *current_it;
-                     ++common_it, ++current_it) {
+                for (; common_it != root_path.end() && current_it != current_path.end() && *common_it == *current_it; ++common_it, ++current_it) {
                     temp_path /= *common_it;
                 }
                 root_path = temp_path;
@@ -420,8 +413,7 @@ namespace spade
 
         check_modifiers(&node, node.get_modifiers());
         if (!scope_stack.empty()) {
-            if (scope_stack.back()->get_type() != scope::ScopeType::MODULE &&
-                scope_stack.back()->get_type() != scope::ScopeType::COMPOUND)
+            if (scope_stack.back()->get_type() != scope::ScopeType::MODULE && scope_stack.back()->get_type() != scope::ScopeType::COMPOUND)
                 throw Unreachable();    // surely some parser error
             if (scope_stack.back()->get_type() == scope::ScopeType::COMPOUND) {
                 switch (cast<scope::Compound>(scope_stack.back())->get_compound_node()->get_token()->get_type()) {
@@ -508,8 +500,8 @@ namespace spade
 
     const std::unordered_map<ast::Module *, ScopeInfo> &ScopeTreeBuilder::build() {
         for (auto module: modules) {
+            size_t n = 0;
             {
-                size_t n = 0;
                 auto relative_path = module->get_file_path().parent_path().lexically_relative(root_path);
                 if (relative_path != ".") {
                     auto path = root_path;
@@ -522,12 +514,11 @@ namespace spade
                         n++;
                     }
                 }
-
-                // Traverse the module
-                module->accept(this);
-                // Remove the folders from the scope stack
-                for (size_t i = 0; i < n; i++) end_scope();
             }
+            // Traverse the module
+            module->accept(this);
+            // Remove the folders from the scope stack
+            for (size_t i = 0; i < n; i++) end_scope();
         }
 
 

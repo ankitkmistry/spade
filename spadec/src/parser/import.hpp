@@ -12,9 +12,9 @@ namespace spade
         void resolve_imports(std::shared_ptr<ast::Module> module);
 
       public:
-        explicit ImportResolver(const fs::path &root_path, const std::shared_ptr<ast::Module> &module)
-            : root_path(root_path), module(module) {}
+        explicit ImportResolver(const fs::path &root_path, const std::shared_ptr<ast::Module> &module) : root_path(root_path), module(module) {}
 
+        void resolve_basic_module();
         std::vector<std::shared_ptr<ast::Module>> resolve_imports();
 
         std::shared_ptr<ast::Module> get_module() const {

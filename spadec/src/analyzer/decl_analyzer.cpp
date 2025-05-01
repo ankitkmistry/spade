@@ -114,19 +114,16 @@ namespace spade
                     scope->set_ret_type(_res_type_info);
                 } else {
                     TypeInfo return_type;
-                    return_type.type = scope->is_init() ? scope->get_enclosing_compound()
-                                                        : cast<scope::Compound>(&*internals[Internal::SPADE_VOID]);
+                    return_type.type = scope->is_init() ? scope->get_enclosing_compound() : get_internal<scope::Compound>(Internal::SPADE_VOID);
                     scope->set_ret_type(return_type);
                 }
 
                 if (auto params = node.get_params())
                     params->accept(this);
 
-#define check_ret_type_bool(OPERATOR)                                                                                          \
-    if (node.get_name()->get_text() == OV_OP_##OPERATOR &&                                                                     \
-        scope->get_ret_type().type != cast<scope::Compound>(&*internals[Internal::SPADE_BOOL])) {                              \
-        throw error(std::format("'{}' must return a '{}'", scope->to_string(), internals[Internal::SPADE_BOOL]->to_string()),  \
-                    scope);                                                                                                    \
+#define check_ret_type_bool(OPERATOR)                                                                                                                \
+    if (node.get_name()->get_text() == OV_OP_##OPERATOR && scope->get_ret_type().type != get_internal<scope::Compound>(Internal::SPADE_BOOL)) {      \
+        throw error(std::format("'{}' must return a '{}'", scope->to_string(), get_internal(Internal::SPADE_BOOL)->to_string()), scope);             \
     }
                 // relational operators specific check
                 check_ret_type_bool(CONTAINS);
@@ -160,8 +157,7 @@ namespace spade
                                     continue;
                                 }
                                 if (!scope->is_override()) {
-                                    errors.error(error("function overrides another function but is not marked as override",
-                                                       scope))
+                                    errors.error(error("function overrides another function but is not marked as override", scope))
                                             .note(error("declared here", super_fun));
                                     continue;
                                 }
@@ -286,8 +282,7 @@ namespace spade
         auto parent_enum = scope->get_enclosing_compound();
         if (node.get_expr()) {
             if (parent_enum->has_variable("init"))
-                throw error(std::format("enumerator cannot have an initializer due to '{}'",
-                                        parent_enum->get_variable("init")->to_string()),
+                throw error(std::format("enumerator cannot have an initializer due to '{}'", parent_enum->get_variable("init")->to_string()),
                             node.get_expr());
         } else if (node.get_args()) {
             auto args = *node.get_args();
@@ -333,8 +328,8 @@ namespace spade
             return false;
         for (const auto &param1: fun1->get_pos_kwd_params()) {
             for (const auto &param2: fun2->get_pos_kwd_params()) {
-                if (param1.b_const != param2.b_const || param1.b_variadic != param2.b_variadic ||
-                    param1.b_default != param2.b_default || param1.name != param2.name || param1.type_info != param2.type_info)
+                if (param1.b_const != param2.b_const || param1.b_variadic != param2.b_variadic || param1.b_default != param2.b_default ||
+                    param1.name != param2.name || param1.type_info != param2.type_info)
                     return false;
             }
         }
@@ -342,16 +337,15 @@ namespace spade
             return false;
         for (const auto &param1: fun1->get_kwd_only_params()) {
             for (const auto &param2: fun2->get_kwd_only_params()) {
-                if (param1.b_const != param2.b_const || param1.b_variadic != param2.b_variadic ||
-                    param1.b_default != param2.b_default || param1.name != param2.name || param1.type_info != param2.type_info)
+                if (param1.b_const != param2.b_const || param1.b_variadic != param2.b_variadic || param1.b_default != param2.b_default ||
+                    param1.name != param2.name || param1.type_info != param2.type_info)
                     return false;
             }
         }
         return true;
     }
 
-    void Analyzer::check_compatible_supers(const std::shared_ptr<scope::Compound> &klass,
-                                           const std::vector<scope::Compound *> &supers,
+    void Analyzer::check_compatible_supers(const std::shared_ptr<scope::Compound> &klass, const std::vector<scope::Compound *> &supers,
                                            const std::vector<std::shared_ptr<ast::decl::Parent>> &nodes) const {
         std::unordered_map<string, std::shared_ptr<scope::Variable>> super_fields;
         std::unordered_map<string, FunctionInfo> super_functions;
@@ -361,6 +355,8 @@ namespace spade
         std::unordered_map<string, std::vector<scope::Scope *>> member_table;
 
         for (auto super: supers) {
+            if (!super)
+                continue;
             for (const auto &[member_name, member]: super->get_members()) {
                 const auto &[_, member_scope] = member;
                 switch (member_scope->get_type()) {
@@ -414,8 +410,7 @@ namespace spade
             for (const auto &member: members) {
                 FunctionInfo fn_infos(&*cast<scope::FunctionSet>(member));
                 fn_infos.remove_if([](const std::pair<const spade::SymbolPath &, const spade::scope::Function *> &fn_pair) {
-                    return fn_pair.second->is_static() ||
-                           fn_pair.second->is_init();    // static functions and constructors are never inherited
+                    return fn_pair.second->is_static() || fn_pair.second->is_init();    // static functions and constructors are never inherited
                 });
                 if (!fn_infos.empty())
                     mem_fns.extend(fn_infos);
@@ -490,8 +485,7 @@ namespace spade
                                 std::lock_guard lg(for_each_mutex);
                                 // Remove the abstract function prototype if the implementation
                                 // is already provided by another class
-                                auto abstract_fn_path =
-                                        item.first->is_abstract() ? item.first->get_path() : item.second->get_path();
+                                auto abstract_fn_path = item.first->is_abstract() ? item.first->get_path() : item.second->get_path();
                                 mem_fns.remove(abstract_fn_path);
                             }
                         }
@@ -520,101 +514,88 @@ namespace spade
         auto scope = find_scope<scope::Compound>(node.get_name()->get_text());
         if (scope->get_eval() == scope::Compound::Eval::NOT_STARTED) {
             scope->set_eval(scope::Compound::Eval::PROGRESS);
-            if (node.get_parents().empty()) {
-                std::shared_ptr<scope::Compound> default_super;
-                switch (node.get_token()->get_type()) {
-                    case TokenType::CLASS:
-                        default_super = cast<scope::Compound>(internals[Internal::SPADE_ANY]);
-                        break;
-                    case TokenType::INTERFACE:
-                        break;
-                    case TokenType::ENUM:
-                        default_super = cast<scope::Compound>(internals[Internal::SPADE_ENUM]);
-                        break;
-                    case TokenType::ANNOTATION:
-                        default_super = cast<scope::Compound>(internals[Internal::SPADE_ANNOTATION]);
-                        break;
-                    default:
-                        throw Unreachable();    // surely some parser error
-                }
-                if (default_super)
-                    scope->inherit_from(&*default_super);
-            } else {
-                bool has_super_class = false;
-                size_t super_interface_count = 0;
-                std::vector<scope::Compound *> supers;
-                supers.reserve(node.get_parents().size());
 
-                for (auto parent: node.get_parents()) {
-                    parent->accept(this);
-                    auto parent_compound = _res_type_info.type;
-                    if (parent_compound->is_final())
+            bool has_super_class = false;
+            size_t super_interface_count = 0;
+            std::vector<scope::Compound *> supers;
+
+            for (auto parent: node.get_parents()) {
+                parent->accept(this);
+                auto parent_compound = _res_type_info.type;
+                if (parent_compound->is_final())
+                    throw ErrorGroup<AnalyzerError>()
+                            .error(error(std::format("cannot inherit final '{}'", parent_compound->to_string()), parent))
+                            .note(error("declared here", parent_compound));
+                // check for cyclical inheritance
+                switch (parent_compound->get_eval()) {
+                    case scope::Compound::Eval::NOT_STARTED: {
+                        auto old_cur_scope = get_current_scope();
+                        cur_scope = parent_compound->get_parent();
+                        parent_compound->get_node()->accept(this);
+                        cur_scope = old_cur_scope;
+                        break;
+                    }
+                    case scope::Compound::Eval::PROGRESS:
                         throw ErrorGroup<AnalyzerError>()
-                                .error(error(std::format("cannot inherit final '{}'", parent_compound->to_string()), parent))
+                                .error(error("detected cyclical inheritance", scope))
                                 .note(error("declared here", parent_compound));
-                    // check for cyclical inheritance
-                    switch (parent_compound->get_eval()) {
-                        case scope::Compound::Eval::NOT_STARTED: {
-                            auto old_cur_scope = get_current_scope();
-                            cur_scope = parent_compound->get_parent();
-                            parent_compound->get_node()->accept(this);
-                            cur_scope = old_cur_scope;
-                            break;
-                        }
-                        case scope::Compound::Eval::PROGRESS:
-                            throw ErrorGroup<AnalyzerError>()
-                                    .error(error("detected cyclical inheritance", scope))
-                                    .note(error("declared here", parent_compound));
-                        case scope::Compound::Eval::DONE:
-                            break;
-                    }
-                    // check for parent combinations
-                    switch (parent_compound->get_compound_node()->get_token()->get_type()) {
-                        case TokenType::CLASS:
-                            if (has_super_class && node.get_token()->get_type() == TokenType::CLASS) {
-                                throw error(
-                                        std::format("'{}' can inherit only one class but got another one", scope->to_string()),
-                                        parent);
-                            }
-                            has_super_class = true;
-                            break;
-                        case TokenType::INTERFACE:
-                            super_interface_count++;
-                            break;
-                        case TokenType::ENUM:
-                            throw error("enums cannot be inherited", parent);
-                        case TokenType::ANNOTATION:
-                            throw error("annoations cannot be inherited", parent);
-                        default:
-                            throw Unreachable();    // surely some parser error
-                    }
-                    supers.push_back(parent_compound);
+                    case scope::Compound::Eval::DONE:
+                        break;
                 }
-                switch (node.get_token()->get_type()) {
+                // check for parent combinations
+                switch (parent_compound->get_compound_node()->get_token()->get_type()) {
                     case TokenType::CLASS:
+                        if (has_super_class && node.get_token()->get_type() == TokenType::CLASS)
+                            throw error(std::format("'{}' can inherit only one class but got another one", scope->to_string()), parent);
+                        if (parent_compound == &*scope)
+                            throw error("cannot inherit the class itself", parent);
+                        has_super_class = true;
                         break;
                     case TokenType::INTERFACE:
-                        if (has_super_class)
-                            throw error("interfaces cannot inherit from a class", scope);
-                        if (super_interface_count > 1)
-                            throw error("interfaces cannot inherit from more than 1 interface", scope);
+                        super_interface_count++;
+                        if (parent_compound == &*scope)
+                            throw error("cannot inherit the interface itself", parent);
                         break;
                     case TokenType::ENUM:
-                        if (has_super_class)
-                            throw error("enums cannot inherit from a class", scope);
-                        break;
+                        throw error("enums cannot be inherited", parent);
                     case TokenType::ANNOTATION:
-                        if (has_super_class)
-                            throw error("annotations cannot inherit from a class", scope);
-                        break;
+                        throw error("annoations cannot be inherited", parent);
                     default:
                         throw Unreachable();    // surely some parser error
                 }
-                // check for compatibility
-                check_compatible_supers(scope, supers, node.get_parents());
-                // perform inheritance
-                for (const auto &super: supers) scope->inherit_from(super);
+                supers.push_back(parent_compound);
             }
+            switch (node.get_token()->get_type()) {
+                case TokenType::CLASS:
+                    if (!has_super_class)
+                        if (auto super = get_internal<scope::Compound>(Internal::SPADE_ANY); super != &*scope)
+                            supers.push_back(super);
+                    break;
+                case TokenType::INTERFACE:
+                    if (has_super_class)
+                        throw error("interfaces cannot inherit from a class", scope);
+                    if (super_interface_count > 1)
+                        throw error("interfaces cannot inherit from more than 1 interface", scope);
+                    break;
+                case TokenType::ENUM:
+                    if (has_super_class)
+                        throw error("enums cannot inherit from a class", scope);
+                    supers.push_back(get_internal<scope::Compound>(Internal::SPADE_ENUM));
+                    break;
+                case TokenType::ANNOTATION:
+                    if (has_super_class)
+                        throw error("annotations cannot inherit from a class", scope);
+                    supers.push_back(get_internal<scope::Compound>(Internal::SPADE_ANNOTATION));
+                    break;
+                default:
+                    throw Unreachable();    // surely some parser error
+            }
+            // check for compatibility
+            if (!supers.empty())
+                check_compatible_supers(scope, supers, node.get_parents());
+            // perform inheritance
+            for (const auto &super: supers) scope->inherit_from(super);
+
             // visit the members
             for (auto member: node.get_members()) member->accept(this);
             // check for undeclared abstract functions if the compound is not abstract or interface
@@ -624,8 +605,7 @@ namespace spade
                 for (const auto &[_, fun_infos]: scope->get_super_functions()) {
                     for (const auto &[_, fun]: fun_infos.get_functions()) {
                         if (fun->is_abstract())
-                            errors.error(error(std::format("'{}' is not implemented", fun->to_string()), scope))
-                                    .note(error("declared here", fun));
+                            errors.error(error(std::format("'{}' is not implemented", fun->to_string()), scope)).note(error("declared here", fun));
                     }
                 }
                 if (!errors.get_errors().empty())

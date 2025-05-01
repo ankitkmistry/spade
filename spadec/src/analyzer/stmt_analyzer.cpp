@@ -22,10 +22,9 @@ namespace spade
     }
 
     void Analyzer::visit(ast::stmt::While &node) {
-        bool old_is_loop_val = is_loop;
-
         node.get_condition()->accept(this);
 
+        bool old_is_loop_val = is_loop;
         is_loop = true;
         node.get_body()->accept(this);
         is_loop = old_is_loop_val;
@@ -36,7 +35,6 @@ namespace spade
 
     void Analyzer::visit(ast::stmt::DoWhile &node) {
         bool old_is_loop_val = is_loop;
-
         is_loop = true;
         node.get_body()->accept(this);
         is_loop = old_is_loop_val;
@@ -50,9 +48,8 @@ namespace spade
         node.get_expression()->accept(this);
         switch (_res_expr_info.tag) {
             case ExprInfo::Type::NORMAL:
-                if (!_res_expr_info.type_info.type->has_super(cast<scope::Compound>(&*internals[Internal::SPADE_THROWABLE])))
-                    throw error(std::format("expression type must be a subtype of '{}'",
-                                            internals[Internal::SPADE_THROWABLE]->to_string()),
+                if (!_res_expr_info.type_info.type->has_super(get_internal<scope::Compound>(Internal::SPADE_THROWABLE)))
+                    throw error(std::format("expression type must be a subtype of '{}'", get_internal(Internal::SPADE_THROWABLE)->to_string()),
                                 node.get_expression());
                 break;
             case ExprInfo::Type::STATIC:
@@ -69,10 +66,8 @@ namespace spade
             ref->accept(this);
             if (_res_expr_info.tag != ExprInfo::Type::STATIC)
                 throw error("reference must be a type", ref);
-            else if (!_res_expr_info.type_info.type->has_super(cast<scope::Compound>(&*internals[Internal::SPADE_THROWABLE])))
-                throw error(
-                        std::format("reference must be a subtype of '{}'", internals[Internal::SPADE_THROWABLE]->to_string()),
-                        ref);
+            else if (!_res_expr_info.type_info.type->has_super(get_internal<scope::Compound>(Internal::SPADE_THROWABLE)))
+                throw error(std::format("reference must be a subtype of '{}'", get_internal(Internal::SPADE_THROWABLE)->to_string()), ref);
         }
         declare_variable(*node.get_symbol());
         node.get_body()->accept(this);
@@ -99,7 +94,7 @@ namespace spade
 
     void Analyzer::visit(ast::stmt::Return &node) {
         auto ret_type = get_current_function()->get_ret_type();
-        if (ret_type.type == &*internals[Internal::SPADE_VOID]) {
+        if (ret_type.type == &*get_internal(Internal::SPADE_VOID)) {
             if (node.get_expression())
                 throw error("void function cannot return a value", node.get_expression());
         } else if (auto expression = node.get_expression()) {
@@ -116,6 +111,7 @@ namespace spade
 
     void Analyzer::visit(ast::stmt::Expr &node) {
         node.get_expression()->accept(this);
+        resolve_indexer(_res_expr_info, true, node);
     }
 
     void Analyzer::visit(ast::stmt::Declaration &node) {

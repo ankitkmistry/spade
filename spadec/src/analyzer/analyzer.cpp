@@ -30,39 +30,48 @@ namespace spade
     }
 
     void Analyzer::load_internal_modules() {
-        // module spade
-        auto module = std::make_shared<scope::Module>(null);
-        module->set_path(SymbolPath("spade"));
+        basic_mode = true;
 
-        const auto declare_class = [&](const string &name, Internal tag,
-                                       const std::shared_ptr<scope::Compound> &super) -> std::shared_ptr<scope::Compound> {
-            auto klass = std::make_shared<scope::Compound>(name);
-            klass->set_path(module->get_path() / name);
-            if (super)
-                klass->inherit_from(&*super);
-            module->new_variable(name, null, klass);
-            internals[tag] = klass;
-            return klass;
-        };
+        std::shared_ptr<scope::Module> basic_module = null;
+        for (auto [module, scope_info]: module_scopes) {
+            fs::path file_path(R"(D:\Programming\Projects\spade\spadec\res\basic.sp)");
+            if (module->get_file_path() == file_path) {
+                basic_module = cast<scope::Module>(scope_info.get_scope());
+                mode = Mode::DECLARATION;
+                basic_module->get_node()->accept(this);
+                scope_info.set_original(false);    // Prevent further revisit
+            }
+        }
 
-        auto any_class = declare_class("any", Internal::SPADE_ANY, null);
-        declare_class("Enum", Internal::SPADE_ENUM, any_class);
-        declare_class("Annotation", Internal::SPADE_ANNOTATION, any_class);
-        declare_class("Throwable", Internal::SPADE_THROWABLE, any_class);
+        mode = Mode::DEFINITION;
+        for (auto function: function_scopes) {
+            cur_scope = function->get_parent()->get_parent();
+            function->get_node()->accept(this);
+        }
+        function_scopes.clear();    // Prevent further revisit
 
-        declare_class("int", Internal::SPADE_INT, any_class);
-        declare_class("float", Internal::SPADE_FLOAT, any_class);
-        declare_class("bool", Internal::SPADE_BOOL, any_class);
-        declare_class("string", Internal::SPADE_STRING, any_class);
-        declare_class("void", Internal::SPADE_VOID, any_class);
+        internals[Analyzer::Internal::SPADE] = basic_module;
 
-        module_scopes.emplace(null, ScopeInfo(module));
+        internals[Analyzer::Internal::SPADE_ANY] = basic_module->get_variable("any");
+        internals[Analyzer::Internal::SPADE_ENUM] = basic_module->get_variable("Enum");
+        internals[Analyzer::Internal::SPADE_ANNOTATION] = basic_module->get_variable("Annotation");
+        internals[Analyzer::Internal::SPADE_THROWABLE] = basic_module->get_variable("Throwable");
+
+        internals[Analyzer::Internal::SPADE_INT] = basic_module->get_variable("int");
+        internals[Analyzer::Internal::SPADE_FLOAT] = basic_module->get_variable("float");
+        internals[Analyzer::Internal::SPADE_BOOL] = basic_module->get_variable("bool");
+        internals[Analyzer::Internal::SPADE_STRING] = basic_module->get_variable("string");
+        internals[Analyzer::Internal::SPADE_VOID] = basic_module->get_variable("void");
+
+        internals[Analyzer::Internal::SPADE_SLICE] = basic_module->get_variable("Slice");
+
+        basic_mode = false;
     }
 
     ExprInfo Analyzer::resolve_name(const string &name, const ast::AstNode &node) {
-        ExprInfo expr_info;
         auto parent_compound = get_current_scope()->get_enclosing_compound();
 
+        ExprInfo expr_info;
         std::shared_ptr<scope::Scope> scope;
         for (auto itr = get_current_scope(); itr; itr = itr->get_parent()) {
             if (itr->get_type() == scope::ScopeType::COMPOUND) {
@@ -118,9 +127,9 @@ namespace spade
                 }
             }
         }
-        // Check for null module
-        if (!scope && module_scopes.at(null).get_scope()->has_variable(name)) {
-            scope = module_scopes.at(null).get_scope()->get_variable(name);
+        // Check for spade module
+        if (!scope && internals[Analyzer::Internal::SPADE]->has_variable(name)) {
+            scope = internals[Analyzer::Internal::SPADE]->get_variable(name);
         }
         // Yell if the scope cannot be located
         if (!scope)
@@ -201,18 +210,14 @@ namespace spade
                         break;
                     case scope::ScopeType::FUNCTION:    // only static functions can be referenced from static ctx
                         if (!cast<const scope::Function>(to_scope)->is_static()) {
-                            errors.error(error(std::format("cannot access non-static '{}' from static context",
-                                                           to_scope->to_string()),
-                                               &node))
+                            errors.error(error(std::format("cannot access non-static '{}' from static context", to_scope->to_string()), &node))
                                     .note(error("declared here", to_scope));
                             return;
                         }
                         break;
                     case scope::ScopeType::VARIABLE:    // only static variables can be referenced from static ctx
                         if (!cast<const scope::Variable>(to_scope)->is_static()) {
-                            errors.error(error(std::format("cannot access non-static '{}' from static context",
-                                                           to_scope->to_string()),
-                                               &node))
+                            errors.error(error(std::format("cannot access non-static '{}' from static context", to_scope->to_string()), &node))
                                     .note(error("declared here", to_scope));
                             return;
                         }
@@ -310,8 +315,7 @@ namespace spade
     void Analyzer::check_cast(scope::Compound *from, scope::Compound *to, const ast::AstNode &node, bool safe) {
         if (from == null || to == null) {
             LOGGER.log_warn("check_cast: one of the scope::Compound is null, casting cannot be done");
-            LOGGER.log_debug(
-                    std::format("check_cast: from = {}, to = {}", (from ? "non-null" : "null"), (to ? "non-null" : "null")));
+            LOGGER.log_debug(std::format("check_cast: from = {}, to = {}", (from ? "non-null" : "null"), (to ? "non-null" : "null")));
             return;
         }
         // take advantage of super classes
@@ -338,10 +342,8 @@ namespace spade
                             cast<ast::decl::Compound>(to_member_scope->get_node())->get_token()->get_type()) {
                             if (!error_state)
                                 error_state = true;
-                            err_grp.note(error(std::format("see '{}' in '{}'", to_member_scope->to_string(), to->to_string()),
-                                               to_member_scope))
-                                    .note(error(std::format("also see '{}' in '{}'", from_member_scope->to_string(),
-                                                            from->to_string()),
+                            err_grp.note(error(std::format("see '{}' in '{}'", to_member_scope->to_string(), to->to_string()), to_member_scope))
+                                    .note(error(std::format("also see '{}' in '{}'", from_member_scope->to_string(), from->to_string()),
                                                 from_member_scope));
                         }
                     } else if (from_member_scope->get_type() == scope::ScopeType::VARIABLE) {
@@ -350,26 +352,21 @@ namespace spade
                             cast<ast::decl::Variable>(to_member_scope->get_node())->get_token()->get_type()) {
                             if (!error_state)
                                 error_state = true;
-                            err_grp.note(error(std::format("see '{}' in '{}'", to_member_scope->to_string(), to->to_string()),
-                                               to_member_scope))
-                                    .note(error(std::format("also see '{}' in '{}'", from_member_scope->to_string(),
-                                                            from->to_string()),
+                            err_grp.note(error(std::format("see '{}' in '{}'", to_member_scope->to_string(), to->to_string()), to_member_scope))
+                                    .note(error(std::format("also see '{}' in '{}'", from_member_scope->to_string(), from->to_string()),
                                                 from_member_scope));
                         }
                     }
                 } else {
                     if (!error_state)
                         error_state = true;
-                    err_grp.note(error(std::format("see '{}' in '{}'", to_member_scope->to_string(), to->to_string()),
-                                       to_member_scope))
-                            .note(error(std::format("also see '{}' in '{}'", from_member_scope->to_string(), from->to_string()),
-                                        from_member_scope));
+                    err_grp.note(error(std::format("see '{}' in '{}'", to_member_scope->to_string(), to->to_string()), to_member_scope))
+                            .note(error(std::format("also see '{}' in '{}'", from_member_scope->to_string(), from->to_string()), from_member_scope));
                 }
             } else {
                 if (!error_state)
                     error_state = true;
-                err_grp.note(error(std::format("'{}' does not have similar member like '{}'", from->to_string(),
-                                               to_member_scope->to_string()),
+                err_grp.note(error(std::format("'{}' does not have similar member like '{}'", from->to_string(), to_member_scope->to_string()),
                                    to_member_scope));
             }
         }
@@ -388,17 +385,14 @@ namespace spade
         switch (expr_info.tag) {
             case ExprInfo::Type::NORMAL:
                 result = type_info;
-                if (!expr_info.is_null() && type_info.type != expr_info.type_info.type &&
-                    !expr_info.type_info.type->has_super(type_info.type))
-                    throw error(std::format("cannot assign value of type '{}' to type '{}'", expr_info.type_info.to_string(),
-                                            type_info.to_string()),
+                if (!expr_info.is_null() && type_info.type != expr_info.type_info.type && !expr_info.type_info.type->has_super(type_info.type))
+                    throw error(std::format("cannot assign value of type '{}' to type '{}'", expr_info.type_info.to_string(), type_info.to_string()),
                                 &node);
                 if (!type_info.b_nullable && expr_info.type_info.b_nullable) {
-                    expr_info.is_null()
-                            ? throw error(std::format("cannot assign 'null' to type '{}'", type_info.to_string()), &node)
-                            : throw error(std::format("cannot assign value of type '{}' to type '{}'",
-                                                      expr_info.type_info.to_string(), type_info.to_string()),
-                                          &node);
+                    expr_info.is_null() ? throw error(std::format("cannot assign 'null' to type '{}'", type_info.to_string()), &node)
+                                        : throw error(std::format("cannot assign value of type '{}' to type '{}'", expr_info.type_info.to_string(),
+                                                                  type_info.to_string()),
+                                                      &node);
                 }
                 if (type_info.type_args.empty() && expr_info.type_info.type_args.empty()) {
                     // no type args, plain vanilla
@@ -419,12 +413,10 @@ namespace spade
             case ExprInfo::Type::STATIC:
                 result = type_info;
                 if (!type_info.is_type_literal())
-                    throw error(std::format("cannot assign value of type '{}' to type '{}'", expr_info.type_info.to_string(),
-                                            type_info.to_string()),
+                    throw error(std::format("cannot assign value of type '{}' to type '{}'", expr_info.type_info.to_string(), type_info.to_string()),
                                 &node);
                 if (!type_info.b_nullable && expr_info.type_info.b_nullable)
-                    throw error(std::format("cannot assign value of type '{}' to type '{}'", expr_info.type_info.to_string(),
-                                            type_info.to_string()),
+                    throw error(std::format("cannot assign value of type '{}' to type '{}'", expr_info.type_info.to_string(), type_info.to_string()),
                                 &node);
                 break;
             case ExprInfo::Type::MODULE:
@@ -436,8 +428,7 @@ namespace spade
         return result;
     }
 
-    TypeInfo Analyzer::resolve_assign(std::shared_ptr<ast::Type> type, std::shared_ptr<ast::Expression> expr,
-                                      const ast::AstNode &node) {
+    TypeInfo Analyzer::resolve_assign(std::shared_ptr<ast::Type> type, std::shared_ptr<ast::Expression> expr, const ast::AstNode &node) {
         TypeInfo type_info;
         if (type && expr) {
             type->accept(this);
@@ -456,6 +447,7 @@ namespace spade
             type_info = _res_type_info;
         } else if (expr) {
             expr->accept(this);
+            resolve_indexer(_res_expr_info, true, node);
             switch (_res_expr_info.tag) {
                 case ExprInfo::Type::NORMAL:
                     type_info = _res_expr_info.type_info;
@@ -471,7 +463,7 @@ namespace spade
             }
         } else {
             // type_info.reset();
-            type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_ANY]);
+            type_info.type = get_internal<scope::Compound>(Internal::SPADE_ANY);
             // nullable by default
             type_info.b_nullable = true;
         }
@@ -486,15 +478,12 @@ namespace spade
     bool Analyzer::check_fun_call(scope::Function *function, const std::vector<ArgInfo> &arg_infos, const ast::AstNode &node,
                                   ErrorGroup<AnalyzerError> &errors) {
         if (!function->is_variadic() && !function->is_default() && function->param_count() != arg_infos.size()) {
-            errors.error(error(std::format("expected {} arguments but got {}", function->param_count(), arg_infos.size()),
-                               &node))
+            errors.error(error(std::format("expected {} arguments but got {}", function->param_count(), arg_infos.size()), &node))
                     .note(error("declared here", function));
             return false;
         }
         if (arg_infos.size() < function->min_param_count()) {
-            errors.error(error(std::format("expected at least {} arguments but got {}", function->min_param_count(),
-                                           arg_infos.size()),
-                               &node))
+            errors.error(error(std::format("expected at least {} arguments but got {}", function->min_param_count(), arg_infos.size()), &node))
                     .note(error("declared here", function));
             return false;
         }
@@ -514,8 +503,7 @@ namespace spade
         size_t arg_id = 0;
         // Check positional only parameters
         if (value_args.size() < function->get_pos_only_params().size()) {
-            err_grp.error(error(std::format("expected {} positional arguments but got {}",
-                                            function->get_pos_only_params().size(), arg_infos.size()),
+            err_grp.error(error(std::format("expected {} positional arguments but got {}", function->get_pos_only_params().size(), arg_infos.size()),
                                 &node));
         } else
             for (const auto &param: function->get_pos_only_params()) {
@@ -553,9 +541,7 @@ namespace spade
         }
         // All value arguments should get consumed
         if (arg_id < value_args.size())
-            err_grp.error(error(std::format("expected at most {} value arguments but got {} value arguments", arg_id,
-                                            value_args.size()),
-                                &node))
+            err_grp.error(error(std::format("expected at most {} value arguments but got {} value arguments", arg_id, value_args.size()), &node))
                     .note(error("declared here", function));
         // Add kwd_only_params to kwd_params map
         for (const auto &param: function->get_kwd_only_params()) {
@@ -568,8 +554,7 @@ namespace spade
         }
         // Minimum keyword arguments should be present
         if (kwargs.size() < min_kw_arg_count)
-            err_grp.error(error(std::format("expected at least {} keyword arguments but got {} keyword arguments",
-                                            min_kw_arg_count, kwargs.size()),
+            err_grp.error(error(std::format("expected at least {} keyword arguments but got {} keyword arguments", min_kw_arg_count, kwargs.size()),
                                 &node))
                     .note(error("declared here", function));
         // Collect all keyword arguments
@@ -673,8 +658,7 @@ namespace spade
                 ErrorGroup<AnalyzerError> err_grp;
                 err_grp.error(error(std::format("ambiguous call to '{}'", funs.to_string()), &node));
                 for (const auto &fun: candidates)
-                    err_grp.note(error(std::format("possible candidate declared here: '{}'", fun->to_string()),
-                                       fun->get_node()))
+                    err_grp.note(error(std::format("possible candidate declared here: '{}'", fun->to_string()), fun->get_node()))
                             .note(error("this error should not have occurred, please raise a github issue"));
                 throw err_grp;
             }
@@ -688,7 +672,41 @@ namespace spade
         ExprInfo expr_info;
         expr_info.tag = ExprInfo::Type::NORMAL;
         expr_info.type_info = candidate->get_ret_type();
+        // TODO: also convey generic info
         return expr_info;
+    }
+
+    void Analyzer::resolve_indexer(ExprInfo &result, bool get, const ast::AstNode &node) {
+        if (indexer_info) {
+            ErrorGroup<AnalyzerError> errors;
+
+            // mimic as if it was non-nullable because we check nullabilty is already checked in the indexer visitor
+            ExprInfo caller_info;
+            caller_info = indexer_info.caller_info;
+            caller_info.type_info.b_nullable = false;
+
+            auto member = get_member(caller_info, get ? OV_OP_GET_ITEM : OV_OP_SET_ITEM, node, errors);
+            if (!errors.get_errors().empty())
+                throw ErrorGroup<AnalyzerError>()
+                        .error(error(std::format("'{}' is not indexable", indexer_info.caller_info.to_string()), indexer_info.node))
+                        .extend(errors);
+            switch (member.tag) {
+                case ExprInfo::Type::NORMAL:
+                case ExprInfo::Type::STATIC:
+                case ExprInfo::Type::MODULE:
+                    throw error(std::format("'{}' is not indexable", indexer_info.caller_info.to_string()), indexer_info.node);
+                    break;
+                case ExprInfo::Type::FUNCTION_SET: {
+                    result = resolve_call(member.functions, indexer_info.arg_infos, node);
+                    // This is the property of safe indexer operator
+                    // where 'a?[...]' returns 'a[...]' if 'a' is not null, else returns null
+                    if (indexer_info.caller_info.type_info.b_nullable)
+                        result.type_info.b_nullable = true;
+                    break;
+                }
+            }
+            indexer_info.reset();
+        }
     }
 
     ExprInfo Analyzer::get_var_expr_info(std::shared_ptr<scope::Variable> var_scope, const ast::AstNode &node) {
@@ -711,7 +729,7 @@ namespace spade
                         break;
                     }
                 }
-                expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_ANY]);
+                expr_info.type_info.type = get_internal<scope::Compound>(Internal::SPADE_ANY);
                 expr_info.type_info.b_nullable = true;
                 warning(std::format("type inference is ambiguous, defaulting to '{}'", expr_info.type_info.to_string()), &node);
                 note("declared here", var_scope);
@@ -746,8 +764,7 @@ namespace spade
 
     static bool check_fun_kwd_params(const scope::Function *fun1, const std::vector<ParamInfo> &fun1_pos_kwd,
                                      const std::vector<ParamInfo> &fun1_pos_kwd_default, const scope::Function *fun2,
-                                     const std::vector<ParamInfo> &fun2_pos_kwd,
-                                     const std::vector<ParamInfo> &fun2_pos_kwd_default);
+                                     const std::vector<ParamInfo> &fun2_pos_kwd, const std::vector<ParamInfo> &fun2_pos_kwd_default);
 
     // In functions, there are three kinds of parameters:
     // - Positional only        `pos_only`
@@ -772,13 +789,12 @@ namespace spade
     // - [6] optional    kwd_only_variadic
     //
     // Then, each of the items in the above list is evaluated accordingly.
-    void Analyzer::check_funs(const scope::Function *fun1, const scope::Function *fun2,
-                              ErrorGroup<AnalyzerError> &errors) const {
-#define AMBIGUOUS()                                                                                                            \
-    do {                                                                                                                       \
-        errors.error(error(std::format("ambiguous declaration of '{}'", fun1->to_string()), fun1))                             \
-                .note(error(std::format("check another declaration here: '{}'", fun2->to_string()), fun2));                    \
-        return;                                                                                                                \
+    void Analyzer::check_funs(const scope::Function *fun1, const scope::Function *fun2, ErrorGroup<AnalyzerError> &errors) const {
+#define AMBIGUOUS()                                                                                                                                  \
+    do {                                                                                                                                             \
+        errors.error(error(std::format("ambiguous declaration of '{}'", fun1->to_string()), fun1))                                                   \
+                .note(error(std::format("check another declaration here: '{}'", fun2->to_string()), fun2));                                          \
+        return;                                                                                                                                      \
     } while (false)
 
         if (fun1->get_function_node()->get_name()->get_text() != fun2->get_function_node()->get_name()->get_text())
@@ -851,8 +867,7 @@ namespace spade
             if (!fun1_pos_kwd.empty() && !fun2_pos_kwd.empty()) {
                 for (size_t i = 0; i < fun1_pos_kwd.size() && i < fun2_pos_kwd.size(); i++) {
                     if (fun1_pos_kwd[i].type_info.type != fun2_pos_kwd[i].type_info.type) {
-                        if (check_fun_kwd_params(fun1, fun1_pos_kwd, fun1_pos_kwd_default, fun2, fun2_pos_kwd,
-                                                 fun2_pos_kwd_default))
+                        if (check_fun_kwd_params(fun1, fun1_pos_kwd, fun1_pos_kwd_default, fun2, fun2_pos_kwd, fun2_pos_kwd_default))
                             return;
                         else
                             AMBIGUOUS();
@@ -864,9 +879,7 @@ namespace spade
             if (!fun1_pos_kwd_default.empty() || !fun1_pos_kwd_default.empty()) {
                 // treat default as normal parameters
                 for (size_t i = std::min(fun1_pos_kwd.size(), fun2_pos_kwd.size());
-                     i < fun1_pos_kwd.size() + fun1_pos_kwd_default.size() &&
-                     i < fun2_pos_kwd.size() + fun2_pos_kwd_default.size();
-                     i++) {
+                     i < fun1_pos_kwd.size() + fun1_pos_kwd_default.size() && i < fun2_pos_kwd.size() + fun2_pos_kwd_default.size(); i++) {
                     auto param1 = i < fun1_pos_kwd.size() ? fun1_pos_kwd[i] : fun1_pos_kwd_default[i - fun1_pos_kwd.size()];
                     auto param2 = i < fun2_pos_kwd.size() ? fun2_pos_kwd[i] : fun2_pos_kwd_default[i - fun2_pos_kwd.size()];
                     if (i >= fun1_pos_kwd.size() && i >= fun2_pos_kwd.size()) {
@@ -874,8 +887,7 @@ namespace spade
                         if (param1.type_info.type == param2.type_info.type)
                             AMBIGUOUS();
                     } else if (param1.type_info.type != param2.type_info.type) {
-                        if (check_fun_kwd_params(fun1, fun1_pos_kwd, fun1_pos_kwd_default, fun2, fun2_pos_kwd,
-                                                 fun2_pos_kwd_default))
+                        if (check_fun_kwd_params(fun1, fun1_pos_kwd, fun1_pos_kwd_default, fun2, fun2_pos_kwd, fun2_pos_kwd_default))
                             return;
                         else
                             AMBIGUOUS();
@@ -897,8 +909,7 @@ namespace spade
 
     static bool check_fun_kwd_params(const scope::Function *fun1, const std::vector<ParamInfo> &fun1_pos_kwd,
                                      const std::vector<ParamInfo> &fun1_pos_kwd_default, const scope::Function *fun2,
-                                     const std::vector<ParamInfo> &fun2_pos_kwd,
-                                     const std::vector<ParamInfo> &fun2_pos_kwd_default) {
+                                     const std::vector<ParamInfo> &fun2_pos_kwd, const std::vector<ParamInfo> &fun2_pos_kwd_default) {
         std::optional<ParamInfo> fun1_kwd_only_variadic;
         std::unordered_map<string, ParamInfo> fun1_kwd;
         for (const auto &param: fun1_pos_kwd) fun1_kwd[param.name] = param;
@@ -1019,40 +1030,31 @@ namespace spade
                     return expr_info;
                 }
                 if (!caller_info.type_info.b_nullable && safe) {
-                    errors.error(error(std::format("cannot use safe dot access operator on non-nullable '{}'",
-                                                   caller_info.to_string()),
-                                       &node))
+                    errors.error(error(std::format("cannot use safe dot access operator on non-nullable '{}'", caller_info.to_string()), &node))
                             .note(error("remove the safe dot access operator '?.'", &node));
                     return expr_info;
                 }
                 if (caller_info.type_info.is_type_literal()) {
                     warning("'type' causes dynamic resolution, hence expression becomes 'spade.any?'", &node);
                     expr_info.tag = ExprInfo::Type::NORMAL;
-                    expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_ANY]);
+                    expr_info.type_info.type = get_internal<scope::Compound>(Internal::SPADE_ANY);
                     expr_info.type_info.b_nullable = true;
                 } else {
-                    if (!caller_info.type_info.type->has_variable(member_name)) {
-                        errors.error(error(std::format("cannot access member: '{}'", member_name), &node));
-                        return expr_info;
-                    }
                     auto member_scope = caller_info.type_info.type->get_variable(member_name);
-                    if (!member_scope) {
+                    if (!member_scope)
                         // Provision of super fields and functions
-                        if (auto compound = get_current_scope()->get_enclosing_compound()) {
+                        if (auto compound = caller_info.type_info.type) {
                             if (compound->get_super_fields().contains(member_name)) {
                                 member_scope = compound->get_super_fields().at(member_name);
                             } else if (compound->get_super_functions().contains(member_name)) {
                                 expr_info.tag = ExprInfo::Type::FUNCTION_SET;
                                 expr_info.value_info.b_const = true;
-                                expr_info.value_info.b_lvalue = true;
                                 expr_info.functions = compound->get_super_functions().at(member_name);
                                 break;
                             }
                         }
-                    }
                     if (!member_scope) {
-                        errors.error(error(std::format("'{}' has no member named '{}'", caller_info.to_string(), member_name),
-                                           &node));
+                        errors.error(error(std::format("'{}' has no member named '{}'", caller_info.to_string(), member_name), &node));
                         return expr_info;
                     }
                     resolve_context(member_scope, node);
@@ -1060,7 +1062,6 @@ namespace spade
                         case scope::ScopeType::COMPOUND:
                             expr_info.tag = ExprInfo::Type::STATIC;
                             expr_info.value_info.b_const = true;
-                            expr_info.value_info.b_lvalue = true;
                             expr_info.type_info.type = cast<scope::Compound>(&*member_scope);
                             break;
                         case scope::ScopeType::FUNCTION:
@@ -1068,7 +1069,6 @@ namespace spade
                         case scope::ScopeType::FUNCTION_SET:
                             expr_info.tag = ExprInfo::Type::FUNCTION_SET;
                             expr_info.value_info.b_const = true;
-                            expr_info.value_info.b_lvalue = true;
                             expr_info.functions = cast<scope::FunctionSet>(&*member_scope);
                             break;
                         case scope::ScopeType::VARIABLE:
@@ -1076,9 +1076,7 @@ namespace spade
                             break;
                         case scope::ScopeType::ENUMERATOR:
                             errors.error(error("cannot access enumerator from an object (you should use the type)", &node))
-                                    .note(error(
-                                            std::format("use {}.{}", caller_info.type_info.type->to_string(false), member_name),
-                                            &node));
+                                    .note(error(std::format("use {}.{}", caller_info.type_info.type->to_string(false), member_name), &node));
                             return expr_info;
                         default:
                             throw Unreachable();    // surely some parser error
@@ -1093,26 +1091,19 @@ namespace spade
                     return expr_info;
                 }
                 if (!caller_info.type_info.b_nullable && safe) {
-                    errors.error(error(std::format("cannot use safe dot access operator on non-nullable '{}'",
-                                                   caller_info.to_string()),
-                                       &node))
+                    errors.error(error(std::format("cannot use safe dot access operator on non-nullable '{}'", caller_info.to_string()), &node))
                             .note(error("remove the safe dot access operator '?.'", &node));
                     return expr_info;
                 }
                 if (caller_info.type_info.is_type_literal()) {
                     warning("'type' causes dynamic resolution, hence expression becomes 'spade.any?'", &node);
                     expr_info.tag = ExprInfo::Type::NORMAL;
-                    expr_info.type_info.type = cast<scope::Compound>(&*internals[Internal::SPADE_ANY]);
+                    expr_info.type_info.type = get_internal<scope::Compound>(Internal::SPADE_ANY);
                     expr_info.type_info.b_nullable = true;
                 } else {
-                    if (!caller_info.type_info.type->has_variable(member_name)) {
-                        errors.error(error(std::format("cannot access member: '{}'", member_name), &node));
-                        return expr_info;
-                    }
                     auto member_scope = caller_info.type_info.type->get_variable(member_name);
                     if (!member_scope) {
-                        errors.error(error(std::format("'{}' has no member named '{}'", caller_info.to_string(), member_name),
-                                           &node));
+                        errors.error(error(std::format("'{}' has no member named '{}'", caller_info.to_string(), member_name), &node));
                         return expr_info;
                     }
                     resolve_context(member_scope, node);
@@ -1120,7 +1111,6 @@ namespace spade
                         case scope::ScopeType::COMPOUND:
                             expr_info.tag = ExprInfo::Type::STATIC;
                             expr_info.value_info.b_const = true;
-                            expr_info.value_info.b_lvalue = true;
                             expr_info.type_info.type = cast<scope::Compound>(&*member_scope);
                             break;
                         case scope::ScopeType::FUNCTION:
@@ -1128,25 +1118,23 @@ namespace spade
                         case scope::ScopeType::FUNCTION_SET:
                             expr_info.tag = ExprInfo::Type::FUNCTION_SET;
                             expr_info.value_info.b_const = true;
-                            expr_info.value_info.b_lvalue = true;
                             expr_info.functions = cast<scope::FunctionSet>(&*member_scope);
-                            expr_info.functions.remove_if(
-                                    [](const std::pair<const SymbolPath &, const scope::Function *> &item) {
-                                        return !item.second->is_static() && !item.second->is_init();
-                                    });
+                            expr_info.functions.remove_if([](const std::pair<const SymbolPath &, const scope::Function *> &item) {
+                                return !item.second->is_static() && !item.second->is_init();
+                            });
                             if (expr_info.functions.empty()) {
-                                errors.error(error(std::format("cannot access non-static '{}' of '{}'",
-                                                               member_scope->to_string(), caller_info.to_string()),
-                                                   &node));
+                                errors.error(error(
+                                        std::format("cannot access non-static '{}' of '{}'", member_scope->to_string(), caller_info.to_string()),
+                                        &node));
                                 return expr_info;
                             }
                             break;
                         case scope::ScopeType::VARIABLE: {
                             auto var_scope = cast<scope::Variable>(member_scope);
                             if (!var_scope->is_static()) {
-                                errors.error(error(std::format("cannot access non-static '{}' of '{}'", var_scope->to_string(),
-                                                               caller_info.to_string()),
-                                                   &node));
+                                errors.error(
+                                        error(std::format("cannot access non-static '{}' of '{}'", var_scope->to_string(), caller_info.to_string()),
+                                              &node));
                                 return expr_info;
                             }
                             expr_info = get_var_expr_info(var_scope, node);
@@ -1155,7 +1143,6 @@ namespace spade
                         case scope::ScopeType::ENUMERATOR:
                             expr_info.type_info.type = caller_info.type_info.type;
                             expr_info.value_info.b_const = true;
-                            expr_info.value_info.b_lvalue = true;
                             expr_info.tag = ExprInfo::Type::NORMAL;
                             break;
                         default:
@@ -1175,8 +1162,7 @@ namespace spade
                 }
                 auto member_scope = caller_info.module->get_variable(member_name);
                 if (!member_scope) {
-                    errors.error(
-                            error(std::format("'{}' has no member named '{}'", caller_info.to_string(), member_name), &node));
+                    errors.error(error(std::format("'{}' has no member named '{}'", caller_info.to_string(), member_name), &node));
                     return expr_info;
                 }
                 resolve_context(member_scope, node);
@@ -1185,13 +1171,11 @@ namespace spade
                     case scope::ScopeType::MODULE:
                         expr_info.tag = ExprInfo::Type::MODULE;
                         expr_info.value_info.b_const = true;
-                        expr_info.value_info.b_lvalue = true;
                         expr_info.module = cast<scope::Module>(&*member_scope);
                         break;
                     case scope::ScopeType::COMPOUND:
                         expr_info.tag = ExprInfo::Type::STATIC;
                         expr_info.value_info.b_const = true;
-                        expr_info.value_info.b_lvalue = true;
                         expr_info.type_info.type = cast<scope::Compound>(&*member_scope);
                         break;
                     case scope::ScopeType::FUNCTION:
@@ -1199,7 +1183,6 @@ namespace spade
                     case scope::ScopeType::FUNCTION_SET:
                         expr_info.tag = ExprInfo::Type::FUNCTION_SET;
                         expr_info.value_info.b_const = true;
-                        expr_info.value_info.b_lvalue = true;
                         expr_info.functions = cast<scope::FunctionSet>(&*member_scope);
                         break;
                     case scope::ScopeType::VARIABLE:
@@ -1231,7 +1214,7 @@ namespace spade
                     break;
             }
         }
-        expr_info.value_info.b_lvalue = true;
+        expr_info.value_info.b_lvalue = caller_info.value_info.b_lvalue;
         // Fix for `self.a` const error bcz `self.a` is not constant if it is declared non-const
         if (!expr_info.value_info.b_const)
             expr_info.value_info.b_const = caller_info.value_info.b_const && !caller_info.value_info.b_self;

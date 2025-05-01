@@ -1,6 +1,5 @@
 #pragma once
 
-#include "lexer/token.hpp"
 #include "utils/error.hpp"
 #include "utils/error_printer.hpp"
 #include "parser/ast.hpp"
@@ -32,13 +31,15 @@ namespace spade
             SPADE_FLOAT,
             SPADE_BOOL,
             SPADE_STRING,
-            SPADE_VOID
+            SPADE_VOID,
+            SPADE_SLICE,
         };
         std::unordered_map<Internal, std::shared_ptr<scope::Scope>> internals;
 
         std::unordered_map<ast::Module *, ScopeInfo> module_scopes;
         std::vector<std::shared_ptr<scope::Function>> function_scopes;
 
+        bool basic_mode = false;
         enum class Mode { DECLARATION, DEFINITION };
         Mode mode = Mode::DECLARATION;
 
@@ -46,6 +47,68 @@ namespace spade
         scope::Scope *get_parent_scope() const;
         scope::Scope *get_current_scope() const;
         scope::Function *get_current_function() const;
+
+        template<typename T>
+            requires std::derived_from<T, scope::Scope>
+        T *get_internal(Internal kind) {
+            scope::Scope *scope;
+            if (basic_mode) {
+                switch (kind) {
+                    case Internal::SPADE:
+                        scope = get_current_scope()->get_enclosing_module();
+                        break;
+                    case Internal::SPADE_ANY:
+                        scope = get_current_scope()->get_enclosing_module();
+                        scope = &*scope->get_variable("any");
+                        break;
+                    case Internal::SPADE_ENUM:
+                        scope = get_current_scope()->get_enclosing_module();
+                        scope = &*scope->get_variable("Enum");
+                        break;
+                    case Internal::SPADE_ANNOTATION:
+                        scope = get_current_scope()->get_enclosing_module();
+                        scope = &*scope->get_variable("Annotation");
+                        break;
+                    case Internal::SPADE_THROWABLE:
+                        scope = get_current_scope()->get_enclosing_module();
+                        scope = &*scope->get_variable("Throwable");
+                        break;
+                    case Internal::SPADE_INT:
+                        scope = get_current_scope()->get_enclosing_module();
+                        scope = &*scope->get_variable("int");
+                        break;
+                    case Internal::SPADE_FLOAT:
+                        scope = get_current_scope()->get_enclosing_module();
+                        scope = &*scope->get_variable("float");
+                        break;
+                    case Internal::SPADE_BOOL:
+                        scope = get_current_scope()->get_enclosing_module();
+                        scope = &*scope->get_variable("bool");
+                        break;
+                    case Internal::SPADE_STRING:
+                        scope = get_current_scope()->get_enclosing_module();
+                        scope = &*scope->get_variable("string");
+                        break;
+                    case Internal::SPADE_VOID:
+                        scope = get_current_scope()->get_enclosing_module();
+                        scope = &*scope->get_variable("void");
+                        break;
+                    case Internal::SPADE_SLICE:
+                        scope = get_current_scope()->get_enclosing_module();
+                        scope = &*scope->get_variable("Slice");
+                        break;
+                }
+            } else
+                scope = &*internals[kind];
+            if constexpr (std::same_as<T, scope::Scope>)
+                return scope;
+            else
+                return cast<T>(scope);
+        }
+
+        scope::Scope *get_internal(Internal kind) {
+            return get_internal<scope::Scope>(kind);
+        }
 
         /**
          * Loads and sets up internal spade modules
@@ -89,8 +152,7 @@ namespace spade
          * @param node the source ast node used for error messages
          * @return the correct type info that is assigned
          */
-        TypeInfo resolve_assign(std::shared_ptr<ast::Type> type, std::shared_ptr<ast::Expression> expr,
-                                const ast::AstNode &node);
+        TypeInfo resolve_assign(std::shared_ptr<ast::Type> type, std::shared_ptr<ast::Expression> expr, const ast::AstNode &node);
 
         /**
          * This function checks whether @p function can meet the requirements provided by
@@ -115,6 +177,17 @@ namespace spade
          */
         ExprInfo resolve_call(const FunctionInfo &funs, const std::vector<ArgInfo> &arg_infos, const ast::AstNode &node);
 
+        /**
+         * This function resolves the indexer if there was any indexer call because indexers are late resolved
+         * so as to correctly detect which version of the indexer has to be called (get_item or set_item)
+         * The spade::Analyzer::indexer_info field serves the purpose for this function. After resolution
+         * the value in spade::Analyzer::indexer_info is reset. The resultant value of the indexer is saved in @p result
+         * @param[out] result the ExprInfo where the result is saved
+         * @param[in] get determines which version of the indexer to be called
+         * @param[in] node the source ast node used for error messages
+         */
+        void resolve_indexer(ExprInfo &result, bool get, const ast::AstNode &node);
+
         /// Performs variable type inference resolution
         ExprInfo get_var_expr_info(std::shared_ptr<scope::Variable> var_scope, const ast::AstNode &node);
         /// Declares a variable in the current block if it is a function
@@ -137,14 +210,12 @@ namespace spade
 
         static bool check_fun_exactly_same(const scope::Function *fun1, const scope::Function *fun2);
 
-        void check_compatible_supers(const std::shared_ptr<scope::Compound> &klass,
-                                     const std::vector<scope::Compound *> &supers,
+        void check_compatible_supers(const std::shared_ptr<scope::Compound> &klass, const std::vector<scope::Compound *> &supers,
                                      const std::vector<std::shared_ptr<ast::decl::Parent>> &nodes) const;
 
         ExprInfo get_member(const ExprInfo &caller_info, const string &member_name, bool safe, const ast::AstNode &node,
                             ErrorGroup<AnalyzerError> &errors);
-        ExprInfo get_member(const ExprInfo &caller_info, const string &member_name, const ast::AstNode &node,
-                            ErrorGroup<AnalyzerError> &errors);
+        ExprInfo get_member(const ExprInfo &caller_info, const string &member_name, const ast::AstNode &node, ErrorGroup<AnalyzerError> &errors);
         ExprInfo get_member(const ExprInfo &caller_info, const string &member_name, bool safe, const ast::AstNode &node);
         ExprInfo get_member(const ExprInfo &caller_info, const string &member_name, const ast::AstNode &node);
 
@@ -155,19 +226,27 @@ namespace spade
                                  static_cast<ast::AstNode *>(null));
         }
 
-        template<ast::HasLineInfo T>
-        AnalyzerError error(const string &msg, T node) const {
+        template<typename T>
+        AnalyzerError error(const string &msg, LineInfoVector<T> node) const {
             return AnalyzerError(msg, get_current_scope()->get_enclosing_module()->get_module_node()->get_file_path(), node);
         }
 
-        template<>
-        AnalyzerError error(const string &msg, const scope::Scope *node) const {
-            return AnalyzerError(msg, node->get_enclosing_module()->get_module_node()->get_file_path(), node);
+        template<typename T>
+            requires ast::HasLineInfo<const T *>
+        AnalyzerError error(const string &msg, const T *node) const {
+            if constexpr (std::derived_from<T, scope::Scope>)
+                return AnalyzerError(msg, node->get_enclosing_module()->get_module_node()->get_file_path(), node);
+            else
+                return AnalyzerError(msg, get_current_scope()->get_enclosing_module()->get_module_node()->get_file_path(), node);
         }
 
-        template<>
-        AnalyzerError error(const string &msg, const std::shared_ptr<scope::Scope> &node) const {
-            return AnalyzerError(msg, node->get_enclosing_module()->get_module_node()->get_file_path(), node);
+        template<typename T>
+            requires ast::HasLineInfo<const std::shared_ptr<T> &>
+        AnalyzerError error(const string &msg, const std::shared_ptr<T> &node) const {
+            if constexpr (std::derived_from<T, scope::Scope>)
+                return AnalyzerError(msg, node->get_enclosing_module()->get_module_node()->get_file_path(), node);
+            else
+                return AnalyzerError(msg, get_current_scope()->get_enclosing_module()->get_module_node()->get_file_path(), node);
         }
 
         template<ast::HasLineInfo T>
@@ -181,9 +260,8 @@ namespace spade
         }
 
         inline std::shared_ptr<scope::Block> begin_block(ast::stmt::Block &node) {
-            static size_t counter = 0;
             auto scope = std::make_shared<scope::Block>(&node);
-            get_current_scope()->new_variable(std::format("%block{}", counter), null, scope);
+            get_current_scope()->new_variable(std::format("%block{}", get_current_scope()->get_members().size()), null, scope);
             cur_scope = &*scope;
             return scope;
         }
@@ -240,6 +318,11 @@ namespace spade
       public:
         void visit(ast::expr::Argument &node);
         void visit(ast::expr::Reify &node);
+
+      private:
+        IndexerInfo indexer_info;
+
+      public:
         void visit(ast::expr::Index &node);
         void visit(ast::expr::Slice &node);
         void visit(ast::expr::Unary &node);

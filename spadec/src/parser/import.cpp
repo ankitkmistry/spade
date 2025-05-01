@@ -11,6 +11,20 @@
 
 namespace spade
 {
+    void ImportResolver::resolve_basic_module() {
+        fs::path file_path(R"(D:\Programming\Projects\spade\spadec\res\basic.sp)");
+        std::ifstream in(file_path);
+        if (!in)
+            throw FileOpenError(file_path.generic_string());
+        std::stringstream ss;
+        ss << in.rdbuf();
+        Lexer lexer(file_path, ss.str());
+        Parser parser(file_path, &lexer);
+        auto mod = parser.parse();
+        resolved[file_path] = mod;
+        LOGGER.log_info(std::format("resolved dependency: '{}'", module->get_file_path().generic_string()));
+    }
+
 #ifdef ENABLE_MT
     static std::mutex resolve_imports_mutex;
 #endif
@@ -48,11 +62,9 @@ namespace spade
             }
             // Check for errors
             if (!fs::exists(path))
-                throw ImportError(std::format("cannot find dependency '{}'", path.generic_string()), module->get_file_path(),
-                                  nodes[path]);
+                throw ImportError(std::format("cannot find dependency '{}'", path.generic_string()), module->get_file_path(), nodes[path]);
             if (!fs::is_regular_file(path))
-                throw ImportError(std::format("dependency is not a file: '{}'", path.generic_string()), module->get_file_path(),
-                                  nodes[path]);
+                throw ImportError(std::format("dependency is not a file: '{}'", path.generic_string()), module->get_file_path(), nodes[path]);
             // Process the file as usual
             std::ifstream in(path);
             if (!in)
@@ -69,6 +81,7 @@ namespace spade
 
     std::vector<std::shared_ptr<ast::Module>> ImportResolver::resolve_imports() {
         resolve_imports(module);
+        resolve_basic_module();
         std::vector<std::shared_ptr<ast::Module>> imports;
         imports.reserve(resolved.size());
         for (const auto &mod: resolved | std::views::values) imports.push_back(mod);
