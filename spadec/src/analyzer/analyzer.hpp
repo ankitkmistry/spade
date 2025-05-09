@@ -5,6 +5,7 @@
 #include "parser/ast.hpp"
 #include "info.hpp"
 #include "scope.hpp"
+#include "utils/options.hpp"
 
 namespace spade
 {
@@ -36,8 +37,10 @@ namespace spade
         };
         std::unordered_map<Internal, std::shared_ptr<scope::Scope>> internals;
 
-        std::unordered_map<ast::Module *, ScopeInfo> module_scopes;
+        std::unordered_map<fs::path, std::shared_ptr<scope::Scope>> module_scopes;
         std::vector<std::shared_ptr<scope::Function>> function_scopes;
+
+        CompilerOptions compiler_options;
 
         bool basic_mode = false;
         enum class Mode { DECLARATION, DEFINITION };
@@ -46,6 +49,7 @@ namespace spade
         scope::Scope *cur_scope = null;
         scope::Scope *get_parent_scope() const;
         scope::Scope *get_current_scope() const;
+        scope::Module *get_current_module() const;
         scope::Function *get_current_function() const;
 
         template<typename T>
@@ -189,7 +193,7 @@ namespace spade
         void resolve_indexer(ExprInfo &result, bool get, const ast::AstNode &node);
 
         /// Performs variable type inference resolution
-        ExprInfo get_var_expr_info(std::shared_ptr<scope::Variable> var_scope, const ast::AstNode &node);
+        ExprInfo get_var_expr_info(scope::Variable *var_scope, const ast::AstNode &node);
         /// Declares a variable in the current block if it is a function
         std::shared_ptr<scope::Variable> declare_variable(ast::decl::Variable &node);
 
@@ -218,6 +222,10 @@ namespace spade
         ExprInfo get_member(const ExprInfo &caller_info, const string &member_name, const ast::AstNode &node, ErrorGroup<AnalyzerError> &errors);
         ExprInfo get_member(const ExprInfo &caller_info, const string &member_name, bool safe, const ast::AstNode &node);
         ExprInfo get_member(const ExprInfo &caller_info, const string &member_name, const ast::AstNode &node);
+
+        // Import specific
+        std::shared_ptr<scope::Module> resolve_file(fs::path path);
+        std::shared_ptr<scope::FolderModule> resolve_directory(fs::path path);
 
         ErrorPrinter printer;
 
@@ -279,8 +287,10 @@ namespace spade
         }
 
       public:
-        explicit Analyzer(const std::unordered_map<ast::Module *, ScopeInfo> &module_scopes, ErrorPrinter printer)
-            : module_scopes(module_scopes), printer(printer) {}
+        explicit Analyzer(const std::shared_ptr<scope::Module> &module, ErrorPrinter printer, const CompilerOptions &compiler_options)
+            : module_scopes(), printer(printer), compiler_options(compiler_options) {
+            module_scopes[module->get_module_node()->get_file_path()] = module;
+        }
 
         void analyze();
 
@@ -368,7 +378,6 @@ namespace spade
         // Module level visitor
         void visit(ast::Import &node);
         void visit(ast::Module &node);
-        void visit(ast::FolderModule &node);
     };
 }    // namespace spade
 

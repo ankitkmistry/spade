@@ -124,11 +124,7 @@ namespace spade::scope
 
     class FolderModule final : public Scope {
       public:
-        FolderModule(ast::FolderModule *node) : Scope(ScopeType::FOLDER_MODULE, node) {}
-
-        ast::FolderModule *get_module_node() const {
-            return cast<ast::FolderModule>(node);
-        }
+        FolderModule() : Scope(ScopeType::FOLDER_MODULE, null) {}
 
         string to_string(bool decorated = true) const override {
             return decorated ? "module " + path.to_string() : path.to_string();
@@ -136,8 +132,36 @@ namespace spade::scope
     };
 
     class Module final : public Scope {
+        std::shared_ptr<ast::Module> module_sptr;
+        std::unordered_map<string, std::shared_ptr<scope::Scope>> imports;
+        std::vector<std::shared_ptr<scope::Scope>> open_imports;
+
       public:
         Module(ast::Module *node) : Scope(ScopeType::MODULE, node) {}
+
+        void claim(const std::shared_ptr<ast::Module> &ptr) {
+            module_sptr = ptr;
+        }
+
+        bool new_import(const string &name, std::shared_ptr<scope::Scope> node) {
+            return imports.contains(name) ? false : (imports[name] = node, true);
+        }
+
+        std::shared_ptr<scope::Scope> get_import(const string &name) const {
+            return imports.contains(name) ? imports.at(name) : null;
+        }
+
+        bool has_import(const string &name) const {
+            return imports.contains(name);
+        }
+
+        void new_open_import(std::shared_ptr<scope::Scope> node) {
+            open_imports.push_back(node);
+        }
+
+        const std::vector<std::shared_ptr<scope::Scope>> &get_open_imports() const {
+            return open_imports;
+        }
 
         ast::Module *get_module_node() const {
             return cast<ast::Module>(node);
@@ -377,8 +401,7 @@ namespace spade::scope
 
       public:
         Function(ast::decl::Function *node)
-            : Scope(ScopeType::FUNCTION, node),
-              ModifierMixin(node ? node->get_modifiers() : std::vector<std::shared_ptr<Token>>()) {}
+            : Scope(ScopeType::FUNCTION, node), ModifierMixin(node ? node->get_modifiers() : std::vector<std::shared_ptr<Token>>()) {}
 
         ast::decl::Function *get_function_node() const {
             return cast<ast::decl::Function>(node);
@@ -389,42 +412,35 @@ namespace spade::scope
         }
 
         bool has_param(const string &name) const {
-            auto it = std::find_if(pos_only_params.begin(), pos_only_params.end(),
-                                   [&name](const ParamInfo &param) { return param.name == name; });
+            auto it = std::find_if(pos_only_params.begin(), pos_only_params.end(), [&name](const ParamInfo &param) { return param.name == name; });
             if (it != pos_only_params.end())
                 return true;
 
-            it = std::find_if(pos_kwd_params.begin(), pos_kwd_params.end(),
-                              [&name](const ParamInfo &param) { return param.name == name; });
+            it = std::find_if(pos_kwd_params.begin(), pos_kwd_params.end(), [&name](const ParamInfo &param) { return param.name == name; });
             if (it != pos_kwd_params.end())
                 return true;
 
-            it = std::find_if(kwd_only_params.begin(), kwd_only_params.end(),
-                              [&name](const ParamInfo &param) { return param.name == name; });
+            it = std::find_if(kwd_only_params.begin(), kwd_only_params.end(), [&name](const ParamInfo &param) { return param.name == name; });
             return it != kwd_only_params.end();
         }
 
         ParamInfo get_param(const string &name) const {
-            auto it = std::find_if(pos_only_params.begin(), pos_only_params.end(),
-                                   [&name](const ParamInfo &param) { return param.name == name; });
+            auto it = std::find_if(pos_only_params.begin(), pos_only_params.end(), [&name](const ParamInfo &param) { return param.name == name; });
             if (it != pos_only_params.end())
                 return *it;
 
-            it = std::find_if(pos_kwd_params.begin(), pos_kwd_params.end(),
-                              [&name](const ParamInfo &param) { return param.name == name; });
+            it = std::find_if(pos_kwd_params.begin(), pos_kwd_params.end(), [&name](const ParamInfo &param) { return param.name == name; });
             if (it != pos_kwd_params.end())
                 return *it;
 
-            it = std::find_if(kwd_only_params.begin(), kwd_only_params.end(),
-                              [&name](const ParamInfo &param) { return param.name == name; });
+            it = std::find_if(kwd_only_params.begin(), kwd_only_params.end(), [&name](const ParamInfo &param) { return param.name == name; });
             if (it != kwd_only_params.end())
                 return *it;
             throw Unreachable();    // surely some parser error
         }
 
         bool is_variadic() const {
-            return !pos_only_params.empty() && pos_only_params.back().b_variadic ||
-                   !pos_kwd_params.empty() && pos_kwd_params.back().b_variadic ||
+            return !pos_only_params.empty() && pos_only_params.back().b_variadic || !pos_kwd_params.empty() && pos_kwd_params.back().b_variadic ||
                    !kwd_only_params.empty() && kwd_only_params.back().b_variadic;
         }
 
@@ -444,11 +460,10 @@ namespace spade::scope
                 if (!param.b_default && !param.b_variadic)
                     result.fetch_add(1, std::memory_order_relaxed);
             });
-            std::for_each(std::execution::par_unseq, kwd_only_params.begin(), kwd_only_params.end(),
-                          [&](const ParamInfo &param) {
-                              if (!param.b_default && !param.b_variadic)
-                                  result.fetch_add(1, std::memory_order_relaxed);
-                          });
+            std::for_each(std::execution::par_unseq, kwd_only_params.begin(), kwd_only_params.end(), [&](const ParamInfo &param) {
+                if (!param.b_default && !param.b_variadic)
+                    result.fetch_add(1, std::memory_order_relaxed);
+            });
             return result;
         }
 
@@ -552,8 +567,7 @@ namespace spade::scope
 
       public:
         Variable(ast::decl::Variable *node)
-            : Scope(ScopeType::VARIABLE, node),
-              ModifierMixin(node ? node->get_modifiers() : std::vector<std::shared_ptr<Token>>{}) {}
+            : Scope(ScopeType::VARIABLE, node), ModifierMixin(node ? node->get_modifiers() : std::vector<std::shared_ptr<Token>>{}) {}
 
         bool is_const() const {
             return get_variable_node()->get_token()->get_type() == TokenType::CONST;

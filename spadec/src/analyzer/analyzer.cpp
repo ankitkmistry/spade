@@ -1,12 +1,17 @@
 #include <algorithm>
+#include <iostream>
 #include <mutex>
 #include <boost/functional/hash.hpp>
 
 #include "analyzer.hpp"
 #include "info.hpp"
+#include "lexer/lexer.hpp"
 #include "lexer/token.hpp"
 #include "parser/ast.hpp"
+#include "parser/parser.hpp"
+#include "parser/printer.hpp"
 #include "scope.hpp"
+#include "scope_tree.hpp"
 #include "spimp/error.hpp"
 #include "spimp/utils.hpp"
 #include "symbol_path.hpp"
@@ -24,6 +29,11 @@ namespace spade
         return cur_scope;
     }
 
+    scope::Module *Analyzer::get_current_module() const {
+        return get_current_scope()->get_type() == scope::ScopeType::MODULE ? cast<scope::Module>(get_current_scope())
+                                                                           : get_current_scope()->get_enclosing_module();
+    }
+
     scope::Function *Analyzer::get_current_function() const {
         return get_current_scope()->get_type() == scope::ScopeType::FUNCTION ? cast<scope::Function>(get_current_scope())
                                                                              : get_current_scope()->get_enclosing_function();
@@ -31,17 +41,11 @@ namespace spade
 
     void Analyzer::load_internal_modules() {
         basic_mode = true;
+        std::shared_ptr<scope::Module> basic_module = resolve_file(compiler_options.basic_module_path);
 
-        std::shared_ptr<scope::Module> basic_module = null;
-        for (auto [module, scope_info]: module_scopes) {
-            fs::path file_path(R"(D:\Programming\Projects\spade\spadec\res\basic.sp)");
-            if (module->get_file_path() == file_path) {
-                basic_module = cast<scope::Module>(scope_info.get_scope());
-                mode = Mode::DECLARATION;
-                basic_module->get_node()->accept(this);
-                scope_info.set_original(false);    // Prevent further revisit
-            }
-        }
+        mode = Mode::DECLARATION;
+        cur_scope = &*basic_module;
+        basic_module->get_module_node()->accept(this);
 
         mode = Mode::DEFINITION;
         for (auto function: function_scopes) {
@@ -69,13 +73,16 @@ namespace spade
     }
 
     ExprInfo Analyzer::resolve_name(const string &name, const ast::AstNode &node) {
-        auto parent_compound = get_current_scope()->get_enclosing_compound();
+        auto cur_module = get_current_module();
+        auto cur_compound = get_current_scope()->get_enclosing_compound();
 
         ExprInfo expr_info;
-        std::shared_ptr<scope::Scope> scope;
-        for (auto itr = get_current_scope(); itr; itr = itr->get_parent()) {
-            if (itr->get_type() == scope::ScopeType::COMPOUND) {
-                auto compound = cast<scope::Compound>(itr);
+        scope::Scope *result = null;
+        scope::Scope *scope;
+        for (scope = get_current_scope(); scope && scope != cur_module; scope = scope->get_parent()) {
+            if (scope->get_type() == scope::ScopeType::COMPOUND) {
+                // Eval the compound if not already evaled
+                auto compound = cast<scope::Compound>(scope);
                 if (compound->get_eval() == scope::Compound::Eval::NOT_STARTED) {
                     auto old_cur_scope = get_current_scope();
                     cur_scope = compound->get_parent();
@@ -83,8 +90,13 @@ namespace spade
                     cur_scope = old_cur_scope;
                 }
             }
-            if (itr->get_type() == scope::ScopeType::FUNCTION) {
-                auto function = cast<scope::Function>(itr);
+            if (scope->has_variable(name)) {
+                result = &*scope->get_variable(name);
+                break;
+            }
+            if (scope->get_type() == scope::ScopeType::FUNCTION) {
+                // Check for parameters
+                auto function = cast<scope::Function>(scope);
                 for (const auto &param: function->get_pos_only_params()) {
                     if (param.name == name) {
                         expr_info.tag = ExprInfo::Type::NORMAL;
@@ -112,58 +124,79 @@ namespace spade
                         return expr_info;
                     }
                 }
-            } else if (itr->has_variable(name)) {
-                scope = itr->get_variable(name);
-                break;
-            } else if (parent_compound && itr == parent_compound) {
-                if (parent_compound->get_super_fields().contains(name)) {
-                    scope = parent_compound->get_super_fields().at(name);
-                } else if (parent_compound->get_super_functions().contains(name)) {
+            }
+            // Check in current compound
+            if (cur_compound && scope == cur_compound) {
+                if (cur_compound->get_super_fields().contains(name)) {
+                    // Check in super class fields
+                    result = &*cur_compound->get_super_fields().at(name);
+                } else if (cur_compound->get_super_functions().contains(name)) {
+                    // Check in super class functions
                     expr_info.tag = ExprInfo::Type::FUNCTION_SET;
                     expr_info.value_info.b_const = true;
                     expr_info.value_info.b_lvalue = true;
-                    expr_info.functions = parent_compound->get_super_functions().at(name);
+                    expr_info.functions = cur_compound->get_super_functions().at(name);
                     return expr_info;
                 }
             }
         }
+
+        // Check in current module
+        if (!result && scope == cur_module) {
+            if (cur_module->has_variable(name))
+                // Check module global variables
+                result = &*cur_module->get_variable(name);
+            else if (cur_module->has_import(name)) {
+                // Check module imports
+                result = &*cur_module->get_import(name);
+            } else {
+                // Check module open imports
+                for (auto import: cur_module->get_open_imports()) {
+                    if (import->has_variable(name)) {
+                        result = &*cur_module->get_variable(name);
+                        break;
+                    }
+                }
+            }
+        }
+
         // Check for spade module
-        if (!scope && internals[Analyzer::Internal::SPADE]->has_variable(name)) {
-            scope = internals[Analyzer::Internal::SPADE]->get_variable(name);
+        if (!result && !basic_mode && internals[Analyzer::Internal::SPADE]->has_variable(name)) {
+            result = &*internals[Analyzer::Internal::SPADE]->get_variable(name);
         }
         // Yell if the scope cannot be located
-        if (!scope)
+        if (!result)
             throw error("undefined reference", &node);
         // Resolve the context
-        resolve_context(scope, node);
-        switch (scope->get_type()) {
+        resolve_context(result, node);
+        switch (result->get_type()) {
             case scope::ScopeType::FOLDER_MODULE:
             case scope::ScopeType::MODULE:
                 expr_info.tag = ExprInfo::Type::MODULE;
                 expr_info.value_info.b_const = true;
-                expr_info.module = cast<scope::Module>(&*scope);
+                expr_info.module = cast<scope::Module>(&*result);
                 break;
             case scope::ScopeType::COMPOUND:
                 expr_info.tag = ExprInfo::Type::STATIC;
                 expr_info.value_info.b_const = true;
-                expr_info.type_info.type = cast<scope::Compound>(&*scope);
+                expr_info.type_info.type = cast<scope::Compound>(&*result);
                 break;
             case scope::ScopeType::FUNCTION:
                 throw Unreachable();    // surely some scope tree builder error
             case scope::ScopeType::FUNCTION_SET:
                 expr_info.tag = ExprInfo::Type::FUNCTION_SET;
                 expr_info.value_info.b_const = true;
-                expr_info.functions = cast<scope::FunctionSet>(&*scope);
+                expr_info.functions = cast<scope::FunctionSet>(result);
                 break;
             case scope::ScopeType::BLOCK:
                 throw Unreachable();    // surely some parser error
             case scope::ScopeType::VARIABLE:
-                expr_info = get_var_expr_info(cast<scope::Variable>(scope), node);
+                expr_info = get_var_expr_info(cast<scope::Variable>(result), node);
                 break;
             case scope::ScopeType::ENUMERATOR:
                 expr_info.tag = ExprInfo::Type::NORMAL;
                 expr_info.value_info.b_const = true;
-                expr_info.type_info.type = scope->get_enclosing_compound();
+                expr_info.type_info.type = result->get_enclosing_compound();
                 break;
         }
         expr_info.value_info.b_lvalue = true;
@@ -709,7 +742,7 @@ namespace spade
         }
     }
 
-    ExprInfo Analyzer::get_var_expr_info(std::shared_ptr<scope::Variable> var_scope, const ast::AstNode &node) {
+    ExprInfo Analyzer::get_var_expr_info(scope::Variable *var_scope, const ast::AstNode &node) {
         ExprInfo expr_info;
         expr_info.tag = ExprInfo::Type::NORMAL;
         switch (var_scope->get_eval()) {
@@ -1072,7 +1105,7 @@ namespace spade
                             expr_info.functions = cast<scope::FunctionSet>(&*member_scope);
                             break;
                         case scope::ScopeType::VARIABLE:
-                            expr_info = get_var_expr_info(cast<scope::Variable>(member_scope), node);
+                            expr_info = get_var_expr_info(&*cast<scope::Variable>(member_scope), node);
                             break;
                         case scope::ScopeType::ENUMERATOR:
                             errors.error(error("cannot access enumerator from an object (you should use the type)", &node))
@@ -1137,7 +1170,7 @@ namespace spade
                                               &node));
                                 return expr_info;
                             }
-                            expr_info = get_var_expr_info(var_scope, node);
+                            expr_info = get_var_expr_info(&*var_scope, node);
                             break;
                         }
                         case scope::ScopeType::ENUMERATOR:
@@ -1186,7 +1219,7 @@ namespace spade
                         expr_info.functions = cast<scope::FunctionSet>(&*member_scope);
                         break;
                     case scope::ScopeType::VARIABLE:
-                        expr_info = get_var_expr_info(cast<scope::Variable>(member_scope), node);
+                        expr_info = get_var_expr_info(&*cast<scope::Variable>(member_scope), node);
                         break;
                     default:
                         throw Unreachable();    // surely some parser error
@@ -1244,29 +1277,111 @@ namespace spade
         return expr_info;
     }
 
+    std::shared_ptr<scope::Module> Analyzer::resolve_file(fs::path path) {
+        auto file_path = fs::canonical(path);
+        if (!basic_mode && module_scopes.contains(file_path))
+            // Do not reload if it is already resolved
+            return cast<scope::Module>(module_scopes[file_path]);
+
+        // Process the file as usual
+        std::ifstream in(file_path);
+        if (!in)
+            return null;
+        std::stringstream buffer;
+        buffer << in.rdbuf();
+        Lexer lexer(file_path, buffer.str());
+        Parser parser(file_path, &lexer);
+        auto tree = parser.parse();
+        ScopeTreeBuilder builder(tree);
+        auto module = builder.build();
+        module->claim(tree);
+
+        if (!basic_mode)
+            module_scopes[path] = module;    // Set it resolved
+
+        // Resolve import declarations
+        auto old_cur_scope = get_current_scope();
+        cur_scope = &*module;
+        for (const auto &import: tree->get_imports()) import->accept(this);
+        cur_scope = old_cur_scope;
+
+        return module;
+    }
+
+    std::shared_ptr<scope::FolderModule> Analyzer::resolve_directory(fs::path path) {
+        auto dir_path = fs::canonical(path);
+        if (module_scopes.contains(dir_path))
+            // Do not retry if it is already resolved
+            return cast<scope::FolderModule>(module_scopes[dir_path]);
+        // Process the directory by recursively traversing all spade source files
+        std::shared_ptr<scope::FolderModule> module = std::make_shared<scope::FolderModule>();
+        bool special_module = fs::exists(dir_path / "mod.sp");
+        for (const auto &entry: fs::directory_iterator(dir_path)) {
+            auto entry_path = fs::canonical(entry.path());
+            if (entry_path == dir_path || entry_path == dir_path.parent_path())
+                // Skip current and parent path entries
+                continue;
+            if (entry_path.filename().string()[0] == '.')
+                // Skip '.XXX' entries
+                continue;
+            if (!basic_mode && fs::canonical(entry_path) == fs::canonical(compiler_options.basic_module_path))
+                // Skip basic module as it is processed differently
+                continue;
+            std::shared_ptr<scope::Scope> scope;
+            if (entry.is_directory())
+                scope = resolve_directory(entry_path);
+            if (entry.is_regular_file() && entry_path.extension() == ".sp")
+                scope = resolve_file(entry_path);
+            if (!scope)
+                continue;
+            if (special_module) {
+                // Append all the inner scopes if it is a special module
+                for (const auto &[member_name, member]: scope->get_members()) {
+                    module->new_variable(member_name, member.first, member.second);
+                }
+            } else {
+                module->new_variable(entry_path.stem().string(), null, scope);
+            }
+        }
+        module_scopes[dir_path] = module;    // Set the path as resolved
+        return module;
+    }
+
     void Analyzer::analyze() {
+        // Load the basic module
         load_internal_modules();
 
-        // Print scope tree
-        // for (auto [_, module_scope_info]: module_scopes) {
-        //     if (module_scope_info.is_original()) {
-        //         module_scope_info.get_scope()->print();
-        //     }
-        // }
-        // Start analysis
         mode = Mode::DECLARATION;
-        for (auto [_, module_scope_info]: module_scopes) {
-            if (module_scope_info.is_original())
-                if (auto node = module_scope_info.get_scope()->get_node()) {
-                    cur_scope = null;
-                    node->accept(this);
-                }
+
+        // Resolve all import declarations
+        auto module = cast<scope::Module>(module_scopes.begin()->second);
+        cur_scope = &*module;
+        for (const auto &import: module->get_module_node()->get_imports()) import->accept(this);
+
+        // Visit all declarations
+        for (auto [_, module_scope]: module_scopes) {
+            if (auto node = module_scope->get_node()) {
+                cur_scope = null;
+                node->accept(this);
+            }
         }
+
+        // Visit function definitions
         mode = Mode::DEFINITION;
         for (auto function: function_scopes) {
             cur_scope = function->get_parent()->get_parent();
             function->get_node()->accept(this);
         }
+
+        // Print scope tree
+        // {
+        //     ast::Printer printer(internals[Internal::SPADE]->get_node());
+        //     std::cout << printer;
+        // }
+        // for (auto [_, module]: module_scopes) {
+        //     ast::Printer printer(module->get_node());
+        //     std::cout << printer;
+        // }
     }
 
     void Analyzer::visit(ast::Reference &node) {

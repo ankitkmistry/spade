@@ -332,30 +332,4 @@ namespace spade
             node = null;
         }
     };
-
-    class ScopeInfo {
-        std::shared_ptr<scope::Scope> scope;
-        bool original;
-
-      public:
-        explicit ScopeInfo(std::shared_ptr<scope::Scope> scope, bool original = true) : scope(scope), original(original) {}
-
-        ScopeInfo(const ScopeInfo &other) = default;
-        ScopeInfo(ScopeInfo &&other) noexcept = default;
-        ScopeInfo &operator=(const ScopeInfo &other) = default;
-        ScopeInfo &operator=(ScopeInfo &&other) noexcept = default;
-        ~ScopeInfo() = default;
-
-        std::shared_ptr<scope::Scope> get_scope() const {
-            return scope;
-        }
-
-        bool is_original() const {
-            return original;
-        }
-
-        void set_original(bool value) {
-            original = value;
-        }
-    };
 }    // namespace spade

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <ostream>
 #include <sstream>
 
 #include "ast.hpp"
@@ -12,12 +11,13 @@ namespace spade::ast
       private:
         int level = 0;
         std::stringstream ss;
-        std::shared_ptr<AstNode> root;
+        AstNode *root;
         std::function<string(int)> leading_conv = [](int level) {
             int times = level - 1;
             string s;
             for (int i = 0; i < times; i++) {
-                if (i == times - 1) s += "|-";
+                if (i == times - 1)
+                    s += "|-";
                 else
                     s += "| ";
             }
@@ -30,15 +30,21 @@ namespace spade::ast
         void write_repr(const AstNode *node);
 
         void print(const std::shared_ptr<Token> &token, const string &name);
-        void print(const std::shared_ptr<AstNode> &node, const string &name = "");
+        void print(AstNode *node, const string &name = "");
+
+        void print(const std::shared_ptr<AstNode> &node, const string &name = "") {
+            print(&*node, name);
+        }
 
         template<typename T>
             requires std::derived_from<T, AstNode>
         void print(const std::vector<std::shared_ptr<T>> &vec, const string &name = "") {
             start_level();
             ss << leading_conv(level);
-            if (!name.empty()) ss << name << ": ";
-            if (vec.empty()) ss << "[]";
+            if (!name.empty())
+                ss << name << ": ";
+            if (vec.empty())
+                ss << "[]";
             else {
                 start_level();
                 int i = 0;
@@ -54,8 +60,10 @@ namespace spade::ast
         void print(const std::vector<std::shared_ptr<Token>> &vec, const string &name = "") {
             start_level();
             ss << leading_conv(level);
-            if (!name.empty()) ss << name << ": ";
-            if (vec.empty()) ss << "[]";
+            if (!name.empty())
+                ss << name << ": ";
+            if (vec.empty())
+                ss << "[]";
             else {
                 start_level();
                 int i = 0;
@@ -69,22 +77,22 @@ namespace spade::ast
         }
 
       public:
-        explicit Printer(const std::shared_ptr<AstNode> &root) : root(root) {}
+        explicit Printer(AstNode *root) : root(root) {}
 
         string to_string() const {
-            auto self = const_cast<Printer *>(this);
-            self->print(self->root);
+            auto &self = *const_cast<Printer *>(this);
+            self.print(self.root);
             auto res = ss.str();
-            self->ss.str("");
-            self->ss.clear();
+            self.ss.str("");
+            self.ss.clear();
             return res;
         }
 
-        std::shared_ptr<AstNode> get_root() const {
+        AstNode *get_root() const {
             return root;
         }
 
-        void set_root(const std::shared_ptr<AstNode> &root) {
+        void set_root(AstNode *root) {
             this->root = root;
         }
 
@@ -141,6 +149,5 @@ namespace spade::ast
 
         void visit(Import &node) override;
         void visit(Module &node) override;
-        void visit(FolderModule &node) override;
     };
 }    // namespace spade::ast

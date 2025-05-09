@@ -1,8 +1,7 @@
-#include "printer.hpp"
-
 #include <sstream>
 
-#include "utils/utils.hpp"
+#include "printer.hpp"
+#include "analyzer/symbol_path.hpp"
 
 namespace spade::ast
 {
@@ -19,8 +18,8 @@ namespace spade::ast
     }
 
     void Printer::write_repr(const AstNode *node) {
-        ss << std::format("[{:02d}:{:02d}]->[{:02d}:{:02d}] ", node->get_line_start(), node->get_col_start(),
-                          node->get_line_end(), node->get_col_end());
+        ss << std::format("[{:02d}:{:02d}]->[{:02d}:{:02d}] ", node->get_line_start(), node->get_col_start(), node->get_line_end(),
+                          node->get_col_end());
     }
 
     void Printer::print(const std::shared_ptr<Token> &token, const string &name) {
@@ -32,7 +31,7 @@ namespace spade::ast
         end_level();
     }
 
-    void Printer::print(const std::shared_ptr<AstNode> &node, const string &name) {
+    void Printer::print(AstNode *node, const string &name) {
         start_level();
         ss << leading_conv(level);
         if (!name.empty())
@@ -400,7 +399,9 @@ namespace spade::ast
 
     void Printer::visit(Import &node) {
         write_repr(&node);
-        ss << "Import from='" << node.get_path() << "'";
+        SymbolPath path;
+        for (const auto &element: node.get_elements()) path /= element;
+        ss << "Import from='" << path << "'";
         if (auto alias = node.get_alias()) {
             ss << " as='" << alias->get_text() << "'";
         }
@@ -411,10 +412,5 @@ namespace spade::ast
         ss << "Module '" << node.get_file_path().generic_string() << "'";
         print(node.get_imports(), "imports");
         print(node.get_members(), "members");
-    }
-
-    void Printer::visit(FolderModule &node) {
-        // Parser does not generate FolderModule nodes
-        throw Unreachable();
     }
 }    // namespace spade::ast

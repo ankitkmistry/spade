@@ -9,14 +9,13 @@
 namespace spade
 {
     class ScopeTreeBuilder final : public ast::VisitorBase {
-        fs::path root_path;
-        // std::unordered_map<SymbolPath, ast::AstNode *> symbols;
-        std::unordered_map<ast::Module *, ScopeInfo> module_scopes;
-        std::vector<std::shared_ptr<ast::Module>> modules;
+        std::shared_ptr<ast::Module> module;
+        std::shared_ptr<scope::Module> module_scope;
         std::vector<std::shared_ptr<scope::Scope>> scope_stack;
 
       public:
-        ScopeTreeBuilder(const std::vector<std::shared_ptr<ast::Module>> &modules);
+        ScopeTreeBuilder(const std::shared_ptr<ast::Module> &module) : module(module) {}
+
         ScopeTreeBuilder(const ScopeTreeBuilder &other) = default;
         ScopeTreeBuilder(ScopeTreeBuilder &&other) noexcept = default;
         ScopeTreeBuilder &operator=(const ScopeTreeBuilder &other) = default;
@@ -26,14 +25,7 @@ namespace spade
       private:
         template<ast::HasLineInfo T>
         AnalyzerError error(const string &msg, T node) const {
-            fs::path path;
-            for (auto itr = scope_stack.rbegin(); itr != scope_stack.rend(); ++itr) {
-                if ((*itr)->get_type() == scope::ScopeType::MODULE) {
-                    path = cast<scope::Module>(*itr)->get_module_node()->get_file_path();
-                    break;
-                }
-            }
-            return AnalyzerError(msg, path, node);
+            return AnalyzerError(msg, module->get_file_path(), node);
         }
 
         SymbolPath get_current_path() const;
@@ -100,8 +92,7 @@ namespace spade
         void visit(ast::decl::Compound &node) override;
         void visit(ast::Import &node) override;
         void visit(ast::Module &node) override;
-        void visit(ast::FolderModule &node) override;
 
-        const std::unordered_map<ast::Module *, ScopeInfo> &build();
+        const std::shared_ptr<scope::Module> &build();
     };
 }    // namespace spade

@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <unordered_set>
 
 #include "analyzer.hpp"
@@ -5,7 +6,6 @@
 #include "lexer/token.hpp"
 #include "parser/ast.hpp"
 #include "scope.hpp"
-#include "spimp/error.hpp"
 #include "symbol_path.hpp"
 #include "utils/error.hpp"
 
@@ -617,48 +617,84 @@ namespace spade
     }
 
     void Analyzer::visit(ast::Import &node) {
-        auto scope = get_current_scope();
-        // Put the alias if present
-        auto name = node.get_alias() ? node.get_alias() : node.get_name();
-        if (auto module_sptr = node.get_module().lock()) {
-            auto value = module_scopes.at(&*module_sptr).get_scope();
-            if (!scope->new_variable(name, value)) {
-                // Find the original declaration
-                auto org_def = scope->get_decl_site(name->get_text());
-                throw ErrorGroup<AnalyzerError>()
-                        .error(error(std::format("redeclaration of '{}'", name->get_text()), name))
-                        .note(error("already declared here", org_def));
+        auto module = get_current_module();
+        bool open_import = false;
+        const auto &elements = node.get_elements();
+
+        std::vector<fs::path> prior_paths;
+        prior_paths.push_back(module->get_module_node()->get_file_path().parent_path());
+        if (elements[0] != "." && elements[0] != "..")
+            for (const auto &path: compiler_options.import_search_dirs) prior_paths.push_back(path);
+
+        std::vector<string> remaining_elms;
+        fs::path mod_path;
+        bool found = false;
+        for (auto path: prior_paths) {
+            remaining_elms = elements;
+            std::ranges::reverse(remaining_elms);
+            for (const auto &element: elements) {
+                if (element == "*") {
+                    open_import = true;
+                    remaining_elms.pop_back();
+                    break;
+                }
+                path /= element;
+                if (fs::exists(path))
+                    mod_path = path;
+                else {
+                    auto extended_path = path.concat(".sp");
+                    if (fs::exists(extended_path))
+                        mod_path = extended_path;
+                    remaining_elms.pop_back();
+                    break;
+                }
+                remaining_elms.pop_back();
             }
+            if (!mod_path.empty())
+                break;
+        }
+        if (mod_path.empty())
+            throw error("cannot resolve import", &node);
+
+        std::ranges::reverse(remaining_elms);
+
+        std::shared_ptr<scope::Scope> result;
+        if (fs::is_regular_file(mod_path)) {
+            if (mod_path.extension() != ".sp")
+                throw error(std::format("dependency is not a spade source file: '{}'", mod_path.generic_string()), &node);
+            result = resolve_file(mod_path);
+        }
+        if (fs::is_directory(mod_path))
+            result = resolve_directory(mod_path);
+        if (!result)
+            throw error("cannot resolve import", &node);
+
+        // TODO: fix this for arbitrary functions
+        for (const auto &element: remaining_elms) {
+            if (element == "*")
+                break;
+            result = result->get_variable(element);
+        }
+
+        if (open_import) {
+            module->new_open_import(result);
         } else {
-            LOGGER.log_error("import statement is not resolved");
+            string name = node.get_alias() ? node.get_alias()->get_text()                               //
+                                           : (elements.back() == "*" ? elements[elements.size() - 2]    //
+                                                                     : elements.back());
+            module->new_import(name, result);
         }
     }
 
     void Analyzer::visit(ast::Module &node) {
-        if (get_current_scope())
-            find_scope<scope::Module>(node.get_name());
-        else
-            cur_scope = &*module_scopes.at(&node).get_scope();
+        if (!basic_mode) {
+            if (get_current_scope())
+                find_scope<scope::Module>(node.get_name());
+            else
+                cur_scope = &*module_scopes.at(node.get_file_path());
+        }
 
-        for (auto import: node.get_imports()) import->accept(this);
         for (auto member: node.get_members()) member->accept(this);
-
-        end_scope();
-    }
-
-    void Analyzer::visit(ast::FolderModule &node) {
-        std::shared_ptr<scope::Scope> scope;
-        if (get_current_scope())
-            scope = find_scope<scope::Module>(node.get_name());
-        else {
-            scope = module_scopes.at(&node).get_scope();
-            cur_scope = &*scope;
-        }
-
-        for (auto [name, member]: scope->get_members()) {
-            auto [_, scope] = member;
-            scope->get_node()->accept(this);
-        }
 
         end_scope();
     }

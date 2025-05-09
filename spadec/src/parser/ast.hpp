@@ -1,11 +1,10 @@
 #pragma once
 
-#include "lexer/token.hpp"
 #include <concepts>
+#include "lexer/token.hpp"
 
 namespace spade::ast
 {
-    class FolderModule;
     class Module;
     class Import;
     class Declaration;
@@ -136,7 +135,6 @@ namespace spade::ast
         // Module level visitor
         virtual void visit(Import &node) = 0;
         virtual void visit(Module &node) = 0;
-        virtual void visit(FolderModule &node) = 0;
     };
 
     template<typename T>
@@ -317,8 +315,7 @@ namespace spade::ast
             std::shared_ptr<Type> type;
 
           public:
-            TypeBuilderMember(const std::shared_ptr<Token> &name, const std::shared_ptr<Type> &type)
-                : AstNode(name, type), name(name), type(type) {}
+            TypeBuilderMember(const std::shared_ptr<Token> &name, const std::shared_ptr<Type> &type) : AstNode(name, type), name(name), type(type) {}
 
             const std::shared_ptr<Token> &get_name() const {
                 return name;
@@ -380,8 +377,7 @@ namespace spade::ast
             std::shared_ptr<Reference> reference;
 
           public:
-            Super(const std::shared_ptr<Token> &start, const std::shared_ptr<Token> &end,
-                  const std::shared_ptr<Reference> &reference)
+            Super(const std::shared_ptr<Token> &start, const std::shared_ptr<Token> &end, const std::shared_ptr<Reference> &reference)
                 : Expression(start, end), reference(reference) {}
 
             const std::shared_ptr<Reference> &get_reference() const {
@@ -408,8 +404,7 @@ namespace spade::ast
             std::shared_ptr<Token> safe;
 
           public:
-            Postfix(const std::shared_ptr<Token> &end, const std::shared_ptr<Expression> &caller,
-                    const std::shared_ptr<Token> &safe)
+            Postfix(const std::shared_ptr<Token> &end, const std::shared_ptr<Expression> &caller, const std::shared_ptr<Token> &safe)
                 : Expression(caller, end), caller(caller), safe(safe) {}
 
             const std::shared_ptr<Expression> &get_caller() const {
@@ -426,8 +421,7 @@ namespace spade::ast
             std::shared_ptr<Token> member;
 
           public:
-            DotAccess(const std::shared_ptr<Expression> &caller, const std::shared_ptr<Token> &safe,
-                      const std::shared_ptr<Token> &member)
+            DotAccess(const std::shared_ptr<Expression> &caller, const std::shared_ptr<Token> &safe, const std::shared_ptr<Token> &member)
                 : Postfix(member, caller, safe), member(member) {}
 
             const std::shared_ptr<Token> &get_member() const {
@@ -444,8 +438,7 @@ namespace spade::ast
             std::shared_ptr<Expression> expr;
 
           public:
-            Argument(const std::shared_ptr<Token> &name, const std::shared_ptr<Expression> &expr)
-                : AstNode(name, expr), name(name), expr(expr) {}
+            Argument(const std::shared_ptr<Token> &name, const std::shared_ptr<Expression> &expr) : AstNode(name, expr), name(name), expr(expr) {}
 
             Argument(const std::shared_ptr<Expression> &expr) : AstNode(expr, expr), expr(expr) {}
 
@@ -466,8 +459,8 @@ namespace spade::ast
             std::vector<std::shared_ptr<Argument>> args;
 
           public:
-            Call(const std::shared_ptr<Token> &end, const std::shared_ptr<Expression> &caller,
-                 const std::shared_ptr<Token> &safe, const std::vector<std::shared_ptr<Argument>> &args)
+            Call(const std::shared_ptr<Token> &end, const std::shared_ptr<Expression> &caller, const std::shared_ptr<Token> &safe,
+                 const std::vector<std::shared_ptr<Argument>> &args)
                 : Postfix(end, caller, safe), args(args) {}
 
             const std::vector<std::shared_ptr<Argument>> &get_args() const {
@@ -483,8 +476,8 @@ namespace spade::ast
             std::vector<std::shared_ptr<Type>> type_args;
 
           public:
-            Reify(const std::shared_ptr<Token> &end, const std::shared_ptr<Expression> &caller,
-                  const std::shared_ptr<Token> &safe, const std::vector<std::shared_ptr<Type>> &type_args)
+            Reify(const std::shared_ptr<Token> &end, const std::shared_ptr<Expression> &caller, const std::shared_ptr<Token> &safe,
+                  const std::vector<std::shared_ptr<Type>> &type_args)
                 : Postfix(end, caller, safe), type_args(type_args) {}
 
             const std::vector<std::shared_ptr<Type>> &get_type_args() const {
@@ -536,8 +529,8 @@ namespace spade::ast
             std::vector<std::shared_ptr<Slice>> slices;
 
           public:
-            Index(const std::shared_ptr<Token> &end, const std::shared_ptr<Expression> &caller,
-                  const std::shared_ptr<Token> &safe, const std::vector<std::shared_ptr<Slice>> &slices)
+            Index(const std::shared_ptr<Token> &end, const std::shared_ptr<Expression> &caller, const std::shared_ptr<Token> &safe,
+                  const std::vector<std::shared_ptr<Slice>> &slices)
                 : Postfix(end, caller, safe), slices(slices) {}
 
             const std::vector<std::shared_ptr<Slice>> &get_slices() const {
@@ -554,8 +547,7 @@ namespace spade::ast
             std::shared_ptr<Expression> expr;
 
           public:
-            Unary(const std::shared_ptr<Token> &op, const std::shared_ptr<Expression> &expr)
-                : Expression(op, expr), op(op), expr(expr) {}
+            Unary(const std::shared_ptr<Token> &op, const std::shared_ptr<Expression> &expr) : Expression(op, expr), op(op), expr(expr) {}
 
             const std::shared_ptr<Token> &get_op() const {
                 return op;
@@ -604,12 +596,11 @@ namespace spade::ast
             std::shared_ptr<Expression> right;
 
           public:
-            Binary(const std::shared_ptr<Expression> &left, const std::shared_ptr<Token> &op,
-                   const std::shared_ptr<Expression> &right)
+            Binary(const std::shared_ptr<Expression> &left, const std::shared_ptr<Token> &op, const std::shared_ptr<Expression> &right)
                 : Expression(left, right), left(left), op1(op), right(right) {}
 
-            Binary(const std::shared_ptr<Expression> &left, const std::shared_ptr<Token> &op1,
-                   const std::shared_ptr<Token> &op2, const std::shared_ptr<Expression> &right)
+            Binary(const std::shared_ptr<Expression> &left, const std::shared_ptr<Token> &op1, const std::shared_ptr<Token> &op2,
+                   const std::shared_ptr<Expression> &right)
                 : Expression(left, right), left(left), op1(op1), op2(op2), right(right) {}
 
             const std::shared_ptr<Expression> &get_left() const {
@@ -727,8 +718,7 @@ namespace spade::ast
             std::vector<std::shared_ptr<Statement>> statements;
 
           public:
-            Block(const std::shared_ptr<Token> &start, const std::shared_ptr<Token> &end,
-                  const std::vector<std::shared_ptr<Statement>> &statements)
+            Block(const std::shared_ptr<Token> &start, const std::shared_ptr<Token> &end, const std::vector<std::shared_ptr<Statement>> &statements)
                 : Statement(start, end), statements(statements) {}
 
             const std::vector<std::shared_ptr<Statement>> &get_statements() const {
@@ -746,8 +736,8 @@ namespace spade::ast
             std::shared_ptr<Statement> else_body;
 
           public:
-            If(const std::shared_ptr<Token> &token, const std::shared_ptr<Expression> &condition,
-               const std::shared_ptr<Statement> &body, const std::shared_ptr<Statement> &else_body)
+            If(const std::shared_ptr<Token> &token, const std::shared_ptr<Expression> &condition, const std::shared_ptr<Statement> &body,
+               const std::shared_ptr<Statement> &else_body)
                 : Statement(token, else_body ? else_body : body), condition(condition), body(body), else_body(else_body) {}
 
             const std::shared_ptr<Expression> &get_condition() const {
@@ -773,8 +763,8 @@ namespace spade::ast
             std::shared_ptr<Statement> else_body;
 
           public:
-            While(const std::shared_ptr<Token> &token, const std::shared_ptr<Expression> &condition,
-                  const std::shared_ptr<Statement> &body, const std::shared_ptr<Statement> &else_body)
+            While(const std::shared_ptr<Token> &token, const std::shared_ptr<Expression> &condition, const std::shared_ptr<Statement> &body,
+                  const std::shared_ptr<Statement> &else_body)
                 : Statement(token, else_body ? else_body : body), condition(condition), body(body), else_body(else_body) {}
 
             const std::shared_ptr<Expression> &get_condition() const {
@@ -800,8 +790,8 @@ namespace spade::ast
             std::shared_ptr<Statement> else_body;
 
           public:
-            DoWhile(const std::shared_ptr<Token> &token, const std::shared_ptr<Statement> &body,
-                    const std::shared_ptr<Expression> &condition, const std::shared_ptr<Statement> &else_body)
+            DoWhile(const std::shared_ptr<Token> &token, const std::shared_ptr<Statement> &body, const std::shared_ptr<Expression> &condition,
+                    const std::shared_ptr<Statement> &else_body)
                 : Statement(token, else_body ? else_body : body), body(body), condition(condition), else_body(else_body) {}
 
             const std::shared_ptr<Expression> &get_condition() const {
@@ -870,8 +860,8 @@ namespace spade::ast
             std::shared_ptr<Statement> finally;
 
           public:
-            Try(const std::shared_ptr<Token> &token, const std::shared_ptr<Statement> &body,
-                const std::vector<std::shared_ptr<Statement>> &catches, const std::shared_ptr<Statement> &finally)
+            Try(const std::shared_ptr<Token> &token, const std::shared_ptr<Statement> &body, const std::vector<std::shared_ptr<Statement>> &catches,
+                const std::shared_ptr<Statement> &finally)
                 : Statement(token, finally ? finally : catches.back()), body(body), catches(catches), finally(finally) {}
 
             const std::shared_ptr<Statement> &get_body() const {
@@ -947,8 +937,7 @@ namespace spade::ast
             std::shared_ptr<Expression> expression;
 
           public:
-            explicit Expr(const std::shared_ptr<Expression> &expression)
-                : Statement(expression, expression), expression(expression) {}
+            explicit Expr(const std::shared_ptr<Expression> &expression) : Statement(expression, expression), expression(expression) {}
 
             const std::shared_ptr<Expression> &get_expression() const {
                 return expression;
@@ -964,8 +953,7 @@ namespace spade::ast
         std::vector<std::shared_ptr<Token>> modifiers;
 
       public:
-        Declaration(int line_start, int line_end, int col_start, int col_end)
-            : AstNode(line_start, line_end, col_start, col_end) {}
+        Declaration(int line_start, int line_end, int col_start, int col_end) : AstNode(line_start, line_end, col_start, col_end) {}
 
         template<typename T1, typename T2>
             requires HasLineInfo<T1> && HasLineInfo<T2>
@@ -990,8 +978,7 @@ namespace spade::ast
           public:
             template<typename T>
                 requires HasLineInfo<T>
-            TypeParam(const std::shared_ptr<Token> &variance, T end, const std::shared_ptr<Token> &name,
-                      const std::shared_ptr<Type> &default_type)
+            TypeParam(const std::shared_ptr<Token> &variance, T end, const std::shared_ptr<Token> &name, const std::shared_ptr<Type> &default_type)
                 : Declaration(variance ? variance : name, end), variance(variance), name(name), default_type(default_type) {}
 
             const std::shared_ptr<Token> &get_variance() const {
@@ -1016,8 +1003,7 @@ namespace spade::ast
             std::shared_ptr<Type> type;
 
           public:
-            Constraint(const std::shared_ptr<Token> &arg, const std::shared_ptr<Type> &type)
-                : AstNode(arg, type), arg(arg), type(type) {}
+            Constraint(const std::shared_ptr<Token> &arg, const std::shared_ptr<Type> &type) : AstNode(arg, type), arg(arg), type(type) {}
 
             const std::shared_ptr<Token> &get_arg() const {
                 return arg;
@@ -1083,8 +1069,8 @@ namespace spade::ast
           public:
             template<typename T1, typename T2>
                 requires HasLineInfo<T1> && HasLineInfo<T2>
-            Params(T1 start, T2 end, const std::vector<std::shared_ptr<Param>> &pos_only,
-                   const std::vector<std::shared_ptr<Param>> &pos_kwd, const std::vector<std::shared_ptr<Param>> &kwd_only)
+            Params(T1 start, T2 end, const std::vector<std::shared_ptr<Param>> &pos_only, const std::vector<std::shared_ptr<Param>> &pos_kwd,
+                   const std::vector<std::shared_ptr<Param>> &kwd_only)
                 : Declaration(start, end), pos_only(pos_only), pos_kwd(pos_kwd), kwd_only(kwd_only) {}
 
             const std::vector<std::shared_ptr<Param>> &get_pos_only() const {
@@ -1119,9 +1105,8 @@ namespace spade::ast
             template<typename T>
                 requires HasLineInfo<T>
             Function(const std::shared_ptr<Token> &token, T end, const std::shared_ptr<Token> &name,
-                     const std::vector<std::shared_ptr<TypeParam>> &type_params,
-                     const std::vector<std::shared_ptr<Constraint>> &constraints, const std::shared_ptr<Params> &params,
-                     const std::shared_ptr<Type> &return_type, const std::shared_ptr<Statement> &definition)
+                     const std::vector<std::shared_ptr<TypeParam>> &type_params, const std::vector<std::shared_ptr<Constraint>> &constraints,
+                     const std::shared_ptr<Params> &params, const std::shared_ptr<Type> &return_type, const std::shared_ptr<Statement> &definition)
                 : Declaration(token, end),
                   name(name),
                   type_params(type_params),
@@ -1176,8 +1161,8 @@ namespace spade::ast
           public:
             template<typename T>
                 requires HasLineInfo<T>
-            Variable(const std::shared_ptr<Token> &token, T end, const std::shared_ptr<Token> &name,
-                     const std::shared_ptr<Type> &type, const std::shared_ptr<Expression> &expr)
+            Variable(const std::shared_ptr<Token> &token, T end, const std::shared_ptr<Token> &name, const std::shared_ptr<Type> &type,
+                     const std::shared_ptr<Expression> &expr)
                 : Declaration(token, end), token(token), name(name), type(type), expr(expr) {}
 
             const std::shared_ptr<Token> &get_token() const {
@@ -1270,10 +1255,8 @@ namespace spade::ast
             template<typename T>
                 requires HasLineInfo<T>
             Compound(std::shared_ptr<Token> token, T end, const std::shared_ptr<Token> &name,
-                     const std::vector<std::shared_ptr<TypeParam>> &type_params,
-                     const std::vector<std::shared_ptr<Constraint>> &constraints,
-                     const std::vector<std::shared_ptr<Parent>> &parents,
-                     const std::vector<std::shared_ptr<Enumerator>> &enumerators,
+                     const std::vector<std::shared_ptr<TypeParam>> &type_params, const std::vector<std::shared_ptr<Constraint>> &constraints,
+                     const std::vector<std::shared_ptr<Parent>> &parents, const std::vector<std::shared_ptr<Enumerator>> &enumerators,
                      const std::vector<std::shared_ptr<Declaration>> &members)
                 : Declaration(token, end),
                   token(token),
@@ -1322,8 +1305,7 @@ namespace spade::ast
         std::shared_ptr<ast::Declaration> declaration;
 
       public:
-        explicit Declaration(const std::shared_ptr<ast::Declaration> &declaration)
-            : Statement(declaration, declaration), declaration(declaration) {}
+        explicit Declaration(const std::shared_ptr<ast::Declaration> &declaration) : Statement(declaration, declaration), declaration(declaration) {}
 
         std::shared_ptr<ast::Declaration> get_declaration() const {
             return declaration;
@@ -1335,24 +1317,15 @@ namespace spade::ast
     };
 
     class Import final : public AstNode {
-        string path;
         std::shared_ptr<Token> name;
         std::shared_ptr<Token> alias;
-
-        // Analyzer specific
-        std::weak_ptr<Module> module;
+        std::vector<string> elements;
 
       public:
         template<typename T1, typename T2>
             requires HasLineInfo<T1> && HasLineInfo<T2>
-        Import(T1 start, T2 end, const string &path, const std::shared_ptr<Token> &name, const std::shared_ptr<Token> &alias)
-            : AstNode(start, end), path(path), name(name), alias(alias) {}
-
-        const string &get_path() const {
-            return path;
-        }
-
-        fs::path get_path(const fs::path &root_path, const std::shared_ptr<Module> &module) const;
+        Import(T1 start, T2 end, const std::vector<string> &elements, const std::shared_ptr<Token> &name, const std::shared_ptr<Token> &alias)
+            : AstNode(start, end), elements(elements), name(name), alias(alias) {}
 
         const std::shared_ptr<Token> &get_name() const {
             return name;
@@ -1362,12 +1335,8 @@ namespace spade::ast
             return alias;
         }
 
-        std::weak_ptr<Module> get_module() const {
-            return module;
-        }
-
-        void set_module(const std::weak_ptr<Module> &module) {
-            this->module = module;
+        const std::vector<string> &get_elements() const {
+            return elements;
         }
 
         void accept(VisitorBase *visitor) override {
@@ -1386,8 +1355,8 @@ namespace spade::ast
       public:
         template<typename T1, typename T2>
             requires HasLineInfo<T1> && HasLineInfo<T2>
-        Module(T1 start, T2 end, const std::vector<std::shared_ptr<Import>> &imports,
-               const std::vector<std::shared_ptr<Declaration>> &members, const fs::path &file_path)
+        Module(T1 start, T2 end, const std::vector<std::shared_ptr<Import>> &imports, const std::vector<std::shared_ptr<Declaration>> &members,
+               const fs::path &file_path)
             : AstNode(start, end), file_path(file_path), imports(imports), members(members) {}
 
         string get_name() const {
@@ -1405,15 +1374,6 @@ namespace spade::ast
         const std::vector<std::shared_ptr<Declaration>> &get_members() const {
             return members;
         }
-
-        void accept(VisitorBase *visitor) override {
-            visitor->visit(*this);
-        }
-    };
-
-    class FolderModule final : public Module {
-      public:
-        FolderModule(const fs::path &path) : Module(path) {}
 
         void accept(VisitorBase *visitor) override {
             visitor->visit(*this);
@@ -1481,6 +1441,5 @@ namespace spade
         }
     };
 
-    static_assert(ast::HasLineInfo<LineInfoVector<ast::AstNode *>>,
-                  "spade::LineInfoVector must satisfy spade::ast::HasLineInfo concept");
+    static_assert(ast::HasLineInfo<LineInfoVector<ast::AstNode *>>, "spade::LineInfoVector must satisfy spade::ast::HasLineInfo concept");
 }    // namespace spade

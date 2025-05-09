@@ -7,8 +7,7 @@ namespace spade
     void Parser::fill_tokens_buffer(int n) {
         for (int i = 0; i < n; ++i) {
             auto token = lexer->next_token();
-            if (token->get_type() == TokenType::END_OF_FILE && !tokens.empty() &&
-                tokens.back()->get_type() == TokenType::END_OF_FILE)
+            if (token->get_type() == TokenType::END_OF_FILE && !tokens.empty() && tokens.back()->get_type() == TokenType::END_OF_FILE)
                 break;    // Already EOF occured
             tokens.push_back(token);
         }
@@ -65,29 +64,27 @@ namespace spade
     }
 
     std::shared_ptr<ast::Import> Parser::import() {
+        std::vector<string> elements;
         auto start = expect(TokenType::IMPORT);
-        std::stringstream path;
+        // Check for relative path
         if (match(TokenType::DOT)) {
-            path << '.';
             if (match(TokenType::DOT))
-                path << '.';
+                elements.push_back("..");
+            else
+                elements.push_back(".");
         }
         auto ref = reference();
-        for (size_t i = 0; auto tok: ref->get_path()) {
-            path << tok->get_text();
-            if (i < ref->get_path().size() - 1)
-                path << ".";
-            i++;
-        }
+        // Add all the tokens in reference to elements
+        for (auto tok: ref->get_path()) elements.push_back(tok->get_text());
+        // Check for alias or opened import
         std::shared_ptr<Token> alias;
         if (match(TokenType::AS))
             alias = expect(TokenType::IDENTIFIER);
         else if (match(TokenType::DOT)) {
-            // TODO: implement this in analyzer
             expect(TokenType::STAR);
-            path << ".*";
+            elements.push_back("*");
         }
-        return std::make_shared<ast::Import>(start, current(), path.str(), ref->get_path().back(), alias);
+        return std::make_shared<ast::Import>(start, current(), elements, ref->get_path().back(), alias);
     }
 
     std::shared_ptr<ast::Reference> Parser::reference() {
@@ -118,9 +115,8 @@ namespace spade
                 decl = compound_decl();
                 break;
             default:
-                throw error(std::format("expected {}",
-                                        make_expected_string(TokenType::VAR, TokenType::CONST, TokenType::FUN, TokenType::CLASS,
-                                                             TokenType::INTERFACE, TokenType::ENUM, TokenType::ANNOTATION)));
+                throw error(std::format("expected {}", make_expected_string(TokenType::VAR, TokenType::CONST, TokenType::FUN, TokenType::CLASS,
+                                                                            TokenType::INTERFACE, TokenType::ENUM, TokenType::ANNOTATION)));
         }
         decl->set_modifiers(mods);
         return decl;
@@ -151,8 +147,7 @@ namespace spade
             while (peek()->get_type() != TokenType::RBRACE) members.push_back(member_decl());
             expect(TokenType::RBRACE);
         }
-        return std::make_shared<ast::decl::Compound>(token, current(), name, type_params, constraints, parents, enumerators,
-                                                     members);
+        return std::make_shared<ast::decl::Compound>(token, current(), name, type_params, constraints, parents, enumerators, members);
     }
 
     std::shared_ptr<ast::Declaration> Parser::member_decl() {
@@ -176,20 +171,18 @@ namespace spade
                 decl = compound_decl();
                 break;
             default:
-                throw error(
-                        std::format("expected {}", make_expected_string(TokenType::VAR, TokenType::CONST, TokenType::FUN,
-                                                                        TokenType::INIT, TokenType::CLASS, TokenType::INTERFACE,
-                                                                        TokenType::ENUM, TokenType::ANNOTATION)));
+                throw error(std::format("expected {}",
+                                        make_expected_string(TokenType::VAR, TokenType::CONST, TokenType::FUN, TokenType::INIT, TokenType::CLASS,
+                                                             TokenType::INTERFACE, TokenType::ENUM, TokenType::ANNOTATION)));
         }
         decl->set_modifiers(mods);
         return decl;
     }
 
-#define DEFINITION()                                                                                                           \
-    (match(TokenType::EQUAL) ? statement()                                                                                     \
-     : peek()->get_type() == TokenType::LBRACE                                                                                 \
-             ? block()                                                                                                         \
-             : throw error(std::format("expected {}", make_expected_string(TokenType::EQUAL, TokenType::LBRACE))))
+#define DEFINITION()                                                                                                                                 \
+    (match(TokenType::EQUAL)                   ? statement()                                                                                         \
+     : peek()->get_type() == TokenType::LBRACE ? block()                                                                                             \
+                                               : throw error(std::format("expected {}", make_expected_string(TokenType::EQUAL, TokenType::LBRACE))))
 
     std::shared_ptr<ast::Declaration> Parser::init_decl() {
         auto name = expect(TokenType::INIT);
@@ -199,9 +192,8 @@ namespace spade
             init_params = params();
         expect(TokenType::RPAREN);
         std::shared_ptr<ast::Statement> def = DEFINITION();
-        return std::make_shared<ast::decl::Function>(
-                name, current(), name, std::vector<std::shared_ptr<ast::decl::TypeParam>>{},
-                std::vector<std::shared_ptr<ast::decl::Constraint>>{}, init_params, null, def);
+        return std::make_shared<ast::decl::Function>(name, current(), name, std::vector<std::shared_ptr<ast::decl::TypeParam>>{},
+                                                     std::vector<std::shared_ptr<ast::decl::Constraint>>{}, init_params, null, def);
     }
 
     std::shared_ptr<ast::Declaration> Parser::variable_decl() {
@@ -242,16 +234,15 @@ namespace spade
         std::shared_ptr<ast::Statement> def;
         if (peek()->get_type() == TokenType::EQUAL || peek()->get_type() == TokenType::LBRACE)
             def = DEFINITION();
-        return std::make_shared<ast::decl::Function>(token, current(), name, type_params, constraints, fun_params, ret_type,
-                                                     def);
+        return std::make_shared<ast::decl::Function>(token, current(), name, type_params, constraints, fun_params, ret_type, def);
     }
 
 #undef DEFINITION
 
     std::vector<std::shared_ptr<Token>> Parser::modifiers() {
         std::vector<std::shared_ptr<Token>> mods;
-        while (match(TokenType::ABSTRACT, TokenType::FINAL, TokenType::STATIC, TokenType::OVERRIDE, TokenType::PRIVATE,
-                     TokenType::INTERNAL, TokenType::PROTECTED, TokenType::PUBLIC)) {
+        while (match(TokenType::ABSTRACT, TokenType::FINAL, TokenType::STATIC, TokenType::OVERRIDE, TokenType::PRIVATE, TokenType::INTERNAL,
+                     TokenType::PROTECTED, TokenType::PUBLIC)) {
             mods.push_back(current());
         }
         return mods;
@@ -317,8 +308,7 @@ namespace spade
                 param_list2 = param_list();
             }
         } else {
-            if (current()->get_type() == TokenType::COMMA && peek()->get_type() == TokenType::STAR &&
-                peek(1)->get_type() == TokenType::COMMA) {
+            if (current()->get_type() == TokenType::COMMA && peek()->get_type() == TokenType::STAR && peek(1)->get_type() == TokenType::COMMA) {
                 expect(TokenType::STAR);
                 expect(TokenType::COMMA);
                 got_param_list_2 = true;
@@ -334,8 +324,7 @@ namespace spade
                 param_list3 = param_list();
             }
         } else {
-            if (current()->get_type() == TokenType::COMMA && peek()->get_type() == TokenType::SLASH &&
-                peek(1)->get_type() == TokenType::COMMA) {
+            if (current()->get_type() == TokenType::COMMA && peek()->get_type() == TokenType::SLASH && peek(1)->get_type() == TokenType::COMMA) {
                 expect(TokenType::SLASH);
                 expect(TokenType::COMMA);
                 got_param_list_3 = true;
@@ -344,16 +333,12 @@ namespace spade
         }
 
         if (!got_param_list_2 && !got_param_list_3)
-            return std::make_shared<ast::decl::Params>(got_param_list_1 ? param_list1.front() : null, current(), EMPTY,
-                                                       param_list1, EMPTY);
+            return std::make_shared<ast::decl::Params>(got_param_list_1 ? param_list1.front() : null, current(), EMPTY, param_list1, EMPTY);
         if (!got_param_list_2)
-            return std::make_shared<ast::decl::Params>(got_param_list_1 ? param_list1.front() : null, current(), EMPTY,
-                                                       param_list1, param_list3);
+            return std::make_shared<ast::decl::Params>(got_param_list_1 ? param_list1.front() : null, current(), EMPTY, param_list1, param_list3);
         if (!got_param_list_3)
-            return std::make_shared<ast::decl::Params>(got_param_list_1 ? param_list1.front() : null, current(), param_list1,
-                                                       param_list2, EMPTY);
-        return std::make_shared<ast::decl::Params>(got_param_list_1 ? param_list1.front() : null, current(), param_list1,
-                                                   param_list2, param_list3);
+            return std::make_shared<ast::decl::Params>(got_param_list_1 ? param_list1.front() : null, current(), param_list1, param_list2, EMPTY);
+        return std::make_shared<ast::decl::Params>(got_param_list_1 ? param_list1.front() : null, current(), param_list1, param_list2, param_list3);
     }
 
     std::shared_ptr<ast::decl::Param> Parser::param() {
@@ -387,8 +372,7 @@ namespace spade
             line_end = name->get_line_end();
             col_end = name->get_col_end();
         }
-        return std::make_shared<ast::decl::Param>(line_start, line_end, col_start, col_end, is_const, variadic, name,
-                                                  param_type, expr);
+        return std::make_shared<ast::decl::Param>(line_start, line_end, col_start, col_end, is_const, variadic, name, param_type, expr);
     }
 
     std::shared_ptr<ast::Statement> Parser::statements() {
@@ -463,11 +447,10 @@ namespace spade
         }
     }
 
-#define BODY()                                                                                                                 \
-    (match(TokenType::COLON) ? statement()                                                                                     \
-     : peek()->get_type() == TokenType::LBRACE                                                                                 \
-             ? block()                                                                                                         \
-             : throw error(std::format("expected {}", make_expected_string(TokenType::COLON, TokenType::LBRACE))))
+#define BODY()                                                                                                                                       \
+    (match(TokenType::COLON)                   ? statement()                                                                                         \
+     : peek()->get_type() == TokenType::LBRACE ? block()                                                                                             \
+                                               : throw error(std::format("expected {}", make_expected_string(TokenType::COLON, TokenType::LBRACE))))
 
     std::shared_ptr<ast::Statement> Parser::if_stmt() {
         auto token = expect(TokenType::IF);
@@ -517,8 +500,7 @@ namespace spade
         std::shared_ptr<ast::decl::Variable> symbol;
         if (match(TokenType::AS)) {
             auto symbol_token = expect(TokenType::IDENTIFIER);
-            auto var_tok =
-                    std::make_shared<Token>(TokenType::CONST, "const", symbol_token->get_line(), symbol_token->get_col());
+            auto var_tok = std::make_shared<Token>(TokenType::CONST, "const", symbol_token->get_line(), symbol_token->get_col());
             symbol = std::make_shared<ast::decl::Variable>(var_tok, symbol_token, symbol_token, null, null);
         }
         auto body = BODY();
@@ -560,12 +542,10 @@ namespace spade
                 return std::make_shared<ast::expr::Assignment>(assignees, op1, op2, exprs);
             }
             default:
-                throw error(std::format("expected {}",
-                                        make_expected_string(TokenType::PLUS, TokenType::DASH, TokenType::STAR,
-                                                             TokenType::SLASH, TokenType::PERCENT, TokenType::STAR_STAR,
-                                                             TokenType::LSHIFT, TokenType::RSHIFT, TokenType::URSHIFT,
-                                                             TokenType::AMPERSAND, TokenType::PIPE, TokenType::CARET,
-                                                             TokenType::ELVIS, TokenType::EQUAL)));
+                throw error(std::format("expected {}", make_expected_string(TokenType::PLUS, TokenType::DASH, TokenType::STAR, TokenType::SLASH,
+                                                                            TokenType::PERCENT, TokenType::STAR_STAR, TokenType::LSHIFT,
+                                                                            TokenType::RSHIFT, TokenType::URSHIFT, TokenType::AMPERSAND,
+                                                                            TokenType::PIPE, TokenType::CARET, TokenType::ELVIS, TokenType::EQUAL)));
         }
     }
 
@@ -913,11 +893,9 @@ namespace spade
                 return expr;
             }
             default:
-                throw error(
-                        std::format("expected {}", make_expected_string(TokenType::TRUE, TokenType::FALSE, TokenType::NULL_,
-                                                                        TokenType::INTEGER, TokenType::FLOAT, TokenType::STRING,
-                                                                        TokenType::IDENTIFIER, TokenType::SUPER,
-                                                                        TokenType::SELF, TokenType::LPAREN)));
+                throw error(std::format("expected {}", make_expected_string(TokenType::TRUE, TokenType::FALSE, TokenType::NULL_, TokenType::INTEGER,
+                                                                            TokenType::FLOAT, TokenType::STRING, TokenType::IDENTIFIER,
+                                                                            TokenType::SUPER, TokenType::SELF, TokenType::LPAREN)));
         }
     }
 
@@ -995,8 +973,8 @@ namespace spade
                 return std::make_shared<ast::type::TypeBuilder>(start, current(), members);
             }
             default:
-                throw error(std::format("expected {}", make_expected_string(TokenType::IDENTIFIER, TokenType::TYPE,
-                                                                            TokenType::LPAREN, TokenType::OBJECT)));
+                throw error(std::format("expected {}",
+                                        make_expected_string(TokenType::IDENTIFIER, TokenType::TYPE, TokenType::LPAREN, TokenType::OBJECT)));
         }
     }
 

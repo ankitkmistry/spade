@@ -1,7 +1,3 @@
-#include <memory>
-#include <numeric>
-#include <string>
-
 #include "scope_tree.hpp"
 #include "lexer/token.hpp"
 #include "parser/ast.hpp"
@@ -29,32 +25,6 @@ namespace spade
     }
 
     void ScopeTreeBuilder::add_symbol(const string &name, const std::shared_ptr<Token> &decl_site, std::shared_ptr<scope::Scope> scope) {
-        if (scope_stack.size() == 1) {
-            if (scope->get_type() == scope::ScopeType::FOLDER_MODULE) {
-                if (module_scopes.contains(cast<ast::FolderModule>(scope->get_node()))) {
-                    auto module_scope = module_scopes.at(cast<ast::FolderModule>(scope->get_node())).get_scope();
-                    throw ErrorGroup<AnalyzerError>(std::pair(ErrorType::ERROR, error(std::format("redeclaration of '{}'", name), scope)),
-                                                    std::pair(ErrorType::NOTE, error("already declared here", module_scope)));
-                } else {
-                    scope->set_path(get_current_path().to_string());
-                    module_scopes.emplace(cast<ast::FolderModule>(scope->get_node()), ScopeInfo(scope));
-                }
-            } else if (scope->get_type() == scope::ScopeType::MODULE) {
-                if (module_scopes.contains(cast<ast::Module>(scope->get_node()))) {
-                    auto module_scope = module_scopes.at(cast<ast::Module>(scope->get_node())).get_scope();
-                    throw ErrorGroup<AnalyzerError>(std::pair(ErrorType::ERROR, error(std::format("redeclaration of '{}'", name), scope)),
-                                                    std::pair(ErrorType::NOTE, error("already declared here", module_scope)));
-                } else {
-                    scope->set_path(get_current_path().to_string());
-                    module_scopes.emplace(cast<ast::Module>(scope->get_node()), ScopeInfo(scope));
-                }
-            } else
-                throw Unreachable();    // surely some parser error
-
-            LOGGER.log_debug(std::format("added symbol '{}'", get_current_path().to_string()));
-            return;
-        }
-
         auto parent_scope = (scope_stack.at(scope_stack.size() - 2));
         auto symbol_path = get_current_path() / name;
 
@@ -258,25 +228,6 @@ namespace spade
         }
     }
 
-    ScopeTreeBuilder::ScopeTreeBuilder(const std::vector<std::shared_ptr<ast::Module>> &modules) : modules(modules) {
-        if (!modules.empty()) {
-            root_path = modules[0]->get_file_path().parent_path();
-            for (const auto &module: modules) {
-                fs::path path = module->get_file_path();
-                fs::path current_path = path.parent_path();
-                fs::path temp_path;
-
-                auto common_it = root_path.begin();
-                auto current_it = current_path.begin();
-
-                for (; common_it != root_path.end() && current_it != current_path.end() && *common_it == *current_it; ++common_it, ++current_it) {
-                    temp_path /= *common_it;
-                }
-                root_path = temp_path;
-            }
-        }
-    }
-
     void ScopeTreeBuilder::visit(ast::Reference &node) {}
 
     void ScopeTreeBuilder::visit(ast::type::Reference &node) {}
@@ -470,58 +421,20 @@ namespace spade
         end_scope();
     }
 
-    void ScopeTreeBuilder::visit(ast::Import &node) {
-        if (scope_stack.empty())
-            throw Unreachable();    // surely some parser error
-        else if (scope_stack.back()->get_type() != scope::ScopeType::MODULE)
-            throw Unreachable();    // surely some parser error
-    }
+    void ScopeTreeBuilder::visit(ast::Import &node) {}
 
     void ScopeTreeBuilder::visit(ast::Module &node) {
-        if (!scope_stack.empty()) {
-            if (scope_stack.back()->get_type() != scope::ScopeType::FOLDER_MODULE)
-                throw Unreachable();    // surely some parser error (modules are allowed in modules only)
-        }
+        if (!scope_stack.empty())
+            throw Unreachable();
         auto scope = begin_scope<scope::Module>(node);
-        add_symbol(scope->get_module_node()->get_name(), null, scope);
-        if (scope_stack.size() > 1) {
-            module_scopes.emplace(&node, ScopeInfo(scope, false));
-        }
-        for (auto import: node.get_imports()) {
-            import->accept(this);
-        }
-        for (auto member: node.get_members()) {
-            member->accept(this);
-        }
+        for (auto import: node.get_imports()) import->accept(this);
+        for (auto member: node.get_members()) member->accept(this);
+        module_scope = cast<scope::Module>(scope_stack.back());
         end_scope();
     }
 
-    void ScopeTreeBuilder::visit(ast::FolderModule &node) {}
-
-    const std::unordered_map<ast::Module *, ScopeInfo> &ScopeTreeBuilder::build() {
-        for (auto module: modules) {
-            size_t n = 0;
-            {
-                auto relative_path = module->get_file_path().parent_path().lexically_relative(root_path);
-                if (relative_path != ".") {
-                    auto path = root_path;
-                    for (auto itr = relative_path.begin(); itr != relative_path.end(); ++itr) {
-                        path /= *itr;
-                        // Shared pointer gets deleted after the loop
-                        auto folder_module = new ast::FolderModule(path);
-                        auto scope = begin_scope<scope::FolderModule>(*folder_module);
-                        add_symbol(folder_module->get_name(), null, scope);
-                        n++;
-                    }
-                }
-            }
-            // Traverse the module
-            module->accept(this);
-            // Remove the folders from the scope stack
-            for (size_t i = 0; i < n; i++) end_scope();
-        }
-
-
-        return module_scopes;
+    const std::shared_ptr<scope::Module> &ScopeTreeBuilder::build() {
+        module->accept(this);
+        return module_scope;
     }
 }    // namespace spade

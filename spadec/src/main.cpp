@@ -15,21 +15,23 @@
 #include "utils/graph.hpp"
 #include "lexer/lexer.hpp"
 #include "parser/parser.hpp"
-#include "parser/import.hpp"
 #include "analyzer/scope_tree.hpp"
 #include "analyzer/analyzer.hpp"
+#include "utils/options.hpp"
 
 constexpr bool ENABLE_BACKTRACE_FILTER = false;
 
-namespace fs = std::filesystem;
-
 void compile() {
     using namespace spade;
+    CompilerOptions compiler_options{
+            //
+            .basic_module_path = fs::path(R"(D:\Programming\Projects\spade\spadec\res\basic.sp)")    //
+    };
     fs::path file_path;
     ErrorPrinter error_printer;
     try {
         file_path = R"(D:\Programming\Projects\spade\spadec\res\test.sp)";
-        std::vector<std::shared_ptr<ast::Module>> modules;
+        std::shared_ptr<scope::Module> module;
         {
             std::ifstream in(file_path);
             if (!in)
@@ -39,19 +41,16 @@ void compile() {
             Lexer lexer(file_path, buffer.str());
             Parser parser(file_path, &lexer);
             auto tree = parser.parse();
-            ImportResolver resolver(file_path.parent_path(), tree);
-            modules = resolver.resolve_imports();
+            ScopeTreeBuilder builder(tree);
+            module = builder.build();
+            module->claim(tree);
         }
         {
-            ScopeTreeBuilder builder(modules);
-            auto module_scopes = builder.build();
-            Analyzer analyzer(module_scopes, error_printer);
+            Analyzer analyzer(module, error_printer, compiler_options);
             analyzer.analyze();
         }
-        // for (const auto &module: modules) {
-        //     ast::Printer printer{module};
-        //     std::cout << printer << '\n';
-        // }
+    } catch (const ErrorGroup<ImportError> err_grp) {
+        error_printer.print(err_grp);
     } catch (const ErrorGroup<AnalyzerError> err_grp) {
         error_printer.print(err_grp);
     } catch (const CompilerError &err) {
@@ -94,6 +93,7 @@ void opcode_test() {
 }
 
 int main(int argc, char *argv[]) {
+    namespace fs = std::filesystem;
     cpptrace::experimental::set_cache_mode(cpptrace::cache_mode::prioritize_memory);
     CPPTRACE_TRY {
         std::setlocale(LC_CTYPE, ".UTF-8");
