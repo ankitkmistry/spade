@@ -656,8 +656,6 @@ namespace spade
         if (mod_path.empty())
             throw error("cannot resolve import", &node);
 
-        std::ranges::reverse(remaining_elms);
-
         std::shared_ptr<scope::Scope> result;
         if (fs::is_regular_file(mod_path)) {
             if (mod_path.extension() != ".sp")
@@ -669,10 +667,20 @@ namespace spade
         if (!result)
             throw error("cannot resolve import", &node);
 
-        // TODO: fix this for arbitrary functions
+        std::ranges::reverse(remaining_elms);
         for (const auto &element: remaining_elms) {
             if (element == "*")
                 break;
+            if (!result->has_variable(element)) {
+                SymbolPath sym_path;
+                for (const auto &element: elements) {
+                    if (element == remaining_elms[0])
+                        break;
+                    sym_path /= element;
+                }
+                result->set_path(sym_path);
+                throw error(std::format("'{}' has no member named '{}'", result->to_string(), element), &node);
+            }
             result = result->get_variable(element);
         }
 
@@ -693,9 +701,7 @@ namespace spade
             else
                 cur_scope = &*module_scopes.at(node.get_file_path());
         }
-
         for (auto member: node.get_members()) member->accept(this);
-
         end_scope();
     }
 }    // namespace spade

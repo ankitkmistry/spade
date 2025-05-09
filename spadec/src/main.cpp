@@ -19,7 +19,7 @@
 #include "analyzer/analyzer.hpp"
 #include "utils/options.hpp"
 
-constexpr bool ENABLE_BACKTRACE_FILTER = false;
+constexpr const bool ENABLE_BACKTRACE_FILTER = false;
 
 void compile() {
     using namespace spade;

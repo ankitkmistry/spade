@@ -1277,7 +1277,7 @@ namespace spade
         return expr_info;
     }
 
-    std::shared_ptr<scope::Module> Analyzer::resolve_file(fs::path path) {
+    std::shared_ptr<scope::Module> Analyzer::resolve_file(const fs::path &path) {
         auto file_path = fs::canonical(path);
         if (!basic_mode && module_scopes.contains(file_path))
             // Do not reload if it is already resolved
@@ -1308,7 +1308,7 @@ namespace spade
         return module;
     }
 
-    std::shared_ptr<scope::FolderModule> Analyzer::resolve_directory(fs::path path) {
+    std::shared_ptr<scope::FolderModule> Analyzer::resolve_directory(const fs::path &path) {
         auto dir_path = fs::canonical(path);
         if (module_scopes.contains(dir_path))
             // Do not retry if it is already resolved

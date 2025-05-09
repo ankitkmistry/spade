@@ -224,8 +224,8 @@ namespace spade
         ExprInfo get_member(const ExprInfo &caller_info, const string &member_name, const ast::AstNode &node);
 
         // Import specific
-        std::shared_ptr<scope::Module> resolve_file(fs::path path);
-        std::shared_ptr<scope::FolderModule> resolve_directory(fs::path path);
+        std::shared_ptr<scope::Module> resolve_file(const fs::path &path);
+        std::shared_ptr<scope::FolderModule> resolve_directory(const fs::path &path);
 
         ErrorPrinter printer;
 
@@ -242,19 +242,27 @@ namespace spade
         template<typename T>
             requires ast::HasLineInfo<const T *>
         AnalyzerError error(const string &msg, const T *node) const {
-            if constexpr (std::derived_from<T, scope::Scope>)
-                return AnalyzerError(msg, node->get_enclosing_module()->get_module_node()->get_file_path(), node);
-            else
-                return AnalyzerError(msg, get_current_scope()->get_enclosing_module()->get_module_node()->get_file_path(), node);
+            if constexpr (std::derived_from<T, scope::Scope>) {
+                if constexpr (std::same_as<T, scope::Module>) {
+                    return AnalyzerError(msg, node->get_module_node()->get_file_path(), node);
+                } else {
+                    return AnalyzerError(msg, node->get_enclosing_module()->get_module_node()->get_file_path(), node);
+                }
+            } else
+                return AnalyzerError(msg, get_current_module()->get_module_node()->get_file_path(), node);
         }
 
         template<typename T>
             requires ast::HasLineInfo<const std::shared_ptr<T> &>
         AnalyzerError error(const string &msg, const std::shared_ptr<T> &node) const {
-            if constexpr (std::derived_from<T, scope::Scope>)
-                return AnalyzerError(msg, node->get_enclosing_module()->get_module_node()->get_file_path(), node);
-            else
-                return AnalyzerError(msg, get_current_scope()->get_enclosing_module()->get_module_node()->get_file_path(), node);
+            if constexpr (std::derived_from<T, scope::Scope>) {
+                if constexpr (std::same_as<T, scope::Module>) {
+                    return AnalyzerError(msg, node->get_module_node()->get_file_path(), node);
+                } else {
+                    return AnalyzerError(msg, node->get_enclosing_module()->get_module_node()->get_file_path(), node);
+                }
+            } else
+                return AnalyzerError(msg, get_current_module()->get_module_node()->get_file_path(), node);
         }
 
         template<ast::HasLineInfo T>
