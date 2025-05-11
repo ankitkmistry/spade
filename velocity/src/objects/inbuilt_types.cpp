@@ -10,8 +10,8 @@ namespace spade
 
     ObjBool *ObjBool::value(bool b, MemoryManager *manager) {
         manager = manager == null ? MemoryManager::current() : manager;
-        static map<MemoryManager *, ObjBool *> trues = {};
-        static map<MemoryManager *, ObjBool *> falses = {};
+        static std::unordered_map<MemoryManager *, ObjBool *> trues = {};
+        static std::unordered_map<MemoryManager *, ObjBool *> falses = {};
         try {
             return (b ? trues : falses).at(manager);
         } catch (const std::out_of_range &) {
@@ -33,7 +33,7 @@ namespace spade
 
     ObjNull *ObjNull::value(MemoryManager *manager) {
         manager = manager == null ? MemoryManager::current() : manager;
-        static map<MemoryManager *, ObjNull *> nulls = {};
+        static std::unordered_map<MemoryManager *, ObjNull *> nulls = {};
         try {
             return nulls.at(manager);
         } catch (const std::out_of_range &) {
@@ -53,13 +53,13 @@ namespace spade
 
     Obj *ObjArray::copy() {
         auto arr = halloc<ObjArray>(info.manager, length);
-        for (uint16 i = 0; i < length; ++i) arr->set(i, createCopy(array[i]));
+        for (uint16 i = 0; i < length; ++i) arr->set(i, create_copy(array[i]));
         return arr;
     }
 
-    string ObjArray::toString() const {
+    string ObjArray::to_string() const {
         string str;
-        for (uint16 i = 0; i < length; ++i) str += array[i]->toString() + (i < length - 1 ? ", " : "");
+        for (uint16 i = 0; i < length; ++i) str += array[i]->to_string() + (i < length - 1 ? ", " : "");
         return "[" + str + "]";
     }
 
@@ -81,13 +81,13 @@ namespace spade
         array[i >= 0 ? i : length + i] = value;
     }
 
-    void ObjArray::foreach (function<void(Obj *)> func) const {
+    void ObjArray::foreach (std::function<void(Obj *)> func) const {
         for (int i = 0; i < length; ++i) func(array[i]);
     }
 
     int32 ObjArray::compare(const Obj *rhs) const {
         if (!is<const ObjArray>(rhs))
             return -1;
-        return toString().compare(cast<const ObjArray>(rhs)->toString());
+        return to_string().compare(cast<const ObjArray>(rhs)->to_string());
     }
 }    // namespace spade

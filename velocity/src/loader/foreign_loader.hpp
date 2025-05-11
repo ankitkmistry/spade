@@ -15,9 +15,9 @@
 
 #if defined OS_WINDOWS
 
-string getErrorMessage(DWORD errorCode);
+string get_error_message(DWORD error_code);
 
-string getErrorMessage(DWORD errorCode, HMODULE module);
+string get_error_message(DWORD error_code, HMODULE module);
 
 class Library {
   public:
@@ -29,28 +29,28 @@ class Library {
     HMODULE module;
 
   public:
-    Library(Kind kind, string name, HMODULE module) : kind(kind), name(name), module(module) {}
+    Library(Kind kind, const string &name, HMODULE module) : kind(kind), name(name), module(module) {}
 
-    Kind getKind() const {
+    Kind get_kind() const {
         return kind;
     }
 
-    const string &getName() const {
+    const string &get_name() const {
         return name;
     }
 
-    const HMODULE getModule() const {
+    const HMODULE get_module() const {
         return module;
     }
 
     template<typename ReturnType, typename... Args>
-    ReturnType call(string functionName, Args... args) {
+    ReturnType call(const string &function_name, Args... args) {
         using FunctionType = ReturnType(CALLBACK *)(Args...);
-        FunctionType function = (FunctionType) GetProcAddress(module, functionName.c_str());
+        FunctionType function = (FunctionType) GetProcAddress(module, function_name.c_str());
         if (function == null) {
-            DWORD errorCode = GetLastError();
-            auto errMsg = getErrorMessage(errorCode, module);
-            throw spade::NativeLibraryError(name, functionName, std::format("error code {}: {}", errorCode, errMsg));
+            DWORD error_code = GetLastError();
+            string err_msg = get_error_message(error_code, module);
+            throw spade::NativeLibraryError(name, function_name, std::format("error code {}: {}", error_code, err_msg));
         }
         return function(args...);
     }
@@ -85,11 +85,11 @@ class Library {
     }
 
     template<typename ReturnType, typename... Args>
-    ReturnType call(string functionName, Args... args) {
+    ReturnType call(string function_name, Args... args) {
         using FunctionType = ReturnType (*)(Args...);
-        FunctionType function = (FunctionType) dlsym(module, functionName.c_str());
+        FunctionType function = (FunctionType) dlsym(module, function_name.c_str());
         if (function == null) {
-            throw spade::NativeLibraryError(name, functionName, dlerror());
+            throw spade::NativeLibraryError(name, function_name, dlerror());
         }
         return function(args...);
     }
@@ -104,7 +104,7 @@ class ForeignLoader {
     inline static spade::Table<Library *> libraries = {};
 
   public:
-    static Library *loadSimpleLibrary(string path);
+    static Library *load_simple_library(string path);
 
-    static void unloadLibraries();
+    static void unload_libraries();
 };

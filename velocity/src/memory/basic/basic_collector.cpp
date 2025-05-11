@@ -1,43 +1,43 @@
 #include "basic_collector.hpp"
-#include "../../ee/vm.hpp"
+#include "ee/vm.hpp"
 
 namespace spade::basic
 {
     void BasicCollector::gc() {
-        markRoots();
-        traceReferences();
+        mark_roots();
+        trace_references();
         sweep();
     }
 
-    void BasicCollector::markRoots() {
-        auto vm = manager->getVM();
+    void BasicCollector::mark_roots() {
+        auto vm = manager->get_vm();
         // mark the globals
-        for (auto [key, module]: vm->getModules()) {
+        for (auto [key, module]: vm->get_modules()) {
             mark(module);
         }
         // mark the threads
-        for (auto thread: vm->getThreads()) markThread(thread);
+        for (auto thread: vm->get_threads()) mark_thread(thread);
     }
 
-    void BasicCollector::markTable(const Table<Obj *> &table) {
+    void BasicCollector::mark_table(const Table<Obj *> &table) {
         for (auto [key, object]: table) {
             // mark every value in the table
             mark(object);
         }
     }
 
-    void BasicCollector::markThread(Thread *thread) {
+    void BasicCollector::mark_thread(Thread *thread) {
         // mark the value of the thread
-        mark((Obj *) thread->getValue());
-        auto state = thread->getState();
-        for (auto frame = state->getCallStack(); frame <= state->getFrame(); frame++) {
+        mark((Obj *) thread->get_value());
+        auto state = thread->get_state();
+        for (auto frame = state->get_call_stack(); frame <= state->get_frame(); frame++) {
             // mark every frameTemplate
-            markFrame(frame);
+            mark_frame(frame);
         }
     }
 
-    void BasicCollector::markFrame(Frame *frame) {
-        for (auto constant: frame->getConstPool()) {
+    void BasicCollector::mark_frame(Frame *frame) {
+        for (auto constant: frame->get_const_pool()) {
             // mark every constant of the constant pool
             mark(constant);
         }
@@ -46,61 +46,61 @@ namespace spade::basic
             mark(obj);
         }
         // mark args
-        for (int i = 0; i < frame->getArgs().count(); ++i) {
-            auto arg = frame->getArgs().getArg(i);
-            auto obj = arg->getValue();
+        for (int i = 0; i < frame->get_args().count(); ++i) {
+            auto arg = frame->get_args().get_arg(i);
+            auto obj = arg->get_value();
             mark(arg);
             mark(obj);
         }
         // mark locals and closures
-        for (int i = 0; i < frame->getLocals().count(); ++i) {
-            if (i < frame->getLocals().getClosureStart()) {
-                auto local = frame->getLocals().getLocal(i);
-                auto obj = local->getValue();
+        for (int i = 0; i < frame->get_locals().count(); ++i) {
+            if (i < frame->get_locals().get_closure_start()) {
+                auto local = frame->get_locals().get_local(i);
+                auto obj = local->get_value();
                 mark(local);
                 mark(obj);
             } else {
-                auto closure = frame->getLocals().getClosure(i);
-                auto obj = closure->getValue();
+                auto closure = frame->get_locals().get_closure(i);
+                auto obj = closure->get_value();
                 mark(closure);
                 mark(obj);
             }
         }
         // mark exceptions
-        for (int i = 0; i < frame->getExceptions().count(); ++i) {
-            const auto &exception = frame->getExceptions().get(i);
-            auto obj = exception.getType();
+        for (int i = 0; i < frame->get_exceptions().count(); ++i) {
+            const auto &exception = frame->get_exceptions().get(i);
+            auto obj = exception.get_type();
             mark((Obj *) obj);
         }
-        for (auto lambda: frame->getLambdas()) {
+        for (auto lambda: frame->get_lambdas()) {
             mark(lambda);
         }
-        for (const auto &match: frame->getMatches()) {
+        for (const auto &match: frame->get_matches()) {
             // mark every check
-            for (const auto &kase: match.getCases()) {
+            for (const auto &kase: match.get_cases()) {
                 // mark every case value
-                auto obj = kase.getValue();
+                auto obj = kase.get_value();
                 mark(obj);
             }
         }
-        mark((Obj *) frame->getMethod());
+        mark((Obj *) frame->get_method());
     }
 
     void BasicCollector::mark(Collectible *collectible) {
         if (collectible == null)
             return;
-        if (collectible->getInfo().marked)
+        if (collectible->get_info().marked)
             return;
-        collectible->getInfo().marked = true;
+        collectible->get_info().marked = true;
         grayMaterial.push_back(collectible);
         if (is<Obj>(collectible)) {
             auto obj = cast<Obj>(collectible);
-            mark(obj->getModule());
-            mark((Obj *) obj->getType());
+            mark(obj->get_module());
+            mark((Obj *) obj->get_type());
         }
     }
 
-    void BasicCollector::traceReferences() {
+    void BasicCollector::trace_references() {
         for (auto material: grayMaterial) {
             if (is<ObjArray>(material)) {
                 auto array = cast<ObjArray>(material);
@@ -110,74 +110,74 @@ namespace spade::basic
                 });
             } else if (is<ObjMethod>(material)) {
                 auto method = cast<ObjMethod>(material);
-                const FrameTemplate *frameTemplate = method->getFrameTemplate();
+                const FrameTemplate *frameTemplate = method->get_frame_template();
                 // mark args
-                for (int i = 0; i < frameTemplate->getArgs().count(); ++i) {
-                    auto arg = frameTemplate->getArgs().getArg(i);
-                    auto obj = arg->getValue();
+                for (int i = 0; i < frameTemplate->get_args().count(); ++i) {
+                    auto arg = frameTemplate->get_args().get_arg(i);
+                    auto obj = arg->get_value();
                     mark((Collectible *) arg);
                     mark(obj);
                 }
                 // mark locals and closures
-                for (int i = 0; i < frameTemplate->getLocals().count(); ++i) {
-                    if (i < frameTemplate->getLocals().getClosureStart()) {
-                        auto local = frameTemplate->getLocals().getLocal(i);
-                        auto obj = local->getValue();
+                for (int i = 0; i < frameTemplate->get_locals().count(); ++i) {
+                    if (i < frameTemplate->get_locals().get_closure_start()) {
+                        auto local = frameTemplate->get_locals().get_local(i);
+                        auto obj = local->get_value();
                         mark(local);
                         mark(obj);
                     } else {
-                        auto closure = frameTemplate->getLocals().getClosure(i);
-                        auto obj = closure->getValue();
+                        auto closure = frameTemplate->get_locals().get_closure(i);
+                        auto obj = closure->get_value();
                         mark(closure);
                         mark(obj);
                     }
                 }
                 // mark exceptions
-                for (int i = 0; i < frameTemplate->getExceptions().count(); ++i) {
-                    const auto &exception = frameTemplate->getExceptions().get(i);
-                    auto obj = exception.getType();
+                for (int i = 0; i < frameTemplate->get_exceptions().count(); ++i) {
+                    const auto &exception = frameTemplate->get_exceptions().get(i);
+                    auto obj = exception.get_type();
                     mark((Obj *) obj);
                 }
                 // mark lambdas
-                for (auto lambda: frameTemplate->getLambdas()) {
+                for (auto lambda: frameTemplate->get_lambdas()) {
                     mark(lambda);
                 }
                 // mark matches
-                for (const auto &match: frameTemplate->getMatches()) {
-                    for (const auto &kase: match.getCases()) {
+                for (const auto &match: frameTemplate->get_matches()) {
+                    for (const auto &kase: match.get_cases()) {
                         // mark every case value
-                        auto obj = kase.getValue();
+                        auto obj = kase.get_value();
                         mark(obj);
                     }
                 }
                 // mark type params
-                for (auto [name, typeParam]: method->getTypeParams()) {
+                for (auto [name, typeParam]: method->get_type_params()) {
                     mark(typeParam);
-                    mark(typeParam->getValue());
+                    mark(typeParam->get_value());
                 }
             } else if (is<Type>(material)) {
                 auto type = cast<Type>(material);
-                for (auto [name, typeParam]: type->getTypeParams()) {
+                for (auto [name, typeParam]: type->get_type_params()) {
                     // mark every type param
                     mark((Obj *) typeParam);
                 }
-                for (auto [name, super]: type->getSupers()) {
+                for (auto [name, super]: type->get_supers()) {
                     // mark every super class
                     mark((Obj *) super);
                 }
-                for (auto [name, member]: type->getMemberSlots()) {
+                for (auto [name, member]: type->get_member_slots()) {
                     // mark every member
-                    mark(member.getValue());
+                    mark(member.get_value());
                 }
             } else if (is<Obj>(material)) {
                 auto obj = cast<Obj>(material);
-                for (auto [name, member]: obj->getMemberSlots()) {
+                for (auto [name, member]: obj->get_member_slots()) {
                     // mark every member
-                    mark(member.getValue());
+                    mark(member.get_value());
                 }
             } else {
                 auto ref = cast<NamedRef>(material);
-                mark(ref->getValue());
+                mark(ref->get_value());
             }
         }
     }
@@ -186,7 +186,7 @@ namespace spade::basic
         LNode *previous = null;
         LNode *current = manager->head;
         while (current != null) {
-            auto &info = current->data->getInfo();
+            auto &info = current->data->get_info();
             if (info.marked) {
                 info.marked = false;
                 info.life++;

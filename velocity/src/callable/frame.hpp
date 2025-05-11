@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../objects/obj.hpp"
-#include "../utils/common.hpp"
+#include "utils/common.hpp"
+#include "objects/obj.hpp"
 #include "table.hpp"
 
 namespace spade
@@ -14,7 +14,7 @@ namespace spade
         friend class FrameTemplate;
 
       private:
-        uint32 codeCount = 0;
+        uint32 code_count = 0;
 
       public:
         uint8 *code = null;
@@ -57,75 +57,75 @@ namespace spade
         /**
          * @return The constant pool
          */
-        const vector<Obj *> &getConstPool() const;
+        const vector<Obj *> &get_const_pool() const;
 
         /**
          * @return The arguments table
          */
-        ArgsTable &getArgs() {
+        ArgsTable &get_args() {
             return args;
         }
 
         /**
          * @return The locals table
          */
-        LocalsTable &getLocals() {
+        LocalsTable &get_locals() {
             return locals;
         }
 
         /**
          * @return The exceptions table
          */
-        ExceptionTable &getExceptions() {
+        ExceptionTable &get_exceptions() {
             return exceptions;
         }
 
         /**
          * @return The arguments table
          */
-        const ArgsTable &getArgs() const {
+        const ArgsTable &get_args() const {
             return args;
         }
 
         /**
          * @return The locals table
          */
-        const LocalsTable &getLocals() const {
+        const LocalsTable &get_locals() const {
             return locals;
         }
 
         /**
          * @return The exceptions table
          */
-        const ExceptionTable &getExceptions() const {
+        const ExceptionTable &get_exceptions() const {
             return exceptions;
         }
 
         /**
          * @return The line number table
          */
-        const LineNumberTable &getLines() const {
+        const LineNumberTable &get_lines() const {
             return lines;
         }
 
         /**
          * @return The array of lambda functions
          */
-        const vector<ObjMethod *> &getLambdas() const {
+        const vector<ObjMethod *> &get_lambdas() const {
             return lambdas;
         }
 
         /**
          * @return The array of check statements
          */
-        const vector<MatchTable> &getMatches() const {
+        const vector<MatchTable> &get_matches() const {
             return matches;
         }
 
         /**
          * @return The method associated with the this frameTemplate
          */
-        ObjMethod *getMethod() const {
+        ObjMethod *get_method() const {
             return method;
         }
 
@@ -133,26 +133,26 @@ namespace spade
          * Sets the ip of this frameTemplate to ip
          * @param newIp the new ip value
          */
-        void setIp(uint8 *newIp) {
-            ip = newIp;
+        void set_ip(uint8 *new_ip) {
+            ip = new_ip;
         }
 
         /**
          * Sets the method associated with this frameTemplate
          * @param met the method value
          */
-        void setMethod(ObjMethod *met) {
+        void set_method(ObjMethod *met) {
             method = met;
         }
 
         /**
          * @return The number of items on the stack
          */
-        uint32 getStackCount();
+        uint32 get_stack_count();
 
         /**
          * @return The size of the bytecode
          */
-        uint32 getCodeCount() const;
+        uint32 get_code_count() const;
     };
 }    // namespace spade

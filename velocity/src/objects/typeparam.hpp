@@ -7,7 +7,7 @@ namespace spade
     class TypeParam : public Type {
         Type *placeholder = null;
 
-        void checkPlaceholder() const;
+        void check_placeholder() const;
 
       public:
         TypeParam(Sign sign, ObjModule *module = null) : Type(sign, Kind::TYPE_PARAM, {}, {}, {}, module) {}
@@ -16,47 +16,47 @@ namespace spade
          * Changes the type parameter to the specified \p type
          * @param type the final type
          */
-        void setPlaceholder(Type *type) { placeholder = type; }
+        void set_placeholder(Type *type) { placeholder = type; }
 
-        Type *getPlaceholder() const { return placeholder; }
+        Type *get_placeholder() const { return placeholder; }
 
-        Kind getKind() const override;
+        Kind get_kind() const override;
 
-        const Table<NamedRef *> &getTypeParams() const override;
+        const Table<NamedRef *> &get_type_params() const override;
 
-        const Table<Type *> &getSupers() const override;
+        const Table<Type *> &get_supers() const override;
 
-        const Table<MemberSlot> &getMemberSlots() const override;
+        const Table<MemberSlot> &get_member_slots() const override;
 
-        Table<NamedRef *> &getTypeParams() override;
+        Table<NamedRef *> &get_type_params() override;
 
-        Table<Type *> &getSupers() override;
+        Table<Type *> &get_supers() override;
 
-        Table<MemberSlot> &getMemberSlots() override;
+        Table<MemberSlot> &get_member_slots() override;
 
-        ObjModule *getModule() const override;
+        ObjModule *get_module() const override;
 
-        const Table<string> &getMeta() const override;
+        const Table<string> &get_meta() const override;
 
-        const Sign &getSign() const override;
+        const Sign &get_sign() const override;
 
-        Type *getType() const override;
+        Type *get_type() const override;
 
-        Obj *getMember(const string& name) const override;
+        Obj *get_member(const string& name) const override;
 
-        void setMember(const string& name, Obj *value) override;
+        void set_member(const string& name, Obj *value) override;
 
-        ObjMethod *getSuperClassMethod(const string& sign) override;
+        ObjMethod *get_super_class_method(const string& sign) override;
 
-        Obj *getStaticMember(const string& name) const override;
+        Obj *get_static_member(const string& name) const override;
 
-        void setStaticMember(const string& name, Obj *value) override;
+        void set_static_member(const string& name, Obj *value) override;
 
-        Type *getReified(Obj **args, uint8 count) override;
+        Type *get_reified(Obj **args, uint8 count) override;
 
-        TypeParam *getTypeParam(const string& name) const override;
+        TypeParam *get_type_param(const string& name) const override;
 
-        NamedRef *captureTypeParam(const string& name) override;
+        NamedRef *capture_type_param(const string& name) override;
 
         Obj *copy() override;
     };

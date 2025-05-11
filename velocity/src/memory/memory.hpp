@@ -1,6 +1,7 @@
 #pragma once
 
-#include "../utils/exceptions.hpp"
+#include "utils/common.hpp"
+#include "utils/exceptions.hpp"
 #include "manager.hpp"
 
 namespace spade
@@ -20,11 +21,11 @@ namespace spade
 
         virtual ~Collectible() = default;
 
-        const MemoryInfo &getInfo() const {
+        const MemoryInfo &get_info() const {
             return info;
         }
 
-        MemoryInfo &getInfo() {
+        MemoryInfo &get_info() {
             return info;
         }
     };
@@ -33,7 +34,7 @@ namespace spade
      * Allocates a Collectible object of type \p T and constructs an object
      * specified with \p args . If manager is null, it sets manager as the current
      * memory manager of the thread. Still if the manager is null, throws ArgumentError.
-     * Sets the manager of the object and calls spade::MemoryManager::postAllocation
+     * Sets the manager of the object and calls spade::MemoryManager::post_allocation
      * on the object and returns the final object thus created.
      * @throws ArgumentError if manager is null whatsoever
      * @throws MemoryError if allocation fails
@@ -56,8 +57,8 @@ namespace spade
             throw MemoryError(sizeof(T));
         }
         Collectible *obj = new (memory) T(args...);
-        obj->getInfo().manager = manager;
-        manager->postAllocation(obj);
+        obj->get_info().manager = manager;
+        manager->post_allocation(obj);
         return (T *) obj;
     }
 
@@ -66,7 +67,7 @@ namespace spade
      * @param obj the object to be freed
      */
     inline static void hfree(Collectible *obj) {
-        auto manager = obj->getInfo().manager;
+        auto manager = obj->get_info().manager;
         obj->~Collectible();
         manager->deallocate(obj);
     }

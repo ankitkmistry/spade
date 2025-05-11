@@ -1,8 +1,8 @@
 #include "thread.hpp"
 
-namespace spade {
-    Thread::Thread(VMState *state, function<void(Thread *)> fun)
-            : state(state), thread(fun, this) {
+namespace spade
+{
+    Thread::Thread(VMState *state, std::function<void(Thread *)> fun) : state(state), thread(fun, this) {
         threads[thread.get_id()] = this;
     }
 
@@ -13,4 +13,4 @@ namespace spade {
             return null;
         }
     }
-}
+}    // namespace spade

@@ -5,26 +5,26 @@
 
 using namespace spade;
 
-void signTest() {
+void sign_test() {
     Sign sign1{"A::B"};
-    std::cout << sign1.toString() << '\n';
+    std::cout << sign1.to_string() << '\n';
     Sign sign2{"A::B.C"};
-    std::cout << sign2.toString() << '\n';
+    std::cout << sign2.to_string() << '\n';
     Sign sign3{"A::B.C()"};
-    std::cout << sign3.toString() << '\n';
+    std::cout << sign3.to_string() << '\n';
     Sign sign4{"A::B.C<T,V>"};
-    std::cout << sign4.toString() << '\n';
+    std::cout << sign4.to_string() << '\n';
     Sign sign5{"A::B.C<T>(A.int,A.str)"};
-    std::cout << sign5.toString() << '\n';
+    std::cout << sign5.to_string() << '\n';
     Sign sign6{"A.B"};
-    std::cout << sign6.toString() << '\n';
+    std::cout << sign6.to_string() << '\n';
     Sign sign7{".B"};
-    std::cout << sign7.toString() << '\n';
+    std::cout << sign7.to_string() << '\n';
     Sign sign8{".B(B.int)"};
-    std::cout << sign8.toString() << '\n';
+    std::cout << sign8.to_string() << '\n';
 }
 
-int runVM() {
+int run_vm() {
     try {
         auto manager = new basic::BasicMemoryManager;
         SpadeVM vm{manager};
@@ -42,6 +42,6 @@ int runVM() {
 int main() {
     std::ios_base::sync_with_stdio(true);
     std::cout << std::boolalpha;
-    signTest();
-    return runVM();
+    sign_test();
+    return run_vm();
 }

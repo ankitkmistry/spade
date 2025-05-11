@@ -1,8 +1,6 @@
 #pragma once
 
-#include "../objects/inbuilt_types.hpp"
-#include "../objects/obj.hpp"
-#include "../utils/utils.hpp"
+#include "objects/obj.hpp"
 
 namespace spade
 {
@@ -13,7 +11,7 @@ namespace spade
       protected:
         string name;
         Obj *value;
-        bool noCopy = false;
+        bool no_copy = false;
         Table<string> meta;
 
       public:
@@ -25,49 +23,49 @@ namespace spade
          * Sets the value of the named ref
          * @param val
          */
-        void setValue(Obj *val) {
+        void set_value(Obj *val) {
             value = val;
         }
 
         /**
          * @return The value of the named ref
          */
-        Obj *getValue() const {
+        Obj *get_value() const {
             return value;
         }
 
         /**
          * @return if the named ref is not copyable
          */
-        bool isNoCopy() const {
-            return noCopy;
+        bool is_no_copy() const {
+            return no_copy;
         }
 
         /**
          * @param noCopy_ sets the named ref not copyable or not
          */
-        void setNoCopy(bool noCopy_) {
-            noCopy = noCopy_;
+        void set_no_copy(bool noCopy_) {
+            no_copy = noCopy_;
         }
 
         /**
          * @return The name attached to the named ref
          */
-        const string &getName() const {
+        const string &get_name() const {
             return name;
         }
 
         /**
          * @return The metadata associated to the named ref
          */
-        const Table<string> &getMeta() const {
+        const Table<string> &get_meta() const {
             return meta;
         }
 
         /**
          * @return The string representation of the named ref
          */
-        string toString() const {
+        string to_string() const {
             return name;
         }
     };
@@ -94,28 +92,28 @@ namespace spade
         /**
          * @return The starting point <i>(of the try statement in code)</i>
          */
-        uint32 getFrom() const {
+        uint32 get_from() const {
             return from;
         }
 
         /**
          * @return The ending point <i>(of the try statement in code)</i>
          */
-        uint32 getTo() const {
+        uint32 get_to() const {
             return to;
         }
 
         /**
          * @return The target point <i>(or the starting of the catch block)</i>
          */
-        uint32 getTarget() const {
+        uint32 get_target() const {
             return target;
         }
 
         /**
          * @return The object representing the type of the exception
          */
-        Type *getType() const {
+        Type *get_type() const {
             return type;
         }
 
@@ -123,14 +121,14 @@ namespace spade
          * Sets the exception object of the exception handle
          * @param type_ the exception type object
          */
-        void setType(Type *type_) {
+        void set_type(Type *type_) {
             type = type_;
         }
 
         /**
          * @return The metadata associated to the node
          */
-        Table<string> getMeta() const {
+        Table<string> get_meta() const {
             return meta;
         }
 
@@ -163,14 +161,14 @@ namespace spade
         /**
          * @return The value to be matched
          */
-        Obj *getValue() const {
+        Obj *get_value() const {
             return value;
         }
 
         /**
          * @return The destination location in the code
          */
-        uint32 getLocation() const {
+        uint32 get_location() const {
             return location;
         }
     };
@@ -211,7 +209,7 @@ namespace spade
          * Adds a new argument at the end of the table
          * @param arg the argument to be added
          */
-        void addArg(NamedRef *arg) {
+        void add_arg(NamedRef *arg) {
             args.push_back(arg);
         }
 
@@ -219,7 +217,7 @@ namespace spade
          * @return The argument at index i
          * @param i the argument index
          */
-        NamedRef *getArg(uint8 i) const {
+        NamedRef *get_arg(uint8 i) const {
             return args[i];
         }
 
@@ -235,8 +233,8 @@ namespace spade
         /**
          * @return The string representation of the table
          */
-        string toString() const {
-            return "(" + listToString(args) + ")";
+        string to_string() const {
+            return "(" + list_to_string(args) + ")";
         }
     };
 
@@ -265,7 +263,7 @@ namespace spade
         /**
          * @return The index of the locals table starting from which closures are stored up to the end of the table
          */
-        uint16 getClosureStart() const {
+        uint16 get_closure_start() const {
             return closureStart;
         }
 
@@ -287,7 +285,7 @@ namespace spade
          * Adds a new local at the end of the table
          * @param local the local to be added
          */
-        void addLocal(NamedRef *local) {
+        void add_local(NamedRef *local) {
             locals.push_back(local);
         }
 
@@ -295,7 +293,7 @@ namespace spade
          * Adds a new closure at the end of the table
          * @param closure the closure to be added
          */
-        void addClosure(NamedRef *closure) {
+        void add_closure(NamedRef *closure) {
             closures.push_back(closure);
         }
 
@@ -303,13 +301,13 @@ namespace spade
          * @return The local at index i
          * @param i the local index
          */
-        NamedRef *getLocal(uint16 i) const;
+        NamedRef *get_local(uint16 i) const;
 
         /**
          * @return The closure at index i
          * @param i the closure index
          */
-        NamedRef *getClosure(uint16 i) const;
+        NamedRef *get_closure(uint16 i) const;
 
         LocalsTable copy() const;
 
@@ -323,8 +321,8 @@ namespace spade
         /**
          * @return The string representation of the table
          */
-        string toString() const {
-            return "(" + listToString(locals) + ")";
+        string to_string() const {
+            return "(" + list_to_string(locals) + ")";
         }
     };
 
@@ -348,7 +346,7 @@ namespace spade
          * Adds a new exception at the end of the table
          * @param exception the exception to be added
          */
-        void addException(const Exception &exception) {
+        void add_exception(const Exception &exception) {
             exceptions.push_back(exception);
         }
 
@@ -372,7 +370,7 @@ namespace spade
          * @param pc the program counter
          * @param type the type of the throwable
          */
-        Exception getTarget(uint32 pc, const Type *type) const;
+        Exception get_target(uint32 pc, const Type *type) const;
     };
 
     /**
@@ -388,7 +386,7 @@ namespace spade
         };
 
       private:
-        vector<LineInfo> lineInfos;
+        vector<LineInfo> line_infos;
 
       public:
         LineNumberTable() = default;
@@ -403,16 +401,16 @@ namespace spade
          * @param times the line number in the bytecode
          * @param sourceLine the line number in the source code
          */
-        void addLine(uint8 times, uint32 sourceLine);
+        void add_line(uint8 times, uint32 source_line);
 
         /**
          * @return The corresponding line number in the source code
          * @param byteLine the line number in the bytecode
          */
-        uint64 getSourceLine(uint32 byteLine) const;
+        uint64 get_source_line(uint32 byte_line) const;
 
-        const vector<LineInfo> &getLineInfos() const {
-            return lineInfos;
+        const vector<LineInfo> &get_line_infos() const {
+            return line_infos;
         }
     };
 
@@ -424,10 +422,10 @@ namespace spade
 
       private:
         vector<Case> cases;
-        uint32 defaultLocation;
+        uint32 default_location;
 
       public:
-        MatchTable(const vector<Case> &cases, uint32 defaultLocation) : cases(cases), defaultLocation(defaultLocation) {}
+        MatchTable(const vector<Case> &cases, uint32 default_location) : cases(cases), default_location(default_location) {}
 
         MatchTable(const MatchTable &other) = default;
         MatchTable(MatchTable &&other) noexcept = default;
@@ -438,15 +436,15 @@ namespace spade
         /**
          * @return The array of check cases
          */
-        const vector<Case> &getCases() const {
+        const vector<Case> &get_cases() const {
             return cases;
         }
 
         /**
          * @return The default location of the check table <i>(starting of the default block)</i>
          */
-        uint32 getDefaultLocation() const {
-            return defaultLocation;
+        uint32 get_default_location() const {
+            return default_location;
         }
 
         /**

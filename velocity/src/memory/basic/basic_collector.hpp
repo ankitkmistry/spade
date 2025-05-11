@@ -1,8 +1,8 @@
 #pragma once
 
-#include "../../callable/frame.hpp"
-#include "../../ee/thread.hpp"
-#include "../../objects/obj.hpp"
+#include "callable/frame.hpp"
+#include "ee/thread.hpp"
+#include "objects/obj.hpp"
 #include "basic_manager.hpp"
 
 namespace spade::basic
@@ -12,17 +12,17 @@ namespace spade::basic
         BasicMemoryManager *manager;
         vector<Collectible *> grayMaterial;
 
-        void markRoots();
+        void mark_roots();
 
-        void markTable(const Table<Obj *> &table);
+        void mark_table(const Table<Obj *> &table);
 
         void mark(Collectible *collectible);
 
-        void markThread(Thread *thread);
+        void mark_thread(Thread *thread);
 
-        void markFrame(Frame *frame);
+        void mark_frame(Frame *frame);
 
-        void traceReferences();
+        void trace_references();
 
         void sweep();
 

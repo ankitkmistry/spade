@@ -5,13 +5,15 @@
 #include "../utils/common.hpp"
 #include "state.hpp"
 
-namespace spade {
+namespace spade
+{
     /**
      * Representation of a vm thread
      */
     class Thread {
-        inline static map<std::thread::id, Thread *> threads = {};
-    public:
+        inline static std::unordered_map<std::thread::id, Thread *> threads = {};
+
+      public:
         enum Status {
             /// The thread has not started yet
             NOT_STARTED,
@@ -20,7 +22,8 @@ namespace spade {
             /// The thread has terminated
             TERMINATED,
         };
-    private:
+
+      private:
         /// Underlying thread object
         std::thread thread;
         // TODO Fix program representation
@@ -31,58 +34,75 @@ namespace spade {
         /// Status of the thread
         Status status = NOT_STARTED;
         /// Exit code of the thread
-        int exitCode = 0;
-    public:
-        Thread(VMState *state, function<void(Thread *)> fun);
+        int exit_code = 0;
+
+      public:
+        Thread(VMState *state, std::function<void(Thread *)> fun);
 
         /**
          * @return The exitcode of the thread
          */
-        int getExitCode() const { return exitCode; }
+        int get_exit_code() const {
+            return exit_code;
+        }
 
         /**
          * @return The object representation of the thread
          */
-        Obj *getValue() const { return value; }
+        Obj *get_value() const {
+            return value;
+        }
 
         /**
          * @return The vm state
          */
-        VMState *getState() const { return state; }
+        VMState *get_state() const {
+            return state;
+        }
 
         /**
          * @return The status of the thread
          */
-        Status getStatus() const { return status; }
+        Status get_status() const {
+            return status;
+        }
 
         /**
          * Sets the status of the thread
          * @param status_ the new thread status
          */
-        void setStatus(Status status_) { status = status_; }
+        void set_status(Status status_) {
+            status = status_;
+        }
 
         /**
          * Sets the exit code of the thread
          * @param code the new exit code value
          */
-        void setExitCode(int code) { exitCode = code; }
+        void set_exit_code(int code) {
+            exit_code = code;
+        }
 
         /**
          * @return true if the thread is running, false otherwise
          */
-        bool isRunning() { return status == RUNNING; }
+        bool is_running() {
+            return status == RUNNING;
+        }
 
         /**
          * Blocks the caller thread until this thread completes.
          * Upon the completion of this thread the function returns to the caller thread
          */
-        void join() { thread.join(); }
+        void join() {
+            thread.join();
+        }
 
         /**
          * @return the current thread
          */
         static Thread *current();
     };
-}
+}    // namespace spade
 
-#endif //VELOCITY_THREAD_HPP
+#endif    //VELOCITY_THREAD_HPP

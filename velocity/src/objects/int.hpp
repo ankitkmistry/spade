@@ -15,7 +15,7 @@ namespace spade
 
         bool truth() const override;
 
-        string toString() const override;
+        string to_string() const override;
 
         int32 compare(const Obj *rhs) const override;
 
@@ -45,7 +45,7 @@ namespace spade
 
         ObjInt *operator^(const ObjInt &n) const;
 
-        ObjInt *unsignedRightShift(const ObjInt &n) const;
+        ObjInt *unsigned_right_shift(const ObjInt &n) const;
 
         int64 value() const {
             return val;

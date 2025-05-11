@@ -4,27 +4,27 @@ namespace spade {
     ElpInfo ElpReader::read() {
         ElpInfo elp;
         elp.magic = read_int();
-        elp.minorVersion = read_int();
-        elp.majorVersion = read_int();
-        elp.compiledFrom = read_short();
+        elp.minor_version = read_int();
+        elp.major_version = read_int();
+        elp.compiled_from = read_short();
         elp.type = read_byte();
-        elp.thisModule = read_short();
+        elp.this_module = read_short();
         elp.init = read_short();
         elp.entry = read_short();
         elp.imports = read_short();
-        elp.constantPoolCount = read_short();
-        elp.constantPool = new CpInfo[elp.constantPoolCount];
-        for (int i = 0; i < elp.constantPoolCount; ++i) {
-            elp.constantPool[i] = read_cp_info();
+        elp.constant_pool_count = read_short();
+        elp.constant_pool = new CpInfo[elp.constant_pool_count];
+        for (int i = 0; i < elp.constant_pool_count; ++i) {
+            elp.constant_pool[i] = read_cp_info();
         }
-        elp.globalsCount = read_short();
-        elp.globals = new GlobalInfo[elp.globalsCount];
-        for (int i = 0; i < elp.globalsCount; ++i) {
+        elp.globals_count = read_short();
+        elp.globals = new GlobalInfo[elp.globals_count];
+        for (int i = 0; i < elp.globals_count; ++i) {
             elp.globals[i] = read_global_info();
         }
-        elp.objectsCount = read_short();
-        elp.objects = new ObjInfo[elp.objectsCount];
-        for (int i = 0; i < elp.objectsCount; ++i) {
+        elp.objects_count = read_short();
+        elp.objects = new ObjInfo[elp.objects_count];
+        for (int i = 0; i < elp.objects_count; ++i) {
             elp.objects[i] = read_obj_info();
         }
         elp.meta = read_meta_info();
@@ -65,27 +65,27 @@ namespace spade {
     ClassInfo ElpReader::read_class_info() {
         ClassInfo klass;
         klass.type = read_byte();
-        klass.accessFlags = read_short();
-        klass.thisClass = read_short();
-        klass.typeParamCount = read_byte();
-        klass.typeParams = new TypeParamInfo[klass.typeParamCount];
-        for (int i = 0; i < klass.typeParamCount; ++i) {
-            klass.typeParams[i] = read_type_param_info();
+        klass.access_flags = read_short();
+        klass.this_class = read_short();
+        klass.type_param_count = read_byte();
+        klass.type_params = new TypeParamInfo[klass.type_param_count];
+        for (int i = 0; i < klass.type_param_count; ++i) {
+            klass.type_params[i] = read_type_param_info();
         }
         klass.supers = read_short();
-        klass.fieldsCount = read_short();
-        klass.fields = new FieldInfo[klass.fieldsCount];
-        for (int i = 0; i < klass.fieldsCount; ++i) {
+        klass.fields_count = read_short();
+        klass.fields = new FieldInfo[klass.fields_count];
+        for (int i = 0; i < klass.fields_count; ++i) {
             klass.fields[i] = read_field_info();
         }
-        klass.methodsCount = read_short();
-        klass.methods = new MethodInfo[klass.methodsCount];
-        for (int i = 0; i < klass.methodsCount; ++i) {
+        klass.methods_count = read_short();
+        klass.methods = new MethodInfo[klass.methods_count];
+        for (int i = 0; i < klass.methods_count; ++i) {
             klass.methods[i] = read_method_info();
         }
-        klass.objectsCount = read_short();
-        klass.objects = new ObjInfo[klass.objectsCount];
-        for (int i = 0; i < klass.objectsCount; ++i) {
+        klass.objects_count = read_short();
+        klass.objects = new ObjInfo[klass.objects_count];
+        for (int i = 0; i < klass.objects_count; ++i) {
             klass.objects[i] = read_obj_info();
         }
         klass.meta = read_meta_info();
@@ -95,7 +95,7 @@ namespace spade {
     FieldInfo ElpReader::read_field_info() {
         FieldInfo field;
         field.flags = read_byte();
-        field.thisField = read_short();
+        field.this_field = read_short();
         field.type = read_short();
         field.meta = read_meta_info();
         return field;
@@ -109,45 +109,45 @@ namespace spade {
 
     MethodInfo ElpReader::read_method_info() {
         MethodInfo method;
-        method.accessFlags = read_short();
+        method.access_flags = read_short();
         method.type = read_byte();
-        method.thisMethod = read_short();
-        method.typeParamCount = read_byte();
-        method.typeParams = new TypeParamInfo[method.typeParamCount];
-        for (int i = 0; i < method.typeParamCount; ++i) {
-            method.typeParams[i] = read_type_param_info();
+        method.this_method = read_short();
+        method.type_param_count = read_byte();
+        method.type_params = new TypeParamInfo[method.type_param_count];
+        for (int i = 0; i < method.type_param_count; ++i) {
+            method.type_params[i] = read_type_param_info();
         }
-        method.argsCount = read_byte();
-        method.args = new MethodInfo::ArgInfo[method.argsCount];
-        for (int i = 0; i < method.argsCount; i++) {
+        method.args_count = read_byte();
+        method.args = new MethodInfo::ArgInfo[method.args_count];
+        for (int i = 0; i < method.args_count; i++) {
             method.args[i] = read_arg_info();
         }
-        method.localsCount = read_short();
-        method.closureStart = read_short();
-        method.locals = new MethodInfo::LocalInfo[method.localsCount];
-        for (int i = 0; i < method.localsCount; i++) {
+        method.locals_count = read_short();
+        method.closure_start = read_short();
+        method.locals = new MethodInfo::LocalInfo[method.locals_count];
+        for (int i = 0; i < method.locals_count; i++) {
             method.locals[i] = read_local_info();
         }
-        method.maxStack = read_int();
-        method.codeCount = read_int();
-        method.code = new uint8_t[method.codeCount];
-        for (ui4 i = 0; i < method.codeCount; i++) {
+        method.max_stack = read_int();
+        method.code_count = read_int();
+        method.code = new uint8_t[method.code_count];
+        for (ui4 i = 0; i < method.code_count; i++) {
             method.code[i] = read_byte();
         }
-        method.exceptionTableCount = read_short();
-        method.exceptionTable = new MethodInfo::ExceptionTableInfo[method.exceptionTableCount];
-        for (int i = 0; i < method.exceptionTableCount; i++) {
-            method.exceptionTable[i] = read_exception_info();
+        method.exception_table_count = read_short();
+        method.exception_table = new MethodInfo::ExceptionTableInfo[method.exception_table_count];
+        for (int i = 0; i < method.exception_table_count; i++) {
+            method.exception_table[i] = read_exception_info();
         }
-        method.lineInfo = read_line_info();
-        method.lambdaCount = read_short();
-        method.lambdas = new MethodInfo[method.lambdaCount];
-        for (int i = 0; i < method.lambdaCount; i++) {
+        method.line_info = read_line_info();
+        method.lambda_count = read_short();
+        method.lambdas = new MethodInfo[method.lambda_count];
+        for (int i = 0; i < method.lambda_count; i++) {
             method.lambdas[i] = read_method_info();
         }
-        method.matchCount = read_short();
-        method.matches = new MethodInfo::MatchInfo[method.matchCount];
-        for (int i = 0; i < method.matchCount; i++) {
+        method.match_count = read_short();
+        method.matches = new MethodInfo::MatchInfo[method.match_count];
+        for (int i = 0; i < method.match_count; i++) {
             method.matches[i] = read_match_info();
         }
         method.meta = read_meta_info();
@@ -156,12 +156,12 @@ namespace spade {
 
     MethodInfo::MatchInfo ElpReader::read_match_info() {
         MethodInfo::MatchInfo match;
-        match.caseCount = read_short();
-        match.cases = new MethodInfo::MatchInfo::CaseInfo[match.caseCount];
-        for (int i = 0; i < match.caseCount; i++) {
+        match.case_count = read_short();
+        match.cases = new MethodInfo::MatchInfo::CaseInfo[match.case_count];
+        for (int i = 0; i < match.case_count; i++) {
             match.cases[i] = read_case_info();
         }
-        match.defaultLocation = read_int();
+        match.default_location = read_int();
         match.meta = read_meta_info();
         return match;
     }
@@ -175,9 +175,9 @@ namespace spade {
 
     MethodInfo::LineInfo ElpReader::read_line_info() {
         MethodInfo::LineInfo line;
-        line.numberCount = read_short();
-        line.numbers = new MethodInfo::LineInfo::NumberInfo[line.numberCount];
-        for (int i = 0; i < line.numberCount; ++i) {
+        line.number_count = read_short();
+        line.numbers = new MethodInfo::LineInfo::NumberInfo[line.number_count];
+        for (int i = 0; i < line.number_count; ++i) {
             MethodInfo::LineInfo::NumberInfo number;
             number.times = read_byte();
             number.lineno = read_int();
@@ -188,9 +188,9 @@ namespace spade {
 
     MethodInfo::ExceptionTableInfo ElpReader::read_exception_info() {
         MethodInfo::ExceptionTableInfo exception;
-        exception.startPc = read_int();
-        exception.endPc = read_int();
-        exception.targetPc = read_int();
+        exception.start_pc = read_int();
+        exception.end_pc = read_int();
+        exception.target_pc = read_int();
         exception.exception = read_short();
         exception.meta = read_meta_info();
         return exception;
@@ -198,7 +198,7 @@ namespace spade {
 
     MethodInfo::LocalInfo ElpReader::read_local_info() {
         MethodInfo::LocalInfo local;
-        local.thisLocal = read_short();
+        local.this_local = read_short();
         local.type = read_short();
         local.meta = read_meta_info();
         return local;
@@ -206,7 +206,7 @@ namespace spade {
 
     MethodInfo::ArgInfo ElpReader::read_arg_info() {
         MethodInfo::ArgInfo arg;
-        arg.thisArg = read_short();
+        arg.this_arg = read_short();
         arg.type = read_short();
         arg.meta = read_meta_info();
         return arg;
@@ -215,7 +215,7 @@ namespace spade {
     GlobalInfo ElpReader::read_global_info() {
         GlobalInfo global;
         global.flags = read_byte();
-        global.thisGlobal = read_short();
+        global.this_global = read_short();
         global.type = read_short();
         global.meta = read_meta_info();
         return global;

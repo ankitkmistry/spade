@@ -1,7 +1,5 @@
 #pragma once
 
-#include "../utils/common.hpp"
-
 namespace spade
 {
     class SpadeVM;
@@ -29,7 +27,7 @@ namespace spade
          * This function is automatically just after allocation and initialization
          * @param obj
          */
-        virtual void postAllocation(Collectible *obj) = 0;
+        virtual void post_allocation(Collectible *obj) = 0;
 
         /**
          * Frees the pointer and returns it to the operating system for further use
@@ -40,17 +38,23 @@ namespace spade
         /**
          * Initiates garbage collection. Frees up unnecessary space.
          */
-        virtual void collectGarbage() = 0;
+        virtual void collect_garbage() = 0;
 
-        void setVM(SpadeVM *vm_) { vm = vm_; }
+        void set_vm(SpadeVM *vm_) {
+            vm = vm_;
+        }
 
-        const SpadeVM *getVM() const { return vm; }
+        const SpadeVM *get_vm() const {
+            return vm;
+        }
 
-        SpadeVM *getVM() { return vm; }
+        SpadeVM *get_vm() {
+            return vm;
+        }
 
         /**
          * @return the current memory manager respective to the current vm
          */
         static MemoryManager *current();
     };
-} // namespace spade
+}    // namespace spade

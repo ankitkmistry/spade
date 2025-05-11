@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../loader/foreign_loader.hpp"
+#include "loader/foreign_loader.hpp"
 #include "callable.hpp"
 
 namespace spade
@@ -13,9 +13,9 @@ namespace spade
       public:
         ObjForeign(const Sign &sign, Kind kind, Type *type, ObjModule *module) : ObjCallable(sign, kind, type, module) {}
 
-        void linkLibrary();
+        void link_library();
 
-        void setSelf(Obj *selfObj) override;
+        void set_self(Obj *selfObj) override;
 
         void call(const vector<Obj *> &args) override;
 
@@ -25,6 +25,6 @@ namespace spade
             return (Obj *) this;
         }
 
-        string toString() const override;
+        string to_string() const override;
     };
 }    // namespace spade

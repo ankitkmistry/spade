@@ -7,21 +7,20 @@ namespace spade
 {
     class ObjMethod final : public ObjCallable {
       private:
-        static Table<map<Table<Type *>, ObjMethod *>> reificationTable;
-        FrameTemplate *frameTemplate;
-        Table<NamedRef *> typeParams;
+        static Table<std::unordered_map<Table<Type *>, ObjMethod *>> reificationTable;
+        FrameTemplate *frame_template;
+        Table<NamedRef *> type_params;
 
-        ObjMethod *returnReified(const Table<Type *> &tParams) const;
+        ObjMethod *return_reified(const Table<Type *> &tParams) const;
 
       public:
-        ObjMethod(const Sign &sign, Kind kind, FrameTemplate *frame, Type *type, const Table<NamedRef *> &typeParams,
-                  ObjModule *module = null);
+        ObjMethod(const Sign &sign, Kind kind, FrameTemplate *frame, Type *type, const Table<NamedRef *> &type_params, ObjModule *module = null);
 
         void call(const vector<Obj *> &args) override;
 
         void call(Obj **args) override;
 
-        void setSelf(Obj *self) override;
+        void set_self(Obj *self) override;
 
         /**
          * Reifies this type and returns the reified type.
@@ -35,7 +34,7 @@ namespace spade
          * @param count count of type args
          * @return the reified type
          */
-        ObjMethod *getReified(Obj **args, uint8 count) const;
+        ObjMethod *get_reified(Obj **args, uint8 count) const;
 
         /**
          * Reifies this type and returns the reified type.
@@ -50,26 +49,26 @@ namespace spade
          * @param count count of type args
          * @return the reified type
          */
-        ObjMethod *getReified(const vector<Type *> &args) const;
+        ObjMethod *get_reified(const vector<Type *> &args) const;
 
-        TypeParam *getTypeParam(const string &name) const;
+        TypeParam *get_type_param(const string &name) const;
 
         Obj *copy() override;
 
-        string toString() const override;
+        string to_string() const override;
 
-        const FrameTemplate *getFrameTemplate() const {
-            return frameTemplate;
+        const FrameTemplate *get_frame_template() const {
+            return frame_template;
         }
 
-        const Table<NamedRef *> &getTypeParams() const {
-            return typeParams;
+        const Table<NamedRef *> &get_type_params() const {
+            return type_params;
         }
 
-        Table<NamedRef *> &getTypeParams() {
-            return typeParams;
+        Table<NamedRef *> &get_type_params() {
+            return type_params;
         }
 
-        NamedRef *captureTypeParam(const string &name) const;
+        NamedRef *capture_type_param(const string &name) const;
     };
 }    // namespace spade

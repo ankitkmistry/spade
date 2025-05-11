@@ -1,16 +1,17 @@
 #ifndef VELOCITY_VM_HPP
 #define VELOCITY_VM_HPP
 
-#include "../utils/common.hpp"
+#include "utils/common.hpp"
 #include "thread.hpp"
 #include "settings.hpp"
-#include "../objects/inbuilt_types.hpp"
-#include "../loader/loader.hpp"
-#include "../memory/manager.hpp"
+#include "objects/inbuilt_types.hpp"
+#include "loader/loader.hpp"
+#include "memory/manager.hpp"
 
-namespace spade {
+namespace spade
+{
     class SpadeVM {
-    private:
+      private:
         /// The modules
         Table<ObjModule *> modules;
         /// The threads
@@ -20,7 +21,7 @@ namespace spade {
         /// The memory manager
         MemoryManager *manager;
         /// The actions to be performed when the vm terminates
-        vector<function<void()>> onExitList;
+        vector<std::function<void()>> on_exit_list;
         /// The vm settings
         Settings settings;
         /// Metadata associated with all objects
@@ -28,7 +29,7 @@ namespace spade {
         /// The output stream
         std::stringstream out;
 
-    public:
+      public:
         explicit SpadeVM(MemoryManager *manager, const Settings &settings = {});
 
         /**
@@ -36,7 +37,7 @@ namespace spade {
          * when the virtual machine terminates
          * @param fun the action
          */
-        void onExit(const function<void()> &fun);
+        void on_exit(const std::function<void()> &fun);
 
         /**
          * This function initiates the virtual machine
@@ -63,27 +64,27 @@ namespace spade {
          */
         Obj *run(Thread *thread);
 
-        ThrowSignal runtimeError(const string &str) const;
+        ThrowSignal runtime_error(const string &str) const;
 
         /**
          * @throws IllegalAccessError if the symbol cannot be found
          * @param sign the signature of the symbol
          * @return the value of the symbol corresponding to the signature \p sign
          */
-        Obj *getSymbol(const string &sign) const;
+        Obj *get_symbol(const string &sign) const;
 
         /**
          * @param sign the sign of the symbol
          * @return the metadata of the symbol corresponding to \p sign
          */
-        const Table<string> &getMetadata(const string &sign);
+        const Table<string> &get_metadata(const string &sign);
 
         /**
          * Sets the metadata of the symbol corresponding to \p sign
          * @param sign the sign of the symbol
          * @param meta the metadata to be set
          */
-        void setMetadata(const string &sign, const Table<string> &meta);
+        void set_metadata(const string &sign, const Table<string> &meta);
 
         /**
          * Set the value of the symbol corresponding to the signature \p sign
@@ -91,75 +92,94 @@ namespace spade {
          * @param sign the signature of the symbol
          * @param val the value
          */
-        void setSymbol(const string &sign, Obj *val) const;
+        void set_symbol(const string &sign, Obj *val) const;
 
-        std::set<Thread *> &getThreads() { return threads; }
+        std::set<Thread *> &get_threads() {
+            return threads;
+        }
 
-        const std::set<Thread *> &getThreads() const { return threads; }
+        const std::set<Thread *> &get_threads() const {
+            return threads;
+        }
 
         /**
          * @return the modules table
          */
-        const Table<ObjModule *> &getModules() const { return modules; }
+        const Table<ObjModule *> &get_modules() const {
+            return modules;
+        }
 
         /**
          * @return the modules table
          */
-        Table<ObjModule *> &getModules() { return modules; }
+        Table<ObjModule *> &get_modules() {
+            return modules;
+        }
 
         /**
          * @return the vm settings
          */
-        Settings &getSettings() { return settings; }
+        Settings &get_settings() {
+            return settings;
+        }
 
         /**
          * @return the vm settings
          */
-        const Settings &getSettings() const { return settings; }
+        const Settings &get_settings() const {
+            return settings;
+        }
 
         /**
          * @return the memory manager
          */
-        MemoryManager *getMemoryManager() { return manager; }
+        MemoryManager *get_memory_manager() {
+            return manager;
+        }
 
         /**
          * @return the memory manager
          */
-        const MemoryManager *getMemoryManager() const { return manager; }
+        const MemoryManager *get_memory_manager() const {
+            return manager;
+        }
 
         /**
          * @return whatever written to the output
          */
-        string getOutput() const { return out.str(); }
+        string get_output() const {
+            return out.str();
+        }
 
         /**
          * @return the current vm respective to the current thread if present, null otherwise
          */
         static SpadeVM *current();
 
-    private:
-
+      private:
         /**
          * Checks the casting compatibility between two types
          * @param type1
          * @param type2
          * @return true if casting can be done, false otherwise
          */
-        static bool checkCast(const Type *type1, const Type *type2);
+        static bool check_cast(const Type *type1, const Type *type2);
 
         /**
          * Converts a C++ vector to ObjArray
          * @param args the vector
          * @return an array object containing the contents of args
          */
-        ObjArray *argsRepr(const vector<string> &args) const;
+        ObjArray *args_repr(const vector<string> &args) const;
 
         /**
          * This function writes to the output
          * @param str
          */
-        void write(const string &str) { out << str; }
+        void write(const string &str) {
+            out << str;
+        }
     };
-}
+}    // namespace spade
 
-#endif //VELOCITY_VM_HPP
+#endif    //VELOCITY_VM_HPP

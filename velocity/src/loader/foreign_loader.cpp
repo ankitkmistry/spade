@@ -4,31 +4,31 @@
 
 #if defined OS_WINDOWS
 
-string getErrorMessage(DWORD errorCode) {
-    LPVOID errMsgBuf;
+string get_error_message(DWORD error_code) {
+    LPVOID err_msg_buf;
     FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER |          // Allocates a buffer for the message
                            FORMAT_MESSAGE_FROM_SYSTEM |      // Searches the system message table
                            FORMAT_MESSAGE_IGNORE_INSERTS,    // Ignores insert sequences in the message definition.
                    null,                                     // Handle to the module containing the message table
-                   errorCode,                                // Error code to format
+                   error_code,                               // Error code to format
                    0,                                        // Default language
-                   (LPSTR) &errMsgBuf,                       // Output buffer for the formatted message
+                   (LPSTR) &err_msg_buf,                     // Output buffer for the formatted message
                    0,                                        // Minimum size of the output buffer
                    null);                                    // No arguments for insert sequences
-    auto size = strlen((LPSTR) errMsgBuf);
+    auto size = strlen((LPSTR) err_msg_buf);
     // Allocate a new buffer
-    auto errMsg = new char[size];
+    auto err_msg = new char[size];
     // Copy the buffer
-    memcpy(errMsg, errMsgBuf, size);
+    memcpy(err_msg, err_msg_buf, size);
     // Free the old buffer
-    LocalFree(errMsgBuf);
+    LocalFree(err_msg_buf);
     // Build the string
-    string msgStr = errMsg;
-    return msgStr;
+    string msg_str = err_msg;
+    return msg_str;
 }
 
-string getErrorMessage(DWORD errorCode, HMODULE module) {
-    LPVOID errMsgBuf;
+string get_error_message(DWORD error_code, HMODULE module) {
+    LPVOID err_msg_buf;
     FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER |    // Allocates a buffer for the message
                            FORMAT_MESSAGE_FROM_HMODULE |
                            // Indicates that the message definition is in the module
@@ -36,33 +36,33 @@ string getErrorMessage(DWORD errorCode, HMODULE module) {
                            // Searches the system message table if the message is not found in the module
                            FORMAT_MESSAGE_IGNORE_INSERTS,    // Ignores insert sequences in the message definition.
                    module,                                   // Handle to the module containing the message table
-                   errorCode,                                // Error code to format
+                   error_code,                               // Error code to format
                    0,                                        // Default language
-                   (LPSTR) &errMsgBuf,                       // Output buffer for the formatted message
+                   (LPSTR) &err_msg_buf,                     // Output buffer for the formatted message
                    0,                                        // Minimum size of the output buffer
                    null);                                    // No arguments for insert sequences
-    auto size = strlen((LPSTR) errMsgBuf);
+    auto size = strlen((LPSTR) err_msg_buf);
     // Allocate a new buffer
-    auto errMsg = new char[size];
+    auto err_msg = new char[size];
     // Copy the buffer
-    memcpy(errMsg, errMsgBuf, size);
+    memcpy(err_msg, err_msg_buf, size);
     // Free the old buffer
-    LocalFree(errMsgBuf);
+    LocalFree(err_msg_buf);
     // Build the string
-    string msgStr = errMsg;
-    return msgStr;
+    string msg_str = err_msg;
+    return msg_str;
 }
 
 void Library::unload() {
     FreeLibrary(module);
 }
 
-Library *ForeignLoader::loadSimpleLibrary(string path) {
+Library *ForeignLoader::load_simple_library(string path) {
     // TODO: Add advanced lookup
     HMODULE module = LoadLibrary(path.c_str());
     if (module == null) {
         DWORD errorCode = GetLastError();
-        auto errMsg = getErrorMessage(errorCode);
+        auto errMsg = get_error_message(errorCode);
         throw spade::NativeLibraryError(path, std::format("{} ({:#0x})", errMsg.c_str(), errorCode));
     }
     auto library = new Library(Library::Kind::SIMPLE, path, module);
@@ -76,7 +76,7 @@ void Library::unload() {
     dlclose(module);
 }
 
-Library *ForeignLoader::loadSimpleLibrary(string path) {
+Library *ForeignLoader::load_simple_library(string path) {
     // TODO: Add advanced lookup
     void *module = dlopen(path.c_str(), RTLD_LAZY);
     if (module == null) {
@@ -89,7 +89,7 @@ Library *ForeignLoader::loadSimpleLibrary(string path) {
 
 #endif
 
-void ForeignLoader::unloadLibraries() {
+void ForeignLoader::unload_libraries() {
     for (auto library: libraries | std::views::values) {
         library->unload();
     }

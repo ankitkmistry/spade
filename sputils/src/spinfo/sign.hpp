@@ -48,44 +48,50 @@ class Sign final {
     Sign &operator=(Sign &&other) noexcept = default;
     ~Sign() = default;
 
-    const vector<SignElement> &getElements() const { return elements; }
+    const vector<SignElement> &get_elements() const {
+        return elements;
+    }
 
-    vector<SignElement> &getElements() { return elements; }
+    vector<SignElement> &get_elements() {
+        return elements;
+    }
 
     /**
      * @return true if the signature is empty, false otherwise
      */
-    bool empty() const { return getKind() == Kind::EMPTY; }
+    bool empty() const {
+        return get_kind() == Kind::EMPTY;
+    }
 
     /**
      * @return the name of the signature
      */
-    string getName() const;
+    string get_name() const;
 
     /**
      * @return the kind of the signature
      */
-    Kind getKind() const;
+    Kind get_kind() const;
 
     /**
      * @return the type params of the signature if exists, otherwise returns an empty array
      */
-    const vector<string> &getTypeParams() const;
+    const vector<string> &get_type_params() const;
 
     /**
      * @return the params of the signature if exists, otherwise returns an empty array
      */
-    const vector<SignParam> &getParams() const;
+    const vector<SignParam> &get_params() const;
 
     /**
      * @return the signature of the parent module
      */
-    Sign getParentModule() const;
+    Sign get_parent_module() const;
 
     /**
      * @return the signature of the parent class if exists, otherwise returns an empty sign
      */
-    Sign getParentClass() const;
+    Sign get_parent_class() const;
 
     /**
      * Appends a copy of this signature and another signature
@@ -132,7 +138,7 @@ class Sign final {
     /**
      * @return the string representation of the sign
      */
-    string toString() const;
+    string to_string() const;
 
     static const Sign EMPTY;
 };
@@ -164,13 +170,19 @@ class SignParam final {
     SignParam &operator=(SignParam &&other) noexcept = default;
     ~SignParam() = default;
 
-    Kind getKind() const { return kind; }
+    Kind get_kind() const {
+        return kind;
+    }
 
-    const Sign &getName() const { return name; }
+    const Sign &get_name() const {
+        return name;
+    }
 
-    const vector<SignParam> &getParams() const { return params; }
+    const vector<SignParam> &get_params() const {
+        return params;
+    }
 
-    string toString() const;
+    string to_string() const;
 };
 
 class SignElement final {
@@ -192,13 +204,21 @@ class SignElement final {
     SignElement &operator=(SignElement &&other) noexcept = default;
     ~SignElement() = default;
 
-    const string &getName() const { return name; }
+    const string &get_name() const {
+        return name;
+    }
 
-    Sign::Kind getKind() const { return kind; }
+    Sign::Kind get_kind() const {
+        return kind;
+    }
 
-    const vector<SignParam> &getParams() const { return params; }
+    const vector<SignParam> &get_params() const {
+        return params;
+    }
 
-    const vector<string> &getTypeParams() const { return typeParams; }
+    const vector<string> &get_type_params() const {
+        return typeParams;
+    }
 
-    string toString() const;
+    string to_string() const;
 };

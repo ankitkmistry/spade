@@ -13,7 +13,7 @@ namespace spade
         return val != 0;
     }
 
-    string ObjInt::toString() const {
+    string ObjInt::to_string() const {
         return std::to_string(val);
     }
 
@@ -29,7 +29,7 @@ namespace spade
         return halloc<ObjInt>(info.manager, val >> n.val);
     }
 
-    ObjInt *ObjInt::unsignedRightShift(const ObjInt &n) const {
+    ObjInt *ObjInt::unsigned_right_shift(const ObjInt &n) const {
         return halloc<ObjInt>(info.manager, val & 0x7fffffff >> n.val);
     }
 

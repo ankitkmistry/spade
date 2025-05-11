@@ -11,7 +11,7 @@ namespace spade
         return val != 0.0;
     }
 
-    string ObjFloat::toString() const {
+    string ObjFloat::to_string() const {
         return std::to_string(val);
     }
 

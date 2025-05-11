@@ -15,7 +15,7 @@ namespace spade
 
         bool truth() const override;
 
-        string toString() const override;
+        string to_string() const override;
 
         int32 compare(const Obj *rhs) const override;
 

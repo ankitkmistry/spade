@@ -18,7 +18,7 @@ namespace spade
       public:
         explicit ThrowSignal(Obj *value) : RuntimeError("value is thrown in the vm"), value(value) {}
 
-        Obj *getValue() const {
+        Obj *get_value() const {
             return value;
         }
     };
@@ -48,8 +48,7 @@ namespace spade
 
     class IllegalTypeParamAccessError : public FatalError {
       public:
-        explicit IllegalTypeParamAccessError(const string &sign)
-            : FatalError(std::format("tried to access empty type parameter: '{}'", sign)) {}
+        explicit IllegalTypeParamAccessError(const string &sign) : FatalError(std::format("tried to access empty type parameter: '{}'", sign)) {}
     };
 
     class NativeLibraryError : public FatalError {

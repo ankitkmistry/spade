@@ -1,10 +1,10 @@
 #pragma once
 
-#include "../callable/method.hpp"
-#include "../callable/table.hpp"
-#include "../objects/module.hpp"
-#include "../objects/obj.hpp"
-#include "../utils/common.hpp"
+#include "utils/common.hpp"
+#include "objects/module.hpp"
+#include "objects/obj.hpp"
+#include "callable/table.hpp"
+#include "callable/method.hpp"
 
 namespace spade
 {
@@ -20,9 +20,9 @@ namespace spade
         /// The memory manager
         MemoryManager *manager;
         /// List of all modules in the form of [path, module]
-        std::map<string, ObjModule *> modules = {};
+        std::unordered_map<string, ObjModule *> modules = {};
         /// Pool of unresolved references
-        Table<Type *> referencePool = {};
+        Table<Type *> reference_pool = {};
         ObjModule *current = null;
 
       public:
@@ -42,24 +42,24 @@ namespace spade
          * Loads a module into the vm
          * @param module the module
          */
-        void loadModule(ObjModule *module);
+        void load_module(ObjModule *module);
 
         /**
          * Reads a module specified by \p path
          * @param path the path of the module
          * @return the module as an ObjModule
          */
-        ObjModule *readModule(const string &path);
-        Obj *readGlobal(GlobalInfo &global);
-        Obj *readObj(ObjInfo &obj);
-        Obj *readClass(ClassInfo &klass);
-        Obj *readField(FieldInfo &field);
-        Obj *readMethod(const string &klassSign, MethodInfo &method);
-        Obj *readMethod(MethodInfo &method);
-        Exception readException(MethodInfo::ExceptionTableInfo &exception);
-        MatchTable readMatch(MethodInfo::MatchInfo match);
-        NamedRef *readLocal(MethodInfo::LocalInfo &local);
-        NamedRef *readArg(MethodInfo::ArgInfo &arg);
+        ObjModule *read_module(const string &path);
+        Obj *read_global(GlobalInfo &global);
+        Obj *read_obj(ObjInfo &obj);
+        Obj *read_class(ClassInfo &klass);
+        Obj *read_field(FieldInfo &field);
+        Obj *read_method(const string &klassSign, MethodInfo &method);
+        Obj *read_method(MethodInfo &method);
+        Exception read_exception(MethodInfo::ExceptionTableInfo &exception);
+        MatchTable read_match(MethodInfo::MatchInfo match);
+        NamedRef *read_local(MethodInfo::LocalInfo &local);
+        NamedRef *read_arg(MethodInfo::ArgInfo &arg);
 
         /**
          * Reads the constant pool
@@ -67,7 +67,7 @@ namespace spade
          * @param count the size of the constant pool
          * @return the constant pool as a vector
          */
-        vector<Obj *> readConstPool(const CpInfo *constantPool, uint16 count);
+        std::vector<Obj *> read_const_pool(const CpInfo *constantPool, uint16 count);
 
 
         /**
@@ -75,24 +75,24 @@ namespace spade
          * @param cpInfo the info of the constant
          * @return the constant as an Obj
          */
-        Obj *readCp(const CpInfo &cpInfo);
+        Obj *read_cp(const CpInfo &cpInfo);
 
-        static string readUTF8(const _UTF8 &value);
+        static string read_utf8(const _UTF8 &value);
 
         /**
          * Reads the meta info of the object
          * @param meta the meta info
          * @return the meta info as a table of strings
          */
-        static Table<string> readMeta(const MetaInfo &meta);
+        static Table<string> read_meta(const MetaInfo &meta);
 
         /**
          * @param index index of the signature
          * @return the signature specified by the \p index from the constant pool
          *         of the current module
          */
-        Sign getSign(cpidx index) const {
-            return {getConstantPool()[index]->toString()};
+        Sign get_sign(cpidx index) const {
+            return {get_constant_pool()[index]->to_string()};
         }
 
         /**
@@ -103,7 +103,7 @@ namespace spade
          * @param sign the param of the type
          * @return the type associated with \p param
          */
-        Type *findType(const string &sign);
+        Type *find_type(const string &sign);
 
         /**
          * Resolves the type associated with \p param .
@@ -115,26 +115,26 @@ namespace spade
          * @param type type info
          * @return the associated type
          */
-        Type *resolveType(const string &sign, const Type &type);
+        Type *resolve_type(const string &sign, const Type &type);
 
-        ObjModule *getCurrentModule() const {
+        ObjModule *get_current_module() const {
             return current;
         }
 
-        const vector<Obj *> &getConstantPool() const {
-            return getCurrentModule()->getConstantPool();
+        const vector<Obj *> &get_constant_pool() const {
+            return get_current_module()->get_constant_pool();
         }
 
         CorruptFileError corrupt() const {
-            return CorruptFileError(getCurrentModule()->getAbsolutePath());
+            return CorruptFileError(get_current_module()->get_absolute_path());
         }
 
-        Obj *makeObj(const string &typeSign, const Sign &objSign, Type *type) const;
+        Obj *make_obj(const string &typeSign, const Sign &objSign, Type *type) const;
 
-        Obj *makeObj(const string &typeSign, Type *type) const;
+        Obj *make_obj(const string &typeSign, Type *type) const;
 
-        string resolvePath(const string &pathStr);
+        string resolve_path(const string &pathStr);
 
-        fs::path getLoadPath();
+        fs::path get_load_path();
     };
 }    // namespace spade

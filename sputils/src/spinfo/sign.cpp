@@ -196,25 +196,25 @@ Sign::Sign(const string &text) {
 
 Sign::Sign(const vector<SignElement> &elements) : elements(elements) {}
 
-string SignParam::toString() const {
+string SignParam::to_string() const {
     switch (kind) {
         case Kind::CLASS:
         case Kind::TYPE_PARAM:
-            return name.toString();
+            return name.to_string();
         case Kind::CALLBACK: {
             vector<string> paramStrs;
             paramStrs.reserve(params.size());
             for (const auto &param: params) {
-                paramStrs.push_back(param.toString());
+                paramStrs.push_back(param.to_string());
             }
-            return name.toString() + join(paramStrs, ", ");
+            return name.to_string() + join(paramStrs, ", ");
         }
         default:
             throw Unreachable();
     }
 }
 
-string SignElement::toString() const {
+string SignElement::to_string() const {
     string str = name;
     switch (kind) {
         case Sign::Kind::EMPTY:
@@ -238,7 +238,7 @@ string SignElement::toString() const {
                 vector<string> paramsStrs;
                 paramsStrs.reserve(params.size());
                 for (const auto &param: params) {
-                    paramsStrs.push_back(param.toString());
+                    paramsStrs.push_back(param.to_string());
                 }
                 str.append(join(paramsStrs, ", "));
                 str.append(")");
@@ -253,12 +253,12 @@ string SignElement::toString() const {
     return str;
 }
 
-string Sign::toString() const {
+string Sign::to_string() const {
     string str;
     for (int i = 0; i < elements.size(); ++i) {
         auto element = elements[i];
         if (i > 0) {
-            switch (element.getKind()) {
+            switch (element.get_kind()) {
                 case Kind::EMPTY:
                     break;
                 case Kind::MODULE:
@@ -272,84 +272,84 @@ string Sign::toString() const {
                     break;
             }
         }
-        str.append(element.toString());
+        str.append(element.to_string());
     }
     return str;
 }
 
-Sign::Kind Sign::getKind() const {
-    return elements.back().getKind();
+Sign::Kind Sign::get_kind() const {
+    return elements.back().get_kind();
 }
 
-Sign Sign::getParentModule() const {
-    if (getKind() == Kind::MODULE)
+Sign Sign::get_parent_module() const {
+    if (get_kind() == Kind::MODULE)
         return Sign(slice(elements, 0, -1));
     int i = 0;
     for (const auto &element: elements) {
-        if (element.getKind() != Kind::MODULE)
+        if (element.get_kind() != Kind::MODULE)
             break;
         i++;
     }
     return Sign(slice(elements, 0, i + 1));
 }
 
-Sign Sign::getParentClass() const {
-    if (getKind() != Kind::MODULE) {
+Sign Sign::get_parent_class() const {
+    if (get_kind() != Kind::MODULE) {
         int i = elements.size() - 2;
         if (i < 0) {
             return EMPTY;
         }
-        if (elements[i].getKind() == Kind::CLASS) {
+        if (elements[i].get_kind() == Kind::CLASS) {
             return Sign(slice(elements, 0, i + 1));
         }
     }
     return EMPTY;
 }
 
-const vector<string> &Sign::getTypeParams() const {
-    return elements.back().getTypeParams();
+const vector<string> &Sign::get_type_params() const {
+    return elements.back().get_type_params();
 }
 
-const vector<SignParam> &Sign::getParams() const {
-    return elements.back().getParams();
+const vector<SignParam> &Sign::get_params() const {
+    return elements.back().get_params();
 }
 
-string Sign::getName() const {
-    return elements.back().toString();
+string Sign::get_name() const {
+    return elements.back().to_string();
 }
 
 Sign Sign::operator|(const Sign &sign) const {
-    SignParser parser{toString() + sign.toString()};
+    SignParser parser{to_string() + sign.to_string()};
     return Sign(parser.parse());
 }
 
 Sign Sign::operator|(const string &str) const {
-    SignParser parser{toString() + str};
+    SignParser parser{to_string() + str};
     return Sign(parser.parse());
 }
 
 Sign Sign::operator|(const SignElement &element) const {
     auto newElements = elements;
     newElements.push_back(element);
-    SignParser parser{Sign(newElements).toString()};
+    SignParser parser{Sign(newElements).to_string()};
     return Sign(parser.parse());
 }
 
 Sign &Sign::operator|=(const Sign &sign) {
-    SignParser parser{toString() + sign.toString()};
+    SignParser parser{to_string() + sign.to_string()};
     elements = parser.parse();
     return *this;
 }
 
 Sign &Sign::operator|=(const string &str) {
-    SignParser parser{toString() + str};
+    SignParser parser{to_string() + str};
     elements = parser.parse();
     return *this;
 }
 
 Sign &Sign::operator|=(const SignElement &element) {
     elements.push_back(element);
-    SignParser parser{toString()};
+    SignParser parser{to_string()};
     elements = parser.parse();
     return *this;
 }

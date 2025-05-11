@@ -82,19 +82,19 @@ namespace spade
 
     // Helper function to copy MethodInfo
     static void copyMethod(MethodInfo &dest, const MethodInfo &from) {
-        dest.accessFlags = from.accessFlags;
+        dest.access_flags = from.access_flags;
         dest.type = from.type;
-        dest.thisMethod = from.thisMethod;
+        dest.this_method = from.this_method;
 
         // Copy type parameters
-        dest.typeParamCount = from.typeParamCount;
-        dest.typeParams = new TypeParamInfo[from.typeParamCount];
-        memcpy(dest.typeParams, from.typeParams, from.typeParamCount * sizeof(TypeParamInfo));
+        dest.type_param_count = from.type_param_count;
+        dest.type_params = new TypeParamInfo[from.type_param_count];
+        memcpy(dest.type_params, from.type_params, from.type_param_count * sizeof(TypeParamInfo));
 
         // Copy arguments
-        dest.argsCount = from.argsCount;
-        dest.args = new MethodInfo::ArgInfo[from.argsCount];
-        for (ui1 i = 0; i < from.argsCount; ++i) {
+        dest.args_count = from.args_count;
+        dest.args = new MethodInfo::ArgInfo[from.args_count];
+        for (ui1 i = 0; i < from.args_count; ++i) {
             dest.args[i] = from.args[i];
             // Deep copy meta info for each arg
             auto &meta = dest.args[i].meta;
@@ -109,10 +109,10 @@ namespace spade
         }
 
         // Copy locals
-        dest.localsCount = from.localsCount;
-        dest.closureStart = from.closureStart;
-        dest.locals = new MethodInfo::LocalInfo[from.localsCount];
-        for (ui2 i = 0; i < from.localsCount; ++i) {
+        dest.locals_count = from.locals_count;
+        dest.closure_start = from.closure_start;
+        dest.locals = new MethodInfo::LocalInfo[from.locals_count];
+        for (ui2 i = 0; i < from.locals_count; ++i) {
             dest.locals[i] = from.locals[i];
             // Deep copy meta info for each local
             auto &meta = dest.locals[i].meta;
@@ -127,50 +127,49 @@ namespace spade
         }
 
         // Copy code
-        dest.maxStack = from.maxStack;
-        dest.codeCount = from.codeCount;
-        dest.code = new ui1[from.codeCount];
-        memcpy(dest.code, from.code, from.codeCount);
+        dest.max_stack = from.max_stack;
+        dest.code_count = from.code_count;
+        dest.code = new ui1[from.code_count];
+        memcpy(dest.code, from.code, from.code_count);
 
         // Copy exception table
-        dest.exceptionTableCount = from.exceptionTableCount;
-        dest.exceptionTable = new MethodInfo::ExceptionTableInfo[from.exceptionTableCount];
-        for (ui2 i = 0; i < from.exceptionTableCount; ++i) {
-            dest.exceptionTable[i] = from.exceptionTable[i];
+        dest.exception_table_count = from.exception_table_count;
+        dest.exception_table = new MethodInfo::ExceptionTableInfo[from.exception_table_count];
+        for (ui2 i = 0; i < from.exception_table_count; ++i) {
+            dest.exception_table[i] = from.exception_table[i];
             // Deep copy meta info
-            auto &meta = dest.exceptionTable[i].meta;
+            auto &meta = dest.exception_table[i].meta;
             meta.table = new MetaInfo::_meta[meta.len];
             for (ui2 j = 0; j < meta.len; ++j) {
                 auto &entry = meta.table[j];
                 entry.key.bytes = new ui1[entry.key.len];
                 entry.value.bytes = new ui1[entry.value.len];
-                memcpy(entry.key.bytes, from.exceptionTable[i].meta.table[j].key.bytes, entry.key.len);
-                memcpy(entry.value.bytes, from.exceptionTable[i].meta.table[j].value.bytes, entry.value.len);
+                memcpy(entry.key.bytes, from.exception_table[i].meta.table[j].key.bytes, entry.key.len);
+                memcpy(entry.value.bytes, from.exception_table[i].meta.table[j].value.bytes, entry.value.len);
             }
         }
 
         // Copy line info
-        dest.lineInfo.numberCount = from.lineInfo.numberCount;
-        dest.lineInfo.numbers = new MethodInfo::LineInfo::NumberInfo[from.lineInfo.numberCount];
-        memcpy(dest.lineInfo.numbers, from.lineInfo.numbers,
-               from.lineInfo.numberCount * sizeof(MethodInfo::LineInfo::NumberInfo));
+        dest.line_info.number_count = from.line_info.number_count;
+        dest.line_info.numbers = new MethodInfo::LineInfo::NumberInfo[from.line_info.number_count];
+        memcpy(dest.line_info.numbers, from.line_info.numbers, from.line_info.number_count * sizeof(MethodInfo::LineInfo::NumberInfo));
 
         // Copy lambdas
-        dest.lambdaCount = from.lambdaCount;
-        dest.lambdas = new MethodInfo[from.lambdaCount];
-        for (ui2 i = 0; i < from.lambdaCount; ++i) {
+        dest.lambda_count = from.lambda_count;
+        dest.lambdas = new MethodInfo[from.lambda_count];
+        for (ui2 i = 0; i < from.lambda_count; ++i) {
             copyMethod(dest.lambdas[i], from.lambdas[i]);
         }
 
         // Copy matches
-        dest.matchCount = from.matchCount;
-        dest.matches = new MethodInfo::MatchInfo[from.matchCount];
-        for (ui2 i = 0; i < from.matchCount; ++i) {
+        dest.match_count = from.match_count;
+        dest.matches = new MethodInfo::MatchInfo[from.match_count];
+        for (ui2 i = 0; i < from.match_count; ++i) {
             auto &match = dest.matches[i];
-            match.caseCount = from.matches[i].caseCount;
-            match.cases = new MethodInfo::MatchInfo::CaseInfo[match.caseCount];
-            memcpy(match.cases, from.matches[i].cases, match.caseCount * sizeof(MethodInfo::MatchInfo::CaseInfo));
-            match.defaultLocation = from.matches[i].defaultLocation;
+            match.case_count = from.matches[i].case_count;
+            match.cases = new MethodInfo::MatchInfo::CaseInfo[match.case_count];
+            memcpy(match.cases, from.matches[i].cases, match.case_count * sizeof(MethodInfo::MatchInfo::CaseInfo));
+            match.default_location = from.matches[i].default_location;
 
             // Deep copy meta info
             match.meta.len = from.matches[i].meta.len;
@@ -199,20 +198,20 @@ namespace spade
     // Helper function to copy ClassInfo
     static void copyClass(ClassInfo &dest, const ClassInfo &from) {
         dest.type = from.type;
-        dest.accessFlags = from.accessFlags;
-        dest.thisClass = from.thisClass;
+        dest.access_flags = from.access_flags;
+        dest.this_class = from.this_class;
 
         // Copy type parameters
-        dest.typeParamCount = from.typeParamCount;
-        dest.typeParams = new TypeParamInfo[from.typeParamCount];
-        memcpy(dest.typeParams, from.typeParams, from.typeParamCount * sizeof(TypeParamInfo));
+        dest.type_param_count = from.type_param_count;
+        dest.type_params = new TypeParamInfo[from.type_param_count];
+        memcpy(dest.type_params, from.type_params, from.type_param_count * sizeof(TypeParamInfo));
 
         dest.supers = from.supers;
 
         // Copy fields
-        dest.fieldsCount = from.fieldsCount;
-        dest.fields = new FieldInfo[from.fieldsCount];
-        for (ui2 i = 0; i < from.fieldsCount; ++i) {
+        dest.fields_count = from.fields_count;
+        dest.fields = new FieldInfo[from.fields_count];
+        for (ui2 i = 0; i < from.fields_count; ++i) {
             dest.fields[i] = from.fields[i];
             // Deep copy meta info
             auto &meta = dest.fields[i].meta;
@@ -227,16 +226,16 @@ namespace spade
         }
 
         // Copy methods
-        dest.methodsCount = from.methodsCount;
-        dest.methods = new MethodInfo[from.methodsCount];
-        for (ui2 i = 0; i < from.methodsCount; ++i) {
+        dest.methods_count = from.methods_count;
+        dest.methods = new MethodInfo[from.methods_count];
+        for (ui2 i = 0; i < from.methods_count; ++i) {
             copyMethod(dest.methods[i], from.methods[i]);
         }
 
         // Copy objects
-        dest.objectsCount = from.objectsCount;
-        dest.objects = new ObjInfo[from.objectsCount];
-        for (ui2 i = 0; i < from.objectsCount; ++i) {
+        dest.objects_count = from.objects_count;
+        dest.objects = new ObjInfo[from.objects_count];
+        for (ui2 i = 0; i < from.objects_count; ++i) {
             dest.objects[i].type = from.objects[i].type;
             if (from.objects[i].type == 0) {
                 copyMethod(dest.objects[i]._method, from.objects[i]._method);
@@ -260,40 +259,40 @@ namespace spade
     void copyElp(ElpInfo &dest, const ElpInfo &from) {
         // Copy basic fields
         dest.magic = from.magic;
-        dest.minorVersion = from.minorVersion;
-        dest.majorVersion = from.majorVersion;
-        dest.compiledFrom = from.compiledFrom;
+        dest.minor_version = from.minor_version;
+        dest.major_version = from.major_version;
+        dest.compiled_from = from.compiled_from;
         dest.type = from.type;
-        dest.thisModule = from.thisModule;
+        dest.this_module = from.this_module;
         dest.init = from.init;
         dest.entry = from.entry;
         dest.imports = from.imports;
 
         // Copy constant pool
-        dest.constantPoolCount = from.constantPoolCount;
-        dest.constantPool = new CpInfo[from.constantPoolCount];
-        for (ui2 i = 0; i < from.constantPoolCount; ++i) {
-            dest.constantPool[i] = from.constantPool[i];
+        dest.constant_pool_count = from.constant_pool_count;
+        dest.constant_pool = new CpInfo[from.constant_pool_count];
+        for (ui2 i = 0; i < from.constant_pool_count; ++i) {
+            dest.constant_pool[i] = from.constant_pool[i];
             // For string and array types, need to deep copy their contents
-            if (from.constantPool[i].tag == 0x06) {
+            if (from.constant_pool[i].tag == 0x06) {
                 // String type
-                auto &str = dest.constantPool[i]._string;
+                auto &str = dest.constant_pool[i]._string;
                 str.bytes = new ui1[str.len];
-                memcpy(str.bytes, from.constantPool[i]._string.bytes, str.len);
-            } else if (from.constantPool[i].tag == 0x07) {
+                memcpy(str.bytes, from.constant_pool[i]._string.bytes, str.len);
+            } else if (from.constant_pool[i].tag == 0x07) {
                 // Array type
-                auto &arr = dest.constantPool[i]._array;
+                auto &arr = dest.constant_pool[i]._array;
                 arr.items = new CpInfo[arr.len];
                 for (ui2 j = 0; j < arr.len; ++j) {
-                    arr.items[j] = from.constantPool[i]._array.items[j];
+                    arr.items[j] = from.constant_pool[i]._array.items[j];
                 }
             }
         }
 
         // Copy globals
-        dest.globalsCount = from.globalsCount;
-        dest.globals = new GlobalInfo[from.globalsCount];
-        for (ui2 i = 0; i < from.globalsCount; ++i) {
+        dest.globals_count = from.globals_count;
+        dest.globals = new GlobalInfo[from.globals_count];
+        for (ui2 i = 0; i < from.globals_count; ++i) {
             dest.globals[i] = from.globals[i];
             // Deep copy meta info
             auto &meta = dest.globals[i].meta;
@@ -308,9 +307,9 @@ namespace spade
         }
 
         // Copy objects
-        dest.objectsCount = from.objectsCount;
-        dest.objects = new ObjInfo[from.objectsCount];
-        for (ui2 i = 0; i < from.objectsCount; ++i) {
+        dest.objects_count = from.objects_count;
+        dest.objects = new ObjInfo[from.objects_count];
+        for (ui2 i = 0; i < from.objects_count; ++i) {
             dest.objects[i].type = from.objects[i].type;
             if (from.objects[i].type == 0) {    // Method
                 copyMethod(dest.objects[i]._method, from.objects[i]._method);
@@ -344,16 +343,16 @@ namespace spade
 
     // Helper function to free MethodInfo structure
     static void freeMethod(MethodInfo &method) {
-        delete[] method.typeParams;
+        delete[] method.type_params;
 
         // Free args
-        for (ui1 i = 0; i < method.argsCount; ++i) {
+        for (ui1 i = 0; i < method.args_count; ++i) {
             freeMetaInfo(method.args[i].meta);
         }
         delete[] method.args;
 
         // Free locals
-        for (ui2 i = 0; i < method.localsCount; ++i) {
+        for (ui2 i = 0; i < method.locals_count; ++i) {
             freeMetaInfo(method.locals[i].meta);
         }
         delete[] method.locals;
@@ -361,22 +360,22 @@ namespace spade
         delete[] method.code;
 
         // Free exception table
-        for (ui2 i = 0; i < method.exceptionTableCount; ++i) {
-            freeMetaInfo(method.exceptionTable[i].meta);
+        for (ui2 i = 0; i < method.exception_table_count; ++i) {
+            freeMetaInfo(method.exception_table[i].meta);
         }
-        delete[] method.exceptionTable;
+        delete[] method.exception_table;
 
         // Free line info
-        delete[] method.lineInfo.numbers;
+        delete[] method.line_info.numbers;
 
         // Free lambdas recursively
-        for (ui2 i = 0; i < method.lambdaCount; ++i) {
+        for (ui2 i = 0; i < method.lambda_count; ++i) {
             freeMethod(method.lambdas[i]);
         }
         delete[] method.lambdas;
 
         // Free matches
-        for (ui2 i = 0; i < method.matchCount; ++i) {
+        for (ui2 i = 0; i < method.match_count; ++i) {
             delete[] method.matches[i].cases;
             freeMetaInfo(method.matches[i].meta);
         }
@@ -387,22 +386,22 @@ namespace spade
 
     // Helper function to free ClassInfo structure
     static void freeClass(ClassInfo &cls) {
-        delete[] cls.typeParams;
+        delete[] cls.type_params;
 
         // Free fields
-        for (ui2 i = 0; i < cls.fieldsCount; ++i) {
+        for (ui2 i = 0; i < cls.fields_count; ++i) {
             freeMetaInfo(cls.fields[i].meta);
         }
         delete[] cls.fields;
 
         // Free methods
-        for (ui2 i = 0; i < cls.methodsCount; ++i) {
+        for (ui2 i = 0; i < cls.methods_count; ++i) {
             freeMethod(cls.methods[i]);
         }
         delete[] cls.methods;
 
         // Free nested objects
-        for (ui2 i = 0; i < cls.objectsCount; ++i) {
+        for (ui2 i = 0; i < cls.objects_count; ++i) {
             if (cls.objects[i].type == 0) {    // Method
                 freeMethod(cls.objects[i]._method);
             } else {    // Class
@@ -416,23 +415,23 @@ namespace spade
 
     void freeElp(ElpInfo &elp) {
         // Free constant pool
-        for (ui2 i = 0; i < elp.constantPoolCount; ++i) {
-            if (elp.constantPool[i].tag == 0x06) {    // String
-                delete[] elp.constantPool[i]._string.bytes;
-            } else if (elp.constantPool[i].tag == 0x07) {    // Array
-                delete[] elp.constantPool[i]._array.items;
+        for (ui2 i = 0; i < elp.constant_pool_count; ++i) {
+            if (elp.constant_pool[i].tag == 0x06) {    // String
+                delete[] elp.constant_pool[i]._string.bytes;
+            } else if (elp.constant_pool[i].tag == 0x07) {    // Array
+                delete[] elp.constant_pool[i]._array.items;
             }
         }
-        delete[] elp.constantPool;
+        delete[] elp.constant_pool;
 
         // Free globals
-        for (ui2 i = 0; i < elp.globalsCount; ++i) {
+        for (ui2 i = 0; i < elp.globals_count; ++i) {
             freeMetaInfo(elp.globals[i].meta);
         }
         delete[] elp.globals;
 
         // Free objects
-        for (ui2 i = 0; i < elp.objectsCount; ++i) {
+        for (ui2 i = 0; i < elp.objects_count; ++i) {
             if (elp.objects[i].type == 0) {    // Method
                 freeMethod(elp.objects[i]._method);
             } else {    // Class

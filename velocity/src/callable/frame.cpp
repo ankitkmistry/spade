@@ -16,15 +16,15 @@ namespace spade
         return sp[-1];
     }
 
-    uint32 Frame::getStackCount() {
+    uint32 Frame::get_stack_count() {
         return sp - stack;
     }
 
-    uint32 Frame::getCodeCount() const {
-        return codeCount;
+    uint32 Frame::get_code_count() const {
+        return code_count;
     }
 
-    const vector<Obj *> &Frame::getConstPool() const {
-        return method->getModule()->getConstantPool();
+    const vector<Obj *> &Frame::get_const_pool() const {
+        return method->get_module()->get_constant_pool();
     }
 }    // namespace spade

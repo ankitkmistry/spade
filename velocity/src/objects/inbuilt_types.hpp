@@ -19,7 +19,7 @@ namespace spade
             return b;
         }
 
-        string toString() const override {
+        string to_string() const override {
             return b ? "true" : "false";
         }
 
@@ -45,7 +45,7 @@ namespace spade
             return c != '\0';
         }
 
-        string toString() const override {
+        string to_string() const override {
             return string({c});
         }
 
@@ -66,7 +66,7 @@ namespace spade
             return false;
         }
 
-        string toString() const override {
+        string to_string() const override {
             return "null";
         }
 
@@ -90,7 +90,7 @@ namespace spade
             return !str.empty();
         }
 
-        string toString() const override {
+        string to_string() const override {
             return str;
         }
 
@@ -107,12 +107,11 @@ namespace spade
         uint16 length;
 
       public:
-        explicit ObjArray(uint16 length, ObjModule *module = null)
-            : ComparableObj(Sign("array"), null, module), length(length) {
+        explicit ObjArray(uint16 length, ObjModule *module = null) : ComparableObj(Sign("array"), null, module), length(length) {
             array = length == 0 ? null : new Obj *[length] { null };
         }
 
-        void foreach (function<void(Obj *)> func) const;
+        void foreach (std::function<void(Obj *)> func) const;
 
         Obj *get(int64 i) const;
 
@@ -126,7 +125,7 @@ namespace spade
             return length != 0;
         }
 
-        string toString() const override;
+        string to_string() const override;
 
         Obj *copy() override;
 

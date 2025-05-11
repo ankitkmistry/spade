@@ -2,109 +2,109 @@
 
 namespace spade
 {
-    Type::Kind TypeParam::getKind() const {
-        checkPlaceholder();
-        return placeholder->getKind();
+    Type::Kind TypeParam::get_kind() const {
+        check_placeholder();
+        return placeholder->get_kind();
     }
 
-    const Table<NamedRef *> &TypeParam::getTypeParams() const {
-        checkPlaceholder();
-        return placeholder->getTypeParams();
+    const Table<NamedRef *> &TypeParam::get_type_params() const {
+        check_placeholder();
+        return placeholder->get_type_params();
     }
 
-    const Table<Type *> &TypeParam::getSupers() const {
-        checkPlaceholder();
-        return placeholder->getSupers();
+    const Table<Type *> &TypeParam::get_supers() const {
+        check_placeholder();
+        return placeholder->get_supers();
     }
 
-    const Table<MemberSlot> &TypeParam::getMemberSlots() const {
-        checkPlaceholder();
-        return placeholder->getMemberSlots();
+    const Table<MemberSlot> &TypeParam::get_member_slots() const {
+        check_placeholder();
+        return placeholder->get_member_slots();
     }
 
-    Table<NamedRef *> &TypeParam::getTypeParams() {
-        checkPlaceholder();
-        return placeholder->getTypeParams();
+    Table<NamedRef *> &TypeParam::get_type_params() {
+        check_placeholder();
+        return placeholder->get_type_params();
     }
 
-    Table<Type *> &TypeParam::getSupers() {
-        checkPlaceholder();
-        return placeholder->getSupers();
+    Table<Type *> &TypeParam::get_supers() {
+        check_placeholder();
+        return placeholder->get_supers();
     }
 
-    Table<MemberSlot> &TypeParam::getMemberSlots() {
-        checkPlaceholder();
-        return placeholder->getMemberSlots();
+    Table<MemberSlot> &TypeParam::get_member_slots() {
+        check_placeholder();
+        return placeholder->get_member_slots();
     }
 
-    ObjModule *TypeParam::getModule() const {
-        checkPlaceholder();
-        return placeholder->getModule();
+    ObjModule *TypeParam::get_module() const {
+        check_placeholder();
+        return placeholder->get_module();
     }
 
-    const Table<string> &TypeParam::getMeta() const {
-        checkPlaceholder();
-        return placeholder->getMeta();
+    const Table<string> &TypeParam::get_meta() const {
+        check_placeholder();
+        return placeholder->get_meta();
     }
 
-    const Sign &TypeParam::getSign() const {
-        checkPlaceholder();
-        return placeholder->getSign();
+    const Sign &TypeParam::get_sign() const {
+        check_placeholder();
+        return placeholder->get_sign();
     }
 
-    Type *TypeParam::getType() const {
-        checkPlaceholder();
-        return placeholder->getType();
+    Type *TypeParam::get_type() const {
+        check_placeholder();
+        return placeholder->get_type();
     }
 
     Obj *TypeParam::copy() {
         auto newTypeParam = halloc<TypeParam>(info.manager, sign, module);
-        newTypeParam->setPlaceholder(placeholder);
+        newTypeParam->set_placeholder(placeholder);
         return newTypeParam;
     }
 
-    void TypeParam::checkPlaceholder() const {
+    void TypeParam::check_placeholder() const {
         if (placeholder == null)
-            throw IllegalTypeParamAccessError(sign.toString());
+            throw IllegalTypeParamAccessError(sign.to_string());
     }
 
-    Obj *TypeParam::getMember(const string &name) const {
-        checkPlaceholder();
-        return placeholder->getMember(name);
+    Obj *TypeParam::get_member(const string &name) const {
+        check_placeholder();
+        return placeholder->get_member(name);
     }
 
-    void TypeParam::setMember(const string &name, Obj *value) {
-        checkPlaceholder();
-        placeholder->setMember(name, value);
+    void TypeParam::set_member(const string &name, Obj *value) {
+        check_placeholder();
+        placeholder->set_member(name, value);
     }
 
-    ObjMethod *TypeParam::getSuperClassMethod(const string &sign) {
-        checkPlaceholder();
-        return placeholder->getSuperClassMethod(sign);
+    ObjMethod *TypeParam::get_super_class_method(const string &sign) {
+        check_placeholder();
+        return placeholder->get_super_class_method(sign);
     }
 
-    Obj *TypeParam::getStaticMember(const string &name) const {
-        checkPlaceholder();
-        return placeholder->getStaticMember(name);
+    Obj *TypeParam::get_static_member(const string &name) const {
+        check_placeholder();
+        return placeholder->get_static_member(name);
     }
 
-    void TypeParam::setStaticMember(const string &name, Obj *value) {
-        checkPlaceholder();
-        placeholder->setStaticMember(name, value);
+    void TypeParam::set_static_member(const string &name, Obj *value) {
+        check_placeholder();
+        placeholder->set_static_member(name, value);
     }
 
-    Type *TypeParam::getReified(Obj **args, uint8 count) {
-        checkPlaceholder();
-        return placeholder->getReified(args, count);
+    Type *TypeParam::get_reified(Obj **args, uint8 count) {
+        check_placeholder();
+        return placeholder->get_reified(args, count);
     }
 
-    TypeParam *TypeParam::getTypeParam(const string &name) const {
-        checkPlaceholder();
-        return placeholder->getTypeParam(name);
+    TypeParam *TypeParam::get_type_param(const string &name) const {
+        check_placeholder();
+        return placeholder->get_type_param(name);
     }
 
-    NamedRef *TypeParam::captureTypeParam(const string &name) {
-        checkPlaceholder();
-        return placeholder->captureTypeParam(name);
+    NamedRef *TypeParam::capture_type_param(const string &name) {
+        check_placeholder();
+        return placeholder->capture_type_param(name);
     }
 }    // namespace spade

@@ -1,21 +1,21 @@
 #include "module.hpp"
-#include "../ee/thread.hpp"
+#include "ee/thread.hpp"
 
 namespace spade
 {
-    string ObjModule::getAbsolutePath() {
+    string ObjModule::get_absolute_path() {
         if (!path.is_absolute())
             path = std::filesystem::current_path() / path;
         return path.string();
     }
 
-    string ObjModule::getModuleName() const {
+    string ObjModule::get_module_name() const {
         return path.filename().string();
     }
 
-    ObjModule::ObjModule(const Sign &sign, const fs::path &path, const vector<Obj *> &constantPool,
-                         const vector<string> &dependencies, const ElpInfo &elp)
-        : Obj(sign, null, null), path(path), constantPool(constantPool), dependencies(dependencies), elp(elp) {}
+    ObjModule::ObjModule(const Sign &sign, const fs::path &path, const vector<Obj *> &constant_pool, const vector<string> &dependencies,
+                         const ElpInfo &elp)
+        : Obj(sign, null, null), path(path), constant_pool(constant_pool), dependencies(dependencies), elp(elp) {}
 
     Obj *ObjModule::copy() {
         return this;
@@ -25,15 +25,15 @@ namespace spade
         return true;
     }
 
-    string ObjModule::toString() const {
-        return std::format("<module {}>", sign.toString());
+    string ObjModule::to_string() const {
+        return std::format("<module {}>", sign.to_string());
     }
 
     ObjModule *ObjModule::current() {
         if (auto thread = Thread::current(); thread != null) {
-            auto state = thread->getState();
-            if (auto frame = state->getFrame(); frame > state->getCallStack()) {
-                return frame->getMethod()->getModule();
+            auto state = thread->get_state();
+            if (auto frame = state->get_frame(); frame > state->get_call_stack()) {
+                return frame->get_method()->get_module();
             }
         }
         return null;

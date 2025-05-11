@@ -7,23 +7,23 @@
 
 namespace spade
 {
-    static Table<MemberSlot> Type_getAllNonStaticMembers(Type *type, Table<ObjMethod *> &superMethods) {
+    static Table<MemberSlot> type_get_all_non_static_members(Type *type, Table<ObjMethod *> &super_methods) {
         Table<MemberSlot> result;
-        for (auto super: type->getSupers() | std::views::values) {
-            for (auto [name, member]: Type_getAllNonStaticMembers(super, superMethods)) {
-                if (!member.getFlags().isStatic()) {
-                    result[name] = MemberSlot{Obj::createCopy(member.getValue()), member.getFlags()};
+        for (auto super: type->get_supers() | std::views::values) {
+            for (auto [name, member]: type_get_all_non_static_members(super, super_methods)) {
+                if (!member.get_flags().is_static()) {
+                    result[name] = MemberSlot{Obj::create_copy(member.get_value()), member.get_flags()};
                 }
             }
         }
-        for (auto [name, member]: type->getMemberSlots()) {
-            if (!member.getFlags().isStatic()) {
+        for (auto [name, member]: type->get_member_slots()) {
+            if (!member.get_flags().is_static()) {
                 // Save methods that are being overrode
-                if (is<ObjMethod>(member.getValue()) && result.contains(name)) {
-                    auto method = cast<ObjMethod>(member.getValue());
-                    superMethods[method->getSign().toString()] = method;
+                if (is<ObjMethod>(member.get_value()) && result.contains(name)) {
+                    auto method = cast<ObjMethod>(member.get_value());
+                    super_methods[method->get_sign().to_string()] = method;
                 }
-                result[name] = MemberSlot{Obj::createCopy(member.getValue()), member.getFlags()};
+                result[name] = MemberSlot{Obj::create_copy(member.get_value()), member.get_flags()};
             }
         }
         return result;
@@ -34,77 +34,77 @@ namespace spade
             this->module = ObjModule::current();
         }
         if (type != null) {
-            memberSlots = Type_getAllNonStaticMembers(type, superClassMethods);
-            for (auto slot: memberSlots | std::views::values) {
-                Obj *value = slot.getValue();
+            member_slots = type_get_all_non_static_members(type, super_class_methods);
+            for (auto slot: member_slots | std::views::values) {
+                Obj *value = slot.get_value();
                 if (is<ObjCallable>(value)) {
-                    cast<ObjCallable>(value->copy())->setSelf(this);
+                    cast<ObjCallable>(value->copy())->set_self(this);
                 }
             }
         }
     }
 
-    void Obj::reify(Obj **pObj, const Table<NamedRef *> &old_, const Table<NamedRef *> &new_) {
-#define REIFY(pObj) reify(pObj, old_, new_)
-        if (*pObj == null)
+    void Obj::reify(Obj **p_obj, const Table<NamedRef *> &old_, const Table<NamedRef *> &new_) {
+#define REIFY(p_obj) reify(p_obj, old_, new_)
+        if (*p_obj == null)
             return;
         if (old_.empty() || new_.empty())
             return;
 
-        if (auto array = dynamic_cast<ObjArray *>(*pObj); array != null) {
+        if (auto array = dynamic_cast<ObjArray *>(*p_obj); array != null) {
             // Reify array items
             for (int i = 0; i < array->count(); ++i) {
                 auto item = array->get(i);
                 REIFY(&item);
                 array->set(i, item);
             }
-        } else if (auto method = dynamic_cast<ObjMethod *>(*pObj); method != null) {
-            auto frameTemplate = method->getFrameTemplate();
+        } else if (auto method = dynamic_cast<ObjMethod *>(*p_obj); method != null) {
+            auto frame_template = method->get_frame_template();
             // Reify args
-            auto &args = frameTemplate->getArgs();
+            auto &args = frame_template->get_args();
             for (int i = 0; i < args.count(); ++i) {
                 auto arg = args.get(i);
                 REIFY(&arg);
             }
             // Reify locals
-            auto &locals = frameTemplate->getLocals();
+            auto &locals = frame_template->get_locals();
             for (int i = 0; i < locals.count(); ++i) {
                 auto local = locals.get(i);
                 REIFY(&local);
             }
             // Reify lambdas
-            auto &lambdas = frameTemplate->getLambdas();
+            auto &lambdas = frame_template->get_lambdas();
             for (auto lambda: lambdas) {
-                auto lambdaObj = cast<Obj>(lambda);
-                REIFY(&lambdaObj);
+                auto lambda_obj = cast<Obj>(lambda);
+                REIFY(&lambda_obj);
             }
             // Reify matches
-            auto &matches = frameTemplate->getMatches();
+            auto &matches = frame_template->get_matches();
             for (const auto &match: matches) {
-                auto cases = match.getCases();
+                auto cases = match.get_cases();
                 for (const auto &kase: cases) {
-                    auto caseValue = kase.getValue();
-                    REIFY(&caseValue);
+                    auto case_value = kase.get_value();
+                    REIFY(&case_value);
                 }
             }
             // Reify exceptions
-            auto &exceptions = frameTemplate->getExceptions();
+            auto &exceptions = frame_template->get_exceptions();
             for (int i = 0; i < exceptions.count(); ++i) {
-                auto excType = cast<Obj>(exceptions.get(i).getType());
-                REIFY(&excType);
+                auto exc_type = cast<Obj>(exceptions.get(i).get_type());
+                REIFY(&exc_type);
             }
-        } else if (auto tp = dynamic_cast<TypeParam *>(*pObj); tp != null) {
+        } else if (auto tp = dynamic_cast<TypeParam *>(*p_obj); tp != null) {
             // Change type params accordingly
             for (const auto &[name, param]: old_) {
-                if (*pObj == param->getValue()) {
-                    *pObj = new_.at(name)->getValue();
+                if (*p_obj == param->get_value()) {
+                    *p_obj = new_.at(name)->get_value();
                     break;
                 }
             }
             return;
         }
 
-        auto object = *pObj;
+        auto object = *p_obj;
         // Reify object type
         Obj *type = object->type;
         if (type != null) {
@@ -112,82 +112,82 @@ namespace spade
             object->type = cast<Type>(type);
         }
         // Reify members
-        for (auto member: object->getMemberSlots() | std::views::values) {
-            REIFY(&member.getValue());
+        for (auto member: object->get_member_slots() | std::views::values) {
+            REIFY(&member.get_value());
         }
 #undef REIFY
     }
 
-    Obj *Obj::createCopy(Obj *obj) {
+    Obj *Obj::create_copy(Obj *obj) {
         return is<Type>(obj) || is<ObjCallable>(obj) || is<ObjModule>(obj) ? obj : obj->copy();
     }
 
-    Obj *Obj::getMember(const string &name) const {
+    Obj *Obj::get_member(const string &name) const {
         try {
-            return getMemberSlots().at(name).getValue();
+            return get_member_slots().at(name).get_value();
         } catch (std::out_of_range &) {
             if (type == null) {
-                throw IllegalAccessError(std::format("cannot find member: {} in {}", name, toString()));
+                throw IllegalAccessError(std::format("cannot find member: {} in {}", name, to_string()));
             } else {
                 try {
-                    return type->getStaticMember(name);
+                    return type->get_static_member(name);
                 } catch (const IllegalAccessError &) {
-                    throw IllegalAccessError(std::format("cannot find member: {} in {}", name, toString()));
+                    throw IllegalAccessError(std::format("cannot find member: {} in {}", name, to_string()));
                 }
             }
         }
     }
 
-    void Obj::setMember(const string &name, Obj *value) {
+    void Obj::set_member(const string &name, Obj *value) {
         try {
-            getMemberSlots().at(name).setValue(value);
+            get_member_slots().at(name).set_value(value);
         } catch (std::out_of_range &) {
             if (type == null) {
-                getMemberSlots()[name] = MemberSlot{value, 0b0001000000000000};
+                get_member_slots()[name] = MemberSlot{value, 0b0001000000000000};
             } else {
                 try {
-                    type->setStaticMember(name, value);
+                    type->set_static_member(name, value);
                 } catch (const IllegalAccessError &) {
-                    getMemberSlots()[name] = MemberSlot{value, 0b0001000000000000};
+                    get_member_slots()[name] = MemberSlot{value, 0b0001000000000000};
                 }
             }
         }
         if (is<ObjCallable>(value)) {
-            cast<ObjCallable>(value)->setSelf(this);
+            cast<ObjCallable>(value)->set_self(this);
             if (is<ObjMethod>(value)) {
-                cast<ObjMethod>(value)->setType(type);
+                cast<ObjMethod>(value)->set_type(type);
             }
         }
     }
 
-    const Table<string> &Obj::getMeta() const {
-        static Table<string> noMeta = {};
+    const Table<string> &Obj::get_meta() const {
+        static Table<string> no_meta = {};
         if (sign.empty())
-            return noMeta;
+            return no_meta;
         try {
-            return info.manager->getVM()->getMetadata(sign.toString());
+            return info.manager->get_vm()->get_metadata(sign.to_string());
         } catch (const IllegalAccessError &) {
-            return noMeta;
+            return no_meta;
         }
     }
 
     Obj *Obj::copy() {
-        auto copyObj = halloc<Obj>(info.manager, sign, type, module);
-        for (auto [name, slot]: memberSlots) {
-            copyObj->setMember(name, createCopy(slot.getValue()));
+        auto copy_obj = halloc<Obj>(info.manager, sign, type, module);
+        for (auto [name, slot]: member_slots) {
+            copy_obj->set_member(name, create_copy(slot.get_value()));
         }
-        return copyObj;
+        return copy_obj;
     }
 
-    string Obj::toString() const {
-        return std::format("<object {} : '{}'>", type->getSign().toString(), sign.toString());
+    string Obj::to_string() const {
+        return std::format("<object {} : '{}'>", type->get_sign().to_string(), sign.to_string());
     }
 
-    ObjMethod *Obj::getSuperClassMethod(const string &mSign) {
+    ObjMethod *Obj::get_super_class_method(const string &m_sign) {
         try {
-            return superClassMethods[mSign];
+            return super_class_methods[m_sign];
         } catch (const std::out_of_range &) {
-            throw IllegalAccessError(std::format("cannot find superclass method: {} in {}", mSign, toString()));
+            throw IllegalAccessError(std::format("cannot find superclass method: {} in {}", m_sign, to_string()));
         }
     }
 

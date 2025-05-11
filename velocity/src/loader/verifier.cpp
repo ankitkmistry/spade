@@ -1,6 +1,7 @@
 #include "verifier.hpp"
 
-namespace spade {
+namespace spade
+{
     void Verifier::verify() {
         auto magic = elp.magic;
         switch (elp.type) {
@@ -18,130 +19,131 @@ namespace spade {
                 throw corrupt();
         }
 
-        auto cpCount = elp.constantPoolCount;
-        for (int i = 0; i < cpCount; ++i) {
-            checkCp(elp.constantPool[i]);
+        auto cp_count = elp.constant_pool_count;
+        for (int i = 0; i < cp_count; ++i) {
+            check_cp(elp.constant_pool[i]);
         }
-        for (int i = 0; i < elp.globalsCount; i++) {
-            checkGlobal(elp.globals[i], cpCount);
+        for (int i = 0; i < elp.globals_count; i++) {
+            check_global(elp.globals[i], cp_count);
         }
-        for (int i = 0; i < elp.objectsCount; i++) {
-            checkObj(elp.objects[i], cpCount);
+        for (int i = 0; i < elp.objects_count; i++) {
+            check_obj(elp.objects[i], cp_count);
         }
     }
 
-    void Verifier::checkObj(ObjInfo object, uint16 cpCount) {
+    void Verifier::check_obj(ObjInfo object, uint16 cp_count) {
         switch (object.type) {
             case 0x01:
-                checkMethod(object._method, cpCount);
+                check_method(object._method, cp_count);
                 break;
             case 0x02:
-                checkClass(object._class, cpCount);
+                check_class(object._class, cp_count);
                 break;
             default:
                 throw corrupt();
         }
     }
 
-    void Verifier::checkClass(ClassInfo klass, uint16 cpCount) {
+    void Verifier::check_class(ClassInfo klass, uint16 cp_count) {
         if (klass.type < 0x01 || klass.type > 0x04)
             throw corrupt();
-        checkRange(klass.thisClass, cpCount);
-        checkRange(klass.supers, cpCount);
+        check_range(klass.this_class, cp_count);
+        check_range(klass.supers, cp_count);
 
-        for (int i = 0; i < klass.fieldsCount; i++) {
-            checkField(klass.fields[i], cpCount);
+        for (int i = 0; i < klass.fields_count; i++) {
+            check_field(klass.fields[i], cp_count);
         }
-        for (int i = 0; i < klass.methodsCount; i++) {
-            checkMethod(klass.methods[i], cpCount);
+        for (int i = 0; i < klass.methods_count; i++) {
+            check_method(klass.methods[i], cp_count);
         }
-        for (int i = 0; i < klass.objectsCount; i++) {
-            checkObj(klass.objects[i], cpCount);
+        for (int i = 0; i < klass.objects_count; i++) {
+            check_obj(klass.objects[i], cp_count);
         }
     }
 
-    void Verifier::checkField(FieldInfo field, uint16 cpCount) {
-        checkRange(field.thisField, cpCount);
-        checkRange(field.type, cpCount);
+    void Verifier::check_field(FieldInfo field, uint16 cp_count) {
+        check_range(field.this_field, cp_count);
+        check_range(field.type, cp_count);
     }
 
-    void Verifier::checkMethod(MethodInfo method, uint16 cpCount) {
+    void Verifier::check_method(MethodInfo method, uint16 cp_count) {
         if (method.type != 0x01 && method.type != 0x02) {
             throw corrupt();
         }
-        for (int i = 0; i < method.typeParamCount; ++i) {
-            checkRange(method.typeParams[i].name, cpCount);
+        for (int i = 0; i < method.type_param_count; ++i) {
+            check_range(method.type_params[i].name, cp_count);
         }
-        for (int i = 0; i < method.argsCount; i++) {
-            checkArg(method.args[i], cpCount);
+        for (int i = 0; i < method.args_count; i++) {
+            check_arg(method.args[i], cp_count);
         }
-        for (int i = 0; i < method.localsCount; i++) {
-            checkLocal(method.locals[i], cpCount);
+        for (int i = 0; i < method.locals_count; i++) {
+            check_local(method.locals[i], cp_count);
         }
-        for (int i = 0; i < method.exceptionTableCount; i++) {
-            checkException(method.exceptionTable[i], cpCount);
+        for (int i = 0; i < method.exception_table_count; i++) {
+            check_exception(method.exception_table[i], cp_count);
         }
-        uint32 codeCount = method.codeCount;
-        checkLine(method.lineInfo, codeCount);
-        for (int i = 0; i < method.lambdaCount; ++i) {
-            checkMethod(method.lambdas[i], cpCount);
+        uint32 code_count = method.code_count;
+        check_line(method.line_info, code_count);
+        for (int i = 0; i < method.lambda_count; ++i) {
+            check_method(method.lambdas[i], cp_count);
         }
-        for (int i = 0; i < method.matchCount; ++i) {
-            checkMatch(method.matches[i], codeCount, cpCount);
+        for (int i = 0; i < method.match_count; ++i) {
+            check_match(method.matches[i], code_count, cp_count);
         }
     }
 
-    void Verifier::checkMatch(MethodInfo::MatchInfo info, uint32 codeCount, uint16 cpCount) {
-        for (int i = 0; i < info.caseCount; ++i) {
+    void Verifier::check_match(MethodInfo::MatchInfo info, uint32 code_count, uint16 cp_count) {
+        for (int i = 0; i < info.case_count; ++i) {
             auto kase = info.cases[i];
-            checkRange(kase.value, cpCount);
-            checkRange(kase.location, codeCount);
+            check_range(kase.value, cp_count);
+            check_range(kase.location, code_count);
         }
-        checkRange(info.defaultLocation, codeCount);
+        check_range(info.default_location, code_count);
     }
 
-    void Verifier::checkLocal(MethodInfo::LocalInfo local, uint16 cpCount) {
-        checkRange(local.thisLocal, cpCount);
-        checkRange(local.type, cpCount);
+    void Verifier::check_local(MethodInfo::LocalInfo local, uint16 cp_count) {
+        check_range(local.this_local, cp_count);
+        check_range(local.type, cp_count);
     }
 
-    void Verifier::checkLine(MethodInfo::LineInfo line, uint16 codeCount) {
-        uint32 totalByteLines = 0;
-        for (int i = 0; i < line.numberCount; ++i) {
-            totalByteLines += line.numbers[i].times;
+    void Verifier::check_line(MethodInfo::LineInfo line, uint16 code_count) {
+        uint32 total_byte_lines = 0;
+        for (int i = 0; i < line.number_count; ++i) {
+            total_byte_lines += line.numbers[i].times;
         }
-        if (totalByteLines > codeCount) throw corrupt();
+        if (total_byte_lines > code_count)
+            throw corrupt();
     }
 
-    void Verifier::checkException(MethodInfo::ExceptionTableInfo exception,
-                                  uint16 cpCount) {
-        checkRange(exception.exception, cpCount);
+    void Verifier::check_exception(MethodInfo::ExceptionTableInfo exception, uint16 cp_count) {
+        check_range(exception.exception, cp_count);
     }
 
-    void Verifier::checkArg(MethodInfo::ArgInfo arg, uint16 cpCount) {
-        checkRange(arg.thisArg, cpCount);
-        checkRange(arg.type, cpCount);
+    void Verifier::check_arg(MethodInfo::ArgInfo arg, uint16 cp_count) {
+        check_range(arg.this_arg, cp_count);
+        check_range(arg.type, cp_count);
     }
 
-    void Verifier::checkGlobal(GlobalInfo global, uint16 cpCount) {
+    void Verifier::check_global(GlobalInfo global, uint16 cp_count) {
         if (global.flags != 0x01 && global.flags != 0x02)
             throw corrupt();
-        checkRange(global.thisGlobal, cpCount);
-        checkRange(global.type, cpCount);
+        check_range(global.this_global, cp_count);
+        check_range(global.type, cp_count);
     }
 
-    void Verifier::checkRange(ui4 i, ui4 count) {
-        if (i >= count) throw corrupt();
+    void Verifier::check_range(ui4 i, ui4 count) {
+        if (i >= count)
+            throw corrupt();
     }
 
-    void Verifier::checkCp(CpInfo info) {
+    void Verifier::check_cp(CpInfo info) {
         if (info.tag > 0x07)
             throw corrupt();
         if (info.tag == 0x07) {
             auto array = info._array;
             for (int i = 0; i < array.len; ++i) {
-                checkCp(array.items[i]);
+                check_cp(array.items[i]);
             }
         }
     }
-}// namespace spade
+}    // namespace spade

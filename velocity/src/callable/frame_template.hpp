@@ -1,8 +1,7 @@
 #pragma once
 
-#include "../objects/obj.hpp"
-#include "../objects/typeparam.hpp"
-#include "../utils/common.hpp"
+#include "utils/common.hpp"
+#include "objects/obj.hpp"
 #include "frame.hpp"
 #include "table.hpp"
 
@@ -11,9 +10,9 @@ namespace spade
     class ObjMethod;
 
     class FrameTemplate {
-        uint32 codeCount;
+        uint32 code_count;
         uint8 *code;
-        uint32 maxStack;
+        uint32 max_stack;
         ArgsTable args;
         LocalsTable locals;
         ExceptionTable exceptions;
@@ -23,12 +22,11 @@ namespace spade
         ObjMethod *method;
 
       public:
-        FrameTemplate(uint32 codeCount, uint8 *code, uint32 maxStack, ArgsTable args, LocalsTable locals,
-                      ExceptionTable exceptions, LineNumberTable lines, vector<ObjMethod *> lambdas, vector<MatchTable> matches,
-                      ObjMethod *method = null)
-            : codeCount(codeCount),
+        FrameTemplate(uint32 code_count, uint8 *code, uint32 max_stack, ArgsTable args, LocalsTable locals, ExceptionTable exceptions,
+                      LineNumberTable lines, vector<ObjMethod *> lambdas, vector<MatchTable> matches, ObjMethod *method = null)
+            : code_count(code_count),
               code(code),
-              maxStack(maxStack),
+              max_stack(max_stack),
               args(args),
               locals(locals),
               exceptions(exceptions),
@@ -40,71 +38,71 @@ namespace spade
         Frame initialize();
         FrameTemplate *copy();
 
-        uint32 getCodeCount() const {
-            return codeCount;
+        uint32 get_code_count() const {
+            return code_count;
         }
 
-        uint8 *getCode() const {
+        uint8 *get_code() const {
             return code;
         }
 
-        uint32 getMaxStack() const {
-            return maxStack;
+        uint32 get_max_stack() const {
+            return max_stack;
         }
 
-        const ArgsTable &getArgs() const {
+        const ArgsTable &get_args() const {
             return args;
         }
 
-        const LocalsTable &getLocals() const {
+        const LocalsTable &get_locals() const {
             return locals;
         }
 
-        const ExceptionTable &getExceptions() const {
+        const ExceptionTable &get_exceptions() const {
             return exceptions;
         }
 
-        const LineNumberTable &getLines() const {
+        const LineNumberTable &get_lines() const {
             return lines;
         }
 
-        const vector<ObjMethod *> &getLambdas() const {
+        const vector<ObjMethod *> &get_lambdas() const {
             return lambdas;
         }
 
-        const vector<MatchTable> &getMatches() const {
+        const vector<MatchTable> &get_matches() const {
             return matches;
         }
 
-        ArgsTable &getArgs() {
+        ArgsTable &get_args() {
             return args;
         }
 
-        LocalsTable &getLocals() {
+        LocalsTable &get_locals() {
             return locals;
         }
 
-        ExceptionTable &getExceptions() {
+        ExceptionTable &get_exceptions() {
             return exceptions;
         }
 
-        LineNumberTable &getLines() {
+        LineNumberTable &get_lines() {
             return lines;
         }
 
-        vector<ObjMethod *> &getLambdas() {
+        vector<ObjMethod *> &get_lambdas() {
             return lambdas;
         }
 
-        vector<MatchTable> &getMatches() {
+        vector<MatchTable> &get_matches() {
             return matches;
         }
 
-        ObjMethod *getMethod() const {
+        ObjMethod *get_method() const {
             return method;
         }
 
-        void setMethod(ObjMethod *method_) {
+        void set_method(ObjMethod *method_) {
             method = method_;
         }
     };

@@ -11,6 +11,7 @@
 #include <functional>
 #include <string>
 #include <vector>
+#include <unordered_map>
 #include <map>
 #include <set>
 #include <sstream>
@@ -26,7 +27,7 @@ namespace spade
 {
     namespace fs = std::filesystem;
 
-    using std::string, std::vector, std::map, std::function;
+    using std::string;
 
     using intptr = std::intptr_t;
 
@@ -41,7 +42,7 @@ namespace spade
     using int64 = std::int64_t;
 
     template<class T>
-    using Table = std::unordered_map<string, T, std::hash<string>, std::equal_to<string>>;
+    using Table = std::unordered_map<string, T>;
 
     class Type;
 }    // namespace spade

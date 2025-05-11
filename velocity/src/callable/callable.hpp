@@ -12,7 +12,7 @@ namespace spade
       protected:
         Kind kind;
 
-        void validateCallSite();
+        void validate_call_site();
 
       public:
         ObjCallable(const Sign &sign, Kind kind, Type *type, ObjModule *module = null) : Obj(sign, type, module), kind(kind) {}
@@ -33,7 +33,7 @@ namespace spade
          */
         virtual void call(Obj **args) = 0;
 
-        virtual void setSelf(Obj *self) = 0;
+        virtual void set_self(Obj *self) = 0;
 
         /**
          * Calls this method with \p args on the current thread.
@@ -46,7 +46,7 @@ namespace spade
          */
         Obj *invoke(const vector<Obj *> &args);
 
-        Kind getKind() const {
+        Kind get_kind() const {
             return kind;
         }
 

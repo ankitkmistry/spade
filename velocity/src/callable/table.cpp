@@ -1,108 +1,108 @@
 #include "table.hpp"
-#include "../objects/int.hpp"
+#include "objects/int.hpp"
 
 namespace spade
 {
     NamedRef *NamedRef::copy() const {
-        return halloc<NamedRef>(null, name, noCopy ? value : Obj::createCopy(value), meta);
+        return halloc<NamedRef>(null, name, no_copy ? value : Obj::create_copy(value), meta);
     }
 
     Obj *ArgsTable::get(uint8 i) const {
         if (i >= args.size())
             throw IndexError("argument", i);
-        return args[i]->getValue();
+        return args[i]->get_value();
     }
 
     void ArgsTable::set(uint8 i, Obj *val) {
         if (i >= args.size())
             throw IndexError("argument", i);
-        args[i]->setValue(val);
+        args[i]->set_value(val);
     }
 
     ArgsTable ArgsTable::copy() const {
-        ArgsTable newArgs;
+        ArgsTable new_args;
         for (auto arg: args) {
-            newArgs.addArg(arg->copy());
+            new_args.add_arg(arg->copy());
         }
-        newArgs.args.shrink_to_fit();
-        return newArgs;
+        new_args.args.shrink_to_fit();
+        return new_args;
     }
 
     Obj *LocalsTable::get(uint16 i) const {
         if (i >= closureStart)
-            return getClosure(i)->getValue();
-        return getLocal(i)->getValue();
+            return get_closure(i)->get_value();
+        return get_local(i)->get_value();
     }
 
     void LocalsTable::set(uint16 i, Obj *val) {
         if (i >= closureStart)
-            getClosure(i)->setValue(val);
+            get_closure(i)->set_value(val);
         else
-            getLocal(i)->setValue(val);
+            get_local(i)->set_value(val);
     }
 
-    NamedRef *LocalsTable::getLocal(uint16 i) const {
+    NamedRef *LocalsTable::get_local(uint16 i) const {
         if (i >= locals.size())
             throw IndexError("local", i);
         return locals[i];
     }
 
-    NamedRef *LocalsTable::getClosure(uint16 i) const {
+    NamedRef *LocalsTable::get_closure(uint16 i) const {
         if (i - closureStart >= closures.size())
             throw IndexError("closure", i - closureStart);
         return closures[i - closureStart];
     }
 
     LocalsTable LocalsTable::copy() const {
-        LocalsTable newLocals{closureStart};
+        LocalsTable new_locals{closureStart};
         for (auto local: locals) {
-            newLocals.addLocal(local->copy());
+            new_locals.add_local(local->copy());
         }
-        newLocals.locals.shrink_to_fit();
+        new_locals.locals.shrink_to_fit();
         for (auto closure: closures) {
-            newLocals.addClosure(closure);
+            new_locals.add_closure(closure);
         }
-        newLocals.closures.shrink_to_fit();
-        return newLocals;
+        new_locals.closures.shrink_to_fit();
+        return new_locals;
     }
 
-    Exception ExceptionTable::getTarget(uint32 pc, const Type *type) const {
+    Exception ExceptionTable::get_target(uint32 pc, const Type *type) const {
         for (auto &exception: exceptions) {
-            if (exception.getFrom() <= pc && pc < exception.getTo() && exception.getType() == type) {
+            if (exception.get_from() <= pc && pc < exception.get_to() && exception.get_type() == type) {
                 return exception;
             }
         }
         return Exception::NO_EXCEPTION();
     }
 
-    void LineNumberTable::addLine(uint8 times, uint32 sourceLine) {
-        if (!lineInfos.empty() && lineInfos.back().sourceLine == sourceLine) {
-            lineInfos.back().byteEnd += times;
+    void LineNumberTable::add_line(uint8 times, uint32 source_line) {
+        if (!line_infos.empty() && line_infos.back().sourceLine == source_line) {
+            line_infos.back().byteEnd += times;
         } else {
-            uint16 end = lineInfos.empty() ? 0 : lineInfos.back().byteEnd;
-            lineInfos.push_back(LineInfo{.sourceLine = sourceLine, .byteStart = end, .byteEnd = (uint16) (end + times)});
+            uint16 end = line_infos.empty() ? 0 : line_infos.back().byteEnd;
+            line_infos.push_back(LineInfo{.sourceLine = source_line, .byteStart = end, .byteEnd = (uint16) (end + times)});
         }
     }
 
-    uint64 LineNumberTable::getSourceLine(uint32 byteLine) const {
-        for (auto lineInfo: lineInfos) {
-            if (lineInfo.byteStart <= byteLine && byteLine < lineInfo.byteEnd) {
-                return lineInfo.sourceLine;
+    uint64 LineNumberTable::get_source_line(uint32 byte_line) const {
+        for (auto line_info: line_infos) {
+            if (line_info.byteStart <= byte_line && byte_line < line_info.byteEnd) {
+                return line_info.sourceLine;
             }
         }
-        throw IllegalAccessError(std::format("no source line mapping is present for byte line {}", byteLine));
+        throw IllegalAccessError(std::format("no source line mapping is present for byte line {}", byte_line));
     }
 
     uint32 MatchTable::perform(Obj *value) const {
         // Info: improve this to perform fast matching in case of integer values
         if (is<ObjInt>(value)) {
             auto val = cast<ObjInt>(value)->value();
-            return cases[val].getLocation();
+            return cases[val].get_location();
         }
         for (auto kase: cases) {
-            if (kase.getValue() == value)
-                return kase.getLocation();
+            if (kase.get_value() == value)
+                return kase.get_location();
         }
-        return defaultLocation;
+        return default_location;
     }
 }    // namespace spade

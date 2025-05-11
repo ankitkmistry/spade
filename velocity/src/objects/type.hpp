@@ -26,35 +26,45 @@ namespace spade
       protected:
         Kind kind;
         Table<Type *> supers;
-        Table<NamedRef *> typeParams;
+        Table<NamedRef *> type_params;
 
       private:
-        static Table<map<Table<Type *>, Type *>> reificationTable;
+        static Table<std::unordered_map<Table<Type *>, Type *>> reification_table;
 
-        Type *returnReified(const Table<Type *>& typeParams);
+        Type *return_reified(const Table<Type *> &type_params);
 
       public:
-        Type(const Sign &sign, Kind kind, const Table<NamedRef *> &typeParams, const Table<Type *> &supers,
-             const Table<MemberSlot> &memberSlots, ObjModule *module = null)
-            : Obj(sign, null, module), kind(kind), supers(supers), typeParams(typeParams) {
-            this->memberSlots = memberSlots;
+        Type(const Sign &sign, Kind kind, const Table<NamedRef *> &type_params, const Table<Type *> &supers, const Table<MemberSlot> &member_slots,
+             ObjModule *module = null)
+            : Obj(sign, null, module), kind(kind), supers(supers), type_params(type_params) {
+            this->member_slots = member_slots;
         }
 
         Type(const Type &type);
 
-        virtual Kind getKind() const { return kind; }
+        virtual Kind get_kind() const {
+            return kind;
+        }
 
-        virtual const Table<Type *> &getSupers() const { return supers; }
+        virtual const Table<Type *> &get_supers() const {
+            return supers;
+        }
 
-        virtual const Table<NamedRef *> &getTypeParams() const { return typeParams; }
+        virtual const Table<NamedRef *> &get_type_params() const {
+            return type_params;
+        }
 
-        virtual Table<Type *> &getSupers() { return supers; }
+        virtual Table<Type *> &get_supers() {
+            return supers;
+        }
 
-        virtual Table<NamedRef *> &getTypeParams() { return typeParams; }
+        virtual Table<NamedRef *> &get_type_params() {
+            return type_params;
+        }
 
-        virtual Obj *getStaticMember(const string& name) const;
+        virtual Obj *get_static_member(const string &name) const;
 
-        virtual void setStaticMember(const string& name, Obj *value);
+        virtual void set_static_member(const string &name, Obj *value);
 
         /**
          * Reifies this type and returns the reified type.
@@ -68,7 +78,7 @@ namespace spade
          * @param count count of type args
          * @return the reified type
          */
-        virtual Type *getReified(Obj **args, uint8 count);
+        virtual Type *get_reified(Obj **args, uint8 count);
 
         /**
          * Reifies this type and returns the reified type.
@@ -83,18 +93,18 @@ namespace spade
          * @param count count of type args
          * @return the reified type
          */
-        Type *getReified(const vector<Type *>& args);
+        Type *get_reified(const vector<Type *> &args);
 
-        virtual TypeParam *getTypeParam(const string& name) const;
+        virtual TypeParam *get_type_param(const string &name) const;
 
-        virtual NamedRef *captureTypeParam(const string& name);
+        virtual NamedRef *capture_type_param(const string &name);
 
         Obj *copy() override;
 
         bool truth() const override;
 
-        string toString() const override;
+        string to_string() const override;
 
         static Type *SENTINEL_(const string &sign, MemoryManager *manager);
     };
-} // namespace spade
+}    // namespace spade

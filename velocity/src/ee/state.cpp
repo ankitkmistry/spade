@@ -1,22 +1,20 @@
 #include "state.hpp"
-#include "../callable/method.hpp"
-#include "../objects/module.hpp"
 
 namespace spade {
     VMState::VMState(SpadeVM *vm) : vm(vm) {
-        callStack = new Frame[FRAMES_MAX];
-        fp = callStack;
+        call_stack = new Frame[FRAMES_MAX];
+        fp = call_stack;
     }
 
-    void VMState::pushFrame(Frame frame) {
-        if (fp - callStack >= FRAMES_MAX) {
+    void VMState::push_frame(Frame frame) {
+        if (fp - call_stack >= FRAMES_MAX) {
             throw StackOverflowError();
         }
         *fp++ = frame;
     }
 
-    Frame *VMState::popFrame() {
-        if (fp > callStack) {
+    Frame *VMState::pop_frame() {
+        if (fp > call_stack) {
             return fp--;
         }
         return fp = null;

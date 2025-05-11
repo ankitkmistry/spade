@@ -14,7 +14,7 @@ namespace spade
         /// Path of the module
         fs::path path;
         /// The constant pool of the module
-        vector<Obj *> constantPool;
+        vector<Obj *> constant_pool;
         /// The dependencies of the module
         vector<string> dependencies;
         /// The information in the module
@@ -23,44 +23,44 @@ namespace spade
         ObjMethod *init = null;
 
       public:
-        ObjModule(const Sign &sign, const fs::path &path, const vector<Obj *> &constantPool, const vector<string> &dependencies,
+        ObjModule(const Sign &sign, const fs::path &path, const vector<Obj *> &constant_pool, const vector<string> &dependencies,
                   const ElpInfo &elp);
 
         static ObjModule *current();
 
-        string getAbsolutePath();
+        string get_absolute_path();
 
-        string getModuleName() const;
+        string get_module_name() const;
 
-        State getState() const {
+        State get_state() const {
             return state;
         }
 
-        void setState(State state_) {
+        void set_state(State state_) {
             state = state_;
         }
 
-        const fs::path &getPath() const {
+        const fs::path &get_path() const {
             return path;
         }
 
-        ElpInfo getElp() const {
+        ElpInfo get_elp() const {
             return elp;
         }
 
-        const vector<Obj *> &getConstantPool() const {
-            return constantPool;
+        const vector<Obj *> &get_constant_pool() const {
+            return constant_pool;
         }
 
-        const vector<string> &getDependencies() const {
+        const vector<string> &get_dependencies() const {
             return dependencies;
         }
 
-        ObjMethod *getInit() const {
+        ObjMethod *get_init() const {
             return init;
         }
 
-        void setInit(ObjMethod *init_) {
+        void set_init(ObjMethod *init_) {
             init = init_;
         }
 
@@ -68,6 +68,6 @@ namespace spade
 
         bool truth() const override;
 
-        string toString() const override;
+        string to_string() const override;
     };
 }    // namespace spade

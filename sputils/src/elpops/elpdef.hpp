@@ -88,14 +88,14 @@ namespace spade
 
     struct GlobalInfo {
         ui1 flags;
-        cpidx thisGlobal;
+        cpidx this_global;
         cpidx type;
         MetaInfo meta;
     };
 
     struct FieldInfo {
         ui2 flags;
-        cpidx thisField;
+        cpidx this_field;
         cpidx type;
         MetaInfo meta;
     };
@@ -105,67 +105,67 @@ namespace spade
     };
 
     struct MethodInfo {
-        ui2 accessFlags;
+        ui2 access_flags;
         ui1 type;
-        cpidx thisMethod;
+        cpidx this_method;
 
-        ui1 typeParamCount;
-        TypeParamInfo *typeParams;
+        ui1 type_param_count;
+        TypeParamInfo *type_params;
 
-        ui1 argsCount;
+        ui1 args_count;
 
         struct ArgInfo {
-            cpidx thisArg;
+            cpidx this_arg;
             cpidx type;
             MetaInfo meta;
         } *args;
 
-        ui2 localsCount;
-        ui2 closureStart;
+        ui2 locals_count;
+        ui2 closure_start;
 
         struct LocalInfo {
-            cpidx thisLocal;
+            cpidx this_local;
             cpidx type;
             MetaInfo meta;
         } *locals;
 
-        ui4 maxStack;
-        ui4 codeCount;
+        ui4 max_stack;
+        ui4 code_count;
         ui1 *code;
 
-        ui2 exceptionTableCount;
+        ui2 exception_table_count;
 
         struct ExceptionTableInfo {
-            ui4 startPc;
-            ui4 endPc;
-            ui4 targetPc;
+            ui4 start_pc;
+            ui4 end_pc;
+            ui4 target_pc;
             cpidx exception;
             MetaInfo meta;
-        } *exceptionTable;
+        } *exception_table;
 
         struct LineInfo {
-            ui2 numberCount;
+            ui2 number_count;
 
             struct NumberInfo {
                 ui1 times;
                 ui4 lineno;
             } *numbers;
-        } lineInfo;
+        } line_info;
 
-        ui2 lambdaCount;
+        ui2 lambda_count;
         MethodInfo *lambdas;
 
-        ui2 matchCount;
+        ui2 match_count;
 
         struct MatchInfo {
-            ui2 caseCount;
+            ui2 case_count;
 
             struct CaseInfo {
                 cpidx value;
                 ui4 location;
             } *cases;
 
-            ui4 defaultLocation;
+            ui4 default_location;
             MetaInfo meta;
         } *matches;
 
@@ -176,16 +176,16 @@ namespace spade
 
     struct ClassInfo {
         ui1 type;
-        ui2 accessFlags;
-        cpidx thisClass;
-        ui1 typeParamCount;
-        TypeParamInfo *typeParams;
+        ui2 access_flags;
+        cpidx this_class;
+        ui1 type_param_count;
+        TypeParamInfo *type_params;
         cpidx supers;
-        ui2 fieldsCount;
+        ui2 fields_count;
         FieldInfo *fields;
-        ui2 methodsCount;
+        ui2 methods_count;
         MethodInfo *methods;
-        ui2 objectsCount;
+        ui2 objects_count;
         ObjInfo *objects;
         MetaInfo meta;
     };
@@ -206,22 +206,22 @@ namespace spade
 
     struct ElpInfo {
         ui4 magic = 0;
-        ui4 minorVersion = 0;
-        ui4 majorVersion = 0;
+        ui4 minor_version = 0;
+        ui4 major_version = 0;
 
-        cpidx compiledFrom = 0;
+        cpidx compiled_from = 0;
         ui1 type = 0;
-        cpidx thisModule = 0;
+        cpidx this_module = 0;
 
         cpidx init = 0;
         cpidx entry = 0;
         cpidx imports = 0;
 
-        ui2 constantPoolCount = 0;
-        CpInfo *constantPool = null;
-        ui2 globalsCount = 0;
+        ui2 constant_pool_count = 0;
+        CpInfo *constant_pool = null;
+        ui2 globals_count = 0;
         GlobalInfo *globals = null;
-        ui2 objectsCount = 0;
+        ui2 objects_count = 0;
         ObjInfo *objects = null;
         MetaInfo meta;
 

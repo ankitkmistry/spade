@@ -8,7 +8,7 @@ namespace spade::basic
         return p;
     }
 
-    void BasicMemoryManager::postAllocation(Collectible *obj) {
+    void BasicMemoryManager::post_allocation(Collectible *obj) {
         if (head == null || last == null) {
             auto node = new LNode;
             node->data = obj;
@@ -48,7 +48,7 @@ namespace spade::basic
         delete (char *) pointer;
     }
 
-    void BasicMemoryManager::collectGarbage() {
+    void BasicMemoryManager::collect_garbage() {
         BasicCollector collector{this};
         collector.gc();
     }

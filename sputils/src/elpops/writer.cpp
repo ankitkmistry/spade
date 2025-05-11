@@ -13,24 +13,24 @@ namespace spade
 
     void ElpWriter::write(const ElpInfo &elp) {
         write(elp.magic);
-        write(elp.minorVersion);
-        write(elp.majorVersion);
-        write(elp.compiledFrom);
+        write(elp.minor_version);
+        write(elp.major_version);
+        write(elp.compiled_from);
         write(elp.type);
-        write(elp.thisModule);
+        write(elp.this_module);
         write(elp.init);
         write(elp.entry);
         write(elp.imports);
-        write(elp.constantPoolCount);
-        for (int i = 0; i < elp.constantPoolCount; ++i) {
-            write(elp.constantPool[i]);
+        write(elp.constant_pool_count);
+        for (int i = 0; i < elp.constant_pool_count; ++i) {
+            write(elp.constant_pool[i]);
         }
-        write(elp.globalsCount);
-        for (int i = 0; i < elp.globalsCount; ++i) {
+        write(elp.globals_count);
+        for (int i = 0; i < elp.globals_count; ++i) {
             write(elp.globals[i]);
         }
-        write(elp.objectsCount);
-        for (int i = 0; i < elp.objectsCount; ++i) {
+        write(elp.objects_count);
+        for (int i = 0; i < elp.objects_count; ++i) {
             write(elp.objects[i]);
         }
         write(elp.meta);
@@ -75,7 +75,7 @@ namespace spade
 
     void ElpWriter::write(const GlobalInfo &info) {
         write(info.flags);
-        write(info.thisGlobal);
+        write(info.this_global);
         write(info.type);
         write(info.meta);
     }
@@ -95,46 +95,46 @@ namespace spade
     }
 
     void ElpWriter::write(const MethodInfo &info) {
-        write(info.accessFlags);
+        write(info.access_flags);
         write(info.type);
-        write(info.thisMethod);
-        write(info.typeParamCount);
-        for (int i = 0; i < info.typeParamCount; ++i) {
-            write(info.typeParams[i]);
+        write(info.this_method);
+        write(info.type_param_count);
+        for (int i = 0; i < info.type_param_count; ++i) {
+            write(info.type_params[i]);
         }
-        write(info.argsCount);
-        for (int i = 0; i < info.argsCount; ++i) {
+        write(info.args_count);
+        for (int i = 0; i < info.args_count; ++i) {
             write(info.args[i]);
         }
-        write(info.localsCount);
-        write(info.closureStart);
-        for (int i = 0; i < info.localsCount; ++i) {
+        write(info.locals_count);
+        write(info.closure_start);
+        for (int i = 0; i < info.locals_count; ++i) {
             write(info.locals[i]);
         }
-        write(info.maxStack);
-        write(info.codeCount);
-        for (ui4 i = 0; i < info.codeCount; ++i) {
+        write(info.max_stack);
+        write(info.code_count);
+        for (ui4 i = 0; i < info.code_count; ++i) {
             write(info.code[i]);
         }
-        write(info.exceptionTableCount);
-        for (int i = 0; i < info.exceptionTableCount; ++i) {
-            write(info.exceptionTable[i]);
+        write(info.exception_table_count);
+        for (int i = 0; i < info.exception_table_count; ++i) {
+            write(info.exception_table[i]);
         }
-        write(info.lineInfo);
-        write(info.lambdaCount);
-        for (int i = 0; i < info.lambdaCount; ++i) {
+        write(info.line_info);
+        write(info.lambda_count);
+        for (int i = 0; i < info.lambda_count; ++i) {
             write(info.lambdas[i]);
         }
-        write(info.matchCount);
-        for (int i = 0; i < info.matchCount; ++i) {
+        write(info.match_count);
+        for (int i = 0; i < info.match_count; ++i) {
             write(info.matches[i]);
         }
         write(info.meta);
     }
 
     void ElpWriter::write(MethodInfo::LineInfo line) {
-        write(line.numberCount);
-        for (int i = 0; i < line.numberCount; ++i) {
+        write(line.number_count);
+        for (int i = 0; i < line.number_count; ++i) {
             auto info = line.numbers[i];
             write(info.times);
             write(info.lineno);
@@ -142,31 +142,31 @@ namespace spade
     }
 
     void ElpWriter::write(const MethodInfo::ArgInfo &info) {
-        write(info.thisArg);
+        write(info.this_arg);
         write(info.type);
         write(info.meta);
     }
 
     void ElpWriter::write(const MethodInfo::LocalInfo &info) {
-        write(info.thisLocal);
+        write(info.this_local);
         write(info.type);
         write(info.meta);
     }
 
     void ElpWriter::write(const MethodInfo::ExceptionTableInfo &info) {
-        write(info.startPc);
-        write(info.endPc);
-        write(info.targetPc);
+        write(info.start_pc);
+        write(info.end_pc);
+        write(info.target_pc);
         write(info.exception);
         write(info.meta);
     }
 
     void ElpWriter::write(const MethodInfo::MatchInfo &info) {
-        write(info.caseCount);
-        for (int i = 0; i < info.caseCount; ++i) {
+        write(info.case_count);
+        for (int i = 0; i < info.case_count; ++i) {
             write(info.cases[i]);
         }
-        write(info.defaultLocation);
+        write(info.default_location);
         write(info.meta);
     }
 
@@ -177,23 +177,23 @@ namespace spade
 
     void ElpWriter::write(const ClassInfo &info) {
         write(info.type);
-        write(info.accessFlags);
-        write(info.thisClass);
-        write(info.typeParamCount);
-        for (int i = 0; i < info.typeParamCount; ++i) {
-            write(info.typeParams[i]);
+        write(info.access_flags);
+        write(info.this_class);
+        write(info.type_param_count);
+        for (int i = 0; i < info.type_param_count; ++i) {
+            write(info.type_params[i]);
         }
         write(info.supers);
-        write(info.fieldsCount);
-        for (int i = 0; i < info.fieldsCount; ++i) {
+        write(info.fields_count);
+        for (int i = 0; i < info.fields_count; ++i) {
             write(info.fields[i]);
         }
-        write(info.methodsCount);
-        for (int i = 0; i < info.methodsCount; ++i) {
+        write(info.methods_count);
+        for (int i = 0; i < info.methods_count; ++i) {
             write(info.methods[i]);
         }
-        write(info.objectsCount);
-        for (int i = 0; i < info.objectsCount; ++i) {
+        write(info.objects_count);
+        for (int i = 0; i < info.objects_count; ++i) {
             write(info.objects[i]);
         }
         write(info.meta);
@@ -201,7 +201,7 @@ namespace spade
 
     void ElpWriter::write(const FieldInfo &info) {
         write(info.flags);
-        write(info.thisField);
+        write(info.this_field);
         write(info.type);
         write(info.meta);
     }

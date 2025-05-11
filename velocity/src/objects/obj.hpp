@@ -44,39 +44,39 @@ namespace spade
 
         Flags(uint16 raw = 0) : raw(raw) {}
 
-        bool isStatic() const {
+        bool is_static() const {
             return raw & 0b0000'0001;
         }
 
-        bool isAbstract() const {
+        bool is_abstract() const {
             return raw & 0b0000'0010;
         }
 
-        bool isFinal() const {
+        bool is_final() const {
             return raw & 0b0000'0100;
         }
 
-        bool isOperator() const {
+        bool is_operator() const {
             return raw & 0b0000'1000;
         }
 
-        bool isPrivate() const {
+        bool is_private() const {
             return (raw >> 8) & 0b0000'0001;
         }
 
-        bool isInternal() const {
+        bool is_internal() const {
             return (raw >> 8) & 0b0000'0010;
         }
 
-        bool isPackagePrivate() const {
+        bool is_package_private() const {
             return (raw >> 8) & 0b0000'0100;
         }
 
-        bool isProtected() const {
+        bool is_protected() const {
             return (raw >> 8) & 0b0000'1000;
         }
 
-        bool isPublic() const {
+        bool is_public() const {
             return (raw >> 8) & 0b0001'0000;
         }
     };
@@ -89,19 +89,19 @@ namespace spade
       public:
         MemberSlot(Obj *value = null, Flags flags = Flags{0}) : value(value), flags(flags) {}
 
-        Obj *getValue() const {
+        Obj *get_value() const {
             return value;
         }
 
-        Obj *&getValue() {
+        Obj *&get_value() {
             return value;
         }
 
-        void setValue(Obj *value_) {
+        void set_value(Obj *value_) {
             value = value_;
         }
 
-        const Flags &getFlags() const {
+        const Flags &get_flags() const {
             return flags;
         }
     };
@@ -118,9 +118,9 @@ namespace spade
         /// Type of the object
         Type *type;
         /// Member slots of the object
-        Table<MemberSlot> memberSlots = {};
+        Table<MemberSlot> member_slots = {};
         /// Methods of superclass which have been overrode
-        Table<ObjMethod *> superClassMethods = {};
+        Table<ObjMethod *> super_class_methods = {};
 
         /**
          * Changes pointer to type params @p pObj specified in @p old_ to pointers specified in @p new_.
@@ -140,7 +140,7 @@ namespace spade
          * @param obj
          * @return
          */
-        static Obj *createCopy(Obj *obj);
+        static Obj *create_copy(Obj *obj);
 
         /**
          *
@@ -167,26 +167,26 @@ namespace spade
         /**
          * @return a string representation of this object for VM context only
          */
-        virtual string toString() const;
+        virtual string to_string() const;
 
         /**
          * @return the encapsulating module of the object
          */
-        virtual ObjModule *getModule() const {
+        virtual ObjModule *get_module() const {
             return module;
         }
 
         /**
          * @return the signature of the object
          */
-        virtual const Sign &getSign() const {
+        virtual const Sign &get_sign() const {
             return sign;
         }
 
         /**
          * @return the type of the object
          */
-        virtual Type *getType() const {
+        virtual Type *get_type() const {
             return type;
         }
 
@@ -194,22 +194,22 @@ namespace spade
          * Sets the type of the object
          * @param destType the destination type
          */
-        void setType(Type *destType) {
+        void set_type(Type *destType) {
             this->type = destType;
         }
 
         /**
          * @return the members of this object
          */
-        virtual const Table<MemberSlot> &getMemberSlots() const {
-            return memberSlots;
+        virtual const Table<MemberSlot> &get_member_slots() const {
+            return member_slots;
         }
 
         /**
          * @return the members of this object
          */
-        virtual Table<MemberSlot> &getMemberSlots() {
-            return memberSlots;
+        virtual Table<MemberSlot> &get_member_slots() {
+            return member_slots;
         }
 
         /**
@@ -217,7 +217,7 @@ namespace spade
          * @param name the name of the member
          * @return the member of this object, the member can be static also
          */
-        virtual Obj *getMember(const string &name) const;
+        virtual Obj *get_member(const string &name) const;
 
         /**
          * Sets the member of this object with \p name and sets it to \p value.
@@ -225,19 +225,19 @@ namespace spade
          * @param name name of the member
          * @param value value to be set to
          */
-        virtual void setMember(const string &name, Obj *value);
+        virtual void set_member(const string &name, Obj *value);
 
         /**
          * @throws IllegalAccessError if the superclass method cannot be found
          * @param mSign complete signature of the method
          * @return the method of the superclass has been overrode by this object
          */
-        virtual ObjMethod *getSuperClassMethod(const string &mSign);
+        virtual ObjMethod *get_super_class_method(const string &mSign);
 
         /**
          * @return the meta information of the object
          */
-        virtual const Table<string> &getMeta() const;
+        virtual const Table<string> &get_meta() const;
     };
 
     class ObjBool;

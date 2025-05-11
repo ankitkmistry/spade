@@ -4,9 +4,9 @@ namespace spade
 {
     Frame FrameTemplate::initialize() {
         Frame frame{};
-        frame.codeCount = codeCount;
+        frame.code_count = code_count;
         frame.ip = frame.code = code;
-        frame.stack = new Obj *[maxStack];
+        frame.stack = new Obj *[max_stack];
         frame.sp = frame.stack;
         frame.args = args.copy();
         frame.locals = locals.copy();
@@ -19,6 +19,6 @@ namespace spade
     }
 
     FrameTemplate *FrameTemplate::copy() {
-        return new FrameTemplate(codeCount, code, maxStack, args, locals, exceptions, lines, lambdas, matches, method);
+        return new FrameTemplate(code_count, code, max_stack, args, locals, exceptions, lines, lambdas, matches, method);
     }
 }    // namespace spade

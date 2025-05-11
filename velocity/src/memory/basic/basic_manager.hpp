@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../manager.hpp"
-#include "../memory.hpp"
+#include "memory/memory.hpp"
+#include "memory/manager.hpp"
 
 namespace spade::basic
 {
@@ -20,10 +20,10 @@ namespace spade::basic
 
         void *allocate(size_t size) override;
 
-        void postAllocation(Collectible *obj) override;
+        void post_allocation(Collectible *obj) override;
 
         void deallocate(void *pointer) override;
 
-        void collectGarbage() override;
+        void collect_garbage() override;
     };
 }    // namespace spade::basic
