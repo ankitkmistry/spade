@@ -1,0 +1,76 @@
+assembly ::= ('module' IDENTIFIER NEWLINE)
+             ('import' signature NEWLINE)*
+             ('global' global)*
+             method*
+             class*
+             EOF;
+
+global ::= PROPERTY name ':' signature NEWLINE;
+
+method ::= PROPERTY? 'method' signature NEWLINE
+            // 'closureStart' ':' NUMBER NEWLINE
+            // 'maxstack' ':' NUMBER NEWLINE
+            ('arg' arg)*
+            ('local' local)*
+            ('exception' exception_item)*
+            line*
+           'end';
+
+arg             ::= name ':' signature NEWLINE;
+local           ::= name ':' signature NEWLINE;
+exception_item  ::= LABEL '-' LABEL '->' LABEL ':' signature NEWLINE;
+line            ::= (LABEL ':' NEWLINE?)? IDENTIFIER (value | LABEL)? NEWLINE;
+
+class ::= 'class' signature NEWLINE
+            // 'type' ':' type=('CLASS' | 'INTERFACE' | 'ENUM' | 'ANNOTATION') NEWLINE
+            // 'accessors' ':' accessor* NEWLINE
+            // ('supers' ':' supers=array NEWLINE)?
+            ('field' field)*
+            method*
+          'end';
+
+accessor ::= 'private'
+        | 'internal'
+        | 'package_private'
+        | 'protected'
+        | 'public'
+        | 'abstract'
+        | 'final'
+        | 'static'
+        | 'inline';
+
+field   ::= PROPERTY* name ':' signature NEWLINE;
+
+value   ::= INTEGER | FLOAT | STRING | CSTRING | array | signature;
+array   ::= '[' (value (',' value)* ','?)? ']';
+
+name    ::= IDENTIFIER | STRING;
+
+signature   ::= sign_atom ('(' (sign_param (',' sign_param)* ','?)? ')')?;
+sign_atom   ::= IDENTIFIER ('.' IDENTIFIER)*;
+sign_param  ::= (IDENTIFIER ':')? signature;
+
+// Lexer definitions
+<IDENTIFIER>:  [a-zA-Z_][a-zA-Z0-9_!@#$%&]*;
+<LABEL>     : '$' <IDENTIFIER>;
+<PROPERTY>  : '@' <IDENTIFIER>;
+
+fragment <DECIMAL>  :  ([0-9]_?)+;
+fragment <HEX>      :  ([0-9a-fA-F]_?)+;
+
+<INTEGER>:  -?<DECIMAL>
+          | -?0[bB]([01]_?)+
+          | -?0([0-7]_?)+
+          | -?0[xX]<HEX>
+          ;
+
+<FLOAT>:  <DECIMAL>\.<DECIMAL>?([eE][+-]<DECIMAL>)?
+        | 0[xX]<HEX>\.<HEX>?([pP][+-]<DECIMAL>)?;
+
+<STRING> : "(\\"|.)*?";
+<CSTRING>: '(\\'|.)';
+
+<NEWLINE>: \r?\n;
+
+<WHITESPACE>    :  [ \t\f]+ -> skip;
+<LINE_COMMENT>  :  #~[\r\n]* -> skip;

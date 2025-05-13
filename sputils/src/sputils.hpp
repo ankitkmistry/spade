@@ -6,6 +6,7 @@
 #include "spimp/error.hpp"
 #include "spimp/log.hpp"
 #include "spimp/utils.hpp"
+#include "spimp/color.hpp"
 
 // Header files related to elp operations
 

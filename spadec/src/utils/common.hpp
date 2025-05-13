@@ -16,7 +16,6 @@
 
 #include <sputils.hpp>
 
-// #define ENABLE_MT
 #define MAX_FUN_CHECK_SEQ (5)
 
 namespace spade

@@ -54,7 +54,7 @@ file (GLOB_RECURSE VELOCITY_SRCS velocity/src/*.cpp)
 file (GLOB_RECURSE VELOCITY_INCLUDES velocity/src/*.hpp)
 
 add_executable (velocity ${VELOCITY_SRCS} ${VELOCITY_INCLUDES})
-target_include_directories (velocity PUBLIC velocity/src)
+target_include_directories (velocity PRIVATE velocity/src)
 target_include_directories (velocity PUBLIC sputils/src)
 target_link_libraries (velocity sputils)
 
@@ -64,9 +64,19 @@ file (GLOB_RECURSE SPADEC_SRCS spadec/src/*.cpp)
 file (GLOB_RECURSE SPADEC_INCLUDES spadec/src/*.hpp)
 
 add_executable (spadec ${SPADEC_SRCS} ${SPADEC_INCLUDES})
-target_include_directories (spadec PUBLIC spadec/src)
+target_include_directories (spadec PRIVATE spadec/src)
 target_include_directories (spadec PUBLIC sputils/src)
-target_link_libraries (spadec PUBLIC sputils PUBLIC cpptrace::cpptrace)
+target_link_libraries (spadec PUBLIC sputils PRIVATE cpptrace::cpptrace)
+
+# Target: spasm
+# It is the assembler of the Spade language bytecode
+file (GLOB_RECURSE SPASM_SRCS spasm/src/*.cpp)
+file (GLOB_RECURSE SPASM_INCLUDES spasm/src/*.hpp)
+
+add_executable (spasm ${SPASM_SRCS} ${SPASM_INCLUDES})
+target_include_directories (spasm PRIVATE spasm/src)
+target_include_directories (spasm PUBLIC sputils/src)
+target_link_libraries (spasm PUBLIC sputils)
 
 if (WIN32)
   add_custom_command (
