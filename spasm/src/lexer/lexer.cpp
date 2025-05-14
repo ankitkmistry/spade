@@ -1,6 +1,5 @@
 #include "lexer.hpp"
 #include "token.hpp"
-#include <cstdint>
 
 namespace spasm
 {

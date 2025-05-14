@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstddef>
-#include <stack>
 
 #include "../utils/common.hpp"
 #include "../utils/error.hpp"

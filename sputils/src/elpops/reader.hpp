@@ -13,36 +13,20 @@ namespace spade
         std::ifstream file;
         string path;
 
-        MetaInfo read_meta_info();
-
-        ObjInfo read_obj_info();
-
+        ModuleInfo read_module_info();
         ClassInfo read_class_info();
-
         FieldInfo read_field_info();
-
-        TypeParamInfo read_type_param_info();
-
         MethodInfo read_method_info();
-
-        MethodInfo::LineInfo read_line_info();
-
-        MethodInfo::ExceptionTableInfo read_exception_info();
-
-        MethodInfo::LocalInfo read_local_info();
-
-        MethodInfo::ArgInfo read_arg_info();
-
-        MethodInfo::MatchInfo read_match_info();
-
-        MethodInfo::MatchInfo::CaseInfo read_case_info();
-
+        MatchInfo read_match_info();
+        LineInfo read_line_info();
+        ExceptionTableInfo read_exception_info();
+        LocalInfo read_local_info();
+        ArgInfo read_arg_info();
+        TypeParamInfo read_type_param_info();
         GlobalInfo read_global_info();
-
+        MetaInfo read_meta_info();
         CpInfo read_cp_info();
-
         _Container read_container();
-
         _UTF8 read_utf8();
 
         uint8_t read_byte() {
