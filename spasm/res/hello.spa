@@ -1,3 +1,46 @@
-module 23123 123123 'asdas' "asd\\'as'd"
-asdkjaksjdh;
-askdjaksjdb
+module hello
+    method foo()
+        local @var i : basic.int
+
+        const 0
+        plfstore i                   # stores 0 to i
+
+        const "Hello, World"
+        println                     # prints "Hello, World"
+
+        lfload i
+        const 64
+        add
+        println                     # prints i + 64
+
+        vret
+    end
+
+    method @entry main()
+        local @var i : basic.int
+
+        gfinvoke hello.foo()
+
+        const 0
+        plfstore i
+        
+    $loop_start:
+        lfload i
+        const 10
+        jge $loop_end
+
+        const "hello, world "
+        lfload i
+        o2s
+        add
+        println
+
+        lfload i
+        const 1
+        add
+        plfstore i
+        jmp $loop_start
+    $loop_end:
+        vret
+    end
+end

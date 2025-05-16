@@ -2,14 +2,16 @@
 #include <iostream>
 #include <sstream>
 
-#include "lexer/lexer.hpp"
-#include "lexer/token.hpp"
+#include "utils/error.hpp"
 #include "utils/error_printer.hpp"
+#include "lexer/lexer.hpp"
+#include "parser/parser.hpp"
 
 using namespace spasm;
 
 int main() {
     fs::path file_path(R"(D:\Programming\Projects\spade\spasm\res\hello.spa)");
+    fs::path output_path = file_path.parent_path() / (file_path.stem().string() + ".elp");
     ErrorPrinter error_printer;
     try {
         std::ifstream in(file_path);
@@ -18,13 +20,13 @@ int main() {
         std::stringstream ss;
         ss << in.rdbuf();
         Lexer lexer(file_path, ss.str());
-        while (true) {
-            auto token = lexer.next_token();
-            std::cout << token->to_string() << std::endl;
-            if (token->get_type() == spasm::TokenType::END_OF_FILE)
-                break;
-        }
-    } catch (const CompilerError &err) {
+        Parser parser(lexer);
+        ElpInfo elp = parser.parse();
+        // ElpReader reader();
+        ElpWriter writer(output_path);
+        writer.write(elp);
+        writer.close();
+    } catch (const AssemblerError &err) {
         error_printer.print(ErrorType::ERROR, err);
     }
     return 0;

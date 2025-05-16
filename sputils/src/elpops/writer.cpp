@@ -4,9 +4,9 @@
 
 namespace spade
 {
-    ElpWriter::ElpWriter(const string &filename) : path(filename), file(filename, std::ios::out | std::ios::binary) {
-        if (!file.is_open())
-            throw FileNotFoundError(filename);
+    ElpWriter::ElpWriter(const std::filesystem::path &file_path) : path(file_path), file(file_path, std::ios::out | std::ios::binary) {
+        if (!file)
+            throw FileNotFoundError(file_path.string());
     }
 
     void ElpWriter::close() {
@@ -15,8 +15,8 @@ namespace spade
 
     void ElpWriter::write(const ElpInfo &elp) {
         write(elp.magic);
-        write(elp.minor_version);
         write(elp.major_version);
+        write(elp.minor_version);
 
         write(elp.entry);
         write(elp.imports);
@@ -208,19 +208,19 @@ namespace spade
         write(info.tag);
         switch (info.tag) {
             case 0x03:
-                write(info._char);
+                write(std::get<uint32_t>(info.value));
                 break;
             case 0x04:
-                write(info._int);
+                write(std::get<uint64_t>(info.value));
                 break;
             case 0x05:
-                write(info._float);
+                write(std::get<uint64_t>(info.value));
                 break;
             case 0x06:
-                write(info._string);
+                write(std::get<_UTF8>(info.value));
                 break;
             case 0x07:
-                write(info._array);
+                write(std::get<_Container>(info.value));
                 break;
             default:
                 throw Unreachable();

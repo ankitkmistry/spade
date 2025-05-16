@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <filesystem>
 
 #include "../utils/common.hpp"
 #include "../utils/error.hpp"
@@ -31,8 +32,12 @@ namespace spasm
         void complete_float_part(const std::function<bool(int)> &validator, char exp1, char exp2);
 
       public:
-        explicit Lexer(const fs::path &file_path, const string &data) : file_path(file_path), data(data) {}
+        explicit Lexer(const fs::path &file_path, const string &data) : file_path(fs::canonical(file_path)), data(data) {}
 
         std::shared_ptr<Token> next_token();
+
+        const fs::path &get_file_path() const {
+            return file_path;
+        }
     };
 }    // namespace spasm

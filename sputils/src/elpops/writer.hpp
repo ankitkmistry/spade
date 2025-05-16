@@ -1,6 +1,7 @@
 #pragma once
 
 #include <fstream>
+#include <filesystem>
 #include <concepts>
 
 #include "elpdef.hpp"
@@ -9,7 +10,7 @@ namespace spade
 {
     class ElpWriter {
       private:
-        string path;
+        std::filesystem::path path;
         std::ofstream file;
 
         void write8(uint8_t i) {
@@ -63,7 +64,7 @@ namespace spade
         void write(const _UTF8 &info);
 
       public:
-        explicit ElpWriter(const string &filename);
+        explicit ElpWriter(const std::filesystem::path &file_path);
 
         /**
          * Writes the binary information given in the form of ElpInfo
@@ -78,7 +79,7 @@ namespace spade
          */
         void close();
 
-        const string &get_path() const {
+        const std::filesystem::path &get_path() const {
             return path;
         }
     };

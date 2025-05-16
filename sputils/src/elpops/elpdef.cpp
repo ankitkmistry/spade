@@ -13,15 +13,11 @@ namespace spade
             case 0x02:
                 return true;
             case 0x03:
-                return _char == rhs._char;
             case 0x04:
-                return _int == rhs._int;
             case 0x05:
-                return _float == rhs._float;
             case 0x06:
-                return _string == rhs._string;
             case 0x07:
-                return _array == rhs._array;
+                return value == rhs.value;
             default:
                 throw Unreachable();
         }
@@ -31,16 +27,20 @@ namespace spade
         return !(rhs == *this);
     }
 
+    CpInfo CpInfo::from_bool(bool b) {
+        return CpInfo{.tag = static_cast<uint8_t>(b ? 0x01 : 0x02)};
+    }
+
     CpInfo CpInfo::from_char(uint32_t c) {
-        return CpInfo{.tag = 0x03, ._char = c};
+        return CpInfo{.tag = 0x03, .value = c};
     }
 
     CpInfo CpInfo::from_int(int64_t i) {
-        return CpInfo{.tag = 0x04, ._int = signed_to_unsigned(i)};
+        return CpInfo{.tag = 0x04, .value = signed_to_unsigned(i)};
     }
 
     CpInfo CpInfo::from_float(double d) {
-        return CpInfo{.tag = 0x05, ._float = double_to_raw(d)};
+        return CpInfo{.tag = 0x05, .value = double_to_raw(d)};
     }
 
     CpInfo CpInfo::from_string(const string &str) {
@@ -48,7 +48,7 @@ namespace spade
         utf8.len = str.size();
         utf8.bytes = vector<uint8_t>(utf8.len);
         std::memcpy(utf8.bytes.data(), str.data(), utf8.len);
-        return CpInfo{.tag = 0x06, ._string = utf8};
+        return CpInfo{.tag = 0x06, .value = utf8};
     }
 
     CpInfo CpInfo::from_array(const std::vector<CpInfo> &v) {
@@ -58,7 +58,7 @@ namespace spade
         for (int i = 0; i < arr.len; ++i) {
             arr.items[i] = v[i];
         }
-        return CpInfo{.tag = 0x07, ._array = arr};
+        return CpInfo{.tag = 0x07, .value = arr};
     }
 
     bool _UTF8::operator==(const _UTF8 &rhs) const {

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <variant>
+
 #include "spimp/common.hpp"
 
 namespace spade
@@ -8,7 +10,7 @@ namespace spade
 
     struct _UTF8 {
         // Length of bytes
-        uint16_t len;
+        uint16_t len = 0;
         // Sequence of bytes
         vector<uint8_t> bytes;
 
@@ -20,7 +22,7 @@ namespace spade
 
     struct _Container {
         // Count of items
-        uint16_t len;
+        uint16_t len = 0;
         // List of items (constants)
         vector<CpInfo> items;
 
@@ -38,17 +40,20 @@ namespace spade
         // 0x05 : float
         // 0x06 : string
         // 0x07 : array
-        uint8_t tag;
+        uint8_t tag = 0;
 
         // Any one of the members is initialized according to tag
         // union {
-        uint32_t _char;
-        uint64_t _int;
-        uint64_t _float;
-        _UTF8 _string;
-        _Container _array;
+        //      uint32_t _char;
+        //      uint64_t _int;
+        //      uint64_t _float;
+        //      _UTF8 _string;
+        //      _Container _array;
         // };
 
+        std::variant<uint32_t, uint64_t, /* uint64_t, */ _UTF8, _Container> value;
+
+        static CpInfo from_bool(bool b);
         static CpInfo from_char(uint32_t c);
         static CpInfo from_int(int64_t i);
         static CpInfo from_float(double d);
@@ -61,7 +66,7 @@ namespace spade
 
     struct MetaInfo {
         // Size of the table
-        uint16_t len;
+        uint16_t len = 0;
 
         struct _Meta {
             // Key  of the table item
@@ -76,9 +81,12 @@ namespace spade
 
     struct GlobalInfo {
         // The kind of the global
-        uint16_t kind;
+        // The kind of the arg
+        // 0x00 : VAR
+        // 0x01 : CONST
+        uint16_t kind = 0;
         // Access flags for the global
-        uint16_t access_flags;
+        uint16_t access_flags = 0;
         // [string] Name of the global
         cpidx name;
         // [sign] Type signature of the global
@@ -96,7 +104,7 @@ namespace spade
         // The kind of the arg
         // 0x00 : VAR
         // 0x01 : CONST
-        uint16_t kind;
+        uint16_t kind = 0;
         // [string] Name of the arg
         cpidx name;
         // [sign] Type signature of the arg
@@ -109,7 +117,7 @@ namespace spade
         // The kind of the local
         // 0x00 : VAR
         // 0x01 : CONST
-        uint16_t kind;
+        uint16_t kind = 0;
         // [string] Name of the local
         cpidx name;
         // [sign] Type signature of the local
@@ -120,11 +128,11 @@ namespace spade
 
     struct ExceptionTableInfo {
         // Starting region of the exception catching mechanism
-        uint32_t start_pc;
+        uint32_t start_pc = 0;
         // Ending region of the exception catching mechanism
-        uint32_t end_pc;
+        uint32_t end_pc = 0;
         // The location to follow if exception is caught
-        uint32_t target_pc;
+        uint32_t target_pc = 0;
         // [sign] The type of the exception
         cpidx exception;
         // Meta information of the exception table item
@@ -133,14 +141,14 @@ namespace spade
 
     struct NumberInfo {
         // The times to repeat this number
-        uint8_t times;
+        uint8_t times = 0;
         // The number to repeat
-        uint32_t lineno;
+        uint32_t lineno = 0;
     };
 
     struct LineInfo {
         // Count of numbers
-        uint16_t number_count;
+        uint16_t number_count = 0;
         // List of numbers
         vector<NumberInfo> numbers;
     };
@@ -149,56 +157,56 @@ namespace spade
         // [any] Value of the case
         cpidx value;
         // The location to follow if this cases succeeds
-        uint32_t location;
+        uint32_t location = 0;
     };
 
     struct MatchInfo {
         // Count of cases
-        uint16_t case_count;
+        uint16_t case_count = 0;
         // List of cases
         vector<CaseInfo> cases;
         // Default location to follow if matching fails
-        uint32_t default_location;
+        uint32_t default_location = 0;
         // Meta information of the match
         MetaInfo meta;
     };
 
     struct MethodInfo {
         // The kind of the method
-        // 0x00 : INIT
+        // 0x00 : FUNCTION
         // 0x01 : METHOD
-        uint8_t kind;
+        uint8_t kind = 0;
         // Access flags for the method
-        uint16_t access_flags;
+        uint16_t access_flags = 0;
         // [string] Name of the method
         cpidx name;
 
         // Count of type params in the method
-        uint8_t type_params_count;
+        uint8_t type_params_count = 0;
         // List of type params
         vector<TypeParamInfo> type_params;
 
         // Count of args in the method
-        uint8_t args_count;
+        uint8_t args_count = 0;
         // List of args
         vector<ArgInfo> args;
 
         // Count of locals in the method
-        uint16_t locals_count;
+        uint16_t locals_count = 0;
         // Starting index for closures in locals list
-        uint16_t closure_start;
+        uint16_t closure_start = 0;
         // List of locals
         vector<LocalInfo> locals;
 
         // Maximum size for stack
-        uint32_t stack_max;
+        uint32_t stack_max = 0;
         // Count for code array
-        uint32_t code_count;
+        uint32_t code_count = 0;
         // List of bytecode instructions
         vector<uint8_t> code;
 
         // Count of exception table items in the method
-        uint16_t exception_table_count;
+        uint16_t exception_table_count = 0;
         // Exception table for the method
         vector<ExceptionTableInfo> exception_table;
 
@@ -206,7 +214,7 @@ namespace spade
         LineInfo line_info;
 
         // Count of match table items
-        uint16_t match_count;
+        uint16_t match_count = 0;
         // Match table for the method
         vector<MatchInfo> matches;
 
@@ -218,9 +226,9 @@ namespace spade
         // The kind of the field
         // 0x00 : VAR
         // 0x01 : CONST
-        uint8_t kind;
+        uint8_t kind = 0;
         // Access flags for the field
-        uint16_t access_flags;
+        uint16_t access_flags = 0;
         // [string] Name of the field
         cpidx name;
         // [sign] Type signature of the field
@@ -235,26 +243,26 @@ namespace spade
         // 0x01 : INTERFACE
         // 0x02 : ANNOTATION
         // 0x03 : ENUM
-        uint8_t kind;
+        uint8_t kind = 0;
         // Access flags for the class
-        uint16_t access_flags;
+        uint16_t access_flags = 0;
         // [string] Name of the class
         cpidx name;
         // [array<sign>] List of the signatures of super classes
         cpidx supers;
 
         // Count of type params in the class
-        uint8_t type_params_count;
+        uint8_t type_params_count = 0;
         // List of type params
         vector<TypeParamInfo> type_params;
 
         // Count of fields in the class
-        uint16_t fields_count;
+        uint16_t fields_count = 0;
         // List of fields
         vector<FieldInfo> fields;
 
         // Count of methods in the class
-        uint16_t methods_count;
+        uint16_t methods_count = 0;
         // List of methods
         vector<MethodInfo> methods;
 
@@ -268,13 +276,13 @@ namespace spade
         // 0x01 : LIBRARY
         uint8_t kind = 0;
         // [string] Path of the file from which the module was compiled from
-        cpidx compiled_from = 0;
+        cpidx compiled_from;
         // [string] Name of the module
-        cpidx name = 0;
+        cpidx name;
         // [array<string>] Imports of the module
-        // cpidx imports = 0;
+        // cpidx imports;
         // [sign] Signature of the initializing function of the module
-        cpidx init = 0;
+        cpidx init;
 
         // Count of globals in the module
         uint16_t globals_count = 0;
@@ -307,16 +315,18 @@ namespace spade
 
     struct ElpInfo {
         // The magic number of the file
+        // 0xC0FFEEDE : EXECUTABLE
+        // 0xDEADCAFE : LIBRARY
         uint32_t magic = 0;
-        // The minor version of the file
-        uint32_t minor_version = 0;
         // The major version of the file
-        uint32_t major_version = 0;
+        uint16_t major_version = 0;
+        // The minor version of the file
+        uint16_t minor_version = 0;
 
         // [sign] Signature of the entry function of the file
-        cpidx entry = 0;
+        cpidx entry;
         // [array<string>] External imports required by the file
-        cpidx imports = 0;
+        cpidx imports;
 
         // Count of constant pool items in the (top level) file
         // required by `entry` and `imports`

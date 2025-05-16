@@ -5,6 +5,13 @@
 namespace spasm
 {
     enum class TokenType {
+        DASH,
+        ARROW,
+        COMMA,
+        COLON,
+        DOT,
+        LPAREN,
+        RPAREN,
         LBRACKET,
         RBRACKET,
         NEWLINE,
@@ -114,10 +121,22 @@ namespace spasm
       private:
         constexpr static std::string_view get_token_type_repr(TokenType type) {
             switch (type) {
-                case TokenType::LBRACKET:
+                case TokenType::DASH:
+                    return "-";
+                case TokenType::ARROW:
+                    return "->";
+                case TokenType::COMMA:
+                    return ",";
+                case TokenType::LPAREN:
                     return "(";
-                case TokenType::RBRACKET:
+                case TokenType::RPAREN:
                     return ")";
+                case TokenType::DOT:
+                    return ".";
+                case TokenType::LBRACKET:
+                    return "[";
+                case TokenType::RBRACKET:
+                    return "]";
                 case TokenType::NEWLINE:
                     return "<newline>";
                 case TokenType::MODULE:
@@ -177,6 +196,20 @@ namespace spasm
 
         constexpr static string to_string(const TokenType type) {
             switch (type) {
+                case TokenType::DASH:
+                    return "DASH";
+                case TokenType::ARROW:
+                    return "ARROW";
+                case TokenType::COMMA:
+                    return "COMMA";
+                case TokenType::COLON:
+                    return "COLON";
+                case TokenType::DOT:
+                    return "DOT";
+                case TokenType::LPAREN:
+                    return "LPAREN";
+                case TokenType::RPAREN:
+                    return "RPAREN";
                 case TokenType::LBRACKET:
                     return "LBRACKET";
                 case TokenType::RBRACKET:

@@ -7,8 +7,8 @@ namespace spade
     ElpInfo ElpReader::read() {
         ElpInfo elp;
         elp.magic = read_int();
-        elp.minor_version = read_int();
-        elp.major_version = read_int();
+        elp.major_version = read_short();
+        elp.minor_version = read_short();
 
         elp.entry = read_short();
         elp.imports = read_short();
@@ -251,19 +251,19 @@ namespace spade
         cp.tag = read_byte();
         switch (cp.tag) {
             case 0x03:
-                cp._char = read_int();
+                cp.value = read_int();
                 break;
             case 0x04:
-                cp._int = read_long();
+                cp.value = read_long();
                 break;
             case 0x05:
-                cp._float = read_long();
+                cp.value = read_long();
                 break;
             case 0x06:
-                cp._string = read_utf8();
+                cp.value = read_utf8();
                 break;
             case 0x07:
-                cp._array = read_container();
+                cp.value = read_container();
                 break;
             default:
                 corrupt_file_error();

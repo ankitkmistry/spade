@@ -23,7 +23,7 @@ namespace spasm
         int max_lines;
     };
 
-    static void print_code(const fs::path &path, const CompilerError &err, CodePrintInfo info) {
+    static void print_code(const fs::path &path, const AssemblerError &err, CodePrintInfo info) {
         std::ifstream in(path);
         int max_digits = num_digits(err.get_line_end());
 
@@ -79,7 +79,7 @@ namespace spasm
         }
     }
 
-    void ErrorPrinter::print(ErrorType type, const CompilerError &err) const {
+    void ErrorPrinter::print(ErrorType type, const AssemblerError &err) const {
         string err_str;
         bool quote_open = false;
         string err_what = err.what();

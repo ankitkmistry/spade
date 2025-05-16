@@ -1,30 +1,31 @@
-assembly ::= ('module' IDENTIFIER NEWLINE)
-             ('import' signature NEWLINE)*
-             ('global' global)*
-             method*
-             class*
-             EOF;
+assembly ::= ('import' STRING NEWLINE)*
+              module*
+              EOF;
+
+module ::= ('module' IDENTIFIER NEWLINE)
+           ('global' global)*
+           (method | class | module)*
+           'end'
 
 global ::= PROPERTY name ':' signature NEWLINE;
 
-method ::= PROPERTY? 'method' signature NEWLINE
-            // 'closureStart' ':' NUMBER NEWLINE
-            // 'maxstack' ':' NUMBER NEWLINE
+method ::= 'method' PROPERTY? signature NEWLINE
+            // '@closure_start' NUMBER NEWLINE
+            // '@stack_max' NUMBER NEWLINE
             ('arg' arg)*
             ('local' local)*
             ('exception' exception_item)*
             line*
            'end';
 
-arg             ::= name ':' signature NEWLINE;
-local           ::= name ':' signature NEWLINE;
+arg             ::= PROPERTY name ':' signature NEWLINE;
+local           ::= PROPERTY name ':' signature NEWLINE;
 exception_item  ::= LABEL '-' LABEL '->' LABEL ':' signature NEWLINE;
-line            ::= (LABEL ':' NEWLINE?)? IDENTIFIER (value | LABEL)? NEWLINE;
+line            ::= (LABEL ':' NEWLINE)? IDENTIFIER (value | name | LABEL)? NEWLINE;
 
 class ::= 'class' signature NEWLINE
-            // 'type' ':' type=('CLASS' | 'INTERFACE' | 'ENUM' | 'ANNOTATION') NEWLINE
-            // 'accessors' ':' accessor* NEWLINE
-            // ('supers' ':' supers=array NEWLINE)?
+            // '@kind' ('class' | 'interface' | 'enum' | 'annotation') NEWLINE
+            // '@supers' array NEWLINE
             ('field' field)*
             method*
           'end';
@@ -39,14 +40,14 @@ accessor ::= 'private'
         | 'static'
         | 'inline';
 
-field   ::= PROPERTY* name ':' signature NEWLINE;
+field   ::= PROPERTY name ':' signature NEWLINE;
 
 value   ::= INTEGER | FLOAT | STRING | CSTRING | array | signature;
-array   ::= '[' (value (',' value)* ','?)? ']';
+array   ::= '[' (value (',' value)*)? ']';
 
 name    ::= IDENTIFIER | STRING;
 
-signature   ::= sign_atom ('(' (sign_param (',' sign_param)* ','?)? ')')?;
+signature   ::= sign_atom ('(' (sign_param (',' sign_param)*)? ')')?;
 sign_atom   ::= IDENTIFIER ('.' IDENTIFIER)*;
 sign_param  ::= (IDENTIFIER ':')? signature;
 
@@ -70,7 +71,7 @@ fragment <HEX>      :  ([0-9a-fA-F]_?)+;
 <STRING> : "(\\"|.)*?";
 <CSTRING>: '(\\'|.)';
 
-<NEWLINE>: \r?\n;
+<NEWLINE>: (\r?\n)+;
 
 <WHITESPACE>    :  [ \t\f]+ -> skip;
 <LINE_COMMENT>  :  #~[\r\n]* -> skip;

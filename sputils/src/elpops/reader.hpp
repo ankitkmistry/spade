@@ -1,9 +1,10 @@
 #pragma once
 
+#include <fstream>
+#include <filesystem>
+
 #include "spimp/error.hpp"
 #include "elpdef.hpp"
-
-#include <fstream>
 
 namespace spade
 {
@@ -57,9 +58,9 @@ namespace spade
         }
 
       public:
-        explicit ElpReader(const string &path) : file(path, std::ios::in | std::ios::binary) {
-            if (!file.is_open())
-                throw FileNotFoundError(path);
+        explicit ElpReader(const std::filesystem::path &path) : file(path, std::ios::in | std::ios::binary) {
+            if (!file)
+                throw FileNotFoundError(path.string());
         }
 
         ElpReader(const ElpReader &other) = delete;

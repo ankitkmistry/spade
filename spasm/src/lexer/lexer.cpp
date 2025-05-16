@@ -106,14 +106,16 @@ namespace spasm
         while (!is_at_end()) {
             start = end;
             switch (int c = advance()) {
-                // case '(':
-                //     return get_token(TokenType::LPAREN);
-                // case ')':
-                //     return get_token(TokenType::RPAREN);
-                // case '{':
-                //     return get_token(TokenType::LBRACE);
-                // case '}':
-                //     return get_token(TokenType::RBRACE);
+                case ',':
+                    return get_token(TokenType::COMMA);
+                case ':':
+                    return get_token(TokenType::COLON);
+                case '.':
+                    return get_token(TokenType::DOT);
+                case '(':
+                    return get_token(TokenType::LPAREN);
+                case ')':
+                    return get_token(TokenType::RPAREN);
                 case '[':
                     return get_token(TokenType::LBRACKET);
                 case ']':
@@ -173,10 +175,16 @@ namespace spasm
                     // Match identifiers
                     if (std::isalpha(c) || c == '_')
                         return match_identifier();
+                    if (c == '-') {
+                        if (is_decimal_digit(peek()))
+                            // Also match negative integers
+                            advance();
+                        else if (match('>'))
+                            return get_token(TokenType::ARROW);
+                        else
+                            return get_token(TokenType::DASH);
+                    }
                     // Match integers and floats
-                    if (c == '-' && is_decimal_digit(peek()))
-                        // Also match negative integers
-                        advance();
                     if (c == '0') {
                         if (match('b') || match('B')) {
                             // Binary integer
@@ -203,6 +211,7 @@ namespace spasm
                             // Octal integer
                             while (is_octal_digit(c = peek()) || c == '_') advance();
                         }
+                        return get_token(TokenType::INTEGER);
                     } else if (is_decimal_digit(c)) {
                         // Decimal integer
                         while (is_decimal_digit(c = peek()) || c == '_') advance();

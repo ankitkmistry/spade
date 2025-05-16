@@ -6,10 +6,9 @@ namespace spasm
 {
     class ErrorPrinter {
       public:
-        void print(ErrorType type, const CompilerError &err) const;
+        void print(ErrorType type, const AssemblerError &err) const;
 
         template<typename T>
-        // requires std::derived_from<T, CompilerError> // ErrorGroup already requires this
         void print(const ErrorGroup<T> err_grp) const {
             size_t i = 0;
             for (const auto &[type, err]: err_grp.get_errors()) {

@@ -9,7 +9,7 @@ namespace spasm
         explicit FileOpenError(const string &filename) : SpadeError(std::format("failed to open file: {}", filename)) {}
     };
 
-    class CompilerError : public SpadeError {
+    class AssemblerError : public SpadeError {
         fs::path file_path;
         int line_start = -1;
         int col_start = -1;
@@ -17,11 +17,13 @@ namespace spasm
         int col_end = -1;
 
       protected:
-        CompilerError() : SpadeError("") {}
+        AssemblerError() : SpadeError("") {}
 
       public:
-        CompilerError(const string &message, const fs::path &file_path, int line_start, int col_start, int line_end, int col_end)
+        AssemblerError(const string &message, const fs::path &file_path, int line_start, int col_start, int line_end, int col_end)
             : SpadeError(message), file_path(file_path), line_start(line_start), col_start(col_start), line_end(line_end), col_end(col_end) {}
+
+        AssemblerError(const string &message, const fs::path &file_path) : SpadeError(message), file_path(file_path) {}
 
         bool has_no_location() const {
             return line_start == -1 || col_start == -1 || line_end == -1 || col_end == -1;
@@ -48,51 +50,51 @@ namespace spasm
         }
     };
 
-    class LexerError : public CompilerError {
+    class LexerError : public AssemblerError {
       public:
         LexerError(const string &msg, const fs::path &file_path, int line_start, int col_start, int line_end, int col_end)
-            : CompilerError(msg, file_path, line_start, col_start, line_end, col_end) {}
+            : AssemblerError(msg, file_path, line_start, col_start, line_end, col_end) {}
 
         LexerError(const string &msg, const fs::path &file_path, int line_start, int col_start)
-            : CompilerError(msg, file_path, line_start, col_start, line_start, col_start) {}
+            : AssemblerError(msg, file_path, line_start, col_start, line_start, col_start) {}
     };
 
-    // class ParserError : public CompilerError {
-    //   public:
-    //     ParserError(const string &msg, const fs::path &file_path, int line_start, int col_start, int line_end, int col_end)
-    //         : CompilerError(msg, file_path, line_start, col_start, line_end, col_end) {}
+    class ParserError : public AssemblerError {
+      public:
+        ParserError(const string &msg, const fs::path &file_path, int line_start, int col_start, int line_end, int col_end)
+            : AssemblerError(msg, file_path, line_start, col_start, line_end, col_end) {}
 
-    //     ParserError(const string &msg, const fs::path &file_path, int line_start, int col_start)
-    //         : CompilerError(msg, file_path, line_start, col_start, line_start, col_start) {}
-    // };
+        ParserError(const string &msg, const fs::path &file_path, int line_start, int col_start)
+            : AssemblerError(msg, file_path, line_start, col_start, line_start, col_start) {}
+    };
 
-    // class ImportError : public CompilerError {
+    // class ImportError : public AssemblerError {
     //   public:
     //     ImportError(const string &msg, const fs::path &file_path, const std::shared_ptr<ast::Import> &import)
-    //         : CompilerError(msg, file_path, import->get_line_start(), import->get_col_start(), import->get_line_end(), import->get_col_end()) {}
+    //         : AssemblerError(msg, file_path, import->get_line_start(), import->get_col_start(), import->get_line_end(), import->get_col_end()) {}
     // };
 
-    // class AnalyzerError : public CompilerError {
+    // class AnalyzerError : public AssemblerError {
     //   public:
     //     template<ast::HasLineInfo T>
     //     AnalyzerError(const string &msg, const fs::path &file_path, T node)
-    //         : CompilerError(msg, file_path, node ? node->get_line_start() : -1, node ? node->get_col_start() : -1, node ? node->get_line_end() : -1,
+    //         : AssemblerError(msg, file_path, node ? node->get_line_start() : -1, node ? node->get_col_start() : -1, node ? node->get_line_end() : -1,
     //                         node ? node->get_col_end() : -1) {}
     // };
 
     enum class ErrorType { ERROR, WARNING, NOTE };
 
     template<typename T>
-        requires std::derived_from<T, CompilerError>
-    class ErrorGroup : public CompilerError {
+        requires std::derived_from<T, AssemblerError>
+    class ErrorGroup : public AssemblerError {
         std::vector<std::pair<ErrorType, T>> errors;
 
       public:
-        ErrorGroup() : CompilerError() {}
+        ErrorGroup() : AssemblerError() {}
 
         template<typename... Args>
             requires(sizeof...(Args) > 0) && (std::same_as<Args, std::pair<ErrorType, T>> && ...)
-        ErrorGroup(Args... args) : CompilerError() {
+        ErrorGroup(Args... args) : AssemblerError() {
             (errors.emplace_back(args), ...);
         }
 
