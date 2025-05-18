@@ -173,7 +173,7 @@ namespace spasm
             if (const auto it = labels.find(label->get_text()); it != labels.end()) {
                 const uint32_t label_pos = it->second;
                 if (current_pos > label_pos)
-                    return current_pos + 2 - label_pos;
+                    return -(current_pos + 2 - label_pos);
                 else
                     return label_pos - current_pos - 2;
             }

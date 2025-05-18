@@ -20,9 +20,9 @@ class SignParser {
             };
         }
         vector<SignElement> elements;
-        if (match('<')) {
+        if (match('[')) {
             elements.emplace_back(IDENTIFIER(), Sign::Kind::TYPE_PARAM);
-            check('>');
+            expect(']');
         } else {
             string module;
             // allow the unnamed module
@@ -30,7 +30,7 @@ class SignParser {
                 module = IDENTIFIER();
                 elements.emplace_back(module, Sign::Kind::MODULE);
                 while (match(':')) {
-                    check(':');
+                    expect(':');
                     module = IDENTIFIER();
                     elements.emplace_back(module, Sign::Kind::MODULE);
                 }
@@ -46,20 +46,46 @@ class SignParser {
         auto name = IDENTIFIER();
         vector<string> list;
         // Check type params
-        if (match('<')) {
+        if (match('[')) {
             list = idList();
-            check('>');
+            expect(']');
         }
         // Check params
         if (match('(')) {
             vector<SignParam> params;
             if (peek() != ')')
                 params = paramsElement();
-            check(')');
+            expect(')');
             return {name, Sign::Kind::METHOD, list, params};
         }
         return {name, Sign::Kind::CLASS, list};
     }
+
+    SignElement classElement() {
+        auto name = IDENTIFIER();
+        vector<string> list;
+        // Check type params
+        if (match('[')) {
+            list = idList();
+            expect(']');
+        }
+        return {name, Sign::Kind::CLASS, list};
+    }
+
+    // SignElement methodElement() {
+    //     auto name = IDENTIFIER();
+    //     vector<string> list;
+    //     // Check type params
+    //     if (match('[')) {
+    //         list = idList();
+    //         expect(']');
+    //     }
+    //     // Check params
+    //     expect('(');
+    //     vector<SignParam> params = paramsElement();
+    //     expect(')');
+    //     return {name, Sign::Kind::METHOD, list, params};
+    // }
 
     vector<SignParam> paramsElement() {
         vector<SignParam> params;
@@ -72,37 +98,11 @@ class SignParser {
         return params;
     }
 
-    SignElement classElement() {
-        auto name = IDENTIFIER();
-        vector<string> list;
-        // Check type params
-        if (match('<')) {
-            list = idList();
-            check('>');
-        }
-        return {name, Sign::Kind::CLASS, list};
-    }
-
-    SignElement methodElement() {
-        auto name = IDENTIFIER();
-        vector<string> list;
-        // Check type params
-        if (match('<')) {
-            list = idList();
-            check('>');
-        }
-        // Check params
-        check('(');
-        vector<SignParam> params = paramsElement();
-        check(')');
-        return {name, Sign::Kind::METHOD, list, params};
-    }
-
     SignParam paramElement() {
         vector<SignElement> elements;
-        if (match('<')) {
+        if (match('[')) {
             elements.emplace_back(IDENTIFIER(), Sign::Kind::TYPE_PARAM);
-            check('>');
+            expect(']');
             return {SignParam::Kind::TYPE_PARAM, Sign(elements)};
         }
         string module;
@@ -111,7 +111,7 @@ class SignParser {
             module = IDENTIFIER();
             elements.emplace_back(module, Sign::Kind::MODULE);
             while (match(':')) {
-                check(':');
+                expect(':');
                 module = IDENTIFIER();
                 elements.emplace_back(module, Sign::Kind::MODULE);
             }
@@ -119,14 +119,14 @@ class SignParser {
             elements.emplace_back(module, Sign::Kind::MODULE);
         }
         do {
-            check('.');
+            expect('.');
             elements.push_back(classElement());
         } while (peek() == '.');
         if (match('(')) {
             vector<SignParam> params;
             if (peek() != ')')
                 params = paramsElement();
-            check(')');
+            expect(')');
             return {SignParam::Kind::CALLBACK, Sign(elements), params};
         }
         return {SignParam::Kind::CLASS, Sign(elements)};
@@ -158,10 +158,9 @@ class SignParser {
         return text[i++];
     }
 
-    void check(char c) {
-        if (advance() != c) {
+    void expect(char c) {
+        if (advance() != c)
             throw error(std::format("expected '{}' at col {}", c, i - 1));
-        }
     }
 
     bool match(char c) {
@@ -172,15 +171,28 @@ class SignParser {
         return false;
     }
 
-    string IDENTIFIER() {
-        static std::set specialChars = {'$', '#', '!', '@', '%', '&', '_'};
-        auto start = i;
-        if (isalpha(peek()) || specialChars.contains(peek())) {
-            advance();
-        } else {
-            throw error(std::format("expected identifier at col {}", start));
+    static constexpr bool is_special_char(char c) {
+        switch (c) {
+            case '$':
+            case '#':
+            case '!':
+            case '@':
+            case '%':
+            case '&':
+            case '_':
+                return true;
+            default:
+                return false;
         }
-        while (isalnum(peek()) || specialChars.contains(peek())) advance();
+    }
+
+    string IDENTIFIER() {
+        const auto start = i;
+        if (isalpha(peek()) || is_special_char(peek()))
+            advance();
+        else
+            throw error(std::format("expected identifier at col {}", start));
+        while (isalnum(peek()) || is_special_char(peek())) advance();
         return text.substr(start, i - start);
     }
 
@@ -188,6 +200,13 @@ class SignParser {
         return {text, msg};
     }
 };
+
+Sign::Sign() = default;
+Sign::Sign(const Sign &other) = default;
+Sign::Sign(Sign &&other) noexcept = default;
+Sign &Sign::operator=(const Sign &other) = default;
+Sign &Sign::operator=(Sign &&other) noexcept = default;
+Sign::~Sign() = default;
 
 Sign::Sign(const string &text) {
     SignParser parser{text};
@@ -202,12 +221,15 @@ string SignParam::to_string() const {
         case Kind::TYPE_PARAM:
             return name.to_string();
         case Kind::CALLBACK: {
-            vector<string> paramStrs;
-            paramStrs.reserve(params.size());
+            string param_str;
             for (const auto &param: params) {
-                paramStrs.push_back(param.to_string());
+                param_str += param.to_string() + ", ";
             }
-            return name.to_string() + join(paramStrs, ", ");
+            if (!param_str.empty()) {
+                param_str.pop_back();
+                param_str.pop_back();
+            }
+            return name.to_string() + param_str;
         }
         default:
             throw Unreachable();
@@ -221,33 +243,36 @@ string SignElement::to_string() const {
         case Sign::Kind::MODULE:
             break;
         case Sign::Kind::CLASS:
-            if (!typeParams.empty()) {
-                str.append("<");
-                str.append(join(typeParams, ", "));
-                str.append(">");
+            if (!type_params.empty()) {
+                str.append("[");
+                str.append(join(type_params, ", "));
+                str.append("]");
             }
             break;
         case Sign::Kind::METHOD:
-            if (!typeParams.empty()) {
-                str.append("<");
-                str.append(join(typeParams, ", "));
-                str.append(">");
+            if (!type_params.empty()) {
+                str.append("[");
+                str.append(join(type_params, ", "));
+                str.append("]");
             }
+            str.append("(");
             if (!params.empty()) {
-                str.append("(");
-                vector<string> paramsStrs;
-                paramsStrs.reserve(params.size());
+                string param_str;
                 for (const auto &param: params) {
-                    paramsStrs.push_back(param.to_string());
+                    param_str += param.to_string() + ", ";
                 }
-                str.append(join(paramsStrs, ", "));
-                str.append(")");
+                if (!param_str.empty()) {
+                    param_str.pop_back();
+                    param_str.pop_back();
+                    str.append(param_str);
+                }
             }
+            str.append(")");
             break;
         case Sign::Kind::TYPE_PARAM:
-            str.append("<");
+            str.append("[");
             str.append(name);
-            str.append(">");
+            str.append("]");
             break;
     }
     return str;
@@ -279,6 +304,13 @@ string Sign::to_string() const {
 
 Sign::Kind Sign::get_kind() const {
     return elements.back().get_kind();
+}
+
+Sign Sign::get_parent() const {
+    auto elements = this->elements;
+    if (!elements.empty())
+        elements.pop_back();
+    return Sign(elements);
 }
 
 Sign Sign::get_parent_module() const {
@@ -319,12 +351,12 @@ string Sign::get_name() const {
 }
 
 Sign Sign::operator|(const Sign &sign) const {
-    SignParser parser{to_string() + sign.to_string()};
+    SignParser parser{to_string() + "." + sign.to_string()};
     return Sign(parser.parse());
 }
 
 Sign Sign::operator|(const string &str) const {
-    SignParser parser{to_string() + str};
+    SignParser parser{to_string() + "." + str};
     return Sign(parser.parse());
 }
 
@@ -336,13 +368,13 @@ Sign Sign::operator|(const SignElement &element) const {
 }
 
 Sign &Sign::operator|=(const Sign &sign) {
-    SignParser parser{to_string() + sign.to_string()};
+    SignParser parser{to_string() + "." + sign.to_string()};
     elements = parser.parse();
     return *this;
 }
 
 Sign &Sign::operator|=(const string &str) {
-    SignParser parser{to_string() + str};
+    SignParser parser{to_string() + "." + str};
     elements = parser.parse();
     return *this;
 }

@@ -99,7 +99,7 @@ namespace spade
         auto caller_info = _res_expr_info;
         resolve_indexer(caller_info, true, node);
 
-        std::vector<ArgInfo> arg_infos;
+        std::vector<ArgumentInfo> arg_infos;
         arg_infos.reserve(node.get_args().size());
         for (auto arg: node.get_args()) {
             arg->accept(this);
@@ -216,7 +216,7 @@ namespace spade
     }
 
     void Analyzer::visit(ast::expr::Argument &node) {
-        ArgInfo arg_info;
+        ArgumentInfo arg_info;
         arg_info.b_kwd = node.get_name() != null;
         arg_info.name = arg_info.b_kwd ? node.get_name()->get_text() : "";
         node.get_expr()->accept(this);
@@ -239,7 +239,7 @@ namespace spade
         auto caller_info = _res_expr_info;
         resolve_indexer(caller_info, true, node);
 
-        std::vector<ArgInfo> arg_infos;
+        std::vector<ArgumentInfo> arg_infos;
         arg_infos.reserve(node.get_slices().size());
         for (auto slice: node.get_slices()) {
             slice->accept(this);
@@ -292,7 +292,7 @@ namespace spade
     void Analyzer::visit(ast::expr::Slice &node) {
         switch (node.get_kind()) {
             case ast::expr::Slice::Kind::INDEX: {
-                ArgInfo arg_info;
+                ArgumentInfo arg_info;
                 arg_info.b_kwd = false;
                 arg_info.name = "";
                 node.get_from()->accept(this);
@@ -352,7 +352,7 @@ namespace spade
                                 .error(error(std::format("'{}' is ill formed", caller_info.to_string()), &node))
                                 .note(error("declared here", caller_info.type_info.type));
                     case ExprInfo::Type::FUNCTION_SET:
-                        std::vector<ArgInfo> args(3);
+                        std::vector<ArgumentInfo> args(3);
                         args[0].reset();
                         args[0].b_kwd = true;
                         args[0].name = "start";
@@ -375,7 +375,7 @@ namespace spade
                         break;
                 }
 
-                ArgInfo arg_info;
+                ArgumentInfo arg_info;
                 arg_info.b_kwd = false;
                 arg_info.name = "";
                 arg_info.expr_info = _res_expr_info;
@@ -544,8 +544,8 @@ namespace spade
                             &node);                                                                                                                  \
                 break;                                                                                                                               \
             case ExprInfo::Type::FUNCTION_SET: {                                                                                                     \
-                std::vector<ArgInfo> args(1);                                                                                                        \
-                args[0] = ArgInfo{false, "", right_expr_info, &node};                                                                                \
+                std::vector<ArgumentInfo> args(1);                                                                                                   \
+                args[0] = ArgumentInfo{false, "", right_expr_info, &node};                                                                           \
                 _res_expr_info = resolve_call(member.functions, args, node);                                                                         \
                 break;                                                                                                                               \
             }                                                                                                                                        \
@@ -564,8 +564,8 @@ namespace spade
                     find_rev_op = true;                                                                                                              \
                     break;                                                                                                                           \
                 case ExprInfo::Type::FUNCTION_SET: {                                                                                                 \
-                    std::vector<ArgInfo> args(1);                                                                                                    \
-                    args[0] = ArgInfo{false, "", right_expr_info, &node};                                                                            \
+                    std::vector<ArgumentInfo> args(1);                                                                                               \
+                    args[0] = ArgumentInfo{false, "", right_expr_info, &node};                                                                       \
                     _res_expr_info = resolve_call(member.functions, args, node);                                                                     \
                     break;                                                                                                                           \
                 }                                                                                                                                    \
@@ -586,8 +586,8 @@ namespace spade
                                             right_expr_info.to_string()),                                                                            \
                                 &node);                                                                                                              \
                 case ExprInfo::Type::FUNCTION_SET: {                                                                                                 \
-                    std::vector<ArgInfo> args(1);                                                                                                    \
-                    args[0] = ArgInfo{false, "", left_expr_info, &node};                                                                             \
+                    std::vector<ArgumentInfo> args(1);                                                                                               \
+                    args[0] = ArgumentInfo{false, "", left_expr_info, &node};                                                                        \
                     _res_expr_info = resolve_call(member.functions, args, node);                                                                     \
                     break;                                                                                                                           \
                 }                                                                                                                                    \
@@ -915,8 +915,8 @@ lt_le_ge_gt_common:
                                                             right_expr_info.to_string()),
                                                 &node);
                                 case ExprInfo::Type::FUNCTION_SET: {
-                                    std::vector<ArgInfo> args(1);
-                                    args[0] = ArgInfo{false, "", right_expr_info, &node};
+                                    std::vector<ArgumentInfo> args(1);
+                                    args[0] = ArgumentInfo{false, "", right_expr_info, &node};
                                     resolve_call(member.functions, args, node);
                                     break;
                                 }
@@ -1008,7 +1008,7 @@ lt_le_ge_gt_common:
                 if (node.get_op1()->get_type() != TokenType::EQUAL)
                     throw error("augmented assignment on an indexer is not allowed", &node);
                 // Add the value as the last argument of the indexer
-                ArgInfo value_arg;
+                ArgumentInfo value_arg;
                 // value_arg.b_kwd = false;
                 // value_arg.name = "";
                 value_arg.expr_info = right_expr_info;
@@ -1069,8 +1069,8 @@ lt_le_ge_gt_common:
                         &node);                                                                                                                      \
                 break;                                                                                                                               \
             case ExprInfo::Type::FUNCTION_SET: {                                                                                                     \
-                std::vector<ArgInfo> args(1);                                                                                                        \
-                args[0] = ArgInfo{false, "", right_expr_info, &node};                                                                                \
+                std::vector<ArgumentInfo> args(1);                                                                                                   \
+                args[0] = ArgumentInfo{false, "", right_expr_info, &node};                                                                           \
                 last_expr_info = resolve_call(member.functions, args, node);                                                                         \
                 break;                                                                                                                               \
             }                                                                                                                                        \

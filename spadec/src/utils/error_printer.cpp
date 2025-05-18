@@ -1,8 +1,7 @@
 #include <cmath>
+#include <sputils.hpp>
 
 #include "error_printer.hpp"
-#include "color.hpp"
-#include "utils/color.hpp"
 #include "utils/error.hpp"
 
 namespace spade
@@ -46,13 +45,11 @@ namespace spade
             std::getline(in, line);
             if (err.get_line_start() <= lineno && lineno <= err.get_line_end()) {
                 if (snip && snip_start <= lineno && lineno <= snip_end) {
-                    std::cout << std::format(" {} {} ... <snipped {} lines of code> ...\n", string(max_digits, ' '), pipe,
-                                             snip_end - snip_start + 1);
+                    std::cout << std::format(" {} {} ... <snipped {} lines of code> ...\n", string(max_digits, ' '), pipe, snip_end - snip_start + 1);
                     for (; lineno <= snip_end; lineno++) std::getline(in, line);    // snip
                 }
 
-                auto line_str =
-                        info.line_info_color + pad_right(std::to_string(lineno), max_digits) + color::attr(color::RESET);
+                auto line_str = info.line_info_color + pad_right(std::to_string(lineno), max_digits) + color::attr(color::RESET);
                 std::cout << std::format(" {} {} {}\n", line_str, pipe, line);
                 if (info.underline) {
                     std::cout << std::format(" {} {} ", string(max_digits, ' '), pipe);
@@ -86,7 +83,7 @@ namespace spade
         }
     }
 
-    void ErrorPrinter::print(ErrorType type, const CompilerError &err)const {
+    void ErrorPrinter::print(ErrorType type, const CompilerError &err) const {
         string err_str;
         bool quote_open = false;
         string err_what = err.what();
@@ -125,8 +122,7 @@ namespace spade
                 info.underline_char = color::fg(color::from_hex(0xffbd2a)) + '~' + color::attr(color::RESET);
                 break;
             case ErrorType::NOTE:
-                error_type_str =
-                        color::fg(color::from_hex(0x07acf2)) + color::attr(color::BOLD) + "note" + color::attr(color::RESET);
+                error_type_str = color::fg(color::from_hex(0x07acf2)) + color::attr(color::BOLD) + "note" + color::attr(color::RESET);
                 info.underline = false;
                 info.underline_char = ' ';
                 break;
@@ -136,10 +132,9 @@ namespace spade
             std::cout << std::format("{}: {}\n", error_type_str, err_str);
             std::cout << std::format("in file: {}{}\n", file_path, color::attr(color::RESET));
         } else {
-            std::cout << std::format("[{}:{}]->[{}:{}] {}: {}\n", err.get_line_start(), err.get_col_start(), err.get_line_end(),
-                                     err.get_col_end(), error_type_str, err_str);
-            std::cout << std::format("in file: {}:{}:{}{}\n", file_path, err.get_line_start(), err.get_col_start(),
-                                     color::attr(color::RESET));
+            std::cout << std::format("[{}:{}]->[{}:{}] {}: {}\n", err.get_line_start(), err.get_col_start(), err.get_line_end(), err.get_col_end(),
+                                     error_type_str, err_str);
+            std::cout << std::format("in file: {}:{}:{}{}\n", file_path, err.get_line_start(), err.get_col_start(), color::attr(color::RESET));
             print_code(path, err, info);
         }
     }

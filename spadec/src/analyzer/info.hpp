@@ -302,7 +302,7 @@ namespace spade
         string to_string(bool decorated = true) const;
     };
 
-    struct ArgInfo {
+    struct ArgumentInfo {
         bool b_kwd = false;
         string name;
         ExprInfo expr_info;
@@ -319,7 +319,7 @@ namespace spade
 
     struct IndexerInfo {
         ExprInfo caller_info;
-        std::vector<ArgInfo> arg_infos;
+        std::vector<ArgumentInfo> arg_infos;
         ast::AstNode *node = null;
 
         operator bool() const {

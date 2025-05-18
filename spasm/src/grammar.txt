@@ -47,9 +47,17 @@ array   ::= '[' (value (',' value)*)? ']';
 
 name    ::= IDENTIFIER | STRING;
 
-signature   ::= sign_atom ('(' (sign_param (',' sign_param)*)? ')')?;
-sign_atom   ::= IDENTIFIER ('.' IDENTIFIER)*;
-sign_param  ::= (IDENTIFIER ':')? signature;
+signature           ::= '[' IDENTIFIER ']'                                      // type parameter
+                      | sign_module ('.' (sign_class | sign_method))*           // general signature
+                      ;
+sign_module         ::= (IDENTIFIER ('::' IDENTIFIER)*)?;                       // module part of signature
+sign_class          ::= IDENTIFIER sign_typeparams?;                            // class part of signature
+sign_method         ::= IDENTIFIER sign_typeparams? '(' sign_params? ')';       // method part of signature
+sign_typeparams     ::= '[' IDENTIFIER (',' IDENTIFIER)* ']';                   // typeparams required by class or method
+sign_params         ::= sign_param (',' sign_param)*;                           // param list
+sign_param          ::= '[' IDENTIFIER ']'                                      // type parameter as a param
+                      | sign_module ('.' sign_class)+ ('(' sign_params? ')')?   // general signature allowed by param
+                      ;
 
 // Lexer definitions
 <IDENTIFIER>:  [a-zA-Z_][a-zA-Z0-9_!@#$%&]*;

@@ -27,7 +27,7 @@ namespace spade
          * This function is automatically just after allocation and initialization
          * @param obj
          */
-        virtual void post_allocation(Collectible *obj) = 0;
+        virtual void post_allocation(Obj *obj) = 0;
 
         /**
          * Frees the pointer and returns it to the operating system for further use

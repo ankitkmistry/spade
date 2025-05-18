@@ -2,6 +2,7 @@
 
 #include "error.hpp"
 
+#include <concepts>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -30,10 +31,14 @@ namespace spade
      */
     template<class To, class From>
     To *cast(From *val) {
-        auto cast_val = dynamic_cast<To *>(val);
-        if (cast_val == nullptr)
-            throw CastError(cpp_demangle(typeid(From).name()), cpp_demangle(typeid(To).name()));
-        return cast_val;
+        if constexpr (std::derived_from<From, To>) {
+            return static_cast<To *>(val);
+        } else {
+            auto cast_val = dynamic_cast<To *>(val);
+            if (cast_val == nullptr)
+                throw CastError(cpp_demangle(typeid(From).name()), cpp_demangle(typeid(To).name()));
+            return cast_val;
+        }
     }
 
     /**
@@ -46,34 +51,46 @@ namespace spade
      */
     template<class To, class From>
     std::shared_ptr<To> cast(std::shared_ptr<From> val) {
-        auto cast_val = std::dynamic_pointer_cast<To>(val);
-        if (cast_val == nullptr)
-            throw CastError(cpp_demangle(typeid(From).name()), cpp_demangle(typeid(To).name()));
-        return cast_val;
+        if constexpr (std::derived_from<From, To>) {
+            return std::static_pointer_cast<To>(val);
+        } else {
+            auto cast_val = std::dynamic_pointer_cast<To>(val);
+            if (cast_val == nullptr)
+                throw CastError(cpp_demangle(typeid(From).name()), cpp_demangle(typeid(To).name()));
+            return cast_val;
+        }
     }
 
     /**
-     * Checks if the nullable_type of key_char is a superclass of nullable_type V.
-     * @tparam T compile time type of the value
-     * @tparam V type for checking
+     * Checks if the type of To is a superclass of type From.
+     * @tparam To compile time type of the value
+     * @tparam From type for checking
      * @param obj the value to be checked
      * @return true if the type of value is a superclass of type V, false otherwise
      */
-    template<class T, class V>
-    bool is(V obj) {
-        return dynamic_cast<T *>(obj) != nullptr;
+    template<class To, class From>
+    bool is(From *obj) {
+        if constexpr (std::derived_from<From, To>) {
+            return true;
+        } else {
+            return dynamic_cast<To *>(obj) != nullptr;
+        }
     }
 
     /**
-     * Checks if the nullable_type of key_char is a superclass of nullable_type V.
-     * @tparam T compile time type of the value
-     * @tparam V type for checking
+     * Checks if the type of To is a superclass of type From.
+     * @tparam To compile time type of the value
+     * @tparam From type for checking
      * @param obj the value to be checked
-     * @return true if the type of value is a superclass of type V, false otherwise
+     * @return true if the type of value is a superclass of type From, false otherwise
      */
-    template<class T, class V>
-    bool is(std::shared_ptr<V> obj) {
-        return std::dynamic_pointer_cast<T>(obj) != nullptr;
+    template<class To, class From>
+    bool is(std::shared_ptr<From> obj) {
+        if constexpr (std::derived_from<From, To>) {
+            return true;
+        } else {
+            return std::dynamic_pointer_cast<To>(obj) != nullptr;
+        }
     }
 
     template<typename T>
@@ -192,7 +209,7 @@ namespace spade
     template<typename T>
     void extend_vec(std::vector<T> &dest, const std::vector<T> &vec) {
         // Check https://stackoverflow.com/a/64102335/17550173
-        dest.reserve(dest.size() + vec.size());
+        // dest.reserve(dest.size() + vec.size());
         dest.insert(dest.end(), vec.begin(), vec.end());
     }
 }    // namespace spade

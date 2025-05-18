@@ -1,5 +1,4 @@
-#ifndef VELOCITY_THREAD_HPP
-#define VELOCITY_THREAD_HPP
+#pragma once
 
 #include <thread>
 #include "../utils/common.hpp"
@@ -104,5 +103,3 @@ namespace spade
         static Thread *current();
     };
 }    // namespace spade
-
-#endif    //VELOCITY_THREAD_HPP

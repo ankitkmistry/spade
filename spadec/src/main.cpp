@@ -9,7 +9,6 @@
 #include <cpptrace/from_current.hpp>
 #include <cpptrace/formatting.hpp>
 
-#include "utils/color.hpp"
 #include "utils/error.hpp"
 #include "utils/error_printer.hpp"
 #include "utils/graph.hpp"
@@ -87,7 +86,7 @@ void opcode_test() {
     std::cout << "-------------------------------\n";
     for (const auto &opcode: OpcodeInfo::all_opcodes()) {
         assert(opcode == OpcodeInfo::from_string(OpcodeInfo::to_string(opcode)));
-        std::cout << std::format("{:15} ({})\t{}\n", OpcodeInfo::to_string(opcode), OpcodeInfo::get_params(opcode),
+        std::cout << std::format("{:15} ({})\t{}\n", OpcodeInfo::to_string(opcode), OpcodeInfo::params_count(opcode),
                                  OpcodeInfo::take_from_const_pool(opcode));
     }
 }

@@ -10,13 +10,13 @@ namespace spade::basic
     class BasicCollector {
       private:
         BasicMemoryManager *manager;
-        vector<Collectible *> grayMaterial;
+        vector<Obj *> grayMaterial;
 
         void mark_roots();
 
         void mark_table(const Table<Obj *> &table);
 
-        void mark(Collectible *collectible);
+        void mark(Obj *obj);
 
         void mark_thread(Thread *thread);
 

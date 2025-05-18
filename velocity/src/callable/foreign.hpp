@@ -15,8 +15,6 @@ namespace spade
 
         void link_library();
 
-        void set_self(Obj *selfObj) override;
-
         void call(const vector<Obj *> &args) override;
 
         void call(Obj **args) override;

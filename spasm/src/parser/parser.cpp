@@ -12,6 +12,7 @@
 #include "context.hpp"
 #include "lexer/token.hpp"
 #include "spinfo/opcode.hpp"
+#include "spinfo/sign.hpp"
 #include "utils/error.hpp"
 
 namespace spasm
@@ -124,7 +125,7 @@ namespace spasm
         elp.major_version = 1;
         elp.minor_version = 0;
 
-        elp.entry = ctx.get_constant(excecutable ? entry_point : "");
+        elp.entry = ctx.get_constant(excecutable ? entry_point.to_string() : "");
         elp.imports = ctx.get_constant(vector<ValueContext>());
 
         const auto constants = ctx.get_constants();
@@ -152,6 +153,7 @@ namespace spasm
 
         auto start = expect(TokenType::MODULE);
         auto name = expect(TokenType::IDENTIFIER)->get_text();
+        current_sign |= SignElement(name, Sign::Kind::MODULE);
         parse_term();
 
         vector<GlobalInfo> globals;
@@ -229,7 +231,7 @@ namespace spasm
         const auto property = expect(TokenType::PROPERTY);
         const auto name = parse_name();
         expect(TokenType::COLON);
-        const auto type = parse_signature();
+        const auto type = parse_signature().to_string();
         parse_term();
 
         GlobalInfo global;
@@ -246,7 +248,9 @@ namespace spasm
 
     ClassInfo Parser::parse_class() {
         const auto start = expect(TokenType::CLASS);
-        const auto name = parse_signature();
+        const auto sign = parse_sign_class();
+        const auto name = sign.to_string();
+        current_sign |= sign;
         parse_term();
 
         std::unordered_map<string, ValueContext> properties{
@@ -314,7 +318,7 @@ namespace spasm
         const auto property = expect(TokenType::PROPERTY);
         const auto name = parse_name();
         expect(TokenType::COLON);
-        const auto type = parse_signature();
+        const auto type = parse_signature().to_string();
         parse_term();
 
         FieldInfo field;
@@ -334,7 +338,9 @@ namespace spasm
 
         const auto start = expect(TokenType::METHOD);
         const auto property = match(TokenType::PROPERTY);
-        const auto name = parse_signature();
+        const auto sign = parse_sign_method();
+        const auto name = sign.to_string();
+        current_sign |= sign;
         parse_term();
 
         std::unordered_map<string, ValueContext> properties{
@@ -380,7 +386,7 @@ namespace spasm
 
         if (property) {
             if (property->get_text() == "@entry") {
-                entry_point = name;
+                entry_point = current_sign;
             } else if (property->get_text() == "@init") {
                 get_current_module()->set_init(name);
             }
@@ -462,7 +468,7 @@ namespace spasm
         const auto name = parse_name();
         const auto name_tok = current();
         expect(TokenType::COLON);
-        const auto type = parse_signature();
+        const auto type = parse_signature().to_string();
         parse_term();
 
         if (!ctx->add_arg(name))
@@ -486,7 +492,7 @@ namespace spasm
         const auto name = parse_name();
         const auto name_tok = current();
         expect(TokenType::COLON);
-        const auto type = parse_signature();
+        const auto type = parse_signature().to_string();
         parse_term();
 
         if (!ctx->add_local(name))
@@ -512,7 +518,7 @@ namespace spasm
         expect(TokenType::ARROW);
         exception.dest_label = expect(TokenType::LABEL);
         expect(TokenType::COLON);
-        exception.type = parse_signature();
+        exception.type = parse_signature().to_string();
         parse_term();
         return exception;
     }
@@ -653,7 +659,7 @@ namespace spasm
             case TokenType::LBRACKET:
                 return parse_array();
             case TokenType::IDENTIFIER:
-                return parse_signature();
+                return parse_signature().to_string();
             default:
                 throw error(std::format("expected {}, array, signature",
                                         make_expected_string(TokenType::INTEGER, TokenType::FLOAT, TokenType::STRING, TokenType::CSTRING)));
@@ -681,22 +687,115 @@ namespace spasm
         }
     }
 
-    string Parser::parse_signature() {
-        string result;
-        result += parse_sign_atom();
-        if (match(TokenType::LPAREN)) {
-            if (match(TokenType::RPAREN)) {
-                result += "()";
-            } else {
-                result += '(';
-                do {
-                    result += parse_sign_param();
-                } while (match(TokenType::COMMA) && (result += ',', true));
-                expect(TokenType::RPAREN);
-                result += ')';
+    Sign Parser::parse_signature() {
+        vector<SignElement> elements;
+        if (match(TokenType::LBRACKET)) {
+            const auto name = expect(TokenType::IDENTIFIER)->get_text();
+            elements.emplace_back(name, Sign::Kind::TYPE_PARAM);
+            expect(TokenType::RBRACKET);
+        } else if (match(TokenType::IDENTIFIER)) {
+            elements.emplace_back(current()->get_text(), Sign::Kind::MODULE);
+            while (match(TokenType::COLON)) {
+                expect(TokenType::COLON);
+                const auto name = expect(TokenType::IDENTIFIER)->get_text();
+                elements.emplace_back(name, Sign::Kind::MODULE);
             }
+            while (match(TokenType::DOT)) {
+                elements.push_back(parse_sign_class_or_method());
+            }
+        } else {
+            throw error("expected signature");
         }
-        return result;
+        return Sign(elements);
+    }
+
+    SignElement Parser::parse_sign_class_or_method() {
+        const auto name = expect(TokenType::IDENTIFIER)->get_text();
+        vector<string> type_params;
+        if (match(TokenType::LBRACKET)) {
+            do {
+                type_params.push_back(expect(TokenType::IDENTIFIER)->get_text());
+            } while (match(TokenType::COMMA));
+            expect(TokenType::RBRACKET);
+        }
+        if (match(TokenType::LPAREN)) {
+            vector<SignParam> params;
+            if (!match(TokenType::RPAREN)) {
+                do {
+                    params.push_back(parse_sign_param());
+                } while (match(TokenType::COMMA));
+                expect(TokenType::RPAREN);
+            }
+            return SignElement(name, Sign::Kind::METHOD, type_params, params);
+        }
+        return SignElement(name, Sign::Kind::CLASS, type_params);
+    }
+
+    SignElement Parser::parse_sign_class() {
+        const auto name = expect(TokenType::IDENTIFIER)->get_text();
+        vector<string> type_params;
+        if (match(TokenType::LBRACKET)) {
+            do {
+                type_params.push_back(expect(TokenType::IDENTIFIER)->get_text());
+            } while (match(TokenType::COMMA));
+            expect(TokenType::RBRACKET);
+        }
+        return SignElement(name, Sign::Kind::CLASS, type_params);
+    }
+
+    SignElement Parser::parse_sign_method() {
+        const auto name = expect(TokenType::IDENTIFIER)->get_text();
+        vector<string> type_params;
+        if (match(TokenType::LBRACKET)) {
+            do {
+                type_params.push_back(expect(TokenType::IDENTIFIER)->get_text());
+            } while (match(TokenType::COMMA));
+            expect(TokenType::RBRACKET);
+        }
+        vector<SignParam> params;
+        expect(TokenType::LPAREN);
+        if (!match(TokenType::RPAREN)) {
+            do {
+                params.push_back(parse_sign_param());
+            } while (match(TokenType::COMMA));
+            expect(TokenType::RPAREN);
+        }
+        return SignElement(name, Sign::Kind::METHOD, type_params, params);
+    }
+
+    SignParam Parser::parse_sign_param() {
+        if (match(TokenType::LBRACKET)) {
+            const auto name = expect(TokenType::IDENTIFIER)->get_text();
+            expect(TokenType::RBRACKET);
+            return SignParam(SignParam::Kind::TYPE_PARAM, name);
+        }
+        vector<SignElement> elements;
+
+        expect(TokenType::IDENTIFIER);
+        elements.emplace_back(current()->get_text(), Sign::Kind::MODULE);
+
+        while (match(TokenType::COLON)) {
+            expect(TokenType::COLON);
+            const auto name = expect(TokenType::IDENTIFIER)->get_text();
+            elements.emplace_back(name, Sign::Kind::MODULE);
+        }
+
+        expect(TokenType::DOT);
+        elements.push_back(parse_sign_class());
+        while (match(TokenType::DOT)) {
+            elements.push_back(parse_sign_class());
+        }
+        if (match(TokenType::LPAREN)) {
+            vector<SignParam> params;
+            if (!match(TokenType::RPAREN)) {
+                do {
+                    params.push_back(parse_sign_param());
+                } while (match(TokenType::COMMA));
+                expect(TokenType::RPAREN);
+            }
+            return SignParam(SignParam::Kind::CALLBACK, Sign(elements), params);
+        }
+        return SignParam(SignParam::Kind::CLASS, Sign(elements));
     }
 
     string Parser::parse_sign_atom() {
@@ -707,18 +806,6 @@ namespace spasm
             token = expect(TokenType::IDENTIFIER);
             result += '.' + token->get_text();
         }
-        return result;
-    }
-
-    string Parser::parse_sign_param() {
-        string result;
-        if (peek()->get_type() == TokenType::IDENTIFIER && peek(1)->get_type() == TokenType::COLON) {
-            auto name = advance();
-            result += name->get_text();
-            advance();
-            result += ':';
-        }
-        result += parse_signature();
         return result;
     }
 

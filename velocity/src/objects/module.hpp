@@ -5,55 +5,33 @@
 namespace spade
 {
     class ObjModule : public Obj {
-      public:
-        enum class State { NOT_READ, READ, LOADED, INITIALIZED };
-
       private:
-        /// State of the module
-        State state = State::NOT_READ;
         /// Path of the module
         fs::path path;
         /// The constant pool of the module
         vector<Obj *> constant_pool;
-        /// The dependencies of the module
-        vector<string> dependencies;
-        /// The information in the module
-        ElpInfo elp;
         /// The module init method
         ObjMethod *init = null;
 
       public:
-        ObjModule(const Sign &sign, const fs::path &path, const vector<Obj *> &constant_pool, const vector<string> &dependencies,
-                  const ElpInfo &elp);
+        ObjModule(const Sign &sign, const fs::path &path, const vector<Obj *> &constant_pool, const Table<MemberSlot> &member_slots);
 
         static ObjModule *current();
 
-        string get_absolute_path();
-
-        string get_module_name() const;
-
-        State get_state() const {
-            return state;
+        const fs::path &get_path() {
+            return path;
         }
 
-        void set_state(State state_) {
-            state = state_;
+        string get_module_name() const {
+            return path.stem().string();
         }
 
         const fs::path &get_path() const {
             return path;
         }
 
-        ElpInfo get_elp() const {
-            return elp;
-        }
-
         const vector<Obj *> &get_constant_pool() const {
             return constant_pool;
-        }
-
-        const vector<string> &get_dependencies() const {
-            return dependencies;
         }
 
         ObjMethod *get_init() const {

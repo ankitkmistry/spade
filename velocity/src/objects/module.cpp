@@ -3,19 +3,10 @@
 
 namespace spade
 {
-    string ObjModule::get_absolute_path() {
-        if (!path.is_absolute())
-            path = std::filesystem::current_path() / path;
-        return path.string();
+    ObjModule::ObjModule(const Sign &sign, const fs::path &path, const vector<Obj *> &constant_pool, const Table<MemberSlot> &member_slots)
+        : Obj(sign, null, null), path(path), constant_pool(constant_pool) {
+        this->member_slots = member_slots;
     }
-
-    string ObjModule::get_module_name() const {
-        return path.filename().string();
-    }
-
-    ObjModule::ObjModule(const Sign &sign, const fs::path &path, const vector<Obj *> &constant_pool, const vector<string> &dependencies,
-                         const ElpInfo &elp)
-        : Obj(sign, null, null), path(path), constant_pool(constant_pool), dependencies(dependencies), elp(elp) {}
 
     Obj *ObjModule::copy() {
         return this;

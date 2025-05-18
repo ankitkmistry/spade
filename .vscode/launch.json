@@ -1,0 +1,19 @@
+{
+    "configurations": [
+        {
+            "name": "(Windows) Launch spasm",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/spasm.exe",
+            "args": [
+                "-o",
+                "kitty",
+                ".\\spasm\\res\\hello.spa",
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "internalConsole"
+        }
+    ]
+}

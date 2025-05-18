@@ -1,7 +1,8 @@
 #pragma once
 
-#include "../memory/manager.hpp"
-#include "../utils/common.hpp"
+#include "memory/manager.hpp"
+#include "memory/memory.hpp"
+#include "utils/common.hpp"
 #include "obj.hpp"
 
 namespace spade
@@ -30,7 +31,7 @@ namespace spade
         int32 compare(const Obj *rhs) const override;
 
         ObjBool *operator!() const {
-            return halloc<ObjBool>(info.manager, !b, module);
+            return halloc_mgr<ObjBool>(info.manager, !b, module);
         }
     };
 
@@ -84,7 +85,7 @@ namespace spade
       public:
         ObjString(string str, ObjModule *module = null) : ComparableObj(Sign("string"), null, module), str(str) {}
 
-        ObjString(uint8 *bytes, uint16 len, ObjModule *module = null);
+        ObjString(const uint8 *bytes, uint16 len, ObjModule *module = null);
 
         bool truth() const override {
             return !str.empty();
@@ -111,7 +112,7 @@ namespace spade
             array = length == 0 ? null : new Obj *[length] { null };
         }
 
-        void foreach (std::function<void(Obj *)> func) const;
+        void foreach (const std::function<void(Obj *)> &func) const;
 
         Obj *get(int64 i) const;
 

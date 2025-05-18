@@ -27,7 +27,6 @@ namespace spade
         LocalsTable locals{0};
         ExceptionTable exceptions;
         LineNumberTable lines{};
-        vector<ObjMethod *> lambdas;
         vector<MatchTable> matches;
         ObjMethod *method = null;
 
@@ -109,14 +108,7 @@ namespace spade
         }
 
         /**
-         * @return The array of lambda functions
-         */
-        const vector<ObjMethod *> &get_lambdas() const {
-            return lambdas;
-        }
-
-        /**
-         * @return The array of check statements
+         * @return The array of match statements
          */
         const vector<MatchTable> &get_matches() const {
             return matches;
@@ -148,7 +140,7 @@ namespace spade
         /**
          * @return The number of items on the stack
          */
-        uint32 get_stack_count();
+        uint32 get_stack_count() const;
 
         /**
          * @return The size of the bytecode

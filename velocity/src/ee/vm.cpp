@@ -4,7 +4,7 @@ namespace spade
 {
     SpadeVM::SpadeVM(MemoryManager *manager, const Settings &settings) : loader(this), manager(manager), settings(settings) {
         this->manager->set_vm(this);
-        loader = Loader(this);
+        loader = Booter(this);
     }
 
     void SpadeVM::on_exit(const std::function<void()> &fun) {
@@ -17,16 +17,20 @@ namespace spade
         // Complain if there is no entry point
         if (entry == null)
             throw IllegalAccessError(std::format("cannot find entry point in '{}'", file_name));
-        if (entry->get_frame_template()->get_args().count() != 1)
-            throw runtime_error("entry point must have one argument (.array): " + entry->get_sign().to_string());
-        // Execute from the entry
-        return start(entry, args_repr(args));
+        if (auto args_count = entry->get_frame_template().get_args().count(); args_count >= 1)
+            throw runtime_error("entry point must have zero or one argument (basic.array): " + entry->get_sign().to_string());
+        else if (args_count == 1)
+            // Execute from the entry with cmdline args
+            return start(entry, args_repr(args));
+        else
+            // Execute from the entry
+            return start(entry);
     }
 
     ObjArray *SpadeVM::args_repr(const vector<string> &args) const {
-        auto array = halloc<ObjArray>(manager, args.size());
+        auto array = halloc_mgr<ObjArray>(manager, args.size());
         for (int i = 0; i < args.size(); ++i) {
-            array->set(i, halloc<ObjString>(manager, args[i]));
+            array->set(i, halloc_mgr<ObjString>(manager, args[i]));
         }
         return array;
     }
@@ -35,7 +39,7 @@ namespace spade
         auto state = new VMState(this);
         Thread thread{state, [&](auto thr) {
                           thr->set_status(Thread::RUNNING);
-                          entry->call({args});
+                          entry->call(args ? vector<Obj *>{args} : vector<Obj *>{});
                           run(thr);
                       }};
         threads.insert(&thread);
@@ -49,10 +53,10 @@ namespace spade
     }
 
     ThrowSignal SpadeVM::runtime_error(const string &str) const {
-        return ThrowSignal{halloc<ObjString>(manager, str)};
+        return ThrowSignal{halloc_mgr<ObjString>(manager, str)};
     }
 
-    Obj *SpadeVM::get_symbol(const string &sign) const {
+    Obj *SpadeVM::get_symbol(const string &sign, bool strict) const {
         Sign symbol_sign{sign};
         vector<SignElement> elements = symbol_sign.get_elements();
         if (elements.empty())
@@ -64,9 +68,15 @@ namespace spade
                 acc = acc->get_member(elements[i].to_string());
             }
         } catch (const IllegalAccessError &) {
-            throw IllegalAccessError(std::format("cannot find symbol: {}", sign));
+            if (strict)
+                throw IllegalAccessError(std::format("cannot find symbol: {}", sign));
+            else
+                return null;
         } catch (const std::out_of_range &) {
-            throw IllegalAccessError(std::format("cannot find symbol: {}", sign));
+            if (strict)
+                throw IllegalAccessError(std::format("cannot find symbol: {}", sign));
+            else
+                return null;
         }
         return acc;
     }

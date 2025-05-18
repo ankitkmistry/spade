@@ -1,9 +1,10 @@
 #include "obj.hpp"
-#include "../ee/vm.hpp"
 #include "inbuilt_types.hpp"
+#include "memory/memory.hpp"
 #include "module.hpp"
 #include "type.hpp"
 #include "typeparam.hpp"
+#include "ee/vm.hpp"
 
 namespace spade
 {
@@ -35,106 +36,88 @@ namespace spade
         }
         if (type != null) {
             member_slots = type_get_all_non_static_members(type, super_class_methods);
-            for (auto slot: member_slots | std::views::values) {
-                Obj *value = slot.get_value();
-                if (is<ObjCallable>(value)) {
-                    cast<ObjCallable>(value->copy())->set_self(this);
-                }
-            }
         }
     }
 
-    void Obj::reify(Obj **p_obj, const Table<NamedRef *> &old_, const Table<NamedRef *> &new_) {
-#define REIFY(p_obj) reify(p_obj, old_, new_)
-        if (*p_obj == null)
-            return;
-        if (old_.empty() || new_.empty())
-            return;
+    void Obj::reify(Obj **p_obj, const Table<TypeParam *> &old_, const Table<TypeParam *> &new_) {
+        // #define REIFY(p_obj) reify(p_obj, old_, new_)
+        //         if (*p_obj == null)
+        //             return;
+        //         if (old_.empty() || new_.empty())
+        //             return;
 
-        if (auto array = dynamic_cast<ObjArray *>(*p_obj); array != null) {
-            // Reify array items
-            for (int i = 0; i < array->count(); ++i) {
-                auto item = array->get(i);
-                REIFY(&item);
-                array->set(i, item);
-            }
-        } else if (auto method = dynamic_cast<ObjMethod *>(*p_obj); method != null) {
-            auto frame_template = method->get_frame_template();
-            // Reify args
-            auto &args = frame_template->get_args();
-            for (int i = 0; i < args.count(); ++i) {
-                auto arg = args.get(i);
-                REIFY(&arg);
-            }
-            // Reify locals
-            auto &locals = frame_template->get_locals();
-            for (int i = 0; i < locals.count(); ++i) {
-                auto local = locals.get(i);
-                REIFY(&local);
-            }
-            // Reify lambdas
-            auto &lambdas = frame_template->get_lambdas();
-            for (auto lambda: lambdas) {
-                auto lambda_obj = cast<Obj>(lambda);
-                REIFY(&lambda_obj);
-            }
-            // Reify matches
-            auto &matches = frame_template->get_matches();
-            for (const auto &match: matches) {
-                auto cases = match.get_cases();
-                for (const auto &kase: cases) {
-                    auto case_value = kase.get_value();
-                    REIFY(&case_value);
-                }
-            }
-            // Reify exceptions
-            auto &exceptions = frame_template->get_exceptions();
-            for (int i = 0; i < exceptions.count(); ++i) {
-                auto exc_type = cast<Obj>(exceptions.get(i).get_type());
-                REIFY(&exc_type);
-            }
-        } else if (auto tp = dynamic_cast<TypeParam *>(*p_obj); tp != null) {
-            // Change type params accordingly
-            for (const auto &[name, param]: old_) {
-                if (*p_obj == param->get_value()) {
-                    *p_obj = new_.at(name)->get_value();
-                    break;
-                }
-            }
-            return;
-        }
+        //         if (auto array = dynamic_cast<ObjArray *>(*p_obj); array != null) {
+        //             // Reify array items
+        //             for (int i = 0; i < array->count(); ++i) {
+        //                 auto item = array->get(i);
+        //                 REIFY(&item);
+        //                 array->set(i, item);
+        //             }
+        //         } else if (auto method = dynamic_cast<ObjMethod *>(*p_obj); method != null) {
+        //             auto frame_template = method->get_frame_template();
+        //             // Reify args
+        //             auto &args = frame_template->get_args();
+        //             for (int i = 0; i < args.count(); ++i) {
+        //                 auto arg = args.get(i);
+        //                 REIFY(&arg);
+        //             }
+        //             // Reify locals
+        //             auto &locals = frame_template->get_locals();
+        //             for (int i = 0; i < locals.count(); ++i) {
+        //                 auto local = locals.get(i);
+        //                 REIFY(&local);
+        //             }
+        //             // Reify lambdas
+        //             auto &lambdas = frame_template->get_lambdas();
+        //             for (auto lambda: lambdas) {
+        //                 auto lambda_obj = cast<Obj>(lambda);
+        //                 REIFY(&lambda_obj);
+        //             }
+        //             // Reify matches
+        //             auto &matches = frame_template->get_matches();
+        //             for (const auto &match: matches) {
+        //                 auto cases = match.get_cases();
+        //                 for (const auto &kase: cases) {
+        //                     auto case_value = kase.get_value();
+        //                     REIFY(&case_value);
+        //                 }
+        //             }
+        //             // Reify exceptions
+        //             auto &exceptions = frame_template->get_exceptions();
+        //             for (int i = 0; i < exceptions.count(); ++i) {
+        //                 auto exc_type = cast<Obj>(exceptions.get(i).get_type());
+        //                 REIFY(&exc_type);
+        //             }
+        //         } else if (auto tp = dynamic_cast<TypeParam *>(*p_obj); tp != null) {
+        //             // Change type params accordingly
+        //             for (const auto &[name, param]: old_) {
+        //                 if (*p_obj == param->get_value()) {
+        //                     *p_obj = new_.at(name)->get_value();
+        //                     break;
+        //                 }
+        //             }
+        //             return;
+        //         }
 
-        auto object = *p_obj;
-        // Reify object type
-        Obj *type = object->type;
-        if (type != null) {
-            REIFY(&type);
-            object->type = cast<Type>(type);
-        }
-        // Reify members
-        for (auto member: object->get_member_slots() | std::views::values) {
-            REIFY(&member.get_value());
-        }
-#undef REIFY
-    }
-
-    Obj *Obj::create_copy(Obj *obj) {
-        return is<Type>(obj) || is<ObjCallable>(obj) || is<ObjModule>(obj) ? obj : obj->copy();
+        //         auto object = *p_obj;
+        //         // Reify object type
+        //         Obj *type = object->type;
+        //         if (type != null) {
+        //             REIFY(&type);
+        //             object->type = cast<Type>(type);
+        //         }
+        //         // Reify members
+        //         for (auto member: object->get_member_slots() | std::views::values) {
+        //             REIFY(&member.get_value());
+        //         }
+        // #undef REIFY
     }
 
     Obj *Obj::get_member(const string &name) const {
         try {
             return get_member_slots().at(name).get_value();
         } catch (std::out_of_range &) {
-            if (type == null) {
-                throw IllegalAccessError(std::format("cannot find member: {} in {}", name, to_string()));
-            } else {
-                try {
-                    return type->get_static_member(name);
-                } catch (const IllegalAccessError &) {
-                    throw IllegalAccessError(std::format("cannot find member: {} in {}", name, to_string()));
-                }
-            }
+            throw IllegalAccessError(std::format("cannot find member: {} in {}", name, to_string()));
         }
     }
 
@@ -142,21 +125,7 @@ namespace spade
         try {
             get_member_slots().at(name).set_value(value);
         } catch (std::out_of_range &) {
-            if (type == null) {
-                get_member_slots()[name] = MemberSlot{value, 0b0001000000000000};
-            } else {
-                try {
-                    type->set_static_member(name, value);
-                } catch (const IllegalAccessError &) {
-                    get_member_slots()[name] = MemberSlot{value, 0b0001000000000000};
-                }
-            }
-        }
-        if (is<ObjCallable>(value)) {
-            cast<ObjCallable>(value)->set_self(this);
-            if (is<ObjMethod>(value)) {
-                cast<ObjMethod>(value)->set_type(type);
-            }
+            get_member_slots()[name] = MemberSlot{value, 0b0001000000000000};
         }
     }
 
@@ -172,7 +141,7 @@ namespace spade
     }
 
     Obj *Obj::copy() {
-        auto copy_obj = halloc<Obj>(info.manager, sign, type, module);
+        auto copy_obj = halloc_mgr<Obj>(info.manager, sign, type, module);
         for (auto [name, slot]: member_slots) {
             copy_obj->set_member(name, create_copy(slot.get_value()));
         }
@@ -192,26 +161,26 @@ namespace spade
     }
 
     ObjBool *ComparableObj::operator<(const Obj *rhs) const {
-        return halloc<ObjBool>(info.manager, compare(rhs) < 0);
+        return halloc_mgr<ObjBool>(info.manager, compare(rhs) < 0);
     }
 
     ObjBool *ComparableObj::operator>(const Obj *rhs) const {
-        return halloc<ObjBool>(info.manager, compare(rhs) > 0);
+        return halloc_mgr<ObjBool>(info.manager, compare(rhs) > 0);
     }
 
     ObjBool *ComparableObj::operator<=(const Obj *rhs) const {
-        return halloc<ObjBool>(info.manager, compare(rhs) <= 0);
+        return halloc_mgr<ObjBool>(info.manager, compare(rhs) <= 0);
     }
 
     ObjBool *ComparableObj::operator>=(const Obj *rhs) const {
-        return halloc<ObjBool>(info.manager, compare(rhs) >= 0);
+        return halloc_mgr<ObjBool>(info.manager, compare(rhs) >= 0);
     }
 
     ObjBool *ComparableObj::operator==(const Obj *rhs) const {
-        return halloc<ObjBool>(info.manager, compare(rhs) == 0);
+        return halloc_mgr<ObjBool>(info.manager, compare(rhs) == 0);
     }
 
     ObjBool *ComparableObj::operator!=(const Obj *rhs) const {
-        return halloc<ObjBool>(info.manager, compare(rhs) != 0);
+        return halloc_mgr<ObjBool>(info.manager, compare(rhs) != 0);
     }
 }    // namespace spade

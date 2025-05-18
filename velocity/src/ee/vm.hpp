@@ -2,11 +2,12 @@
 #define VELOCITY_VM_HPP
 
 #include "utils/common.hpp"
+#include "utils/exceptions.hpp"
 #include "thread.hpp"
 #include "settings.hpp"
 #include "objects/inbuilt_types.hpp"
-#include "loader/loader.hpp"
 #include "memory/manager.hpp"
+#include "loader/booter.hpp"
 
 namespace spade
 {
@@ -17,7 +18,7 @@ namespace spade
         /// The threads
         std::set<Thread *> threads;
         /// The loader
-        Loader loader;
+        Booter loader;
         /// The memory manager
         MemoryManager *manager;
         /// The actions to be performed when the vm terminates
@@ -56,7 +57,7 @@ namespace spade
          * @param args the array object which has the command line arguments
          * @return the exit code
          */
-        int start(ObjMethod *entry, ObjArray *args);
+        int start(ObjMethod *entry, ObjArray *args = null);
 
         /**
          * The vm execution loop
@@ -71,7 +72,7 @@ namespace spade
          * @param sign the signature of the symbol
          * @return the value of the symbol corresponding to the signature \p sign
          */
-        Obj *get_symbol(const string &sign) const;
+        Obj *get_symbol(const string &sign, bool strict = true) const;
 
         /**
          * @param sign the sign of the symbol

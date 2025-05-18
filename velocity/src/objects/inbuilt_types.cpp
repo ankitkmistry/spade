@@ -15,7 +15,7 @@ namespace spade
         try {
             return (b ? trues : falses).at(manager);
         } catch (const std::out_of_range &) {
-            return (b ? trues : falses)[manager] = halloc<ObjBool>(manager, b);
+            return (b ? trues : falses)[manager] = halloc_mgr<ObjBool>(manager, b);
         }
     }
 
@@ -37,11 +37,11 @@ namespace spade
         try {
             return nulls.at(manager);
         } catch (const std::out_of_range &) {
-            return nulls[manager] = halloc<ObjNull>(manager);
+            return nulls[manager] = halloc_mgr<ObjNull>(manager);
         }
     }
 
-    ObjString::ObjString(uint8 *bytes, uint16 len, ObjModule *module) : ComparableObj(Sign("string"), null, module), str() {
+    ObjString::ObjString(const uint8 *bytes, uint16 len, ObjModule *module) : ComparableObj(Sign("string"), null, module), str() {
         str = string(bytes, bytes + len);
     }
 
@@ -52,7 +52,7 @@ namespace spade
     }
 
     Obj *ObjArray::copy() {
-        auto arr = halloc<ObjArray>(info.manager, length);
+        auto arr = halloc_mgr<ObjArray>(info.manager, length);
         for (uint16 i = 0; i < length; ++i) arr->set(i, create_copy(array[i]));
         return arr;
     }
@@ -67,21 +67,21 @@ namespace spade
         if (i >= length)
             throw IndexError("array", i);
         if (array == null)
-            return halloc<ObjNull>(info.manager, module);
+            return halloc_mgr<ObjNull>(info.manager, module);
         return array[i >= 0 ? i : length + i];
     }
 
     void ObjArray::set(int64 i, Obj *value) {
         // Initialize the array if it is not initialized yet
         if (array == null) {
-            array = new Obj *[length] { halloc<ObjNull>(info.manager) };
+            array = new Obj *[length] { halloc_mgr<ObjNull>(info.manager) };
         }
         if (i >= length)
             throw IndexError("array", i);
         array[i >= 0 ? i : length + i] = value;
     }
 
-    void ObjArray::foreach (std::function<void(Obj *)> func) const {
+    void ObjArray::foreach (const std::function<void(Obj *)> &func) const {
         for (int i = 0; i < length; ++i) func(array[i]);
     }
 

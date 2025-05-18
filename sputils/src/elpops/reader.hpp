@@ -76,7 +76,7 @@ namespace spade
          */
         ElpInfo read();
 
-        const string &getPath() const {
+        const string &get_path() const {
             return path;
         }
     };

@@ -1,6 +1,6 @@
-#include "foreign_loader.hpp"
-
 #include <ranges>
+
+#include "foreign_loader.hpp"
 
 #if defined OS_WINDOWS
 
@@ -59,11 +59,11 @@ void Library::unload() {
 
 Library *ForeignLoader::load_simple_library(string path) {
     // TODO: Add advanced lookup
-    HMODULE module = LoadLibrary(path.c_str());
+    const HMODULE module = LoadLibrary(path.c_str());
     if (module == null) {
-        DWORD errorCode = GetLastError();
-        auto errMsg = get_error_message(errorCode);
-        throw spade::NativeLibraryError(path, std::format("{} ({:#0x})", errMsg.c_str(), errorCode));
+        const DWORD error_code = GetLastError();
+        const auto err_msg = get_error_message(error_code);
+        throw spade::NativeLibraryError(path, std::format("{} ({:#0x})", err_msg.c_str(), error_code));
     }
     auto library = new Library(Library::Kind::SIMPLE, path, module);
     libraries[path] = library;

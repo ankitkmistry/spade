@@ -1,6 +1,6 @@
 #pragma once
 
-#include <sputils.hpp>
+#include "common.hpp"
 
 namespace spade
 {

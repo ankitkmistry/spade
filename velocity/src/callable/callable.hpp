@@ -33,8 +33,6 @@ namespace spade
          */
         virtual void call(Obj **args) = 0;
 
-        virtual void set_self(Obj *self) = 0;
-
         /**
          * Calls this method with \p args on the current thread.
          * Invokes the VM, completes the execution of

@@ -168,7 +168,7 @@ namespace spade
          * @return true if function can take @p arg_infos
          * @return false if function cannot take @p arg_infos
          */
-        bool check_fun_call(scope::Function *function, const std::vector<ArgInfo> &arg_infos, const ast::AstNode &node,
+        bool check_fun_call(scope::Function *function, const std::vector<ArgumentInfo> &arg_infos, const ast::AstNode &node,
                             ErrorGroup<AnalyzerError> &errors);
 
         /**
@@ -179,7 +179,7 @@ namespace spade
          * @param node the source ast node used for error messages
          * @return ExprInfo the return value expr info of the function
          */
-        ExprInfo resolve_call(const FunctionInfo &funs, const std::vector<ArgInfo> &arg_infos, const ast::AstNode &node);
+        ExprInfo resolve_call(const FunctionInfo &funs, const std::vector<ArgumentInfo> &arg_infos, const ast::AstNode &node);
 
         /**
          * This function resolves the indexer if there was any indexer call because indexers are late resolved
@@ -331,7 +331,7 @@ namespace spade
         void visit(ast::expr::Call &node);
 
       private:
-        ArgInfo _res_arg_info;
+        ArgumentInfo _res_arg_info;
 
       public:
         void visit(ast::expr::Argument &node);

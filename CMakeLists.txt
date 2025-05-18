@@ -36,6 +36,14 @@ FetchContent_Declare (
 )
 FetchContent_MakeAvailable (cpptrace)
 
+# Set up argparse
+include(FetchContent)
+FetchContent_Declare(
+    argparse
+    GIT_REPOSITORY https://github.com/p-ranav/argparse.git
+)
+FetchContent_MakeAvailable(argparse)
+
 # Target: sputils
 # It is the central utility library used by all other targets
 file (GLOB_RECURSE SPUTILS_SRCS sputils/src/*.cpp)
@@ -76,7 +84,7 @@ file (GLOB_RECURSE SPASM_INCLUDES spasm/src/*.hpp)
 add_executable (spasm ${SPASM_SRCS} ${SPASM_INCLUDES})
 target_include_directories (spasm PRIVATE spasm/src)
 target_include_directories (spasm PUBLIC sputils/src)
-target_link_libraries (spasm PUBLIC sputils)
+target_link_libraries (spasm PUBLIC sputils PRIVATE argparse)
 
 if (WIN32)
   add_custom_command (

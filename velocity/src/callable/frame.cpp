@@ -16,7 +16,7 @@ namespace spade
         return sp[-1];
     }
 
-    uint32 Frame::get_stack_count() {
+    uint32 Frame::get_stack_count() const {
         return sp - stack;
     }
 

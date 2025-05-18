@@ -14,7 +14,8 @@ namespace spasm
         vector<std::shared_ptr<Token>> tokens;
         int index = 0;
 
-        string entry_point;
+        Sign current_sign;
+        Sign entry_point;
 
         vector<std::shared_ptr<Context>> context_stack;
         std::shared_ptr<Context> get_current_context() const;
@@ -77,6 +78,7 @@ namespace spasm
 
         void end_context() {
             context_stack.pop_back();
+            current_sign = current_sign.get_parent();
         }
 
         ParserError error(const string &msg, const std::shared_ptr<Token> &token);
@@ -103,9 +105,12 @@ namespace spasm
 
         string parse_name();
 
-        string parse_signature();
+        Sign parse_signature();
+        SignElement parse_sign_class_or_method();
+        SignElement parse_sign_class();
+        SignElement parse_sign_method();
+        SignParam parse_sign_param();
         string parse_sign_atom();
-        string parse_sign_param();
 
       public:
         /**

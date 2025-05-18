@@ -1,5 +1,4 @@
-#ifndef VELOCITY_STATE_HPP
-#define VELOCITY_STATE_HPP
+#pragma once
 
 #include "../utils/common.hpp"
 #include "../callable/frame.hpp"
@@ -117,14 +116,14 @@ namespace spade
         /**
          * @return The size of the call stack
          */
-        uint16 get_call_stack_size() {
+        uint16 get_call_stack_size() const {
             return fp - call_stack;
         }
 
         /**
          * @return The program counter
          */
-        uint32 get_pc() {
+        uint32 get_pc() const {
             return get_frame()->ip - get_frame()->code;
         }
 
@@ -137,5 +136,3 @@ namespace spade
         }
     };
 }    // namespace spade
-
-#endif    //VELOCITY_STATE_HPP

@@ -508,7 +508,7 @@ namespace spade
         return type_info;
     }
 
-    bool Analyzer::check_fun_call(scope::Function *function, const std::vector<ArgInfo> &arg_infos, const ast::AstNode &node,
+    bool Analyzer::check_fun_call(scope::Function *function, const std::vector<ArgumentInfo> &arg_infos, const ast::AstNode &node,
                                   ErrorGroup<AnalyzerError> &errors) {
         if (!function->is_variadic() && !function->is_default() && function->param_count() != arg_infos.size()) {
             errors.error(error(std::format("expected {} arguments but got {}", function->param_count(), arg_infos.size()), &node))
@@ -524,8 +524,8 @@ namespace spade
         ErrorGroup<AnalyzerError> err_grp;
 
         // Separate out the value and keyword arguments
-        std::vector<ArgInfo> value_args;
-        std::unordered_map<string, ArgInfo> kwargs;
+        std::vector<ArgumentInfo> value_args;
+        std::unordered_map<string, ArgumentInfo> kwargs;
         for (const auto &arg_info: arg_infos) {
             if (arg_info.b_kwd)
                 kwargs[arg_info.name] = arg_info;
@@ -625,7 +625,7 @@ namespace spade
         return true;
     }
 
-    ExprInfo Analyzer::resolve_call(const FunctionInfo &funs, const std::vector<ArgInfo> &arg_infos, const ast::AstNode &node) {
+    ExprInfo Analyzer::resolve_call(const FunctionInfo &funs, const std::vector<ArgumentInfo> &arg_infos, const ast::AstNode &node) {
         // Check for redeclarations if any
         for (const auto &[_, fun_set]: funs.get_function_sets()) {
             if (!fun_set->is_redecl_check()) {

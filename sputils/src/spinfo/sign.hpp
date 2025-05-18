@@ -1,5 +1,22 @@
 #pragma once
 
+// Grammar specification of signatures
+// ----------------------------------------------------
+// signature    ::= <empty>                                     // empty signature
+//                | '[' IDENTIFIER ']'                          // type parameter
+//                | module ('.' (class | method))*              // general signature
+//                ;
+//
+// module       ::= (IDENTIFIER ('::' IDENTIFIER)*)?;           // module part of signature
+// class        ::= IDENTIFIER typeparams?;                     // class part of signature
+// method       ::= IDENTIFIER typeparams? '(' params? ')';     // method part of signature
+//
+// typeparams   ::= '[' IDENTIFIER (',' IDENTIFIER)* ']';       // typeparams required by class or method
+// params       ::= param (',' param)*;                         // param list
+// param        ::= '[' IDENTIFIER ']'                          // type parameter as a param
+//                | module ('.' class)+ ('(' params? ')')?      // general signature allowed by param
+//                ;
+
 #include "../spimp/common.hpp"
 
 class SignElement;
@@ -41,12 +58,12 @@ class Sign final {
      */
     explicit Sign(const vector<SignElement> &elements);
 
-    Sign() = default;
-    Sign(const Sign &other) = default;
-    Sign(Sign &&other) noexcept = default;
-    Sign &operator=(const Sign &other) = default;
-    Sign &operator=(Sign &&other) noexcept = default;
-    ~Sign() = default;
+    Sign();
+    Sign(const Sign &other);
+    Sign(Sign &&other) noexcept;
+    Sign &operator=(const Sign &other);
+    Sign &operator=(Sign &&other) noexcept;
+    ~Sign();
 
     const vector<SignElement> &get_elements() const {
         return elements;
@@ -82,6 +99,11 @@ class Sign final {
      * @return the params of the signature if exists, otherwise returns an empty array
      */
     const vector<SignParam> &get_params() const;
+
+    /**
+     * @return the signature of the parent element
+     */
+    Sign get_parent() const;
 
     /**
      * @return the signature of the parent module
@@ -143,6 +165,25 @@ class Sign final {
     static const Sign EMPTY;
 };
 
+inline bool operator==(const Sign &sign1, const Sign &sign2) {
+    return sign1.to_string() == sign2.to_string();
+}
+
+inline bool operator==(const string &sign1, const Sign &sign2) {
+    return sign1 == sign2.to_string();
+}
+
+inline bool operator==(const Sign &sign1, const string &sign2) {
+    return sign1.to_string() == sign2;
+}
+
+template<>
+struct std::hash<Sign> {
+    size_t operator()(const Sign &sign) const noexcept {
+        return std::hash<string>()(sign.to_string());
+    }
+};
+
 class SignParam final {
     friend class SignParser;
 
@@ -191,12 +232,12 @@ class SignElement final {
   private:
     string name;
     Sign::Kind kind;
-    vector<string> typeParams;
+    vector<string> type_params;
     vector<SignParam> params;
 
   public:
-    SignElement(const string &name, Sign::Kind kind, const vector<string> &typeParams = {}, const vector<SignParam> &params = {})
-        : name(name), kind(kind), typeParams(typeParams), params(params) {}
+    SignElement(const string &name, Sign::Kind kind, const vector<string> &type_params = {}, const vector<SignParam> &params = {})
+        : name(name), kind(kind), type_params(type_params), params(params) {}
 
     SignElement(const SignElement &other) = default;
     SignElement(SignElement &&other) noexcept = default;
@@ -217,7 +258,7 @@ class SignElement final {
     }
 
     const vector<string> &get_type_params() const {
-        return typeParams;
+        return type_params;
     }
 
     string to_string() const;

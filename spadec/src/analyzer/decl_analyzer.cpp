@@ -290,7 +290,7 @@ namespace spade
                 throw error("enumerator cannot be called with ctor, no declaration provided", node.get_expr());
             FunctionInfo fn_infos(&*cast<scope::FunctionSet>(parent_enum->get_variable("init")));
             // Build args
-            std::vector<ArgInfo> arg_infos;
+            std::vector<ArgumentInfo> arg_infos;
             arg_infos.reserve(args.size());
             for (auto arg: args) {
                 arg->accept(this);

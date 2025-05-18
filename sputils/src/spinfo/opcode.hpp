@@ -187,6 +187,8 @@
     OPCODE(SCAST, 0, false, SCAST)                                                                                                                   \
     /* checked cast */                                                                                                                               \
     OPCODE(CCAST, 0, false, CCAST)                                                                                                                   \
+    /* concat */                                                                                                                                     \
+    OPCODE(CONCAT, 0, false, CONCAT)                                                                                                                 \
     /* power */                                                                                                                                      \
     OPCODE(POW, 0, false, POW)                                                                                                                       \
     /* multiply */                                                                                                                                   \

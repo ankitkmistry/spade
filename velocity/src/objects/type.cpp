@@ -1,5 +1,5 @@
 #include "type.hpp"
-#include "../callable/table.hpp"
+#include "memory/memory.hpp"
 #include "typeparam.hpp"
 
 static string kind_names[] = {"class", "interface", "enum", "annotation", "type_parameter", "unresolved"};
@@ -10,12 +10,12 @@ namespace spade
 
     Obj *Type::copy() {
         // Copy type params
-        Table<NamedRef *> new_type_params;
+        Table<TypeParam *> new_type_params;
         for (const auto &[name, type_param]: type_params) {
-            new_type_params[name] = halloc<NamedRef>(info.manager, type_param->get_name(), type_param->get_value()->copy(), type_param->get_meta());
+            new_type_params[name] = Obj::create_copy(type_param);
         }
         // Create new type object
-        Obj *new_type = halloc<Type>(info.manager, sign, kind, new_type_params, supers, member_slots, module);
+        Obj *new_type = halloc_mgr<Type>(info.manager, sign, kind, new_type_params, supers, member_slots, module);
         // Reify the type params
         reify(&new_type, type_params, new_type_params);
         return new_type;
@@ -29,58 +29,15 @@ namespace spade
         return std::format("<{} '{}'>", kind_names[static_cast<int>(kind)], sign.to_string());
     }
 
-    Obj *Type::get_static_member(const string &name) const {
-        try {
-            auto slot = get_member_slots().at(name);
-            if (slot.get_flags().is_static()) {
-                return slot.get_value();
-            }
-        } catch (const std::out_of_range &) {}
-
-        Obj *obj = null;
-        // Check for the members in the super classes
-        for (auto super: get_supers() | std::views::values) {
-            try {
-                obj = super->get_static_member(name);
-            } catch (const IllegalAccessError &) {
-                obj = null;
-            }
-        }
-        if (obj == null) {
-            throw IllegalAccessError(std::format("cannot find static member: {} in {}", name, to_string()));
-        }
-        return obj;
-    }
-
-    void Type::set_static_member(const string &name, Obj *value) {
-        try {
-            auto &slot = get_member_slots().at(name);
-            if (slot.get_flags().is_static())
-                slot.set_value(value);
-            return;
-        } catch (const std::out_of_range &) {}
-
-        // Check for the members in the super classes
-        for (auto super: get_supers() | std::views::values) {
-            try {
-                super->set_static_member(name, value);
-                return;
-            } catch (const IllegalAccessError &) {
-                continue;
-            }
-        }
-        throw IllegalAccessError(std::format("cannot find static member: {} in {}", name, to_string()));
-    }
-
-    Type *Type::SENTINEL_(const string &sign, MemoryManager *manager) {
-        return halloc<Type>(manager, Sign(sign), Kind::UNRESOLVED, Table<NamedRef *>{}, Table<Type *>{}, Table<MemberSlot>{}, null);
+    Type *Type::UNRESOLVED(const Sign &sign, ObjModule *module, MemoryManager *manager) {
+        return halloc_mgr<Type>(manager, sign, Kind::UNRESOLVED, Table<TypeParam *>{}, Table<Type *>{}, Table<MemberSlot>{}, module);
     }
 
     Type *Type::return_reified(const Table<Type *> &type_params) {
         auto type = cast<Type>(copy());
         auto params = type->get_type_params();
         for (const auto &[name, type_param]: params) {
-            cast<TypeParam>(type_param->get_value())->set_placeholder(type_params.at(name));
+            type_param->set_placeholder(type_params.at(name));
         }
         return type;
     }
@@ -92,7 +49,7 @@ namespace spade
         member_slots = type.member_slots;
     }
 
-    Type *Type::get_reified(Obj **args, uint8 count) {
+    Type *Type::get_reified(Type *const *args, uint8 count) const {
         return null;
         // TODO: implement this
 
@@ -126,27 +83,15 @@ namespace spade
         // }
     }
 
-    Type *Type::get_reified(const vector<Type *> &args) {
-        if (args.size() >= UINT8_MAX) {
+    Type *Type::get_reified(const vector<Type *> &args) const {
+        if (args.size() >= UINT8_MAX)
             throw ArgumentError(to_string(), "number of type arguments cannot be greater than 256");
-        }
-        auto data = const_cast<Type **>(args.data());
-        return get_reified(reinterpret_cast<Obj **>(&data), static_cast<uint8>(args.size()));
+        return get_reified(args.data(), static_cast<uint8>(args.size()));
     }
 
     TypeParam *Type::get_type_param(const string &name) const {
-        try {
-            return cast<TypeParam>(type_params.at(name)->get_value());
-        } catch (const std::out_of_range &) {
-            throw IllegalAccessError(std::format("cannot find type param {} in {}", name, to_string()));
-        }
-    }
-
-    NamedRef *Type::capture_type_param(const string &name) {
-        try {
-            return type_params.at(name);
-        } catch (const std::out_of_range &) {
-            throw IllegalAccessError(std::format("cannot find type param {} in {}", name, to_string()));
-        }
+        if (const auto it = type_params.find(name); it != type_params.end())
+            return it->second;
+        throw IllegalAccessError(std::format("cannot find type param {} in {}", name, to_string()));
     }
 }    // namespace spade

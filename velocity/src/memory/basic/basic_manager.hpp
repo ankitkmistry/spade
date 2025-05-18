@@ -1,13 +1,13 @@
 #pragma once
 
-#include "memory/memory.hpp"
+#include "utils/common.hpp"
 #include "memory/manager.hpp"
 
 namespace spade::basic
 {
     struct LNode {
         LNode *prev = null;
-        Collectible *data = null;
+        Obj *data = null;
         LNode *next = null;
     };
 
@@ -19,11 +19,8 @@ namespace spade::basic
         BasicMemoryManager(SpadeVM *vm = null) : MemoryManager(vm) {}
 
         void *allocate(size_t size) override;
-
-        void post_allocation(Collectible *obj) override;
-
+        void post_allocation(Obj *obj) override;
         void deallocate(void *pointer) override;
-
         void collect_garbage() override;
     };
 }    // namespace spade::basic

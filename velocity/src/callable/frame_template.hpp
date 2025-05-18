@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstring>
+
 #include "utils/common.hpp"
 #include "objects/obj.hpp"
 #include "frame.hpp"
@@ -12,28 +14,102 @@ namespace spade
     class FrameTemplate {
         uint32 code_count;
         uint8 *code;
-        uint32 max_stack;
+        uint32 stack_max;
         ArgsTable args;
         LocalsTable locals;
         ExceptionTable exceptions;
         LineNumberTable lines;
-        vector<ObjMethod *> lambdas;
         vector<MatchTable> matches;
         ObjMethod *method;
 
       public:
-        FrameTemplate(uint32 code_count, uint8 *code, uint32 max_stack, ArgsTable args, LocalsTable locals, ExceptionTable exceptions,
-                      LineNumberTable lines, vector<ObjMethod *> lambdas, vector<MatchTable> matches, ObjMethod *method = null)
-            : code_count(code_count),
-              code(code),
-              max_stack(max_stack),
+        FrameTemplate(const vector<uint8> &code, uint32 stack_max, const ArgsTable &args, const LocalsTable &locals, const ExceptionTable &exceptions,
+                      const LineNumberTable &lines, const vector<MatchTable> &matches, ObjMethod *method = null)
+            : code_count(static_cast<uint32>(code.size())),
+              code(null),
+              stack_max(stack_max),
               args(args),
               locals(locals),
               exceptions(exceptions),
               lines(lines),
-              lambdas(lambdas),
               matches(matches),
-              method(method) {}
+              method(method) {
+            this->code = new uint8[code_count];
+            std::memcpy(this->code, code.data(), code_count * sizeof(uint8));
+        }
+
+        // Copy constructor
+        FrameTemplate(const FrameTemplate &other)
+            : code_count(other.code_count),
+              code(new uint8[other.code_count]),
+              stack_max(other.stack_max),
+              args(other.args),
+              locals(other.locals),
+              exceptions(other.exceptions),
+              lines(other.lines),
+              matches(other.matches),
+              method(other.method) {
+            std::memcpy(code, other.code, code_count * sizeof(uint8));
+        }
+
+        // Move constructor
+        FrameTemplate(FrameTemplate &&other) noexcept
+            : code_count(other.code_count),
+              code(other.code),
+              stack_max(other.stack_max),
+              args(std::move(other.args)),
+              locals(std::move(other.locals)),
+              exceptions(std::move(other.exceptions)),
+              lines(std::move(other.lines)),
+              matches(std::move(other.matches)),
+              method(other.method) {
+            other.code = null;
+            other.code_count = 0;
+            other.method = null;
+        }
+
+        // Copy assignment
+        FrameTemplate &operator=(const FrameTemplate &other) {
+            if (this != &other) {
+                delete[] code;
+                code_count = other.code_count;
+                code = new uint8[code_count];
+                std::memcpy(code, other.code, code_count * sizeof(uint8));
+                stack_max = other.stack_max;
+                args = other.args;
+                locals = other.locals;
+                exceptions = other.exceptions;
+                lines = other.lines;
+                matches = other.matches;
+                method = other.method;
+            }
+            return *this;
+        }
+
+        // Move assignment
+        FrameTemplate &operator=(FrameTemplate &&other) noexcept {
+            if (this != &other) {
+                delete[] code;
+                code_count = other.code_count;
+                code = other.code;
+                stack_max = other.stack_max;
+                args = std::move(other.args);
+                locals = std::move(other.locals);
+                exceptions = std::move(other.exceptions);
+                lines = std::move(other.lines);
+                matches = std::move(other.matches);
+                method = other.method;
+
+                other.code = null;
+                other.code_count = 0;
+                other.method = null;
+            }
+            return *this;
+        }
+
+        ~FrameTemplate() {
+            delete[] code;
+        }
 
         Frame initialize();
         FrameTemplate *copy();
@@ -46,8 +122,8 @@ namespace spade
             return code;
         }
 
-        uint32 get_max_stack() const {
-            return max_stack;
+        uint32 get_stack_max() const {
+            return stack_max;
         }
 
         const ArgsTable &get_args() const {
@@ -64,10 +140,6 @@ namespace spade
 
         const LineNumberTable &get_lines() const {
             return lines;
-        }
-
-        const vector<ObjMethod *> &get_lambdas() const {
-            return lambdas;
         }
 
         const vector<MatchTable> &get_matches() const {
@@ -88,10 +160,6 @@ namespace spade
 
         LineNumberTable &get_lines() {
             return lines;
-        }
-
-        vector<ObjMethod *> &get_lambdas() {
-            return lambdas;
         }
 
         vector<MatchTable> &get_matches() {

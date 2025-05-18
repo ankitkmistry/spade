@@ -2,7 +2,7 @@ module hello
     method foo()
         local @var i : basic.int
 
-        const 0
+        const 49
         plfstore i                   # stores 0 to i
 
         const "Hello, World"
@@ -32,7 +32,7 @@ module hello
         const "hello, world "
         lfload i
         o2s
-        add
+        concat
         println
 
         lfload i

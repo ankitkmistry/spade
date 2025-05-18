@@ -175,6 +175,7 @@ namespace spade
         // The kind of the method
         // 0x00 : FUNCTION
         // 0x01 : METHOD
+        // 0x02 : CONSTRUCTOR
         uint8_t kind = 0;
         // Access flags for the method
         uint16_t access_flags = 0;
@@ -279,8 +280,6 @@ namespace spade
         cpidx compiled_from;
         // [string] Name of the module
         cpidx name;
-        // [array<string>] Imports of the module
-        // cpidx imports;
         // [sign] Signature of the initializing function of the module
         cpidx init;
 

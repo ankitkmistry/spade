@@ -1,4 +1,5 @@
 #include "state.hpp"
+#include "utils/exceptions.hpp"
 
 namespace spade {
     VMState::VMState(SpadeVM *vm) : vm(vm) {

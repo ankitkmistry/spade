@@ -34,8 +34,4 @@ namespace spade
         static string kindNames[] = {"function", "method", "constructor"};
         return std::format("<foreign {} '{}'>", kindNames[static_cast<int>(kind)], sign.to_string());
     }
-
-    void ObjForeign::set_self(Obj *selfObj) {
-        this->self = selfObj;
-    }
 }    // namespace spade

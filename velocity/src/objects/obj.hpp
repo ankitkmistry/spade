@@ -1,19 +1,16 @@
 #pragma once
 
-#include "../utils/common.hpp"
-#include "../memory/memory.hpp"
+#include "utils/common.hpp"
+#include "memory/manager.hpp"
 
 namespace spade
 {
+    class Obj;
     class Type;
-
     class TypeParam;
-
     class ObjModule;
-
+    class ObjCallable;
     class ObjMethod;
-
-    class NamedRef;
 
     /*
      *   raw             = 0x 00000000 00000000
@@ -25,7 +22,8 @@ namespace spade
      *
      *
      *   modifier        = 0x  0  0  0  0  0  0  0  0
-     *   =================                 |  |  |  |
+     *   =================              |  |  |  |  |
+     *   override        |--------------+  |  |  |  |
      *   operator        |-----------------+  |  |  |
      *   final           |--------------------+  |  |
      *   abstract        |-----------------------+  |
@@ -42,43 +40,49 @@ namespace spade
     struct Flags {
         uint16 raw;
 
-        Flags(uint16 raw = 0) : raw(raw) {}
+        constexpr Flags(uint16 raw = 0) : raw(raw) {}
 
-        bool is_static() const {
+        constexpr bool is_static() const {
             return raw & 0b0000'0001;
         }
 
-        bool is_abstract() const {
+        constexpr bool is_abstract() const {
             return raw & 0b0000'0010;
         }
 
-        bool is_final() const {
+        constexpr bool is_final() const {
             return raw & 0b0000'0100;
         }
 
-        bool is_operator() const {
+        constexpr bool is_operator() const {
             return raw & 0b0000'1000;
         }
 
-        bool is_private() const {
+        constexpr bool is_private() const {
             return (raw >> 8) & 0b0000'0001;
         }
 
-        bool is_internal() const {
+        constexpr bool is_internal() const {
             return (raw >> 8) & 0b0000'0010;
         }
 
-        bool is_package_private() const {
+        constexpr bool is_package_private() const {
             return (raw >> 8) & 0b0000'0100;
         }
 
-        bool is_protected() const {
+        constexpr bool is_protected() const {
             return (raw >> 8) & 0b0000'1000;
         }
 
-        bool is_public() const {
+        constexpr bool is_public() const {
             return (raw >> 8) & 0b0001'0000;
         }
+    };
+
+    struct MemoryInfo {
+        bool marked = false;
+        uint32 life = 0;
+        MemoryManager *manager = null;
     };
 
     class MemberSlot {
@@ -109,8 +113,9 @@ namespace spade
     /**
      * The abstract description of an object in the virtual machine
      */
-    class Obj : public Collectible {
+    class Obj {
       protected:
+        MemoryInfo info;
         /// Module where this object belongs to
         ObjModule *module;
         /// Signature of the object
@@ -129,7 +134,7 @@ namespace spade
          * @param old_ old type parameters
          * @param new_ new type parameters
          */
-        static void reify(Obj **pObj, const Table<NamedRef *> &old_, const Table<NamedRef *> &new_);
+        static void reify(Obj **pObj, const Table<TypeParam *> &old_, const Table<TypeParam *> &new_);
 
       public:
         /**
@@ -140,10 +145,17 @@ namespace spade
          * @param obj
          * @return
          */
-        static Obj *create_copy(Obj *obj);
+        template<typename T>
+            requires std::derived_from<T, Obj>
+        static T *create_copy(T *obj) {
+            if constexpr (std::same_as<T, Type> || std::same_as<T, ObjCallable> || std::same_as<T, ObjModule>)
+                return obj;
+            else
+                return dynamic_cast<T *>(obj->copy());
+        }
 
         /**
-         *
+         * 
          * @param sign
          * @param type
          * @param module
@@ -156,6 +168,20 @@ namespace spade
          * @return a copy of the object
          */
         virtual Obj *copy();
+
+        /**
+         * @return the memory info of the object
+         */
+        const MemoryInfo &get_info() const {
+            return info;
+        }
+
+        /**
+         * @return the memory info of the object
+         */
+        MemoryInfo &get_info() {
+            return info;
+        }
 
         /**
          * @return the corresponding truth value of the object

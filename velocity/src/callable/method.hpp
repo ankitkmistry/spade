@@ -2,25 +2,24 @@
 
 #include "callable.hpp"
 #include "frame_template.hpp"
+#include "objects/typeparam.hpp"
 
 namespace spade
 {
     class ObjMethod final : public ObjCallable {
       private:
         static Table<std::unordered_map<Table<Type *>, ObjMethod *>> reificationTable;
-        FrameTemplate *frame_template;
-        Table<NamedRef *> type_params;
+        FrameTemplate frame_template;
+        Table<TypeParam *> type_params;
 
         ObjMethod *return_reified(const Table<Type *> &tParams) const;
 
       public:
-        ObjMethod(const Sign &sign, Kind kind, FrameTemplate *frame, Type *type, const Table<NamedRef *> &type_params, ObjModule *module = null);
+        ObjMethod(const Sign &sign, Kind kind, const FrameTemplate &frame, const Table<TypeParam *> &type_params, ObjModule *module = null);
 
         void call(const vector<Obj *> &args) override;
 
         void call(Obj **args) override;
-
-        void set_self(Obj *self) override;
 
         /**
          * Reifies this type and returns the reified type.
@@ -57,18 +56,16 @@ namespace spade
 
         string to_string() const override;
 
-        const FrameTemplate *get_frame_template() const {
+        const FrameTemplate &get_frame_template() const {
             return frame_template;
         }
 
-        const Table<NamedRef *> &get_type_params() const {
+        const Table<TypeParam *> &get_type_params() const {
             return type_params;
         }
 
-        Table<NamedRef *> &get_type_params() {
+        Table<TypeParam *> &get_type_params() {
             return type_params;
         }
-
-        NamedRef *capture_type_param(const string &name) const;
     };
 }    // namespace spade

@@ -1,4 +1,5 @@
 #include "typeparam.hpp"
+#include "memory/memory.hpp"
 
 namespace spade
 {
@@ -7,7 +8,7 @@ namespace spade
         return placeholder->get_kind();
     }
 
-    const Table<NamedRef *> &TypeParam::get_type_params() const {
+    const Table<TypeParam *> &TypeParam::get_type_params() const {
         check_placeholder();
         return placeholder->get_type_params();
     }
@@ -22,7 +23,7 @@ namespace spade
         return placeholder->get_member_slots();
     }
 
-    Table<NamedRef *> &TypeParam::get_type_params() {
+    Table<TypeParam *> &TypeParam::get_type_params() {
         check_placeholder();
         return placeholder->get_type_params();
     }
@@ -58,7 +59,7 @@ namespace spade
     }
 
     Obj *TypeParam::copy() {
-        auto newTypeParam = halloc<TypeParam>(info.manager, sign, module);
+        auto newTypeParam = halloc_mgr<TypeParam>(info.manager, sign, module);
         newTypeParam->set_placeholder(placeholder);
         return newTypeParam;
     }
@@ -83,17 +84,7 @@ namespace spade
         return placeholder->get_super_class_method(sign);
     }
 
-    Obj *TypeParam::get_static_member(const string &name) const {
-        check_placeholder();
-        return placeholder->get_static_member(name);
-    }
-
-    void TypeParam::set_static_member(const string &name, Obj *value) {
-        check_placeholder();
-        placeholder->set_static_member(name, value);
-    }
-
-    Type *TypeParam::get_reified(Obj **args, uint8 count) {
+    Type *TypeParam::get_reified(Type *const *args, uint8 count) const {
         check_placeholder();
         return placeholder->get_reified(args, count);
     }
@@ -101,10 +92,5 @@ namespace spade
     TypeParam *TypeParam::get_type_param(const string &name) const {
         check_placeholder();
         return placeholder->get_type_param(name);
-    }
-
-    NamedRef *TypeParam::capture_type_param(const string &name) {
-        check_placeholder();
-        return placeholder->capture_type_param(name);
     }
 }    // namespace spade

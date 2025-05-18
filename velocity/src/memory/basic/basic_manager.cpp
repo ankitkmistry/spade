@@ -8,7 +8,7 @@ namespace spade::basic
         return p;
     }
 
-    void BasicMemoryManager::post_allocation(Collectible *obj) {
+    void BasicMemoryManager::post_allocation(Obj *obj) {
         if (head == null || last == null) {
             auto node = new LNode;
             node->data = obj;

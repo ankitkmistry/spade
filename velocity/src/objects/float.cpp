@@ -22,26 +22,26 @@ namespace spade
     }
 
     Obj *ObjFloat::operator-() const {
-        return halloc<ObjFloat>(info.manager, -val);
+        return halloc_mgr<ObjFloat>(info.manager, -val);
     }
 
     Obj *ObjFloat::power(const ObjNumber *n) const {
-        return halloc<ObjFloat>(info.manager, pow(val, cast<const ObjFloat>(n)->val));
+        return halloc_mgr<ObjFloat>(info.manager, pow(val, cast<const ObjFloat>(n)->val));
     }
 
     Obj *ObjFloat::operator+(const ObjNumber *n) const {
-        return halloc<ObjFloat>(info.manager, val + cast<const ObjFloat>(n)->val);
+        return halloc_mgr<ObjFloat>(info.manager, val + cast<const ObjFloat>(n)->val);
     }
 
     Obj *ObjFloat::operator-(const ObjNumber *n) const {
-        return halloc<ObjFloat>(info.manager, val - cast<const ObjFloat>(n)->val);
+        return halloc_mgr<ObjFloat>(info.manager, val - cast<const ObjFloat>(n)->val);
     }
 
     Obj *ObjFloat::operator*(const ObjNumber *n) const {
-        return halloc<ObjFloat>(info.manager, val * cast<const ObjFloat>(n)->val);
+        return halloc_mgr<ObjFloat>(info.manager, val * cast<const ObjFloat>(n)->val);
     }
 
     Obj *ObjFloat::operator/(const ObjNumber *n) const {
-        return halloc<ObjFloat>(info.manager, val / cast<const ObjFloat>(n)->val);
+        return halloc_mgr<ObjFloat>(info.manager, val / cast<const ObjFloat>(n)->val);
     }
 }    // namespace spade

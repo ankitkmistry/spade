@@ -38,7 +38,7 @@ namespace spade
                            type_info.to_string(decorated));
     }
 
-    string ArgInfo::to_string(bool decorated) const {
+    string ArgumentInfo::to_string(bool decorated) const {
         return expr_info.to_string(decorated);
     }
 

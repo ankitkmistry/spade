@@ -7,7 +7,7 @@ namespace spade
     /**
      * Represents the base class for nodes used in arg tables, local tables, etc.
      */
-    class NamedRef final : public Collectible {
+    class NamedRef final {
       protected:
         string name;
         Obj *value;
@@ -17,7 +17,7 @@ namespace spade
       public:
         NamedRef(const string &name, Obj *value, const Table<string> &meta) : name(name), value(value), meta(meta) {}
 
-        NamedRef *copy() const;
+        NamedRef copy() const;
 
         /**
          * Sets the value of the named ref
@@ -142,16 +142,17 @@ namespace spade
     };
 
     /**
-     * Represents a case in a check statement
+     * Represents a case in a match statement
      */
     class Case {
       private:
-        Obj *value;
-        uint32 location;
+        Obj *value = null;
+        uint32 location = -1;
 
       public:
         Case(Obj *value, uint32 location) : value(value), location(location) {}
 
+        Case() = default;
         Case(const Case &other) = default;
         Case(Case &&other) noexcept = default;
         Case &operator=(const Case &other) = default;
@@ -182,7 +183,7 @@ namespace spade
         friend class FrameTemplate;
 
       private:
-        vector<NamedRef *> args;
+        vector<NamedRef> args;
 
       public:
         ArgsTable() = default;
@@ -209,7 +210,7 @@ namespace spade
          * Adds a new argument at the end of the table
          * @param arg the argument to be added
          */
-        void add_arg(NamedRef *arg) {
+        void add_arg(const NamedRef &arg) {
             args.push_back(arg);
         }
 
@@ -217,7 +218,15 @@ namespace spade
          * @return The argument at index i
          * @param i the argument index
          */
-        NamedRef *get_arg(uint8 i) const {
+        const NamedRef &get_arg(uint8 i) const {
+            return args[i];
+        }
+
+        /**
+         * @return The argument at index i
+         * @param i the argument index
+         */
+        NamedRef &get_arg(uint8 i) {
             return args[i];
         }
 
@@ -248,7 +257,7 @@ namespace spade
 
       private:
         uint16 closureStart;
-        vector<NamedRef *> locals;
+        vector<NamedRef> locals;
         vector<NamedRef *> closures;
 
       public:
@@ -285,7 +294,7 @@ namespace spade
          * Adds a new local at the end of the table
          * @param local the local to be added
          */
-        void add_local(NamedRef *local) {
+        void add_local(NamedRef local) {
             locals.push_back(local);
         }
 
@@ -301,7 +310,13 @@ namespace spade
          * @return The local at index i
          * @param i the local index
          */
-        NamedRef *get_local(uint16 i) const;
+        const NamedRef &get_local(uint16 i) const;
+
+        /**
+         * @return The local at index i
+         * @param i the local index
+         */
+        NamedRef &get_local(uint16 i);
 
         /**
          * @return The closure at index i

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../utils/common.hpp"
-#include "../utils/exceptions.hpp"
+#include "utils/common.hpp"
+#include "utils/exceptions.hpp"
 
 #if defined OS_WINDOWS
 
