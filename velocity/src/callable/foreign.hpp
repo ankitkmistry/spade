@@ -19,7 +19,8 @@ namespace spade
 
         void call(Obj **args) override;
 
-        Obj *copy() override {
+        Obj *copy() const override {
+            // Immutable state
             return (Obj *) this;
         }
 

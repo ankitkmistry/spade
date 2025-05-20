@@ -34,7 +34,9 @@ namespace spade
 
       public:
         Frame(const Frame &frame) = default;
+        Frame(Frame &&frame) = default;
         Frame &operator=(const Frame &frame) = default;
+        Frame &operator=(Frame &&frame) = default;
 
         /**
          * Pushes onto the stack

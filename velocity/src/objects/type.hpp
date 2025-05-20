@@ -112,7 +112,7 @@ namespace spade
         Type *get_reified(const vector<Type *> &args) const;
         virtual TypeParam *get_type_param(const string &name) const;
 
-        Obj *copy() override;
+        Obj *copy() const override;
         bool truth() const override;
         string to_string() const override;
 

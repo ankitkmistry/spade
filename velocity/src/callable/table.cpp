@@ -4,8 +4,26 @@
 
 namespace spade
 {
+    NamedRef::NamedRef(const NamedRef &other) : name(other.name), value(Obj::create_copy(other.value)), meta(other.meta) {}
+
+    NamedRef::NamedRef(NamedRef &&other) noexcept : name(std::move(other.name)), value(other.value), meta(std::move(other.meta)) {}
+
+    NamedRef &NamedRef::operator=(const NamedRef &other) {
+        name = other.name;
+        value = Obj::create_copy(other.value);
+        meta = other.meta;
+        return *this;
+    }
+
+    NamedRef &NamedRef::operator=(NamedRef &&other) noexcept {
+        name = std::move(other.name);
+        value = other.value;
+        meta = std::move(other.meta);
+        return *this;
+    }
+
     NamedRef NamedRef::copy() const {
-        return NamedRef(name, no_copy ? value : Obj::create_copy(value), meta);
+        return NamedRef(name, Obj::create_copy(value), meta);
     }
 
     Obj *ArgsTable::get(uint8 i) const {

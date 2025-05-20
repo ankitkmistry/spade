@@ -11,6 +11,7 @@
 #include "objects/int.hpp"
 #include "objects/module.hpp"
 #include "objects/obj.hpp"
+#include "objects/type.hpp"
 #include "objects/typeparam.hpp"
 #include "verifier.hpp"
 
@@ -20,7 +21,8 @@ namespace spade
 {
     ObjMethod *Booter::load(const fs::path &path) {
         const auto &[ctx, modules] = _load(path);
-
+        // Execute the post processing callbacks
+        for (const auto &callback: post_callbacks) callback();
         // Complain about the unresolved types
         for (const auto &[sign, reference]: unresolved) {
             // TODO: give a detailed error message for all the unresolved references
@@ -39,9 +41,9 @@ namespace spade
 
     std::pair<Booter::ElpContext, vector<ObjModule *>> Booter::_load(const fs::path &path) {
         auto file_path = fs::canonical(resolve_path("", path));
-        if (auto it = loaded_mods.find(file_path); it != loaded_mods.end())
+        if (const auto it = loaded_mods.find(file_path); it != loaded_mods.end())
             return {{}, it->second};
-        if (auto it = std::find(path_stack.begin(), path_stack.end(), file_path); it != path_stack.end())
+        if (const auto it = std::find(path_stack.begin(), path_stack.end(), file_path); it != path_stack.end())
             return {{}, {}};
 
         path_stack.push_back(file_path);
@@ -67,14 +69,18 @@ namespace spade
 
     Booter::ElpContext Booter::load_elp(const ElpInfo &elp) {
         ElpContext ctx;
+        // Load the constant pool
         const auto conpool = read_const_pool(elp.constant_pool);
+        // Fetch the entry point signature
         if (elp.magic == 0xC0FFEEDE)
             ctx.entry = conpool[elp.entry]->to_string();
+        // Fetch the import paths
         const auto imports_obj = cast<ObjArray>(conpool[elp.imports]);
         ctx.imports.resize(imports_obj->count());
         for (uint16 i = 0; i < imports_obj->count(); i++) {
             ctx.imports[i] = imports_obj->get(i)->to_string();
         }
+        // Free the constants as they are no longer needed
         for (const auto constant: conpool) hfree(constant);
         return ctx;
     }
@@ -87,7 +93,7 @@ namespace spade
         const string name = conpool[info.name]->to_string();
         const Sign init = conpool[info.init]->to_string();
 
-        auto obj = halloc_mgr<ObjModule>(mgr, current_sign(), current_path(), conpool, Table<MemberSlot>{});
+        const auto obj = halloc_mgr<ObjModule>(mgr, current_sign(), current_path(), conpool, Table<MemberSlot>{});
 
         const auto old_cur_mod = cur_mod;
         cur_mod = obj;
@@ -260,7 +266,7 @@ namespace spade
             reference_pool.erase(name);
         }
         // Resolve the type if it was unresolved
-        if (Type *obj = resolve_type(sign)) {
+        if (const auto obj = resolve_type(sign)) {
             obj->set_kind(kind);
             obj->get_type_params() = type_params;
             obj->get_supers() = supers;
@@ -308,7 +314,7 @@ namespace spade
                 return halloc_mgr<ObjString>(mgr, std::get<_UTF8>(cp.value).bytes.data(), std::get<_UTF8>(cp.value).len);
             case 0x07: {
                 const auto con = std::get<_Container>(cp.value);
-                auto array = halloc_mgr<ObjArray>(mgr, con.len);
+                const auto array = halloc_mgr<ObjArray>(mgr, con.len);
                 for (int i = 0; i < con.len; ++i) {
                     array->set(i, read_cp(con.items[i]));
                 }
@@ -357,7 +363,7 @@ namespace spade
     }
 
     Type *Booter::resolve_type(const Sign &sign) {
-        if (auto it = unresolved.find(sign); it != unresolved.end()) {
+        if (const auto it = unresolved.find(sign); it != unresolved.end()) {
             const auto type = it->second;
             unresolved.erase(it);
             return type;
@@ -365,7 +371,7 @@ namespace spade
         return null;
     }
 
-    Obj *Booter::make_obj(const Sign &type_sign, const Sign &obj_sign, Type *type) const {
+    Obj *Booter::make_obj(const Sign &type_sign, const Sign &obj_sign, Type *type) {
         const auto mgr = vm->get_memory_manager();
         static std::unordered_map<Sign, std::function<Obj *()>> obj_map = {
                 {Sign("basic.array"),  [&] { return halloc_mgr<ObjArray>(mgr, 0, get_current_module()); }   },
@@ -377,8 +383,14 @@ namespace spade
         };
         if (const auto it = obj_map.find(type_sign); it != obj_map.end())
             return it->second();
-        else
+        else {
+            if (type && type->get_kind() == Type::Kind::UNRESOLVED) {
+                const auto obj = halloc_mgr<Obj>(mgr, obj_sign, type, get_current_module());
+                post_callbacks.push_back([&]() { obj->set_type(type); });
+                return obj;
+            }
             return halloc_mgr<Obj>(mgr, obj_sign, type, get_current_module());
+        }
     }
 
     fs::path Booter::resolve_path(const fs::path &from_path, const fs::path &path) {

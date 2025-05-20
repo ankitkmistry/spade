@@ -10,13 +10,14 @@ namespace spade
 
     ObjBool *ObjBool::value(bool b, MemoryManager *manager) {
         manager = manager == null ? MemoryManager::current() : manager;
+        if (manager == null)
+            return null;
         static std::unordered_map<MemoryManager *, ObjBool *> trues = {};
         static std::unordered_map<MemoryManager *, ObjBool *> falses = {};
-        try {
-            return (b ? trues : falses).at(manager);
-        } catch (const std::out_of_range &) {
-            return (b ? trues : falses)[manager] = halloc_mgr<ObjBool>(manager, b);
-        }
+        auto &table = (b ? trues : falses);
+        if (const auto it = table.find(manager); it != table.end())
+            return it->second;
+        return table[manager] = halloc_mgr<ObjBool>(manager, b);
     }
 
     int32 ObjChar::compare(const Obj *rhs) const {
@@ -33,12 +34,12 @@ namespace spade
 
     ObjNull *ObjNull::value(MemoryManager *manager) {
         manager = manager == null ? MemoryManager::current() : manager;
+        if (manager == null)
+            return null;
         static std::unordered_map<MemoryManager *, ObjNull *> nulls = {};
-        try {
-            return nulls.at(manager);
-        } catch (const std::out_of_range &) {
-            return nulls[manager] = halloc_mgr<ObjNull>(manager);
-        }
+        if (const auto it = nulls.find(manager); it != nulls.end())
+            return it->second;
+        return nulls[manager] = halloc_mgr<ObjNull>(manager);
     }
 
     ObjString::ObjString(const uint8 *bytes, uint16 len, ObjModule *module) : ComparableObj(Sign("string"), null, module), str() {
@@ -51,7 +52,7 @@ namespace spade
         return str.compare(cast<const ObjString>(rhs)->str);
     }
 
-    Obj *ObjArray::copy() {
+    Obj *ObjArray::copy() const {
         auto arr = halloc_mgr<ObjArray>(info.manager, length);
         for (uint16 i = 0; i < length; ++i) arr->set(i, create_copy(array[i]));
         return arr;

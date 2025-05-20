@@ -58,7 +58,7 @@ namespace spade
         return placeholder->get_type();
     }
 
-    Obj *TypeParam::copy() {
+    Obj *TypeParam::copy() const {
         auto newTypeParam = halloc_mgr<TypeParam>(info.manager, sign, module);
         newTypeParam->set_placeholder(placeholder);
         return newTypeParam;

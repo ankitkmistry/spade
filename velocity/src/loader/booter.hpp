@@ -16,15 +16,22 @@ namespace spade
         };
 
       private:
+        // Pointer to the vm
         SpadeVM *vm;
+        // Stack of paths of files as they are loaded
         vector<fs::path> path_stack;
+        // Stack of signatures as different symbols are loaded
         vector<Sign> sign_stack;
         /// List of all loaded modules in the form of [path, modules]
         std::unordered_map<fs::path, vector<ObjModule *>> loaded_mods;
-        /// Pool of unresolved references
+        /// Pool of resolved references
         std::unordered_map<Sign, Type *> reference_pool = {};
+        /// Pool of unresolved references
         std::unordered_map<Sign, Type *> unresolved = {};
+        // Pointer to current module
         ObjModule *cur_mod = null;
+        // List of post processing callbacks
+        std::vector<std::function<void()>> post_callbacks;
 
       public:
         explicit Booter(SpadeVM *vm) : vm(vm) {}
@@ -55,7 +62,7 @@ namespace spade
 
         Type *find_type(const Sign &sign);
         Type *resolve_type(const Sign &sign);
-        Obj *make_obj(const Sign &type_sign, const Sign &obj_sign, Type *type) const;
+        Obj *make_obj(const Sign &type_sign, const Sign &obj_sign, Type *type);
         fs::path resolve_path(const fs::path &from_path, const fs::path &path);
 
         void begin_scope(const string &name) {

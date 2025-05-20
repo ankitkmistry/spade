@@ -12,11 +12,11 @@ namespace spade
         frame_template.set_method(this);
     }
 
-    Obj *ObjMethod::copy() {
+    Obj *ObjMethod::copy() const {
         // Copy type params
         Table<TypeParam *> new_type_params;
         for (const auto &[name, type_param]: type_params) {
-            new_type_params[name] = Obj::create_copy(type_param);
+            new_type_params[name] = cast<TypeParam>(type_param->copy());
         }
         // Create new type object
         Obj *new_type = halloc_mgr<ObjMethod>(info.manager, sign, kind, frame_template, new_type_params, module);
@@ -29,16 +29,14 @@ namespace spade
         validate_call_site();
         Thread *thread = Thread::current();
         auto new_frame = frame_template.initialize();
-        if (new_frame.get_args().count() < args.size()) {
+        if (new_frame.get_args().count() < args.size())
             throw ArgumentError(sign.to_string(), std::format("too less arguments, expected {} got {}", new_frame.get_args().count(), args.size()));
-        }
-        if (new_frame.get_args().count() > args.size()) {
+        if (new_frame.get_args().count() > args.size())
             throw ArgumentError(sign.to_string(), std::format("too many arguments, expected {} got {}", new_frame.get_args().count(), args.size()));
-        }
         for (int i = 0; i < new_frame.get_args().count(); i++) {
             new_frame.get_args().set(i, args[i]);
         }
-        thread->get_state()->push_frame(new_frame);
+        thread->get_state()->push_frame(std::move(new_frame));
     }
 
     void ObjMethod::call(Obj **args) {
@@ -48,7 +46,7 @@ namespace spade
         for (int i = 0; i < new_frame.get_args().count(); i++) {
             new_frame.get_args().set(i, args[i]);
         }
-        thread->get_state()->push_frame(new_frame);
+        thread->get_state()->push_frame(std::move(new_frame));
     }
 
     string ObjMethod::to_string() const {
@@ -81,7 +79,7 @@ namespace spade
         // std::unordered_map<Table<Type *>, ObjMethod *> table;
         // ObjMethod *reified_method;
 
-        // if (auto it = reificationTable.find(get_sign().to_string()); it != reificationTable.end()) {
+        // if (const auto it = reificationTable.find(get_sign().to_string()); it != reificationTable.end()) {
         //     table = it->second;
         // } else {
         //     reified_method = return_reified(type_args);
@@ -90,7 +88,7 @@ namespace spade
         //     return reified_method;
         // }
 
-        // if (auto it = table.find(type_args); it != table.end())
+        // if (const auto it = table.find(type_args); it != table.end())
         //     return it->second;
         // else {
         //     reified_method = return_reified(type_args);

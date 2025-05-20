@@ -70,11 +70,10 @@ namespace spade
      */
     template<class To, class From>
     bool is(From *obj) {
-        if constexpr (std::derived_from<From, To>) {
+        if constexpr (std::derived_from<From, To>)
             return true;
-        } else {
+        else
             return dynamic_cast<To *>(obj) != nullptr;
-        }
     }
 
     /**
@@ -86,11 +85,10 @@ namespace spade
      */
     template<class To, class From>
     bool is(std::shared_ptr<From> obj) {
-        if constexpr (std::derived_from<From, To>) {
+        if constexpr (std::derived_from<From, To>)
             return true;
-        } else {
+        else
             return std::dynamic_pointer_cast<To>(obj) != nullptr;
-        }
     }
 
     template<typename T>

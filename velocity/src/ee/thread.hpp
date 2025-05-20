@@ -6,6 +6,7 @@
 
 namespace spade
 {
+    class SpadeVM;
     /**
      * Representation of a vm thread
      */
@@ -25,18 +26,18 @@ namespace spade
       private:
         /// Underlying thread object
         std::thread thread;
-        // TODO Fix program representation
+        // TODO: Fix program representation
         /// Program representation
         Obj *value = null;
         /// The vm state stored in the thread
-        VMState *state;
+        VMState state;
         /// Status of the thread
         Status status = NOT_STARTED;
         /// Exit code of the thread
         int exit_code = 0;
 
       public:
-        Thread(VMState *state, std::function<void(Thread *)> fun);
+        Thread(SpadeVM *vm, const std::function<void(Thread *)> &fun);
 
         /**
          * @return The exitcode of the thread
@@ -55,8 +56,15 @@ namespace spade
         /**
          * @return The vm state
          */
-        VMState *get_state() const {
-            return state;
+        const VMState *get_state() const {
+            return &state;
+        }
+
+        /**
+         * @return The vm state
+         */
+        VMState *get_state() {
+            return &state;
         }
 
         /**

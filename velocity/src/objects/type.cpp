@@ -8,7 +8,7 @@ namespace spade
 {
     Table<std::unordered_map<Table<Type *>, Type *>> Type::reification_table = {};
 
-    Obj *Type::copy() {
+    Obj *Type::copy() const {
         // Copy type params
         Table<TypeParam *> new_type_params;
         for (const auto &[name, type_param]: type_params) {

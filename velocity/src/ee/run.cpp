@@ -10,10 +10,10 @@
 namespace spade
 {
     Obj *SpadeVM::run(Thread *thread) {
-        auto state = thread->get_state();
-        auto topFrame = state->get_frame();
+        const auto state = thread->get_state();
+        const auto top_frame = state->get_frame();
         while (thread->is_running()) {
-            auto opcode = static_cast<Opcode>(state->read_byte());
+            const auto opcode = static_cast<Opcode>(state->read_byte());
             auto frame = state->get_frame();
             DebugOp::print_vm_state(state);
             try {
@@ -40,7 +40,7 @@ namespace spade
                         state->pop();
                         break;
                     case Opcode::NPOP: {
-                        uint8 count = (uint8) state->read_byte();
+                        const uint8 count = (uint8) state->read_byte();
                         frame->sp -= count;
                         break;
                     }
@@ -48,7 +48,7 @@ namespace spade
                         state->push(state->peek());
                         break;
                     case Opcode::NDUP: {
-                        uint8 count = (uint8) state->read_byte();
+                        const uint8 count = (uint8) state->read_byte();
                         for (int i = 0; i < count; ++i) {
                             frame->sp[i] = frame->sp[-1];
                         }
@@ -68,8 +68,8 @@ namespace spade
                         frame->get_locals().set(state->read_short(), state->peek());
                         break;
                     case Opcode::SPLOAD: {
-                        auto obj = state->pop();
-                        auto sign = state->load_const(state->read_short())->to_string();
+                        const auto obj = state->pop();
+                        const auto sign = state->load_const(state->read_short())->to_string();
                         state->push(obj->get_super_class_method(sign));
                         break;
                     }
@@ -86,8 +86,8 @@ namespace spade
                         frame->get_locals().set(state->read_byte(), state->peek());
                         break;
                     case Opcode::SPFLOAD: {
-                        auto obj = state->pop();
-                        auto sign = state->load_const(state->read_byte())->to_string();
+                        const auto obj = state->pop();
+                        const auto sign = state->load_const(state->read_byte())->to_string();
                         state->push(obj->get_super_class_method(sign));
                         break;
                     }
@@ -139,61 +139,61 @@ namespace spade
                                 ->set_placeholder(cast<Type>(state->pop()));
                         break;
                     case Opcode::MLOAD: {
-                        auto object = state->pop();
-                        auto name = Sign(state->load_const(state->read_short())->to_string()).get_name();
-                        Obj *member = object->get_member(name);
+                        const auto object = state->pop();
+                        const auto name = Sign(state->load_const(state->read_short())->to_string()).get_name();
+                        Obj *const member = object->get_member(name);
                         state->push(member);
                         break;
                     }
                     case Opcode::MSTORE: {
-                        auto object = state->pop();
-                        auto value = state->peek();
-                        auto name = Sign(state->load_const(state->read_short())->to_string()).get_name();
+                        const auto object = state->pop();
+                        const auto value = state->peek();
+                        const auto name = Sign(state->load_const(state->read_short())->to_string()).get_name();
                         object->set_member(name, value);
                         break;
                     }
                     case Opcode::MFLOAD: {
-                        auto object = state->pop();
-                        auto name = Sign(state->load_const(state->read_byte())->to_string()).get_name();
-                        Obj *member = object->get_member(name);
+                        const auto object = state->pop();
+                        const auto name = Sign(state->load_const(state->read_byte())->to_string()).get_name();
+                        Obj *const member = object->get_member(name);
                         state->push(member);
                         break;
                     }
                     case Opcode::MFSTORE: {
-                        auto object = state->pop();
-                        auto value = state->peek();
-                        auto name = Sign(state->load_const(state->read_byte())->to_string()).get_name();
+                        const auto object = state->pop();
+                        const auto value = state->peek();
+                        const auto name = Sign(state->load_const(state->read_byte())->to_string()).get_name();
                         object->set_member(name, value);
                         break;
                     }
                     case Opcode::PMSTORE: {
-                        auto object = state->pop();
-                        auto value = state->pop();
-                        auto name = Sign(state->load_const(state->read_short())->to_string()).get_name();
+                        const auto object = state->pop();
+                        const auto value = state->pop();
+                        const auto name = Sign(state->load_const(state->read_short())->to_string()).get_name();
                         object->set_member(name, value);
                         break;
                     }
                     case Opcode::PMFSTORE: {
-                        auto object = state->pop();
-                        auto value = state->pop();
-                        auto name = Sign(state->load_const(state->read_byte())->to_string()).get_name();
+                        const auto object = state->pop();
+                        const auto value = state->pop();
+                        const auto name = Sign(state->load_const(state->read_byte())->to_string()).get_name();
                         object->set_member(name, value);
                         break;
                     }
                     case Opcode::OBJLOAD: {
-                        auto type = cast<Type>(state->pop());
-                        auto object = halloc_mgr<Obj>(manager, Sign(""), type, frame->get_method()->get_module());
+                        const auto type = cast<Type>(state->pop());
+                        const auto object = halloc_mgr<Obj>(manager, Sign(""), type, frame->get_method()->get_module());
                         state->push(object);
                         break;
                     }
                     case Opcode::ARRUNPACK: {
-                        auto array = cast<ObjArray>(state->pop());
-                        array->foreach ([&state](auto item) { state->push(item); });
+                        const auto array = cast<ObjArray>(state->pop());
+                        array->foreach ([&state](const auto item) { state->push(item); });
                         break;
                     }
                     case Opcode::ARRPACK: {
-                        uint8 count = state->read_byte();
-                        auto array = halloc_mgr<ObjArray>(manager, count);
+                        const uint8 count = state->read_byte();
+                        const auto array = halloc_mgr<ObjArray>(manager, count);
                         frame->sp -= count;
                         for (int i = 0; i < count; ++i) {
                             array->set(i, frame->sp[i]);
@@ -202,74 +202,74 @@ namespace spade
                         break;
                     }
                     case Opcode::ARRBUILD: {
-                        uint8 count = static_cast<uint8>(state->read_short());
-                        auto array = halloc_mgr<ObjArray>(manager, count);
+                        const uint8 count = static_cast<uint8>(state->read_short());
+                        const auto array = halloc_mgr<ObjArray>(manager, count);
                         state->push(array);
                         break;
                     }
                     case Opcode::ARRFBUILD: {
-                        uint8 count = (uint8) state->read_byte();
-                        auto array = halloc_mgr<ObjArray>(manager, count);
+                        const uint8 count = (uint8) state->read_byte();
+                        const auto array = halloc_mgr<ObjArray>(manager, count);
                         state->push(array);
                         break;
                     }
                     case Opcode::ILOAD: {
-                        auto array = cast<ObjArray>(state->pop());
-                        auto index = cast<ObjInt>(state->pop());
+                        const auto array = cast<ObjArray>(state->pop());
+                        const auto index = cast<ObjInt>(state->pop());
                         state->push(array->get(index->value()));
                         break;
                     }
                     case Opcode::ISTORE: {
-                        auto array = cast<ObjArray>(state->pop());
-                        auto index = cast<ObjInt>(state->pop());
-                        auto value = state->peek();
+                        const auto array = cast<ObjArray>(state->pop());
+                        const auto index = cast<ObjInt>(state->pop());
+                        const auto value = state->peek();
                         array->set(index->value(), value);
                         break;
                     }
                     case Opcode::PISTORE: {
-                        auto array = cast<ObjArray>(state->pop());
-                        auto index = cast<ObjInt>(state->pop());
-                        auto value = state->pop();
+                        const auto array = cast<ObjArray>(state->pop());
+                        const auto index = cast<ObjInt>(state->pop());
+                        const auto value = state->pop();
                         array->set(index->value(), value);
                         break;
                     }
                     case Opcode::ARRLEN: {
-                        auto array = cast<ObjArray>(state->pop());
+                        const auto array = cast<ObjArray>(state->pop());
                         state->push(halloc_mgr<ObjInt>(manager, array->count()));
                         break;
                     }
                     case Opcode::INVOKE: {
                         // Get the count
-                        uint8 count = state->read_byte();
+                        const uint8 count = state->read_byte();
                         // Pop the arguments
                         frame->sp -= count;
                         // Get the method
-                        auto method = cast<ObjMethod>(state->pop());
+                        const auto method = cast<ObjMethod>(state->pop());
                         // Call it
                         method->call(frame->sp + 1);
                         break;
                     }
                     case Opcode::VINVOKE: {
                         // Get the param
-                        Sign sign{state->load_const(state->read_short())->to_string()};
+                        const Sign sign{state->load_const(state->read_short())->to_string()};
                         // Get name of the method
-                        auto name = sign.get_name();
+                        const auto name = sign.get_name();
                         // Get the arg count
-                        uint8 count = static_cast<uint8>(sign.get_params().size());
+                        const uint8 count = static_cast<uint8>(sign.get_params().size());
 
                         // Pop the arguments
                         frame->sp -= count;
                         // Get the object
-                        auto object = state->pop();
+                        const auto object = state->pop();
                         // Get the method
-                        auto method = cast<ObjMethod>(object->get_member(name));
+                        const auto method = cast<ObjMethod>(object->get_member(name));
                         // Call it
                         method->call(frame->sp + 1);
                         break;
                     }
                     case Opcode::SPINVOKE: {
-                        auto method = cast<ObjMethod>(get_symbol(state->load_const(state->read_short())->to_string()));
-                        uint8 count = method->get_frame_template().get_args().count();
+                        const auto method = cast<ObjMethod>(get_symbol(state->load_const(state->read_short())->to_string()));
+                        const uint8 count = method->get_frame_template().get_args().count();
                         frame->sp -= count;
                         Obj *obj = state->pop();
                         method->call(frame->sp + 1);
@@ -277,8 +277,8 @@ namespace spade
                         break;
                     }
                     case Opcode::SPFINVOKE: {
-                        auto method = cast<ObjMethod>(get_symbol(state->load_const(state->read_byte())->to_string()));
-                        uint8 count = method->get_frame_template().get_args().count();
+                        const auto method = cast<ObjMethod>(get_symbol(state->load_const(state->read_byte())->to_string()));
+                        const uint8 count = method->get_frame_template().get_args().count();
                         frame->sp -= count;
                         Obj *obj = state->pop();
                         method->call(frame->sp + 1);
@@ -287,9 +287,9 @@ namespace spade
                     }
                     case Opcode::LINVOKE: {
                         // Get the method
-                        auto method = cast<ObjMethod>(frame->get_locals().get(state->read_short()));
+                        const auto method = cast<ObjMethod>(frame->get_locals().get(state->read_short()));
                         // Get the arg count
-                        uint8 count = (uint8) method->get_frame_template().get_args().count();
+                        const uint8 count = (uint8) method->get_frame_template().get_args().count();
                         // Pop the arguments
                         frame->sp -= count;
                         // Call it
@@ -298,9 +298,9 @@ namespace spade
                     }
                     case Opcode::GINVOKE: {
                         // Get the method
-                        auto method = cast<ObjMethod>(get_symbol(state->load_const(state->read_short())->to_string()));
+                        const auto method = cast<ObjMethod>(get_symbol(state->load_const(state->read_short())->to_string()));
                         // Get the arg count
-                        uint8 count = (uint8) method->get_frame_template().get_args().count();
+                        const uint8 count = (uint8) method->get_frame_template().get_args().count();
                         // Pop the arguments
                         frame->sp -= count;
                         // Call it
@@ -309,27 +309,27 @@ namespace spade
                     }
                     case Opcode::VFINVOKE: {
                         // Get the param
-                        Sign sign{state->load_const(state->read_byte())->to_string()};
+                        const Sign sign{state->load_const(state->read_byte())->to_string()};
                         // Get name of the method
-                        auto name = sign.get_name();
+                        const auto name = sign.get_name();
                         // Get the arg count
-                        uint8 count = static_cast<uint8>(sign.get_params().size());
+                        const uint8 count = static_cast<uint8>(sign.get_params().size());
 
                         // Pop the arguments
                         frame->sp -= count;
                         // Get the object
-                        auto object = state->pop();
+                        const auto object = state->pop();
                         // Get the method
-                        auto method = cast<ObjMethod>(object->get_member(name));
+                        const auto method = cast<ObjMethod>(object->get_member(name));
                         // Call it
                         method->call(frame->sp + 1);
                         break;
                     }
                     case Opcode::LFINVOKE: {
                         // Get the method
-                        auto method = cast<ObjMethod>(frame->get_locals().get(state->read_byte()));
+                        const auto method = cast<ObjMethod>(frame->get_locals().get(state->read_byte()));
                         // Get the arg count
-                        uint8 count = (uint8) method->get_frame_template().get_args().count();
+                        const uint8 count = (uint8) method->get_frame_template().get_args().count();
                         // Pop the arguments
                         frame->sp -= count;
                         // Call it
@@ -338,9 +338,9 @@ namespace spade
                     }
                     case Opcode::GFINVOKE: {
                         // Get the method
-                        auto method = cast<ObjMethod>(get_symbol(state->load_const(state->read_byte())->to_string()));
+                        const auto method = cast<ObjMethod>(get_symbol(state->load_const(state->read_byte())->to_string()));
                         // Get the arg count
-                        uint8 count = (uint8) method->get_frame_template().get_args().count();
+                        const uint8 count = (uint8) method->get_frame_template().get_args().count();
                         // Pop the arguments
                         frame->sp -= count;
                         // Call it
@@ -349,9 +349,9 @@ namespace spade
                     }
                     case Opcode::AINVOKE: {
                         // Get the method
-                        auto method = cast<ObjMethod>(frame->get_args().get(state->read_byte()));
+                        const auto method = cast<ObjMethod>(frame->get_args().get(state->read_byte()));
                         // Get the arg count
-                        uint8 count = (uint8) method->get_frame_template().get_args().count();
+                        const uint8 count = (uint8) method->get_frame_template().get_args().count();
                         // Pop the arguments
                         frame->sp -= count;
                         // Call it
@@ -359,80 +359,80 @@ namespace spade
                         break;
                     }
                     case Opcode::CALLSUB: {
-                        auto address = halloc_mgr<ObjInt>(manager, frame->ip - frame->code);
+                        const auto address = halloc_mgr<ObjInt>(manager, frame->ip - frame->code);
                         state->push(address);
-                        auto offset = state->read_short();
+                        const auto offset = state->read_short();
                         state->adjust(offset);
                         break;
                     }
                     case Opcode::RETSUB: {
-                        auto address = cast<ObjInt>(state->pop());
+                        const auto address = cast<ObjInt>(state->pop());
                         frame->set_ip(frame->code + address->value());
                         break;
                     }
                     case Opcode::JMP: {
-                        int16 offset = static_cast<int16>(state->read_short());
+                        const int16 offset = static_cast<int16>(state->read_short());
                         state->adjust(offset);
                         break;
                     }
                     case Opcode::JT: {
-                        auto obj = state->pop();
-                        int16 offset = static_cast<int16>(state->read_short());
+                        const auto obj = state->pop();
+                        const int16 offset = static_cast<int16>(state->read_short());
                         if (obj->truth())
                             state->adjust(offset);
                         break;
                     }
                     case Opcode::JF: {
-                        auto obj = state->pop();
-                        int16 offset = static_cast<int16>(state->read_short());
+                        const auto obj = state->pop();
+                        const int16 offset = static_cast<int16>(state->read_short());
                         if (!obj->truth())
                             state->adjust(offset);
                         break;
                     }
                     case Opcode::JLT: {
-                        auto b = cast<ComparableObj>(state->pop());
-                        auto a = cast<ComparableObj>(state->pop());
-                        int16 offset = static_cast<int16>(state->read_short());
+                        const auto b = cast<ComparableObj>(state->pop());
+                        const auto a = cast<ComparableObj>(state->pop());
+                        const int16 offset = static_cast<int16>(state->read_short());
                         if ((*a < b)->truth())
                             state->adjust(offset);
                         break;
                     }
                     case Opcode::JLE: {
-                        auto b = cast<ComparableObj>(state->pop());
-                        auto a = cast<ComparableObj>(state->pop());
-                        int16 offset = static_cast<int16>(state->read_short());
+                        const auto b = cast<ComparableObj>(state->pop());
+                        const auto a = cast<ComparableObj>(state->pop());
+                        const int16 offset = static_cast<int16>(state->read_short());
                         if ((*a <= b)->truth())
                             state->adjust(offset);
                         break;
                     }
                     case Opcode::JEQ: {
-                        auto b = cast<ComparableObj>(state->pop());
-                        auto a = cast<ComparableObj>(state->pop());
-                        int16 offset = static_cast<int16>(state->read_short());
+                        const auto b = cast<ComparableObj>(state->pop());
+                        const auto a = cast<ComparableObj>(state->pop());
+                        const int16 offset = static_cast<int16>(state->read_short());
                         if ((*a == b)->truth())
                             state->adjust(offset);
                         break;
                     }
                     case Opcode::JNE: {
-                        auto b = cast<ComparableObj>(state->pop());
-                        auto a = cast<ComparableObj>(state->pop());
-                        int16 offset = static_cast<int16>(state->read_short());
+                        const auto b = cast<ComparableObj>(state->pop());
+                        const auto a = cast<ComparableObj>(state->pop());
+                        const int16 offset = static_cast<int16>(state->read_short());
                         if ((*a != b)->truth())
                             state->adjust(offset);
                         break;
                     }
                     case Opcode::JGE: {
-                        auto b = cast<ComparableObj>(state->pop());
-                        auto a = cast<ComparableObj>(state->pop());
-                        int16 offset = static_cast<int16>(state->read_short());
+                        const auto b = cast<ComparableObj>(state->pop());
+                        const auto a = cast<ComparableObj>(state->pop());
+                        const int16 offset = static_cast<int16>(state->read_short());
                         if ((*a >= b)->truth())
                             state->adjust(offset);
                         break;
                     }
                     case Opcode::JGT: {
-                        auto b = cast<ComparableObj>(state->pop());
-                        auto a = cast<ComparableObj>(state->pop());
-                        int16 offset = static_cast<int16>(state->read_short());
+                        const auto b = cast<ComparableObj>(state->pop());
+                        const auto a = cast<ComparableObj>(state->pop());
+                        const int16 offset = static_cast<int16>(state->read_short());
                         if ((*a > b)->truth())
                             state->adjust(offset);
                         break;
@@ -450,8 +450,8 @@ namespace spade
                         state->push(state->pop()->get_type());
                         break;
                     case Opcode::SCAST: {
-                        auto type = cast<Type>(state->pop());
-                        auto obj = state->pop();
+                        const auto type = cast<Type>(state->pop());
+                        const auto obj = state->pop();
                         if (check_cast(obj->get_type(), type)) {
                             obj->set_type(type);
                             state->push(obj);
@@ -460,8 +460,8 @@ namespace spade
                         break;
                     }
                     case Opcode::CCAST: {
-                        auto type = cast<Type>(state->pop());
-                        auto obj = state->pop();
+                        const auto type = cast<Type>(state->pop());
+                        const auto obj = state->pop();
                         if (check_cast(obj->get_type(), type)) {
                             obj->set_type(type);
                             state->push(obj);
@@ -471,128 +471,128 @@ namespace spade
                         break;
                     }
                     case Opcode::CONCAT: {
-                        auto b = cast<ObjString>(state->pop());
-                        auto a = cast<ObjString>(state->pop());
+                        const auto b = cast<ObjString>(state->pop());
+                        const auto a = cast<ObjString>(state->pop());
                         state->push(halloc_mgr<ObjString>(manager, a->to_string() + b->to_string()));
                         break;
                     }
                     case Opcode::POW: {
-                        auto b = cast<ObjNumber>(state->pop());
-                        auto a = cast<ObjNumber>(state->pop());
+                        const auto b = cast<ObjNumber>(state->pop());
+                        const auto a = cast<ObjNumber>(state->pop());
                         state->push(a->power(b));
                         break;
                     }
                     case Opcode::MUL: {
-                        auto b = cast<ObjNumber>(state->pop());
-                        auto a = cast<ObjNumber>(state->pop());
+                        const auto b = cast<ObjNumber>(state->pop());
+                        const auto a = cast<ObjNumber>(state->pop());
                         state->push(*a * b);
                         break;
                     }
                     case Opcode::DIV: {
-                        auto b = cast<ObjNumber>(state->pop());
-                        auto a = cast<ObjNumber>(state->pop());
+                        const auto b = cast<ObjNumber>(state->pop());
+                        const auto a = cast<ObjNumber>(state->pop());
                         state->push(*a / b);
                         break;
                     }
                     case Opcode::REM: {
-                        auto b = cast<ObjInt>(state->pop());
-                        auto a = cast<ObjInt>(state->pop());
+                        const auto b = cast<ObjInt>(state->pop());
+                        const auto a = cast<ObjInt>(state->pop());
                         state->push(*a % *b);
                         break;
                     }
                     case Opcode::ADD: {
-                        auto b = cast<ObjNumber>(state->pop());
-                        auto a = cast<ObjNumber>(state->pop());
+                        const auto b = cast<ObjNumber>(state->pop());
+                        const auto a = cast<ObjNumber>(state->pop());
                         state->push(*a + b);
                         break;
                     }
                     case Opcode::SUB: {
-                        auto b = cast<ObjNumber>(state->pop());
-                        auto a = cast<ObjNumber>(state->pop());
+                        const auto b = cast<ObjNumber>(state->pop());
+                        const auto a = cast<ObjNumber>(state->pop());
                         state->push(*a - b);
                         break;
                     }
                     case Opcode::SHL: {
-                        auto b = cast<ObjInt>(state->pop());
-                        auto a = cast<ObjInt>(state->pop());
+                        const auto b = cast<ObjInt>(state->pop());
+                        const auto a = cast<ObjInt>(state->pop());
                         state->push(*a << *b);
                         break;
                     }
                     case Opcode::SHR: {
-                        auto b = cast<ObjInt>(state->pop());
-                        auto a = cast<ObjInt>(state->pop());
+                        const auto b = cast<ObjInt>(state->pop());
+                        const auto a = cast<ObjInt>(state->pop());
                         state->push(*a >> *b);
                         break;
                     }
                     case Opcode::USHR: {
-                        auto b = cast<ObjInt>(state->pop());
-                        auto a = cast<ObjInt>(state->pop());
+                        const auto b = cast<ObjInt>(state->pop());
+                        const auto a = cast<ObjInt>(state->pop());
                         state->push(a->unsigned_right_shift(*b));
                         break;
                     }
                     case Opcode::AND: {
-                        auto b = cast<ObjInt>(state->pop());
-                        auto a = cast<ObjInt>(state->pop());
+                        const auto b = cast<ObjInt>(state->pop());
+                        const auto a = cast<ObjInt>(state->pop());
                         state->push(*a & *b);
                         break;
                     }
                     case Opcode::OR: {
-                        auto b = cast<ObjInt>(state->pop());
-                        auto a = cast<ObjInt>(state->pop());
+                        const auto b = cast<ObjInt>(state->pop());
+                        const auto a = cast<ObjInt>(state->pop());
                         state->push(*a | *b);
                         break;
                     }
                     case Opcode::XOR: {
-                        auto b = cast<ObjInt>(state->pop());
-                        auto a = cast<ObjInt>(state->pop());
+                        const auto b = cast<ObjInt>(state->pop());
+                        const auto a = cast<ObjInt>(state->pop());
                         state->push(*a ^ *b);
                         break;
                     }
                     case Opcode::LT: {
-                        auto b = cast<ComparableObj>(state->pop());
-                        auto a = cast<ComparableObj>(state->pop());
+                        const auto b = cast<ComparableObj>(state->pop());
+                        const auto a = cast<ComparableObj>(state->pop());
                         state->push(*a < b);
                         break;
                     }
                     case Opcode::LE: {
-                        auto b = cast<ComparableObj>(state->pop());
-                        auto a = cast<ComparableObj>(state->pop());
+                        const auto b = cast<ComparableObj>(state->pop());
+                        const auto a = cast<ComparableObj>(state->pop());
                         state->push(*a <= b);
                         break;
                     }
                     case Opcode::EQ: {
-                        auto b = cast<ComparableObj>(state->pop());
-                        auto a = cast<ComparableObj>(state->pop());
+                        const auto b = cast<ComparableObj>(state->pop());
+                        const auto a = cast<ComparableObj>(state->pop());
                         state->push(*a == b);
                         break;
                     }
                     case Opcode::NE: {
-                        auto b = cast<ComparableObj>(state->pop());
-                        auto a = cast<ComparableObj>(state->pop());
+                        const auto b = cast<ComparableObj>(state->pop());
+                        const auto a = cast<ComparableObj>(state->pop());
                         state->push(*a != b);
                         break;
                     }
                     case Opcode::GE: {
-                        auto b = cast<ComparableObj>(state->pop());
-                        auto a = cast<ComparableObj>(state->pop());
+                        const auto b = cast<ComparableObj>(state->pop());
+                        const auto a = cast<ComparableObj>(state->pop());
                         state->push(*a >= b);
                         break;
                     }
                     case Opcode::GT: {
-                        auto b = cast<ComparableObj>(state->pop());
-                        auto a = cast<ComparableObj>(state->pop());
+                        const auto b = cast<ComparableObj>(state->pop());
+                        const auto a = cast<ComparableObj>(state->pop());
                         state->push(*a > b);
                         break;
                     }
                     case Opcode::IS: {
-                        auto b = state->pop();
-                        auto a = state->pop();
+                        const auto b = state->pop();
+                        const auto a = state->pop();
                         state->push(halloc_mgr<ObjBool>(manager, a == b));
                         break;
                     }
                     case Opcode::NIS: {
-                        auto b = state->pop();
-                        auto a = state->pop();
+                        const auto b = state->pop();
+                        const auto a = state->pop();
                         state->push(halloc_mgr<ObjBool>(manager, a != b));
                         break;
                     }
@@ -607,19 +607,19 @@ namespace spade
                         // todo: implement
                         break;
                     case Opcode::MTPERF: {
-                        auto match = frame->get_matches()[state->read_short()];
-                        uint32 offset = match.perform(state->pop());
+                        const auto match = frame->get_matches()[state->read_short()];
+                        const uint32 offset = match.perform(state->pop());
                         state->adjust(offset);
                         break;
                     }
                     case Opcode::MTFPERF: {
-                        auto match = frame->get_matches()[state->read_byte()];
-                        uint32 offset = match.perform(state->pop());
+                        const auto match = frame->get_matches()[state->read_byte()];
+                        const uint32 offset = match.perform(state->pop());
                         state->adjust(offset);
                         break;
                     }
                     case Opcode::CLOSURELOAD: {
-                        auto method = cast<ObjMethod>(state->pop()->copy());
+                        const auto method = cast<ObjMethod>(state->pop()->copy());
                         auto &locals = const_cast<LocalsTable &>(method->get_frame_template().get_locals());
                         for (uint16 i = locals.get_closure_start(); i < locals.count(); i++) {
                             NamedRef *ref;
@@ -643,11 +643,11 @@ namespace spade
                         break;
                     }
                     case Opcode::REIFIEDLOAD: {
-                        uint8 count = state->read_byte();
+                        const uint8 count = state->read_byte();
                         // Pop the arguments
                         for (int i = 0; i < count; i++) state->pop();
-                        auto args = frame->sp;
-                        auto obj = state->pop();
+                        const auto args = frame->sp;
+                        const auto obj = state->pop();
                         if (is<ObjMethod>(obj)) {
                             state->push(cast<ObjMethod>(obj)->get_reified(args, count));
                         } else if (is<Type>(obj)) {
@@ -657,17 +657,17 @@ namespace spade
                         break;
                     }
                     case Opcode::THROW: {
-                        auto value = state->pop();
+                        const auto value = state->pop();
                         throw ThrowSignal(value);
                     }
                     case Opcode::RET: {
-                        auto currentFrame = state->get_frame();
+                        const auto currentFrame = state->get_frame();
                         // Pop the return value
-                        auto val = state->pop();
+                        const auto val = state->pop();
                         // Pop the current frame
                         state->pop_frame();
                         // Return if encountered end of execution
-                        if (topFrame == currentFrame) {
+                        if (top_frame == currentFrame) {
                             return val;
                         }
                         // Push the return value
@@ -675,11 +675,11 @@ namespace spade
                         break;
                     }
                     case Opcode::VRET: {
-                        auto currentFrame = state->get_frame();
+                        const auto currentFrame = state->get_frame();
                         // Pop the current frame
                         state->pop_frame();
                         // Return if encountered end of execution
-                        if (topFrame == currentFrame) {
+                        if (top_frame == currentFrame) {
                             return ObjNull::value(manager);
                         }
                         break;
@@ -707,10 +707,10 @@ namespace spade
                         break;
                 }
             } catch (const ThrowSignal &signal) {
-                auto value = signal.get_value();
+                const auto value = signal.get_value();
                 while (state->get_call_stack_size() > 0) {
                     frame = state->get_frame();
-                    auto info = frame->get_exceptions().get_target(state->get_pc(), value->get_type());
+                    const auto info = frame->get_exceptions().get_target(state->get_pc(), value->get_type());
                     if (Exception::IS_NO_EXCEPTION(info))
                         state->pop_frame();
                     else {

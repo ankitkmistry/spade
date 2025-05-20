@@ -16,15 +16,14 @@ namespace spade
      *   raw             = 0x 00000000 00000000
      *                        |      | |      |
      *                        +------+ +------+
-     *                           |        |
-     *   accessor        |-------+        |
-     *   modifier        |----------------+
+     *                           |         |
+     *   accessor        |-------+         |
+     *   modifier        |-----------------+
      *
      *
      *   modifier        = 0x  0  0  0  0  0  0  0  0
-     *   =================              |  |  |  |  |
-     *   override        |--------------+  |  |  |  |
-     *   operator        |-----------------+  |  |  |
+     *   =================                 |  |  |  |
+     *   override        |-----------------+  |  |  |
      *   final           |--------------------+  |  |
      *   abstract        |-----------------------+  |
      *   static          |--------------------------+
@@ -40,49 +39,104 @@ namespace spade
     struct Flags {
         uint16 raw;
 
+#define STATIC_MASK         (0b0000'0000'0000'0001)
+#define ABSTRACT_MASK       (0b0000'0000'0000'0010)
+#define FINAL_MASK          (0b0000'0000'0000'0100)
+#define OVERRIDE_MASK       (0b0000'0000'0000'1000)
+#define PRIVATE_MASK        (0b0000'0001'0000'0000)
+#define INTERNAL_MASK       (0b0000'0010'0000'0000)
+#define MODULE_PRIVATE_MASK (0b0000'0100'0000'0000)
+#define PROTECTED_MASK      (0b0000'1000'0000'0000)
+#define PUBLIC_MASK         (0b0001'0000'0000'0000)
+
         constexpr Flags(uint16 raw = 0) : raw(raw) {}
 
+        constexpr Flags(const Flags &) = default;
+        constexpr Flags(Flags &&) = default;
+        constexpr Flags &operator=(const Flags &) = default;
+        constexpr Flags &operator=(Flags &&) = default;
+        constexpr ~Flags() = default;
+
+        constexpr Flags &set_static(bool b = true) {
+            raw = b ? raw | STATIC_MASK : raw & ~STATIC_MASK;
+            return *this;
+        }
+
         constexpr bool is_static() const {
-            return raw & 0b0000'0001;
+            return raw & STATIC_MASK;
+        }
+
+        constexpr Flags &set_abstract(bool b = true) {
+            raw = b ? raw | ABSTRACT_MASK : raw & ~ABSTRACT_MASK;
+            return *this;
         }
 
         constexpr bool is_abstract() const {
-            return raw & 0b0000'0010;
+            return raw & ABSTRACT_MASK;
+        }
+
+        constexpr Flags &set_final(bool b = true) {
+            raw = b ? raw | FINAL_MASK : raw & ~FINAL_MASK;
+            return *this;
         }
 
         constexpr bool is_final() const {
-            return raw & 0b0000'0100;
+            return raw & FINAL_MASK;
         }
 
-        constexpr bool is_operator() const {
-            return raw & 0b0000'1000;
+        constexpr Flags &set_override(bool b = true) {
+            raw = b ? raw | OVERRIDE_MASK : raw & ~OVERRIDE_MASK;
+            return *this;
+        }
+
+        constexpr bool is_override() const {
+            return raw & OVERRIDE_MASK;
+        }
+
+        constexpr Flags &set_private(bool b = true) {
+            raw = b ? raw | PRIVATE_MASK : raw & ~PRIVATE_MASK;
+            return *this;
         }
 
         constexpr bool is_private() const {
-            return (raw >> 8) & 0b0000'0001;
+            return raw & PRIVATE_MASK;
+        }
+
+        constexpr Flags &set_internal(bool b = true) {
+            raw = b ? raw | INTERNAL_MASK : raw & ~INTERNAL_MASK;
+            return *this;
         }
 
         constexpr bool is_internal() const {
-            return (raw >> 8) & 0b0000'0010;
+            return raw & INTERNAL_MASK;
         }
 
-        constexpr bool is_package_private() const {
-            return (raw >> 8) & 0b0000'0100;
+        constexpr Flags &set_module_private(bool b = true) {
+            raw = b ? raw | MODULE_PRIVATE_MASK : raw & ~MODULE_PRIVATE_MASK;
+            return *this;
+        }
+
+        constexpr bool is_module_private() const {
+            return raw & MODULE_PRIVATE_MASK;
+        }
+
+        constexpr Flags &set_protected(bool b = true) {
+            raw = b ? raw | PROTECTED_MASK : raw & ~PROTECTED_MASK;
+            return *this;
         }
 
         constexpr bool is_protected() const {
-            return (raw >> 8) & 0b0000'1000;
+            return raw & PROTECTED_MASK;
+        }
+
+        constexpr Flags &set_public(bool b = true) {
+            raw = b ? raw | PUBLIC_MASK : raw & ~PUBLIC_MASK;
+            return *this;
         }
 
         constexpr bool is_public() const {
-            return (raw >> 8) & 0b0001'0000;
+            return raw & PUBLIC_MASK;
         }
-    };
-
-    struct MemoryInfo {
-        bool marked = false;
-        uint32 life = 0;
-        MemoryManager *manager = null;
     };
 
     class MemberSlot {
@@ -108,6 +162,12 @@ namespace spade
         const Flags &get_flags() const {
             return flags;
         }
+    };
+
+    struct MemoryInfo {
+        bool marked = false;
+        uint32 life = 0;
+        MemoryManager *manager = null;
     };
 
     /**
@@ -136,6 +196,8 @@ namespace spade
          */
         static void reify(Obj **pObj, const Table<TypeParam *> &old_, const Table<TypeParam *> &new_);
 
+        static Obj *create_copy_dynamic(const Obj *obj);
+
       public:
         /**
          * Creates a deep copy of \p obj.
@@ -147,11 +209,13 @@ namespace spade
          */
         template<typename T>
             requires std::derived_from<T, Obj>
-        static T *create_copy(T *obj) {
-            if constexpr (std::same_as<T, Type> || std::same_as<T, ObjCallable> || std::same_as<T, ObjModule>)
-                return obj;
+        static T *create_copy(const T *obj) {
+            if constexpr (std::same_as<T, Type> || std::derived_from<T, Type> || std::same_as<T, ObjCallable> || std::derived_from<T, ObjCallable> ||
+                          std::same_as<T, ObjModule> || std::derived_from<T, ObjModule>)
+                // Unique state
+                return (T *) obj;
             else
-                return dynamic_cast<T *>(obj->copy());
+                return (T *) create_copy_dynamic(obj);
         }
 
         /**
@@ -167,7 +231,7 @@ namespace spade
          * @warning The user should not use this function except in exceptional cases
          * @return a copy of the object
          */
-        virtual Obj *copy();
+        virtual Obj *copy() const;
 
         /**
          * @return the memory info of the object
@@ -220,9 +284,7 @@ namespace spade
          * Sets the type of the object
          * @param destType the destination type
          */
-        void set_type(Type *destType) {
-            this->type = destType;
-        }
+        void set_type(Type *destType);
 
         /**
          * @return the members of this object

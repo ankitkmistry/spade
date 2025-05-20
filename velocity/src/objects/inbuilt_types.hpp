@@ -24,7 +24,8 @@ namespace spade
             return b ? "true" : "false";
         }
 
-        Obj *copy() override {
+        Obj *copy() const override {
+            // immutable state
             return (Obj *) this;
         }
 
@@ -50,7 +51,8 @@ namespace spade
             return string({c});
         }
 
-        Obj *copy() override {
+        Obj *copy() const override {
+            // immutable state
             return (Obj *) this;
         }
 
@@ -71,7 +73,8 @@ namespace spade
             return "null";
         }
 
-        Obj *copy() override {
+        Obj *copy() const override {
+            // immutable state
             return (Obj *) this;
         }
 
@@ -95,7 +98,8 @@ namespace spade
             return str;
         }
 
-        Obj *copy() override {
+        Obj *copy() const override {
+            // immutable state
             return (Obj *) this;
         }
 
@@ -128,7 +132,7 @@ namespace spade
 
         string to_string() const override;
 
-        Obj *copy() override;
+        Obj *copy() const override;
 
         /// Does lexicographical comparison
         int32 compare(const Obj *rhs) const override;

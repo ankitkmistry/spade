@@ -2,11 +2,12 @@
 
 #include "int.hpp"
 #include "float.hpp"
+#include "memory/memory.hpp"
 
 namespace spade
 {
-    Obj *ObjInt::copy() {
-        return (Obj *) this;
+    Obj *ObjInt::copy() const {
+        return halloc_mgr<ObjInt>(info.manager, val);
     }
 
     bool ObjInt::truth() const {

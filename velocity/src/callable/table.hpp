@@ -11,11 +11,16 @@ namespace spade
       protected:
         string name;
         Obj *value;
-        bool no_copy = false;
         Table<string> meta;
 
       public:
         NamedRef(const string &name, Obj *value, const Table<string> &meta) : name(name), value(value), meta(meta) {}
+
+        NamedRef(const NamedRef &other);
+        NamedRef(NamedRef &&other) noexcept;
+        NamedRef &operator=(const NamedRef &other);
+        NamedRef &operator=(NamedRef &&other) noexcept;
+        ~NamedRef() = default;
 
         NamedRef copy() const;
 
@@ -32,20 +37,6 @@ namespace spade
          */
         Obj *get_value() const {
             return value;
-        }
-
-        /**
-         * @return if the named ref is not copyable
-         */
-        bool is_no_copy() const {
-            return no_copy;
-        }
-
-        /**
-         * @param noCopy_ sets the named ref not copyable or not
-         */
-        void set_no_copy(bool noCopy_) {
-            no_copy = noCopy_;
         }
 
         /**

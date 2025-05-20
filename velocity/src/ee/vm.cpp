@@ -4,7 +4,7 @@ namespace spade
 {
     SpadeVM::SpadeVM(MemoryManager *manager, const Settings &settings) : loader(this), manager(manager), settings(settings) {
         this->manager->set_vm(this);
-        loader = Booter(this);
+        this->loader = Booter(this);
     }
 
     void SpadeVM::on_exit(const std::function<void()> &fun) {
@@ -36,19 +36,17 @@ namespace spade
     }
 
     int SpadeVM::start(ObjMethod *entry, ObjArray *args) {
-        auto state = new VMState(this);
-        Thread thread{state, [&](auto thr) {
-                          thr->set_status(Thread::RUNNING);
-                          entry->call(args ? vector<Obj *>{args} : vector<Obj *>{});
-                          run(thr);
-                      }};
+        Thread thread(this, [&](const auto thr) {
+            thr->set_status(Thread::RUNNING);
+            entry->call(args ? vector<Obj *>{args} : vector<Obj *>{});
+            run(thr);
+        });
         threads.insert(&thread);
         thread.join();
 
         threads.erase(&thread);
-        if (threads.empty()) {
-            for (auto &action: on_exit_list) action();
-        }
+        if (threads.empty())
+            for (const auto &action: on_exit_list) action();
         return thread.get_exit_code();
     }
 
@@ -57,57 +55,57 @@ namespace spade
     }
 
     Obj *SpadeVM::get_symbol(const string &sign, bool strict) const {
-        Sign symbol_sign{sign};
-        vector<SignElement> elements = symbol_sign.get_elements();
+        const Sign symbol_sign{sign};
+        const vector<SignElement> elements = symbol_sign.get_elements();
         if (elements.empty())
             return ObjNull::value();
-        Obj *acc;
-        try {
-            acc = modules.at(elements[0].to_string());
-            for (int i = 1; i < elements.size(); ++i) {
-                acc = acc->get_member(elements[i].to_string());
-            }
-        } catch (const IllegalAccessError &) {
-            if (strict)
-                throw IllegalAccessError(std::format("cannot find symbol: {}", sign));
-            else
-                return null;
-        } catch (const std::out_of_range &) {
+        Obj *obj;
+        if (const auto it = modules.find(elements[0].to_string()); it != modules.end())
+            obj = modules.at(elements[0].to_string());
+        else {
             if (strict)
                 throw IllegalAccessError(std::format("cannot find symbol: {}", sign));
             else
                 return null;
         }
-        return acc;
+        for (int i = 1; i < elements.size(); ++i) {
+            try {
+                obj = obj->get_member(elements[i].to_string());
+            } catch (const IllegalAccessError &) {
+                if (strict)
+                    throw IllegalAccessError(std::format("cannot find symbol: {}", sign));
+                else
+                    return null;
+            }
+        }
+        return obj;
     }
 
     void SpadeVM::set_symbol(const string &sign, Obj *val) const {
-        Sign symbol_sign{sign};
-        vector<SignElement> elements = symbol_sign.get_elements();
-        if (elements.empty())
+        const Sign symbol_sign{sign};
+        if (symbol_sign.empty())
             return;
-        try {
-            Obj *acc = modules.at(elements[0].to_string());
-            for (int i = 1; i < elements.size(); ++i) {
-                if (i == elements.size() - 1) {
-                    acc->get_member_slots()[elements.back().to_string()].set_value(val);
-                } else {
-                    acc = acc->get_member(elements[i].to_string());
+        const vector<SignElement> elements = symbol_sign.get_elements();
+        Obj *obj;
+        if (const auto it = modules.find(elements[0].to_string()); it != modules.end())
+            obj = it->second;
+        else
+            throw IllegalAccessError(std::format("cannot find symbol: {}", sign));
+        for (int i = 1; i < elements.size(); ++i)
+            if (i == elements.size() - 1) {
+                obj->get_member_slots()[elements.back().to_string()].set_value(val);
+            } else
+                try {
+                    obj = obj->get_member(elements[i].to_string());
+                } catch (const IllegalAccessError &) {
+                    throw IllegalAccessError(std::format("cannot find symbol: {}", sign));
                 }
-            }
-        } catch (const IllegalAccessError &) {
-            throw IllegalAccessError(std::format("cannot find symbol: {}", sign));
-        } catch (const std::out_of_range &) {
-            throw IllegalAccessError(std::format("cannot find symbol: {}", sign));
-        }
     }
 
     const Table<string> &SpadeVM::get_metadata(const string &sign) {
-        try {
-            return metadata.at(sign);
-        } catch (const std::out_of_range &) {
-            throw IllegalAccessError(std::format("cannot find metadata: {}", sign));
-        }
+        if (const auto it = metadata.find(sign); it != metadata.end())
+            return it->second;
+        throw IllegalAccessError(std::format("cannot find metadata: {}", sign));
     }
 
     void SpadeVM::set_metadata(const string &sign, const Table<string> &meta) {

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "constants.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>

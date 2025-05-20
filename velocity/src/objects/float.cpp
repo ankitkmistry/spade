@@ -1,10 +1,11 @@
-#include <math.h>
+#include <cmath>
+
 #include "float.hpp"
 
 namespace spade
 {
-    Obj *ObjFloat::copy() {
-        return (Obj *) this;
+    Obj *ObjFloat::copy() const {
+        return halloc_mgr<ObjFloat>(info.manager, val);
     }
 
     bool ObjFloat::truth() const {
@@ -26,7 +27,7 @@ namespace spade
     }
 
     Obj *ObjFloat::power(const ObjNumber *n) const {
-        return halloc_mgr<ObjFloat>(info.manager, pow(val, cast<const ObjFloat>(n)->val));
+        return halloc_mgr<ObjFloat>(info.manager, std::pow(val, cast<const ObjFloat>(n)->val));
     }
 
     Obj *ObjFloat::operator+(const ObjNumber *n) const {

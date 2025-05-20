@@ -79,15 +79,10 @@ namespace spade
                 {TokenType::PUBLIC,    0},
         };
         // Get the count of each modifier
-        for (const auto &modifier: modifiers) {
-            try {
-                // Check for duplicate modifiers
-                if (++modifier_counts.at(modifier->get_type()) > 1)
-                    throw error(std::format("duplicate modifier: {}", modifier->get_text()), modifier);
-            } catch (const std::out_of_range &) {
-                throw Unreachable();    // surely some parser error
-            }
-        }
+        for (const auto &modifier: modifiers)
+            // Check for duplicate modifiers
+            if (++modifier_counts[modifier->get_type()] > 1)
+                throw error(std::format("duplicate modifier: {}", modifier->get_text()), modifier);
 
 #define CHECK_EXCLUSIVE(a, b)                                                                                                                        \
     do {                                                                                                                                             \

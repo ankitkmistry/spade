@@ -42,7 +42,7 @@ namespace spade
             init = init_;
         }
 
-        Obj *copy() override;
+        Obj *copy()const override;
 
         bool truth() const override;
 

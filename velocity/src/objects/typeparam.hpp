@@ -56,6 +56,6 @@ namespace spade
 
         TypeParam *get_type_param(const string &name) const override;
 
-        Obj *copy() override;
+        Obj *copy() const override;
     };
 }    // namespace spade

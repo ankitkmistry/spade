@@ -8,8 +8,9 @@ namespace spade
         this->member_slots = member_slots;
     }
 
-    Obj *ObjModule::copy() {
-        return this;
+    Obj *ObjModule::copy() const {
+        // TODO: fix this
+        return (Obj *) this;
     }
 
     bool ObjModule::truth() const {

@@ -1,7 +1,8 @@
 #pragma once
 
-#include "../utils/common.hpp"
-#include "../callable/frame.hpp"
+#include "utils/common.hpp"
+#include "utils/constants.hpp"
+#include "callable/frame.hpp"
 
 namespace spade
 {
@@ -10,12 +11,13 @@ namespace spade
     class VMState {
       private:
         SpadeVM *vm;
-        Frame *call_stack = null, *fp = null;
+        Frame call_stack[FRAMES_MAX];
+        Frame *fp = null;
 
       public:
         VMState(SpadeVM *vm);
-
-        VMState(const VMState &state) : vm(state.vm), call_stack(state.call_stack), fp(state.fp) {}
+        VMState(const VMState &other);
+        VMState(VMState &&other);
 
         // Frame operations
         /**
@@ -102,8 +104,15 @@ namespace spade
         /**
          * @return The call stack
          */
-        Frame *get_call_stack() const {
-            return call_stack;
+        const Frame *get_call_stack() const {
+            return &call_stack[0];
+        }
+
+        /**
+         * @return The call stack
+         */
+        Frame *get_call_stack() {
+            return &call_stack[0];
         }
 
         /**

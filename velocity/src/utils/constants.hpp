@@ -1,7 +1,6 @@
-#ifndef VELOCITY_CONSTANTS_HPP
-#define VELOCITY_CONSTANTS_HPP
+#pragma once
 
-#define FRAMES_MAX 65536
+#define FRAMES_MAX 1024
 
 #if defined _WIN32
 #define OS_WINDOWS
@@ -20,5 +19,3 @@
 #else
 #define COMPILER_OTHER
 #endif
-
-#endif //VELOCITY_CONSTANTS_HPP
