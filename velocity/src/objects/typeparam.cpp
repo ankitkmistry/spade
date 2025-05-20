@@ -1,8 +1,15 @@
 #include "typeparam.hpp"
 #include "memory/memory.hpp"
+#include "type.hpp"
 
 namespace spade
 {
+    void TypeParam::set_placeholder(Type *type) {
+        placeholder = type;
+        // Trigger changes in all the objects
+        for (const auto obj: claimed_objs) obj->set_type(this);
+    }
+
     Type::Kind TypeParam::get_kind() const {
         check_placeholder();
         return placeholder->get_kind();
@@ -59,9 +66,15 @@ namespace spade
     }
 
     Obj *TypeParam::copy() const {
-        auto newTypeParam = halloc_mgr<TypeParam>(info.manager, sign, module);
-        newTypeParam->set_placeholder(placeholder);
-        return newTypeParam;
+        const auto obj = halloc_mgr<TypeParam>(info.manager, sign, module);
+        // No need to clear as `claimed_objs` is initialized as empty
+        // obj->claimed_objs.clear();
+        obj->set_placeholder(placeholder);
+        return obj;
+    }
+
+    string TypeParam::to_string() const {
+        return placeholder ? placeholder->to_string() : Type::to_string();
     }
 
     void TypeParam::check_placeholder() const {

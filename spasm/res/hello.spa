@@ -1,4 +1,27 @@
 module hello
+    class Int
+        field @var val : basic.int
+    end
+
+    class Reference[T]
+        field @var val : [T]
+
+        method get()
+            lfload self
+            mfload val
+            ret
+        end
+
+        method set([T])
+            arg @const val : [T]
+            
+            aload val
+            lfload self
+            mfstore val
+            vret
+        end
+    end
+
     method foo()
         local @var i : basic.int
 
@@ -16,10 +39,50 @@ module hello
         vret
     end
 
+    method ref_test()
+        local @var ref : hello.Reference[T]
+
+        # Reference[Int]
+        gfload hello.Reference[T]
+        gfload hello.Int
+        reifiedload 1
+        
+        # ref = Reference[Int]()
+        objload
+        plfstore ref
+
+        # println "T = " + (gettype (ref.get())).str
+        const "T = "
+        lfload ref
+        vinvoke hello.Reference[T].get()
+        gettype
+        o2s
+        concat
+        println
+
+        # println ref.get()
+        lfload ref
+        vinvoke hello.Reference[T].get()
+        println
+
+        # ref.set(2)
+        lfload ref
+        const 2
+        vinvoke hello.Reference[T].set([T])
+        
+        # println ref.get()
+        lfload ref
+        vinvoke hello.Reference[T].get()
+        println
+
+        vret
+    end
+
     method @entry main()
         local @var i : basic.int
 
         gfinvoke hello.foo()
+        gfinvoke hello.ref_test()
 
         const 0
         plfstore i

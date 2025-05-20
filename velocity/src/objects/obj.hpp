@@ -188,13 +188,13 @@ namespace spade
         Table<ObjMethod *> super_class_methods = {};
 
         /**
-         * Changes pointer to type params @p pObj specified in @p old_ to pointers specified in @p new_.
+         * Changes pointer to type params @p obj specified in @p old_tps to pointers specified in @p new_tps.
          * This function reifies type parameters recursively.
-         * @param pObj pointer to the object
-         * @param old_ old type parameters
-         * @param new_ new type parameters
+         * @param obj pointer to the object
+         * @param old_tps old type parameters
+         * @param new_tps new type parameters
          */
-        static void reify(Obj **pObj, const Table<TypeParam *> &old_, const Table<TypeParam *> &new_);
+        static void reify(Obj *obj, const Table<TypeParam *> &old_tps, const Table<TypeParam *> &new_tps);
 
         static Obj *create_copy_dynamic(const Obj *obj);
 

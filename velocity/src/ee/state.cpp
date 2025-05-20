@@ -19,9 +19,8 @@ namespace spade
     }
 
     void VMState::push_frame(Frame frame) {
-        if (fp - call_stack >= FRAMES_MAX) {
+        if (fp - call_stack >= FRAMES_MAX)
             throw StackOverflowError();
-        }
         *fp++ = std::move(frame);
     }
 

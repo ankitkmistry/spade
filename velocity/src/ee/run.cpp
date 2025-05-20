@@ -1,8 +1,7 @@
-#include "memory/memory.hpp"
-#include "objects/inbuilt_types.hpp"
 #include "vm.hpp"
-
+#include "memory/memory.hpp"
 #include "debug/debug.hpp"
+#include "objects/inbuilt_types.hpp"
 #include "objects/float.hpp"
 #include "objects/int.hpp"
 #include "objects/typeparam.hpp"
@@ -265,6 +264,8 @@ namespace spade
                         const auto method = cast<ObjMethod>(object->get_member(name));
                         // Call it
                         method->call(frame->sp + 1);
+                        // Set this
+                        state->get_frame()->get_locals().set(0, object);
                         break;
                     }
                     case Opcode::SPINVOKE: {
@@ -323,6 +324,8 @@ namespace spade
                         const auto method = cast<ObjMethod>(object->get_member(name));
                         // Call it
                         method->call(frame->sp + 1);
+                        // Set this
+                        state->get_frame()->get_locals().set(0, object);
                         break;
                     }
                     case Opcode::LFINVOKE: {
@@ -653,7 +656,7 @@ namespace spade
                         } else if (is<Type>(obj)) {
                             state->push(cast<Type>(obj)->get_reified(args, count));
                         } else
-                            throw runtime_error(std::format("cannot set_placeholder value of type {}", obj->get_type()->to_string()));
+                            throw runtime_error(std::format("cannot set_placeholder value of {}", obj->get_type()->to_string()));
                         break;
                     }
                     case Opcode::THROW: {
@@ -723,8 +726,8 @@ namespace spade
                     // TODO: show stack trace
                 }
             } catch (const FatalError &error) {
-                std::cerr << "fatal error: " << error.what() << "\n";
-                abort();
+                std::cerr << "fatal error: " << error.what() << std::endl;
+                std::exit(1);
             }
         }
         return ObjNull::value(manager);

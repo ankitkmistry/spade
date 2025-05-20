@@ -4,10 +4,6 @@
 
 namespace spade
 {
-    Obj *ObjFloat::copy() const {
-        return halloc_mgr<ObjFloat>(info.manager, val);
-    }
-
     bool ObjFloat::truth() const {
         return val != 0.0;
     }

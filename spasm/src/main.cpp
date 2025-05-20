@@ -13,27 +13,27 @@
 using namespace spasm;
 
 int main(int argc, char *argv[]) {
-    // argparse::ArgumentParser program("spasm");
-    // program.add_argument("-o", "--output").help("specifies the output filename").metavar("FILEPATH").default_value("");
-    // program.add_argument("input-files").required().remaining().nargs(1, -1);
+    argparse::ArgumentParser program("spasm");
+    program.add_argument("-o", "--output").help("specifies the output filename").metavar("FILEPATH").default_value("");
+    program.add_argument("input-files").required().remaining().nargs(1, -1);
 
-    // try {
-    //     program.parse_args(argc, argv);
-    // } catch (const std::exception &err) {
-    //     std::cerr << err.what() << std::endl;
-    //     std::cerr << program;
-    //     return 1;
-    // }
+    try {
+        program.parse_args(argc, argv);
+    } catch (const std::exception &err) {
+        std::cerr << err.what() << std::endl;
+        std::cerr << program;
+        return 1;
+    }
 
-    // fs::path file_path = program.get<vector<string>>("input-files")[0];
-    // fs::path output_path;
-    // if (program.get("-o").empty())
-    //     output_path = file_path.parent_path() / (file_path.stem().string() + ".elp");
-    // else
-    //     output_path = program.get("-o") + ".elp";
+    fs::path file_path = program.get<vector<string>>("input-files")[0];
+    fs::path output_path;
+    if (program.get("-o").empty())
+        output_path = file_path.parent_path() / (file_path.stem().string() + ".elp");
+    else
+        output_path = program.get("-o") + ".elp";
 
-    fs::path file_path(R"(D:\Programming\Projects\spade\spasm\res\hello.spa)");
-    fs::path output_path = file_path.parent_path() / (file_path.stem().string() + ".elp");
+    // fs::path file_path(R"(D:\Programming\Projects\spade\spasm\res\hello.spa)");
+    // fs::path output_path = file_path.parent_path() / (file_path.stem().string() + ".elp");
 
     ErrorPrinter error_printer;
     try {

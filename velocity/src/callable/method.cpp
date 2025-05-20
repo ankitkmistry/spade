@@ -5,7 +5,7 @@
 
 namespace spade
 {
-    Table<std::unordered_map<Table<Type *>, ObjMethod *>> ObjMethod::reificationTable = {};
+    std::unordered_map<string, ObjMethod *> ObjMethod::reification_table = {};
 
     ObjMethod::ObjMethod(const Sign &sign, Kind kind, const FrameTemplate &frame, const Table<TypeParam *> &type_params, ObjModule *module)
         : ObjCallable(sign, kind, type, module), frame_template(frame), type_params(type_params) {
@@ -13,16 +13,18 @@ namespace spade
     }
 
     Obj *ObjMethod::copy() const {
-        // Copy type params
+        const auto obj = halloc_mgr<ObjMethod>(info.manager, sign, kind, frame_template, type_params, module);
+        // Copy members
+        for (const auto &[name, slot]: member_slots) {
+            obj->set_member(name, create_copy(slot.get_value()));
+        }
+        // Create new type params
         Table<TypeParam *> new_type_params;
         for (const auto &[name, type_param]: type_params) {
             new_type_params[name] = cast<TypeParam>(type_param->copy());
         }
-        // Create new type object
-        Obj *new_type = halloc_mgr<ObjMethod>(info.manager, sign, kind, frame_template, new_type_params, module);
-        // Reify the type params
-        reify(&new_type, type_params, new_type_params);
-        return new_type;
+        Obj::reify(obj, type_params, new_type_params);
+        return obj;
     }
 
     void ObjMethod::call(const vector<Obj *> &args) {
@@ -36,7 +38,7 @@ namespace spade
         for (int i = 0; i < new_frame.get_args().count(); i++) {
             new_frame.get_args().set(i, args[i]);
         }
-        thread->get_state()->push_frame(std::move(new_frame));
+        thread->get_state()->push_frame(new_frame);
     }
 
     void ObjMethod::call(Obj **args) {
@@ -46,61 +48,49 @@ namespace spade
         for (int i = 0; i < new_frame.get_args().count(); i++) {
             new_frame.get_args().set(i, args[i]);
         }
-        thread->get_state()->push_frame(std::move(new_frame));
+        thread->get_state()->push_frame(new_frame);
     }
 
     string ObjMethod::to_string() const {
-        static string kind_names[] = {"function", "method", "constructor"};
+        const static string kind_names[] = {"function", "method", "constructor"};
         return std::format("<{} '{}'>", kind_names[static_cast<int>(kind)], sign.to_string());
     }
 
-    ObjMethod *ObjMethod::return_reified(const Table<Type *> &t_params) const {
-        auto method = cast<ObjMethod>(const_cast<ObjMethod *>(this)->copy());
-        auto params = method->get_type_params();
-        for (auto [name, type_param]: params) {
-            type_param->set_placeholder(t_params.at(name));
-        }
-        return method;
-    }
-
     ObjMethod *ObjMethod::get_reified(Obj **args, uint8 count) const {
-        return null;
-        // TODO: implement this
+        // Check if the number of type args is correct
+        if (type_params.size() < count)
+            throw ArgumentError(sign.to_string(), std::format("too less type arguments, expected {} got {}", type_params.size(), count));
+        if (type_params.size() > count)
+            throw ArgumentError(sign.to_string(), std::format("too many type arguments, expected {} got {}", type_params.size(), count));
 
-        // if (type_params.size() != count) {
-        //     throw ArgumentError(sign.to_string(), std::format("expected {} type arguments, but got {}", type_params.size(), count));
-        // }
+        Table<Type *> type_args;
+        string ta_specifier = "[";    // Type argument specifier
+        for (int i = 0; i < count; ++i) {
+            // Build the type arg specifier and the list of type args
+            const auto type = cast<Type>(args[i]);
+            type_args["[" + get_sign().get_type_params()[i] + "]"] = type;
+            ta_specifier.append(type->get_sign().to_string());
+            ta_specifier.append(", ");
+        }
+        ta_specifier.pop_back();
+        ta_specifier.pop_back();
+        ta_specifier.append("]");
 
-        // Table<Type *> type_args;
-        // for (int i = 0; i < count; ++i) {
-        //     type_args[get_sign().get_type_params()[i]] = (cast<Type>(args[i]));
-        // }
-
-        // std::unordered_map<Table<Type *>, ObjMethod *> table;
-        // ObjMethod *reified_method;
-
-        // if (const auto it = reificationTable.find(get_sign().to_string()); it != reificationTable.end()) {
-        //     table = it->second;
-        // } else {
-        //     reified_method = return_reified(type_args);
-        //     table[type_args] = reified_method;
-        //     reificationTable[get_sign().to_string()] = table;
-        //     return reified_method;
-        // }
-
-        // if (const auto it = table.find(type_args); it != table.end())
-        //     return it->second;
-        // else {
-        //     reified_method = return_reified(type_args);
-        //     reificationTable[get_sign().to_string()][type_args] = reified_method;
-        //     return reified_method;
-        // }
+        if (const auto it = reification_table.find(ta_specifier); it != reification_table.end())
+            // Return the method if it was already reified
+            return it->second;
+        // Or else, create a new method and reify it
+        const auto reified_met = cast<ObjMethod>(copy());
+        for (const auto &[name, tp]: reified_met->type_params) {
+            tp->set_placeholder(type_args[name]);
+        }
+        // Return the reified method
+        return reified_met;
     }
 
     ObjMethod *ObjMethod::get_reified(const vector<Type *> &args) const {
-        if (args.size() >= UINT8_MAX) {
+        if (args.size() >= UINT8_MAX)
             throw ArgumentError(to_string(), "number of type arguments cannot be greater than 256");
-        }
         auto data = const_cast<Type **>(args.data());
         return get_reified(reinterpret_cast<Obj **>(data), static_cast<uint8>(args.size()));
     }

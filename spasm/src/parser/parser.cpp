@@ -1,5 +1,6 @@
 #include <cassert>
 #include <concepts>
+#include <cstdint>
 #include <limits>
 #include <stdexcept>
 #include <unordered_map>
@@ -67,9 +68,9 @@ namespace spasm
             else
                 return static_cast<int64_t>(std::stoi(str));
         } catch (const std::out_of_range &) {
-            throw error("number is out of range", current());
+            throw error("number is out of range", token);
         } catch (const std::invalid_argument &) {
-            throw error("number is invalid", current());
+            throw error("number is invalid", token);
         }
     }
 
@@ -247,11 +248,21 @@ namespace spasm
     }
 
     ClassInfo Parser::parse_class() {
+        /* const auto ctx = */ begin_context<ClassContext>();
+
         const auto start = expect(TokenType::CLASS);
         const auto sign = parse_sign_class();
         const auto name = sign.to_string();
         current_sign |= sign;
         parse_term();
+
+        vector<TypeParamInfo> type_params;
+        type_params.reserve(sign.get_type_params().size());
+        for (const auto &type_param: sign.get_type_params()) {
+            TypeParamInfo info;
+            info.name = get_current_module()->get_constant(type_param);
+            type_params.push_back(info);
+        }
 
         std::unordered_map<string, ValueContext> properties{
                 {"@kind",   0                     },
@@ -284,21 +295,38 @@ namespace spasm
         }
 
         vector<FieldInfo> fields;
-        while (match(TokenType::FIELD)) fields.push_back(parse_field());
-
         vector<MethodInfo> methods;
-        while (peek()->get_type() == TokenType::METHOD) methods.push_back(parse_method());
+
+        bool end = false;
+        while (!end) {
+            switch (peek()->get_type()) {
+                case TokenType::FIELD:
+                    advance();
+                    fields.push_back(parse_field());
+                    break;
+                case TokenType::METHOD:
+                    methods.push_back(parse_method());
+                    break;
+                default:
+                    end = true;
+                    break;
+            }
+        }
 
         expect(TokenType::END);
         parse_term(false);
 
         ClassInfo klass;
-        if (auto value = std::get_if<int64_t>(&properties["@kind"].value))
-            klass.kind = static_cast<uint8_t>(*value);
+        klass.kind = static_cast<uint8_t>(std::get<int64_t>(properties["@kind"].value));
         klass.name = get_current_module()->get_constant(name);
-        if (auto value = std::get_if<vector<ValueContext>>(&properties["@supers"].value))
-            klass.supers = get_current_module()->get_constant(*value);
+        klass.supers = get_current_module()->get_constant(std::get<vector<ValueContext>>(properties["@supers"].value));
 
+        if (const auto max = std::numeric_limits<decltype(klass.type_params_count)>::max(); type_params.size() >= max)
+            throw error(std::format("type_params_count cannot be >= {}", max), start);
+        else {
+            klass.type_params_count = type_params.size() & max;
+            klass.type_params = type_params;
+        }
         if (const auto max = std::numeric_limits<decltype(klass.fields_count)>::max(); fields.size() >= max)
             throw error(std::format("fields_count cannot be >= {}", max), start);
         else {
@@ -311,6 +339,7 @@ namespace spasm
             klass.methods_count = methods.size() & max;
             klass.methods = methods;
         }
+        end_context();
         return klass;
     }
 
@@ -343,6 +372,14 @@ namespace spasm
         current_sign |= sign;
         parse_term();
 
+        vector<TypeParamInfo> type_params;
+        type_params.reserve(sign.get_type_params().size());
+        for (const auto &type_param: sign.get_type_params()) {
+            TypeParamInfo info;
+            info.name = get_current_module()->get_constant(type_param);
+            type_params.push_back(info);
+        }
+
         std::unordered_map<string, ValueContext> properties{
                 {"@closure_start", -1},
                 {"@stack_max",     32},
@@ -370,6 +407,14 @@ namespace spasm
         while (match(TokenType::ARG)) args.push_back(parse_arg());
 
         vector<LocalInfo> locals;
+        if (context_stack[context_stack.size() - 2]->get_kind() == ContextType::CLASS) {
+            LocalInfo self;
+            self.kind = 0;
+            self.name = get_current_module()->get_constant("self");
+            self.type = get_current_module()->get_constant(current_sign.get_parent().to_string());
+            locals.push_back(self);
+            ctx->add_local("self");
+        }
         while (match(TokenType::LOCAL)) locals.push_back(parse_local());
 
         vector<ExceptionContext> exceptions;
@@ -401,6 +446,13 @@ namespace spasm
         MethodInfo method;
         method.kind = context_stack[context_stack.size() - 2]->get_kind() == ContextType::MODULE ? 0x00 : 0x01;
         method.name = get_current_module()->get_constant(name);
+
+        if (const auto max = std::numeric_limits<decltype(method.type_params_count)>::max(); type_params.size() >= max)
+            throw error(std::format("type_params_count cannot be >= {}", max), start);
+        else {
+            method.type_params_count = type_params.size() & max;
+            method.type_params = type_params;
+        }
         if (const auto max = std::numeric_limits<decltype(method.args_count)>::max(); args.size() >= max)
             errors.error(error(std::format("args_count cannot be >= {}", max), start));
         else {
@@ -427,7 +479,7 @@ namespace spasm
             method.exception_table_count = exceptions.size() & max;
             method.exception_table = vector<ExceptionTableInfo>(method.exception_table_count);
             for (size_t i = 0; i < exceptions.size(); i++) {
-                const auto exception = exceptions[i];
+                const auto &exception = exceptions[i];
                 if (const auto pos = ctx->get_label_pos(exception.from_label->get_text()))
                     method.exception_table[i].start_pc = *pos;
                 else
@@ -595,21 +647,35 @@ namespace spasm
                 case Opcode::LFSTORE:
                 case Opcode::PLSTORE:
                 case Opcode::PLFSTORE: {
-                    const auto name = parse_name();
-                    if (const auto idx = ctx->get_local(name)) {
-                        emit_value(*idx);
-                    } else
-                        throw error("undefined local", current());
+                    if (match(TokenType::INTEGER)) {
+                        const auto value = str2int(current());
+                        if (value >= uint16_max)
+                            throw error(std::format("value cannot be greater than {}", uint16_max), current());
+                        emit_value(static_cast<uint16_t>(value & uint16_max));
+                    } else {
+                        const auto name = parse_name();
+                        if (const auto idx = ctx->get_local(name)) {
+                            emit_value(*idx);
+                        } else
+                            throw error("undefined local", current());
+                    }
                     break;
                 }
                 case Opcode::ALOAD:
                 case Opcode::ASTORE:
                 case Opcode::PASTORE: {
-                    const auto name = parse_name();
-                    if (const auto idx = ctx->get_arg(name)) {
-                        emit_value(*idx);
-                    } else
-                        throw error("undefined arg", current());
+                    if (match(TokenType::INTEGER)) {
+                        const auto value = str2int(current());
+                        if (value >= uint8_max)
+                            throw error(std::format("value cannot be greater than {}", uint8_max), current());
+                        emit_value(static_cast<uint8_t>(value & uint8_max));
+                    } else {
+                        const auto name = parse_name();
+                        if (const auto idx = ctx->get_arg(name)) {
+                            emit_value(*idx);
+                        } else
+                            throw error("undefined arg", current());
+                    }
                     break;
                 }
                 case Opcode::JMP:
@@ -767,7 +833,7 @@ namespace spasm
         if (match(TokenType::LBRACKET)) {
             const auto name = expect(TokenType::IDENTIFIER)->get_text();
             expect(TokenType::RBRACKET);
-            return SignParam(SignParam::Kind::TYPE_PARAM, name);
+            return SignParam(SignParam::Kind::CLASS, "[" + name + "]");
         }
         vector<SignElement> elements;
 

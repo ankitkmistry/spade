@@ -1,6 +1,6 @@
 #include "sign.hpp"
-#include "../spimp/error.hpp"
-#include "../spimp/utils.hpp"
+#include "spimp/error.hpp"
+#include "spimp/utils.hpp"
 
 using namespace spade;
 
@@ -14,11 +14,10 @@ class SignParser {
     explicit SignParser(const string &text) : text(text + "\033") {}
 
     vector<SignElement> parse() {
-        if (text.empty()) {
+        if (text.empty())
             return {
                     SignElement{"", Sign::Kind::EMPTY}
             };
-        }
         vector<SignElement> elements;
         if (match('[')) {
             elements.emplace_back(IDENTIFIER(), Sign::Kind::TYPE_PARAM);
@@ -43,7 +42,7 @@ class SignParser {
     }
 
     SignElement classOrMethodElement() {
-        auto name = IDENTIFIER();
+        const auto name = IDENTIFIER();
         vector<string> list;
         // Check type params
         if (match('[')) {
@@ -62,7 +61,7 @@ class SignParser {
     }
 
     SignElement classElement() {
-        auto name = IDENTIFIER();
+        const auto name = IDENTIFIER();
         vector<string> list;
         // Check type params
         if (match('[')) {
@@ -103,7 +102,7 @@ class SignParser {
         if (match('[')) {
             elements.emplace_back(IDENTIFIER(), Sign::Kind::TYPE_PARAM);
             expect(']');
-            return {SignParam::Kind::TYPE_PARAM, Sign(elements)};
+            return {SignParam::Kind::CLASS, Sign(elements)};
         }
         string module;
         // allow the unnamed module
@@ -197,7 +196,7 @@ class SignParser {
     }
 
     SignatureError error(const string &msg) const {
-        return {text, msg};
+        return {text.substr(0, text.size() - 1), msg};
     }
 };
 
@@ -218,7 +217,6 @@ Sign::Sign(const vector<SignElement> &elements) : elements(elements) {}
 string SignParam::to_string() const {
     switch (kind) {
         case Kind::CLASS:
-        case Kind::TYPE_PARAM:
             return name.to_string();
         case Kind::CALLBACK: {
             string param_str;
@@ -237,12 +235,14 @@ string SignParam::to_string() const {
 }
 
 string SignElement::to_string() const {
-    string str = name;
+    string str;
     switch (kind) {
         case Sign::Kind::EMPTY:
         case Sign::Kind::MODULE:
+            str = name;
             break;
         case Sign::Kind::CLASS:
+            str = name;
             if (!type_params.empty()) {
                 str.append("[");
                 str.append(join(type_params, ", "));
@@ -250,6 +250,7 @@ string SignElement::to_string() const {
             }
             break;
         case Sign::Kind::METHOD:
+            str = name;
             if (!type_params.empty()) {
                 str.append("[");
                 str.append(join(type_params, ", "));
@@ -281,7 +282,7 @@ string SignElement::to_string() const {
 string Sign::to_string() const {
     string str;
     for (int i = 0; i < elements.size(); ++i) {
-        auto element = elements[i];
+        const auto element = elements[i];
         if (i > 0) {
             switch (element.get_kind()) {
                 case Kind::EMPTY:
@@ -361,9 +362,9 @@ Sign Sign::operator|(const string &str) const {
 }
 
 Sign Sign::operator|(const SignElement &element) const {
-    auto newElements = elements;
-    newElements.push_back(element);
-    SignParser parser{Sign(newElements).to_string()};
+    auto new_elements = elements;
+    new_elements.push_back(element);
+    SignParser parser{Sign(new_elements).to_string()};
     return Sign(parser.parse());
 }
 

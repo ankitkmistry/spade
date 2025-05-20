@@ -29,9 +29,8 @@ namespace spade
         Table<TypeParam *> type_params;
 
       private:
-        static Table<std::unordered_map<Table<Type *>, Type *>> reification_table;
-
-        Type *return_reified(const Table<Type *> &type_params);
+        // The table of all reified types in the form of [type_arg_specifier -> type]
+        static std::unordered_map<string, Type *> reification_table;
 
       public:
         Type(const Sign &sign, Kind kind, const Table<TypeParam *> &type_params, const Table<Type *> &supers, const Table<MemberSlot> &member_slots,
@@ -92,7 +91,7 @@ namespace spade
          * @param count count of type args
          * @return the reified type
          */
-        virtual Type *get_reified(Obj **args, uint8 count) const {
+        Type *get_reified(Obj **args, uint8 count) const {
             return get_reified(*reinterpret_cast<Type ***>(&args), count);
         }
 

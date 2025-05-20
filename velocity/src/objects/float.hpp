@@ -11,7 +11,10 @@ namespace spade
       public:
         ObjFloat(double val, ObjModule *module = null) : ObjNumber(Sign("float"), module), val(val) {}
 
-        Obj *copy() const override;
+        Obj *copy() const override {
+            // Immutable state
+            return (Obj *) this;
+        }
 
         bool truth() const override;
 

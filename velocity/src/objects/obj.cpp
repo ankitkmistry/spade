@@ -9,6 +9,12 @@
 namespace spade
 {
     static Table<MemberSlot> type_get_all_members(Type *type, Table<ObjMethod *> &super_methods) {
+        if (const auto tp = dynamic_cast<TypeParam *>(type))
+            if (!tp->get_placeholder()) {
+                super_methods = {};
+                return {};
+            }
+
         Table<MemberSlot> result;
 
         for (const auto super: type->get_supers() | std::views::values)
@@ -29,18 +35,82 @@ namespace spade
     Obj::Obj(const Sign &sign, Type *type, ObjModule *module) : module(module), sign(sign), type(type) {
         if (this->module == null)
             this->module = ObjModule::current();
-        if (type)
+        if (type) {
+            if (const auto tp = dynamic_cast<TypeParam *>(type))
+                // Claim this object by the type param
+                tp->claim(this);
             member_slots = type_get_all_members(type, super_class_methods);
+        }
     }
 
     void Obj::set_type(Type *destType) {
-        type = destType;
-        if (type)
+        if (type == destType) {
             member_slots = type_get_all_members(type, super_class_methods);
-        else {
+            return;
+        }
+        // Unclaim the object from the previous type if it was a type param
+        if (const auto tp = dynamic_cast<TypeParam *>(type))
+            tp->unclaim(this);
+        type = destType;
+        if (type) {
+            if (const auto tp = dynamic_cast<TypeParam *>(type))
+                // Claim this object by the type param
+                tp->claim(this);
+            member_slots = type_get_all_members(type, super_class_methods);
+        } else {
             member_slots.clear();
             super_class_methods.clear();
         }
+    }
+
+    void Obj::reify(Obj *obj, const Table<TypeParam *> &old_tps, const Table<TypeParam *> &new_tps) {
+        struct Reifier {
+            void reify_non_rec(Obj *obj, const Table<TypeParam *> &old_tps, const Table<TypeParam *> &new_tps) const {
+                // Change the type if it is a type parameter
+                if (const auto tp = dynamic_cast<TypeParam *>(obj->get_type()))
+                    if (const auto it = old_tps.find(tp->get_tp_sign()); it != old_tps.end())
+                        obj->set_type(it->second);
+            }
+
+            void reify_method(ObjMethod *method, const Table<TypeParam *> &old_tps, const Table<TypeParam *> &new_tps) const {
+                const auto &frame = method->get_frame_template();
+                // Reify the args
+                const auto &args = frame.get_args();
+                for (size_t i = 0; i < args.count(); i++) reify_non_rec(args.get(i), old_tps, new_tps);
+                // Reify the locals
+                const auto &locals = frame.get_locals();
+                for (size_t i = 0; i < locals.count(); i++) reify_non_rec(locals.get(i), old_tps, new_tps);
+                // Reify the matches
+                for (const auto &match: frame.get_matches()) {
+                    for (const auto &kase: match.get_cases()) {
+                        reify_non_rec(kase.get_value(), old_tps, new_tps);
+                    }
+                }
+                // Reify the members as well
+                for (const auto &[name, slot]: method->get_member_slots()) {
+                    reify_non_rec(slot.get_value(), old_tps, new_tps);
+                }
+            }
+
+            void operator()(Obj *obj, const Table<TypeParam *> &old_tps, const Table<TypeParam *> &new_tps) const {
+                // Reify the object itself
+                reify_non_rec(obj, old_tps, new_tps);
+                // Check all other different places in the case of ObjMethod
+                if (const auto method = dynamic_cast<ObjMethod *>(obj))
+                    reify_method(method, old_tps, new_tps);
+                else {
+                    // Reify the members if it was not a method
+                    for (const auto &[name, slot]: obj->get_member_slots()) {
+                        reify_non_rec(slot.get_value(), old_tps, new_tps);
+                        if (const auto method = dynamic_cast<ObjMethod *>(slot.get_value()))
+                            reify_method(method, old_tps, new_tps);
+                    }
+                }
+            }
+        };
+
+        constexpr const static Reifier reify_fn;
+        return reify_fn(obj, old_tps, new_tps);
     }
 
     Obj *Obj::create_copy_dynamic(const Obj *obj) {
@@ -49,80 +119,6 @@ namespace spade
             return (Obj *) obj;
         else
             return obj->copy();
-    }
-
-    void Obj::reify(Obj **p_obj, const Table<TypeParam *> &old_, const Table<TypeParam *> &new_) {
-        // #define REIFY(p_obj) reify(p_obj, old_, new_)
-        //         if (*p_obj == null)
-        //             return;
-        //         if (old_.empty() || new_.empty())
-        //             return;
-
-        //         if (auto array = dynamic_cast<ObjArray *>(*p_obj); array) {
-        //             // Reify array items
-        //             for (int i = 0; i < array->count(); ++i) {
-        //                 auto item = array->get(i);
-        //                 REIFY(&item);
-        //                 array->set(i, item);
-        //             }
-        //         } else if (auto method = dynamic_cast<ObjMethod *>(*p_obj); method) {
-        //             auto frame_template = method->get_frame_template();
-        //             // Reify args
-        //             auto &args = frame_template->get_args();
-        //             for (int i = 0; i < args.count(); ++i) {
-        //                 auto arg = args.get(i);
-        //                 REIFY(&arg);
-        //             }
-        //             // Reify locals
-        //             auto &locals = frame_template->get_locals();
-        //             for (int i = 0; i < locals.count(); ++i) {
-        //                 auto local = locals.get(i);
-        //                 REIFY(&local);
-        //             }
-        //             // Reify lambdas
-        //             auto &lambdas = frame_template->get_lambdas();
-        //             for (auto lambda: lambdas) {
-        //                 auto lambda_obj = cast<Obj>(lambda);
-        //                 REIFY(&lambda_obj);
-        //             }
-        //             // Reify matches
-        //             auto &matches = frame_template->get_matches();
-        //             for (const auto &match: matches) {
-        //                 auto cases = match.get_cases();
-        //                 for (const auto &kase: cases) {
-        //                     auto case_value = kase.get_value();
-        //                     REIFY(&case_value);
-        //                 }
-        //             }
-        //             // Reify exceptions
-        //             auto &exceptions = frame_template->get_exceptions();
-        //             for (int i = 0; i < exceptions.count(); ++i) {
-        //                 auto exc_type = cast<Obj>(exceptions.get(i).get_type());
-        //                 REIFY(&exc_type);
-        //             }
-        //         } else if (auto tp = dynamic_cast<TypeParam *>(*p_obj); tp) {
-        //             // Change type params accordingly
-        //             for (const auto &[name, param]: old_) {
-        //                 if (*p_obj == param->get_value()) {
-        //                     *p_obj = new_.at(name)->get_value();
-        //                     break;
-        //                 }
-        //             }
-        //             return;
-        //         }
-
-        //         auto object = *p_obj;
-        //         // Reify object type
-        //         Obj *type = object->type;
-        //         if (type) {
-        //             REIFY(&type);
-        //             object->type = cast<Type>(type);
-        //         }
-        //         // Reify members
-        //         for (auto member: object->get_member_slots() | std::views::values) {
-        //             REIFY(&member.get_value());
-        //         }
-        // #undef REIFY
     }
 
     Obj *Obj::get_member(const string &name) const {
@@ -153,11 +149,11 @@ namespace spade
     }
 
     Obj *Obj::copy() const {
-        const auto copy_obj = halloc_mgr<Obj>(info.manager, sign, type, module);
+        const auto obj = halloc_mgr<Obj>(info.manager, sign, type, module);
         for (auto [name, slot]: member_slots) {
-            copy_obj->set_member(name, create_copy(slot.get_value()));
+            obj->set_member(name, create_copy(slot.get_value()));
         }
-        return copy_obj;
+        return obj;
     }
 
     string Obj::to_string() const {

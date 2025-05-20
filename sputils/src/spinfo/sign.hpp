@@ -191,8 +191,6 @@ class SignParam final {
     enum class Kind {
         /// Parameter refers to a class
         CLASS,
-        /// Parameter refers to a type param
-        TYPE_PARAM,
         /// Parameter refers to a callback
         CALLBACK,
     };

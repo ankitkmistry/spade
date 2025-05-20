@@ -8,11 +8,11 @@ namespace spade
 {
     class ObjMethod final : public ObjCallable {
       private:
-        static Table<std::unordered_map<Table<Type *>, ObjMethod *>> reificationTable;
+        // The table of all reified types in the form of [type_arg_specifier -> type]
+        static std::unordered_map<string, ObjMethod *> reification_table;
+
         FrameTemplate frame_template;
         Table<TypeParam *> type_params;
-
-        ObjMethod *return_reified(const Table<Type *> &tParams) const;
 
       public:
         ObjMethod(const Sign &sign, Kind kind, const FrameTemplate &frame, const Table<TypeParam *> &type_params, ObjModule *module = null);

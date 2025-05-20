@@ -4,6 +4,7 @@
 #include "callable/frame_template.hpp"
 #include "callable/method.hpp"
 #include "callable/table.hpp"
+#include "memory/manager.hpp"
 #include "memory/memory.hpp"
 #include "objects/float.hpp"
 #include "objects/inbuilt_types.hpp"
@@ -237,9 +238,10 @@ namespace spade
         const Sign sign = load_sign(info.name);
         Table<TypeParam *> type_params;
         for (int i = 0; i < info.type_params_count; ++i) {
-            const auto name = conpool[info.type_params[i].name]->to_string();
+            const auto name = "[" + conpool[info.type_params[i].name]->to_string() + "]";
             const auto type_param = halloc_mgr<TypeParam>(mgr, name, get_current_module());
             type_params[name] = type_param;
+            reference_pool[name] = type_param;
         }
         Table<Type *> supers;
         cast<ObjArray>(conpool[info.supers])->foreach ([this, &supers](auto super) {
@@ -373,20 +375,22 @@ namespace spade
 
     Obj *Booter::make_obj(const Sign &type_sign, const Sign &obj_sign, Type *type) {
         const auto mgr = vm->get_memory_manager();
-        static std::unordered_map<Sign, std::function<Obj *()>> obj_map = {
-                {Sign("basic.array"),  [&] { return halloc_mgr<ObjArray>(mgr, 0, get_current_module()); }   },
-                {Sign("basic.bool"),   [&] { return halloc_mgr<ObjBool>(mgr, false, get_current_module()); }},
-                {Sign("basic.char"),   [&] { return halloc_mgr<ObjChar>(mgr, '\0', get_current_module()); } },
-                {Sign("basic.float"),  [&] { return halloc_mgr<ObjFloat>(mgr, 0, get_current_module()); }   },
-                {Sign("basic.int"),    [&] { return halloc_mgr<ObjInt>(mgr, 0, get_current_module()); }     },
-                {Sign("basic.string"), [&] { return halloc_mgr<ObjString>(mgr, "", get_current_module()); } }
+        static std::unordered_map<Sign, std::function<Obj *(MemoryManager *const)>> obj_map = {
+                {Sign("basic.array"),  [this](MemoryManager *const mgr) { return halloc_mgr<ObjArray>(mgr, 0, get_current_module()); }   },
+                {Sign("basic.bool"),   [this](MemoryManager *const mgr) { return halloc_mgr<ObjBool>(mgr, false, get_current_module()); }},
+                {Sign("basic.char"),   [this](MemoryManager *const mgr) { return halloc_mgr<ObjChar>(mgr, '\0', get_current_module()); } },
+                {Sign("basic.float"),  [this](MemoryManager *const mgr) { return halloc_mgr<ObjFloat>(mgr, 0, get_current_module()); }   },
+                {Sign("basic.int"),    [this](MemoryManager *const mgr) { return halloc_mgr<ObjInt>(mgr, 0, get_current_module()); }     },
+                {Sign("basic.string"), [this](MemoryManager *const mgr) { return halloc_mgr<ObjString>(mgr, "", get_current_module()); } }
         };
         if (const auto it = obj_map.find(type_sign); it != obj_map.end())
-            return it->second();
+            return it->second(mgr);
         else {
+            if (const auto tp = dynamic_cast<TypeParam *>(type))
+                return halloc_mgr<Obj>(mgr, obj_sign, tp, get_current_module());
             if (type && type->get_kind() == Type::Kind::UNRESOLVED) {
                 const auto obj = halloc_mgr<Obj>(mgr, obj_sign, type, get_current_module());
-                post_callbacks.push_back([&]() { obj->set_type(type); });
+                post_callbacks.push_back([obj, type] { obj->set_type(type); });
                 return obj;
             }
             return halloc_mgr<Obj>(mgr, obj_sign, type, get_current_module());

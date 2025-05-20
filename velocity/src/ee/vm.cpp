@@ -118,7 +118,7 @@ namespace spade
     }
 
     SpadeVM *SpadeVM::current() {
-        if (auto thread = Thread::current(); thread != null)
+        if (const auto thread = Thread::current())
             return thread->get_state()->get_vm();
         return null;
     }

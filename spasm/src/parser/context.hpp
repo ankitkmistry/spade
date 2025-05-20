@@ -71,11 +71,7 @@ namespace spasm
         string type;
     };
 
-    enum class ContextType {
-        MODULE,
-        CLASS,
-        METHOD,
-    };
+    enum class ContextType { MODULE, METHOD, CLASS };
 
     class Context {
         ContextType kind;
@@ -88,6 +84,11 @@ namespace spasm
         }
 
         virtual ~Context() {}
+    };
+
+    class ClassContext : public Context {
+      public:
+        ClassContext() : Context(ContextType::CLASS) {}
     };
 
     class MethodContext : public Context {

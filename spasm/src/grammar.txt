@@ -26,8 +26,7 @@ line            ::= (LABEL ':' NEWLINE)? IDENTIFIER (value | name | LABEL)? NEWL
 class ::= 'class' signature NEWLINE
             // '@kind' ('class' | 'interface' | 'enum' | 'annotation') NEWLINE
             // '@supers' array NEWLINE
-            ('field' field)*
-            method*
+            ('field' field | method)*
           'end';
 
 accessor ::= 'private'

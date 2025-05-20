@@ -6,10 +6,6 @@
 
 namespace spade
 {
-    Obj *ObjInt::copy() const {
-        return halloc_mgr<ObjInt>(info.manager, val);
-    }
-
     bool ObjInt::truth() const {
         return val != 0;
     }

@@ -11,7 +11,10 @@ namespace spade
       public:
         ObjInt(int64 val, ObjModule *module = null) : ObjNumber(Sign("int"), module), val(val) {}
 
-        Obj *copy() const override;
+        Obj *copy() const override {
+            // Immutable state
+            return (Obj *) this;
+        }
 
         bool truth() const override;
 

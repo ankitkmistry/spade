@@ -1,10 +1,13 @@
 #pragma once
 
+#include <unordered_set>
+
 #include "type.hpp"
 
 namespace spade
 {
     class TypeParam : public Type {
+        std::unordered_set<Obj *> claimed_objs;
         Type *placeholder = null;
 
         void check_placeholder() const;
@@ -12,14 +15,28 @@ namespace spade
       public:
         TypeParam(const Sign &sign, ObjModule *module = null) : Type(sign, Kind::TYPE_PARAM, {}, {}, {}, module) {}
 
+        string get_tp_sign() const {
+            return sign.to_string();
+        }
+
+        void claim(Obj *obj) {
+            claimed_objs.insert(obj);
+        }
+
+        void unclaim(Obj *obj) {
+            claimed_objs.erase(obj);
+        }
+
         /**
          * Changes the type parameter to the specified \p type
          * @param type the final type
          */
-        void set_placeholder(Type *type) {
-            placeholder = type;
-        }
+        void set_placeholder(Type *type);
 
+        /**
+         * Get the placeholder object
+         * @return Type*
+         */
         Type *get_placeholder() const {
             return placeholder;
         }
@@ -57,5 +74,7 @@ namespace spade
         TypeParam *get_type_param(const string &name) const override;
 
         Obj *copy() const override;
+
+        string to_string() const override;
     };
 }    // namespace spade
