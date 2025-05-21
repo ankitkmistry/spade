@@ -14,6 +14,7 @@ namespace spade
         friend class FrameTemplate;
 
       private:
+        uint32 stack_max = 0;
         uint32 code_count = 0;
 
       public:
@@ -30,13 +31,15 @@ namespace spade
         vector<MatchTable> matches;
         ObjMethod *method = null;
 
-        Frame() = default;
+        Frame(uint32 stack_max);
 
       public:
-        Frame(const Frame &frame) = default;
-        Frame(Frame &&frame) = default;
-        Frame &operator=(const Frame &frame) = default;
-        Frame &operator=(Frame &&frame) = default;
+        Frame();
+        Frame(const Frame &frame);
+        Frame(Frame &&frame);
+        Frame &operator=(const Frame &frame);
+        Frame &operator=(Frame &&frame);
+        ~Frame();
 
         /**
          * Pushes onto the stack

@@ -10,14 +10,18 @@ namespace spade
 
     class VMState {
       private:
+        size_t stack_depth;
         SpadeVM *vm;
-        Frame call_stack[FRAMES_MAX];
+        Frame *call_stack = null;
         Frame *fp = null;
 
       public:
-        VMState(SpadeVM *vm);
+        VMState(SpadeVM *vm, size_t stack_depth = FRAMES_MAX);
         VMState(const VMState &other);
         VMState(VMState &&other);
+        VMState &operator=(const VMState &other);
+        VMState &operator=(VMState &&other);
+        ~VMState();
 
         // Frame operations
         /**
@@ -28,9 +32,9 @@ namespace spade
 
         /**
          * Pops the active call frame and reloads the state
-         * @return the popped frame
+         * @return true if a frame was popped
          */
-        Frame *pop_frame();
+        bool pop_frame();
 
         // Stack operations
         /**
@@ -80,7 +84,7 @@ namespace spade
          * @return the short
          */
         uint16 read_short() {
-            auto frame = get_frame();
+            const auto frame = get_frame();
             frame->ip += 2;
             return (frame->ip[-2] << 8) | frame->ip[-1];
         }
@@ -112,7 +116,7 @@ namespace spade
          * @return The call stack
          */
         Frame *get_call_stack() {
-            return &call_stack[0];
+            return call_stack;
         }
 
         /**

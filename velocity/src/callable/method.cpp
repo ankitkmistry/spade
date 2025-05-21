@@ -38,7 +38,7 @@ namespace spade
         for (int i = 0; i < new_frame.get_args().count(); i++) {
             new_frame.get_args().set(i, args[i]);
         }
-        thread->get_state()->push_frame(new_frame);
+        thread->get_state()->push_frame(std::move(new_frame));
     }
 
     void ObjMethod::call(Obj **args) {
@@ -48,7 +48,7 @@ namespace spade
         for (int i = 0; i < new_frame.get_args().count(); i++) {
             new_frame.get_args().set(i, args[i]);
         }
-        thread->get_state()->push_frame(new_frame);
+        thread->get_state()->push_frame(std::move(new_frame));
     }
 
     string ObjMethod::to_string() const {

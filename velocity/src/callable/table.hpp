@@ -22,8 +22,6 @@ namespace spade
         NamedRef &operator=(NamedRef &&other) noexcept;
         ~NamedRef() = default;
 
-        NamedRef copy() const;
-
         /**
          * Sets the value of the named ref
          * @param val

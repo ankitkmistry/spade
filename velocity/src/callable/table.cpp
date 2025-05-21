@@ -22,10 +22,6 @@ namespace spade
         return *this;
     }
 
-    NamedRef NamedRef::copy() const {
-        return NamedRef(name, Obj::create_copy(value), meta);
-    }
-
     Obj *ArgsTable::get(uint8 i) const {
         if (i >= args.size())
             throw IndexError("argument", i);
@@ -40,10 +36,10 @@ namespace spade
 
     ArgsTable ArgsTable::copy() const {
         ArgsTable new_args;
-        for (auto arg: args) {
-            new_args.add_arg(arg.copy());
+        new_args.args.reserve(args.size());
+        for (const auto arg: args) {
+            new_args.add_arg(arg);
         }
-        new_args.args.shrink_to_fit();
         return new_args;
     }
 
@@ -80,19 +76,19 @@ namespace spade
 
     LocalsTable LocalsTable::copy() const {
         LocalsTable new_locals{closureStart};
-        for (auto local: locals) {
-            new_locals.add_local(local.copy());
+        new_locals.locals.reserve(locals.size());
+        for (const auto local: locals) {
+            new_locals.add_local(local);
         }
-        new_locals.locals.shrink_to_fit();
-        for (auto closure: closures) {
+        new_locals.closures.reserve(closures.size());
+        for (const auto closure: closures) {
             new_locals.add_closure(closure);
         }
-        new_locals.closures.shrink_to_fit();
         return new_locals;
     }
 
     Exception ExceptionTable::get_target(uint32 pc, const Type *type) const {
-        for (auto &exception: exceptions) {
+        for (const auto &exception: exceptions) {
             if (exception.get_from() <= pc && pc < exception.get_to() && exception.get_type() == type) {
                 return exception;
             }
@@ -110,7 +106,7 @@ namespace spade
     }
 
     uint64 LineNumberTable::get_source_line(uint32 byte_line) const {
-        for (auto line_info: line_infos) {
+        for (const auto line_info: line_infos) {
             if (line_info.byteStart <= byte_line && byte_line < line_info.byteEnd) {
                 return line_info.sourceLine;
             }
@@ -121,10 +117,10 @@ namespace spade
     uint32 MatchTable::perform(Obj *value) const {
         // Info: improve this to perform fast matching in case of integer values
         if (is<ObjInt>(value)) {
-            auto val = cast<ObjInt>(value)->value();
+            const auto val = cast<ObjInt>(value)->value();
             return cases[val].get_location();
         }
-        for (auto kase: cases) {
+        for (const auto kase: cases) {
             if (kase.get_value() == value)
                 return kase.get_location();
         }
