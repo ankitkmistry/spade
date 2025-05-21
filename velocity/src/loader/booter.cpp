@@ -153,10 +153,11 @@ namespace spade
         }
         const Sign sign = load_sign(info.name);
         Table<TypeParam *> type_params;
-        for (const auto &type_param: info.type_params) {
-            const auto name = conpool[type_param.name]->to_string();
-            const auto tp_obj = halloc_mgr<TypeParam>(mgr, name, get_current_module());
-            type_params[name] = tp_obj;
+        for (int i = 0; i < info.type_params_count; ++i) {
+            const auto name = "[" + conpool[info.type_params[i].name]->to_string() + "]";
+            const auto type_param = halloc_mgr<TypeParam>(mgr, name, get_current_module());
+            type_params[name] = type_param;
+            reference_pool[name] = type_param;
         }
 
         begin_scope(sign.get_name());

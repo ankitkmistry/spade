@@ -5,7 +5,7 @@
 
 namespace spade
 {
-    std::unordered_map<string, ObjMethod *> ObjMethod::reification_table = {};
+    std::unordered_map<vector<Type *>, ObjMethod *> ObjMethod::reification_table = {};
 
     ObjMethod::ObjMethod(const Sign &sign, Kind kind, const FrameTemplate &frame, const Table<TypeParam *> &type_params, ObjModule *module)
         : ObjCallable(sign, kind, type, module), frame_template(frame), type_params(type_params) {
@@ -64,17 +64,13 @@ namespace spade
             throw ArgumentError(sign.to_string(), std::format("too many type arguments, expected {} got {}", type_params.size(), count));
 
         Table<Type *> type_args;
-        string ta_specifier = "[";    // Type argument specifier
+        vector<Type *> ta_specifier(count);    // Type argument specifier
         for (int i = 0; i < count; ++i) {
             // Build the type arg specifier and the list of type args
             const auto type = cast<Type>(args[i]);
             type_args["[" + get_sign().get_type_params()[i] + "]"] = type;
-            ta_specifier.append(type->get_sign().to_string());
-            ta_specifier.append(", ");
+            ta_specifier[i] = type;
         }
-        ta_specifier.pop_back();
-        ta_specifier.pop_back();
-        ta_specifier.append("]");
 
         if (const auto it = reification_table.find(ta_specifier); it != reification_table.end())
             // Return the method if it was already reified

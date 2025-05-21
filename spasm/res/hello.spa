@@ -17,9 +17,20 @@ module hello
             
             aload val
             lfload self
-            mfstore val
+            pmfstore val
             vret
         end
+    end
+
+    method log[T]([T])
+        arg @const value : [T]
+
+        const "LOG: "
+        aload value
+        o2s
+        concat
+        println
+        vret
     end
 
     method foo()
@@ -81,8 +92,20 @@ module hello
     method @entry main()
         local @var i : basic.int
 
-        gfinvoke hello.foo()
+        # gfinvoke hello.foo()
+
         gfinvoke hello.ref_test()
+
+        gfload hello.log[T]([T])
+        gfload hello.Int
+        reifiedload 1
+
+        gfload hello.Int
+        objload
+
+        invoke 1
+
+        vret
 
         const 0
         plfstore i

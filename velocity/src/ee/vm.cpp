@@ -38,8 +38,13 @@ namespace spade
     int SpadeVM::start(ObjMethod *entry, ObjArray *args) {
         Thread thread(this, [&](const auto thr) {
             thr->set_status(Thread::RUNNING);
-            entry->call(args ? vector<Obj *>{args} : vector<Obj *>{});
-            run(thr);
+            try {
+                entry->call(args ? vector<Obj *>{args} : vector<Obj *>{});
+                run(thr);
+            } catch (const SpadeError &error) {
+                std::cout << "VM Error: " << error.what() << std::endl;
+                return;
+            }
         });
         threads.insert(&thread);
         thread.join();

@@ -168,7 +168,7 @@ namespace color
 #    include <fcntl.h>
 #    include <sys/epoll.h>
 
-#    include "utils/error.hpp"
+#    include "spimp/error.hpp"
 
 namespace color
 {

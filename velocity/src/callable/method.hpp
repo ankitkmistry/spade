@@ -9,7 +9,7 @@ namespace spade
     class ObjMethod final : public ObjCallable {
       private:
         // The table of all reified types in the form of [type_arg_specifier -> type]
-        static std::unordered_map<string, ObjMethod *> reification_table;
+        static std::unordered_map<vector<Type *>, ObjMethod *> reification_table;
 
         FrameTemplate frame_template;
         Table<TypeParam *> type_params;

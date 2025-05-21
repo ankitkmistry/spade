@@ -606,8 +606,10 @@ namespace spade
                         state->push(halloc_mgr<ObjBool>(manager, !is<ObjNull>(state->pop())));
                         break;
                     case Opcode::ENTERMONITOR:
+                        state->pop()->enter_monitor();
+                        break;
                     case Opcode::EXITMONITOR:
-                        // todo: implement
+                        state->pop()->exit_monitor();
                         break;
                     case Opcode::MTPERF: {
                         const auto match = frame->get_matches()[state->read_short()];

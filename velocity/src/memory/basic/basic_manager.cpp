@@ -10,6 +10,7 @@ namespace spade::basic
 
     void BasicMemoryManager::post_allocation(Obj *obj) {
         if (head == null || last == null) {
+            // FIXME: Memory is lost here (by valgrind) 
             auto node = new LNode;
             node->data = obj;
             head = node;

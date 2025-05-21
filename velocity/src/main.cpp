@@ -34,7 +34,7 @@ int run_vm() {
         return vm.start("..\\velocity\\res\\hello.elp", {});
 #endif
     } catch (const SpadeError &error) {
-        std::cout << "VM Error: " << error.what();
+        std::cout << "VM Error: " << error.what() << std::endl;
         return 1;
     }
 }

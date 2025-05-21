@@ -1,5 +1,7 @@
 #pragma once
 
+#include <mutex>
+
 #include "utils/common.hpp"
 #include "memory/manager.hpp"
 
@@ -171,10 +173,13 @@ namespace spade
     };
 
     /**
-     * The abstract description of an object in the virtual machine
+     * The description of an object in the virtual machine
      */
     class Obj {
       protected:
+        /// Monitor of the object
+        std::recursive_mutex monitor;
+        /// Memory info of the object
         MemoryInfo info;
         /// Module where this object belongs to
         ObjModule *module;
@@ -301,6 +306,24 @@ namespace spade
         }
 
         /**
+         * Enters the monitor for this object.
+         * The call is blocked if the monitor was already entered.
+         * The call is blocked until the monitor is exited.
+         * The user may enter the monitor `n` number of times but he should take 
+         * responsibility to exit the monitor exactly `n` number of times. 
+         */
+        void enter_monitor() {
+            monitor.lock();
+        }
+
+        /**
+         * Exits the monitor for this object.
+         */
+        void exit_monitor() {
+            monitor.unlock();
+        }
+
+        /**
          * @throws IllegalAccessError if the member cannot be found
          * @param name the name of the member
          * @return the member of this object, the member can be static also
@@ -341,7 +364,7 @@ namespace spade
         /**
          * Performs comparison between two objects
          * @param rhs the other object to compare
-         * @return \< 0 if the object is less than this,
+         * @return < 0 if the object is less than this,
          *         = 0 if the object is equal to this,
          *         otherwise > 0 if the object is greater than this
          */

@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstddef>
+#include <boost/functional/hash.hpp>
+
 #include "obj.hpp"
 
 namespace spade
@@ -30,7 +33,7 @@ namespace spade
 
       private:
         // The table of all reified types in the form of [type_arg_specifier -> type]
-        static std::unordered_map<string, Type *> reification_table;
+        static std::unordered_map<vector<Type *>, Type *> reification_table;
 
       public:
         Type(const Sign &sign, Kind kind, const Table<TypeParam *> &type_params, const Table<Type *> &supers, const Table<MemberSlot> &member_slots,
@@ -118,3 +121,10 @@ namespace spade
         static Type *UNRESOLVED(const Sign &sign, ObjModule *module = null, MemoryManager *manager = null);
     };
 }    // namespace spade
+
+template<>
+struct std::hash<std::vector<spade::Type *>> {
+    size_t operator()(const std::vector<spade::Type *> &list) const {
+        return boost::hash_range(list.begin(), list.end());
+    }
+};
