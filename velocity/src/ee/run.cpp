@@ -1,10 +1,10 @@
 #include "vm.hpp"
 #include "memory/memory.hpp"
-#include "debug/debug.hpp"
 #include "objects/inbuilt_types.hpp"
 #include "objects/float.hpp"
 #include "objects/int.hpp"
 #include "objects/typeparam.hpp"
+#include "debug/debug.hpp"
 
 namespace spade
 {
