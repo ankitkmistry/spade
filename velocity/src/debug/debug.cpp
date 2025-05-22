@@ -2,8 +2,6 @@
 #include "objects/float.hpp"
 #include "objects/inbuilt_types.hpp"
 #include "objects/int.hpp"
-#include "spimp/error.hpp"
-#include "spinfo/opcode.hpp"
 #include "table.hpp"
 #include "ee/vm.hpp"
 

@@ -30,9 +30,9 @@ public class AssertError : Exception {
     }
 }
 
+public final class bool {}
 public final class int {}
 public final class float {}
-public final class bool {}
 
 public final class string {
     public init(obj: any? = null) {}

@@ -6,16 +6,18 @@
 namespace spasm
 {
     const static std::unordered_map<string, TokenType> KEYWORDS = {
-            {"module",    TokenType::MODULE   },
-            {"import",    TokenType::IMPORT   },
-            {"global",    TokenType::GLOBAL   },
-            {"arg",       TokenType::ARG      },
-            {"local",     TokenType::LOCAL    },
-            {"exception", TokenType::EXCEPTION},
-            {"method",    TokenType::METHOD   },
-            {"class",     TokenType::CLASS    },
-            {"field",     TokenType::FIELD    },
-            {"end",       TokenType::END      },
+            {"module",    TokenType::MODULE    },
+            {"import",    TokenType::IMPORT    },
+            {"global",    TokenType::GLOBAL    },
+            {"arg",       TokenType::ARG       },
+            {"local",     TokenType::LOCAL     },
+            {"exception", TokenType::EXCEPTION },
+            {"match",     TokenType::MATCH     },
+            {"method",    TokenType::METHOD    },
+            {"class",     TokenType::CLASS     },
+            {"field",     TokenType::FIELD     },
+            {"end",       TokenType::END       },
+            {"_",         TokenType::UNDERSCORE},
     };
 
     bool TokenInfo::get_type_if_keyword(const string &text, TokenType &type) {

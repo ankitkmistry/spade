@@ -2,7 +2,6 @@
 #include "info.hpp"
 #include "lexer/token.hpp"
 #include "scope.hpp"
-#include "spimp/error.hpp"
 #include "utils/error.hpp"
 
 namespace spade

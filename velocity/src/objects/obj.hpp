@@ -7,12 +7,20 @@
 
 namespace spade
 {
-    class Obj;
+    class ObjCallable;
+
+    class ObjNull;
+    class ObjBool;
+    class ObjChar;
+    class ObjString;
+    class ObjInt;
+    class ObjFloat;
+    class ObjArray;
+    class ObjArray;
+    class ObjModule;
+    class ObjMethod;
     class Type;
     class TypeParam;
-    class ObjModule;
-    class ObjCallable;
-    class ObjMethod;
 
     /*
      *   raw             = 0x 00000000 00000000
@@ -172,11 +180,41 @@ namespace spade
         MemoryManager *manager = null;
     };
 
+    enum class ObjTag : uint8_t {
+        // ObjNull
+        NULL_,
+        // ObjBool
+        BOOL,
+        // ObjChar
+        CHAR,
+        // ObjString
+        STRING,
+        // ObjInt
+        INT,
+        // ObjFloat
+        FLOAT,
+        // ObjArray
+        ARRAY,
+        // ObjArray
+        OBJECT,
+
+        // ObjModule
+        MODULE,
+        // ObjMethod
+        METHOD,
+        // Type
+        TYPE,
+        // TypeParam
+        TYPE_PARAM,
+    };
+
     /**
      * The description of an object in the virtual machine
      */
     class Obj {
       protected:
+        /// Tag of the object
+        ObjTag tag = ObjTag::OBJECT;
         /// Monitor of the object
         std::recursive_mutex monitor;
         /// Memory info of the object
@@ -188,9 +226,9 @@ namespace spade
         /// Type of the object
         Type *type;
         /// Member slots of the object
-        Table<MemberSlot> member_slots = {};
+        Table<MemberSlot> member_slots;
         /// Methods of superclass which have been overrode
-        Table<ObjMethod *> super_class_methods = {};
+        Table<ObjMethod *> super_class_methods;
 
         /**
          * Changes pointer to type params @p obj specified in @p old_tps to pointers specified in @p new_tps.
@@ -224,7 +262,11 @@ namespace spade
         }
 
         /**
-         * 
+         * Creates a new object instance of type @p type . 
+         * It sets the signature of the object specified by @p sign .
+         * The members are set according to type. If type is null no members are set
+         * The corresponding of the object is specified by @p module .
+         * If @p module is null, then the current module is used if present otherwise it is set as null
          * @param sign
          * @param type
          * @param module
@@ -232,11 +274,30 @@ namespace spade
         Obj(const Sign &sign, Type *type, ObjModule *module = null);
 
         /**
+         * Creates a new object instance of type @p type . 
+         * It sets the signature of the object specified by @p sign .
+         * The members are set according to the corresponding vm type for object.
+         * The corresponding of the object is specified by @p module .
+         * If @p module is null, then the current module is used if present otherwise it is set as null
+         * @param sign
+         * @param type
+         * @param module
+         */
+        explicit Obj(const Sign &sign, ObjModule *module = null);
+
+        /**
          * Performs a complete deep copy on the object.
          * @warning The user should not use this function except in exceptional cases
          * @return a copy of the object
          */
         virtual Obj *copy() const;
+
+        /**
+         * @return the tag of the object
+         */
+        ObjTag get_tag() const {
+            return tag;
+        }
 
         /**
          * @return the memory info of the object
@@ -276,6 +337,13 @@ namespace spade
          */
         virtual const Sign &get_sign() const {
             return sign;
+        }
+
+        /**
+         * @return sets the signature of the object
+         */
+        virtual void set_sign(const Sign &sign) {
+            this->sign = sign;
         }
 
         /**
@@ -351,8 +419,6 @@ namespace spade
         virtual const Table<string> &get_meta() const;
     };
 
-    class ObjBool;
-
     /**
      * The abstract description of a comparable object in the virtual machine.
      * Simple comparison operations can be performed on this kind of object
@@ -382,4 +448,35 @@ namespace spade
 
         ObjBool *operator!=(const Obj *rhs) const;
     };
+
+    template<typename ObjType>
+    bool is(Obj *obj) {
+        using T = std::remove_cv_t<ObjType>;
+        if constexpr (std::same_as<T, ObjNull>)
+            return obj->get_tag() == ObjTag::NULL_;
+        else if constexpr (std::same_as<T, ObjBool>)
+            return obj->get_tag() == ObjTag::BOOL;
+        else if constexpr (std::same_as<T, ObjChar>)
+            return obj->get_tag() == ObjTag::CHAR;
+        else if constexpr (std::same_as<T, ObjString>)
+            return obj->get_tag() == ObjTag::STRING;
+        else if constexpr (std::same_as<T, ObjInt>)
+            return obj->get_tag() == ObjTag::INT;
+        else if constexpr (std::same_as<T, ObjFloat>)
+            return obj->get_tag() == ObjTag::FLOAT;
+        else if constexpr (std::same_as<T, ObjArray>)
+            return obj->get_tag() == ObjTag::ARRAY;
+        else if constexpr (std::same_as<T, ObjArray>)
+            return obj->get_tag() == ObjTag::OBJECT;
+        else if constexpr (std::same_as<T, ObjModule>)
+            return obj->get_tag() == ObjTag::MODULE;
+        else if constexpr (std::same_as<T, ObjMethod>)
+            return obj->get_tag() == ObjTag::METHOD;
+        else if constexpr (std::same_as<T, Type>)
+            return obj->get_tag() == ObjTag::TYPE;
+        else if constexpr (std::same_as<T, TypeParam>)
+            return obj->get_tag() == ObjTag::TYPE_PARAM;
+        else
+            return dynamic_cast<T *>(obj) != null;
+    }
 }    // namespace spade

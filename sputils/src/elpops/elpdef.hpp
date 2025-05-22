@@ -322,16 +322,12 @@ namespace spade
         // The minor version of the file
         uint16_t minor_version = 0;
 
-        // [sign] Signature of the entry function of the file
-        cpidx entry;
-        // [array<string>] External imports required by the file
-        cpidx imports;
-
-        // Count of constant pool items in the (top level) file
-        // required by `entry` and `imports`
-        uint16_t constant_pool_count = 0;
-        // List of constant pool items
-        vector<CpInfo> constant_pool;
+        // Signature of the entry function of the file
+        _UTF8 entry;
+        // Count of import list
+        uint16_t imports_count;
+        // External imports required by the file
+        vector<_UTF8> imports;
 
         // Count of nested modules
         uint16_t modules_count = 0;

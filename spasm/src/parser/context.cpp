@@ -2,7 +2,6 @@
 
 #include "context.hpp"
 #include "../utils/error.hpp"
-#include "elpops/elpdef.hpp"
 #include "lexer/token.hpp"
 
 namespace spasm
@@ -23,6 +22,53 @@ namespace spasm
             return CpInfo::from_array(array);
         } else
             throw Unreachable();
+    }
+
+    bool MethodContext::add_match(const string &name, const std::shared_ptr<MatchContext> &match) {
+        if (const auto it = matches.find(name); it != matches.end())
+            return false;
+        matches[name] = {matches.size(), match};
+        return true;
+    }
+
+    std::optional<size_t> MethodContext::get_match(const string &name) const {
+        if (const auto it = matches.find(name); it != matches.end())
+            return it->second.first;
+        return std::nullopt;
+    }
+
+    vector<std::pair<string, std::shared_ptr<MatchContext>>> MethodContext::get_matches() const {
+        vector<std::pair<string, std::shared_ptr<MatchContext>>> result(matches.size());
+        for (const auto &[name, pair]: matches) {
+            const auto &[idx, match] = pair;
+            result[idx] = {name, match};
+        }
+        return result;
+    }
+
+    bool MethodContext::define_label(const string &label) {
+        if (const auto it = labels.find(label); it != labels.end())
+            return false;
+        labels[label] = code.size();
+        return true;
+    }
+
+    std::optional<uint32_t> MethodContext::get_label_pos(const string &label) const {
+        if (const auto it = labels.find(label); it != labels.end())
+            return labels.at(label);
+        return std::nullopt;
+    }
+
+    uint16_t MethodContext::patch_jump_to(const std::shared_ptr<Token> &label, const uint32_t current_pos) {
+        if (const auto it = labels.find(label->get_text()); it != labels.end()) {
+            const uint32_t label_pos = it->second;
+            if (current_pos > label_pos)
+                return -(current_pos + 2 - label_pos);
+            else
+                return label_pos - current_pos - 2;
+        }
+        unresolved_labels[label->get_text()].emplace_back(label, current_pos);
+        return 0;
     }
 
     vector<std::shared_ptr<Token>> MethodContext::resolve_labels() {

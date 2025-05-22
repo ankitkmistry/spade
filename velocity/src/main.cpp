@@ -27,12 +27,17 @@ void sign_test() {
 int run_vm() {
     try {
         basic::BasicMemoryManager manager;
+        std::cout << "Memory used: " << manager.get_used_size() << std::endl;
+
         SpadeVM vm(&manager);
+        int exit_code;
 #if defined(OS_LINUX)
-        return vm.start("../velocity/res/hello.elp", {});
+        exit_code = vm.start("../velocity/res/hello.elp", {});
 #elif defined(OS_WINDOWS)
-        return vm.start("..\\velocity\\res\\hello.elp", {});
+        exit_code = vm.start("..\\velocity\\res\\hello.elp", {});
 #endif
+        std::cout << "Memory used: " << manager.get_used_size() << std::endl;
+        return exit_code;
     } catch (const SpadeError &error) {
         std::cout << "VM Error: " << error.what() << std::endl;
         return 1;

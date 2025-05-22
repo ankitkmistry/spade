@@ -13,7 +13,9 @@ namespace spade
         void check_placeholder() const;
 
       public:
-        TypeParam(const Sign &sign, ObjModule *module = null) : Type(sign, Kind::TYPE_PARAM, {}, {}, {}, module) {}
+        TypeParam(const Sign &sign, ObjModule *module = null) : Type(sign, Kind::TYPE_PARAM, {}, {}, {}, module) {
+            this->tag = ObjTag::TYPE_PARAM;
+        }
 
         string get_tp_sign() const {
             return sign.to_string();

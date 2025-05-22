@@ -22,11 +22,11 @@
     /* stack op */                                                                                                                                   \
     /* ----------------------------------------------------- */                                                                                      \
     /* load constant 'null' */                                                                                                                       \
-    OPCODE(CONST_NULL, 1, true, CONST_NULL)                                                                                                          \
+    OPCODE(CONST_NULL, 0, true, CONST_NULL)                                                                                                          \
     /* load constant 'true' */                                                                                                                       \
-    OPCODE(CONST_TRUE, 1, true, CONST_TRUE)                                                                                                          \
+    OPCODE(CONST_TRUE, 0, true, CONST_TRUE)                                                                                                          \
     /* load constant 'false' */                                                                                                                      \
-    OPCODE(CONST_FALSE, 1, true, CONST_FALSE)                                                                                                        \
+    OPCODE(CONST_FALSE, 0, true, CONST_FALSE)                                                                                                        \
     /* load constant */                                                                                                                              \
     OPCODE(CONST, 1, true, CONSTL)                                                                                                                   \
     /* load long constant */                                                                                                                         \

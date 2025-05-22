@@ -14,24 +14,28 @@ namespace spade
         ObjMethod *init = null;
 
       public:
-        ObjModule(const Sign &sign, const fs::path &path, const vector<Obj *> &constant_pool, const Table<MemberSlot> &member_slots);
+        ObjModule(const Sign &sign, ObjModule *current = null);
 
         static ObjModule *current();
 
-        const fs::path &get_path() {
-            return path;
-        }
-
         string get_module_name() const {
-            return path.stem().string();
+            return sign.get_name();
         }
 
         const fs::path &get_path() const {
             return path;
         }
 
+        void set_path(const fs::path &path) {
+            this->path = path;
+        }
+
         const vector<Obj *> &get_constant_pool() const {
             return constant_pool;
+        }
+
+        void set_constant_pool(const vector<Obj *> &conpool) {
+            constant_pool = conpool;
         }
 
         ObjMethod *get_init() const {
@@ -42,7 +46,7 @@ namespace spade
             init = init_;
         }
 
-        Obj *copy()const override;
+        Obj *copy() const override;
 
         bool truth() const override;
 

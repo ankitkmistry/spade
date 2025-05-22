@@ -1,5 +1,6 @@
 #include "lexer.hpp"
 #include "token.hpp"
+#include <cctype>
 
 namespace spasm
 {
@@ -38,7 +39,7 @@ namespace spasm
     }
 
     std::shared_ptr<Token> Lexer::get_token(TokenType type) {
-        auto token = make_token(type, data.substr(start, end - start), line, col);
+        const auto token = make_token(type, data.substr(start, end - start), line, col);
         col += static_cast<int>(end - start);
         start = static_cast<int>(end);
         return token;
@@ -64,6 +65,21 @@ namespace spasm
         return ('0' <= c && c <= '9') || ('a' <= c && c <= 'f') || ('A' <= c && c <= 'F');
     }
 
+    static bool is_id_char(int c) {
+        switch (c) {
+            case '_':
+            case '!':
+            case '@':
+            case '#':
+            case '$':
+            case '%':
+            case '&':
+                return true;
+            default:
+                return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z');
+        }
+    }
+
     void Lexer::complete_float_part(const std::function<bool(int)> &validator, char exp1, char exp2) {
         int c;
         bool allow_underscore = false;
@@ -87,11 +103,11 @@ namespace spasm
     }
 
     std::shared_ptr<Token> Lexer::match_identifier(TokenType type) {
-        char c = current();
-        if (!std::isalpha(c) && c != '_')
+        int c = current();
+        if (!is_id_char(c))
             throw make_error(std::format("expected {}", TokenInfo::get_repr(type)));
-        while (std::isalnum(c = peek()) || c == '_') advance();
-        auto token = get_token(type);
+        while (is_id_char(c = peek()) || std::isdigit(c)) advance();
+        const auto token = get_token(type);
         if (type == TokenType::IDENTIFIER) {
             TokenType keyword_type;
             if (TokenInfo::get_type_if_keyword(token->get_text(), keyword_type)) {
@@ -150,7 +166,7 @@ namespace spasm
                     advance();
                     return match_identifier(TokenType::PROPERTY);
                 case '\n': {
-                    auto token = get_token(TokenType::NEWLINE);
+                    const auto token = get_token(TokenType::NEWLINE);
                     line++;
                     col = 1;
                     start = end;
@@ -173,7 +189,7 @@ namespace spasm
                     break;
                 default: {
                     // Match identifiers
-                    if (std::isalpha(c) || c == '_')
+                    if (is_id_char(c))
                         return match_identifier();
                     if (c == '-') {
                         if (is_decimal_digit(peek()))

@@ -10,10 +10,7 @@
 #include "parser.hpp"
 #include "context.hpp"
 #include "elpops/elpdef.hpp"
-#include "context.hpp"
 #include "lexer/token.hpp"
-#include "spinfo/opcode.hpp"
-#include "spinfo/sign.hpp"
 #include "utils/error.hpp"
 
 namespace spasm
@@ -119,26 +116,17 @@ namespace spasm
             modules.push_back(parse_module());
         }
 
-        ModuleContext ctx(file_path);
         const bool excecutable = !entry_point.empty();
         ElpInfo elp;
         elp.magic = excecutable ? 0xC0FFEEDE : 0xDEADCAFE;
         elp.major_version = 1;
         elp.minor_version = 0;
 
-        elp.entry = ctx.get_constant(excecutable ? entry_point.to_string() : "");
-        elp.imports = ctx.get_constant(vector<ValueContext>());
-
-        const auto constants = ctx.get_constants();
-        vector<CpInfo> constant_pool;
-        constant_pool.reserve(constants.size());
-        for (const auto &constant: constants) constant_pool.push_back(constant);
-        if (const auto max = std::numeric_limits<decltype(elp.constant_pool_count)>::max(); constant_pool.size() >= max)
-            throw ParserError{std::format("constant_pool_count cannot be >= {}", max), file_path, -1, -1, -1, -1};
-        else {
-            elp.constant_pool_count = constant_pool.size() & max;
-            elp.constant_pool = constant_pool;
-        }
+        // elp.entry = ctx.get_constant(excecutable ? entry_point.to_string() : "");
+        // elp.imports = ctx.get_constant(vector<ValueContext>());
+        elp.entry = std::get<_UTF8>(CpInfo::from_string(entry_point.to_string()).value);
+        elp.imports_count = 0;
+        elp.imports = {};
 
         if (const auto max = std::numeric_limits<decltype(elp.modules_count)>::max(); modules.size() >= max)
             throw ParserError{std::format("modules_count cannot be >= {}", max), file_path, -1, -1, -1, -1};
@@ -248,7 +236,7 @@ namespace spasm
     }
 
     ClassInfo Parser::parse_class() {
-        /* const auto ctx = */ begin_context<ClassContext>();
+        const auto ctx = begin_context<ClassContext>();
 
         const auto start = expect(TokenType::CLASS);
         const auto sign = parse_sign_class();
@@ -262,6 +250,7 @@ namespace spasm
             TypeParamInfo info;
             info.name = get_current_module()->get_constant(type_param);
             type_params.push_back(info);
+            ctx->add_type_param(type_param);
         }
 
         std::unordered_map<string, ValueContext> properties{
@@ -297,8 +286,9 @@ namespace spasm
         vector<FieldInfo> fields;
         vector<MethodInfo> methods;
 
-        bool end = false;
-        while (!end) {
+        while (peek()->get_type() != TokenType::END) {
+            if (peek()->get_type() == TokenType::END_OF_FILE)
+                throw error(std::format("expected {}", make_expected_string(TokenType::END)));
             switch (peek()->get_type()) {
                 case TokenType::FIELD:
                     advance();
@@ -308,7 +298,6 @@ namespace spasm
                     methods.push_back(parse_method());
                     break;
                 default:
-                    end = true;
                     break;
             }
         }
@@ -378,6 +367,7 @@ namespace spasm
             TypeParamInfo info;
             info.name = get_current_module()->get_constant(type_param);
             type_params.push_back(info);
+            ctx->add_type_param(type_param);
         }
 
         std::unordered_map<string, ValueContext> properties{
@@ -404,9 +394,8 @@ namespace spasm
         }
 
         vector<ArgInfo> args;
-        while (match(TokenType::ARG)) args.push_back(parse_arg());
-
         vector<LocalInfo> locals;
+        vector<ExceptionContext> exceptions;
         if (context_stack[context_stack.size() - 2]->get_kind() == ContextType::CLASS) {
             LocalInfo self;
             self.kind = 0;
@@ -415,15 +404,79 @@ namespace spasm
             locals.push_back(self);
             ctx->add_local("self");
         }
-        while (match(TokenType::LOCAL)) locals.push_back(parse_local());
-
-        vector<ExceptionContext> exceptions;
-        while (match(TokenType::EXCEPTION)) exceptions.push_back(parse_exception());
 
         while (peek()->get_type() != TokenType::END) {
             if (peek()->get_type() == TokenType::END_OF_FILE)
                 throw error(std::format("expected {}", make_expected_string(TokenType::END)));
-            parse_line();
+            switch (peek()->get_type()) {
+                case TokenType::ARG:
+                    advance();
+                    args.push_back(parse_arg());
+                    break;
+                case TokenType::LOCAL:
+                    advance();
+                    locals.push_back(parse_local());
+                    break;
+                case TokenType::EXCEPTION:
+                    advance();
+                    exceptions.push_back(parse_exception());
+                    break;
+                case TokenType::MATCH: {
+                    advance();
+                    const auto name = parse_name();
+                    const auto name_tok = current();
+                    parse_term();
+                    const auto match_ctx = std::make_shared<MatchContext>();
+                    if (!ctx->add_match(name, match_ctx))
+                        throw error(std::format("redefinition of match '{}'", name), name_tok);
+                    while (peek()->get_type() != TokenType::END) {
+                        if (peek()->get_type() == TokenType::END_OF_FILE)
+                            throw error(std::format("expected {}", make_expected_string(TokenType::END)));
+                        if (match(TokenType::UNDERSCORE)) {
+                            if (match_ctx->get_default_label())
+                                throw ErrorGroup<ParserError>()
+                                        .error(error("redefinition of default case", current()))
+                                        .note(error("already declared here", match_ctx->get_default_label()));
+                            expect(TokenType::ARROW);
+                            match_ctx->set_default_label(expect(TokenType::LABEL));
+                        } else {
+                            const auto tok = peek();
+                            const auto value = parse_value();
+                            expect(TokenType::ARROW);
+                            const auto label = expect(TokenType::LABEL);
+                            if (!match_ctx->add_case(get_current_module()->get_constant(value), label))
+                                throw error("redefinition of case", tok);
+                        }
+                        parse_term();
+                    }
+                    if (!match_ctx->get_default_label())
+                        throw error("match must have a default label", name_tok);
+                    expect(TokenType::END);
+                    parse_term();
+                    break;
+                }
+                default:
+                    goto outside;
+            }
+        }
+outside:
+
+        while (peek()->get_type() != TokenType::END) {
+            if (peek()->get_type() == TokenType::END_OF_FILE)
+                throw error(std::format("expected {}", make_expected_string(TokenType::END)));
+            switch (peek()->get_type()) {
+                case TokenType::ARG:
+                    args.push_back(parse_arg());
+                    break;
+                case TokenType::LOCAL:
+                    locals.push_back(parse_local());
+                    break;
+                case TokenType::EXCEPTION:
+                    exceptions.push_back(parse_exception());
+                    break;
+                default:
+                    parse_line();
+            }
         }
 
         expect(TokenType::END);
@@ -495,11 +548,48 @@ namespace spasm
                 method.exception_table[i].exception = get_current_module()->get_constant(exception.type);
             }
         }
+        {    // Set the matches
+            const auto matches_list = ctx->get_matches();
+            if (const auto max = std::numeric_limits<decltype(method.match_count)>::max(); matches_list.size() >= max)
+                errors.error(error(std::format("match_count cannot be >= {}", max), start));
+            else {
+                method.match_count = matches_list.size() & max;
+                method.matches.resize(matches_list.size());
+                for (size_t match_idx = 0; const auto &[name, match]: matches_list) {
+                    MatchInfo info;
+                    // Set the default location
+                    if (const auto label = match->get_default_label(); const auto pos = ctx->get_label_pos(label->get_text()))
+                        info.default_location = *pos;
+                    else
+                        errors.error(error(std::format("undefined reference to label '{}'", label->get_text()), label));
+                    // Set the cases accordingly
+                    if (const auto max = std::numeric_limits<decltype(info.case_count)>::max(); match->get_cases().size() >= max) {
+                        errors.error(error(std::format("case_count cannot be >= {}", max), start));
+                        break;
+                    } else {
+                        info.case_count = match->get_cases().size() & max;
+                        info.cases.resize(match->get_cases().size());
+                        for (size_t case_idx = 0; const auto &[value, case_label]: match->get_cases()) {
+                            if (const auto pos = ctx->get_label_pos(case_label->get_text()))
+                                info.cases[case_idx] = CaseInfo{.value = value, .location = *pos};
+                            else
+                                errors.error(error(std::format("undefined reference to label '{}'", case_label->get_text()), case_label));
+                            case_idx++;
+                        }
+                        // Put it in the method
+                        method.matches[match_idx] = std::move(info);
+                        match_idx++;
+                    }
+                }
+            }
+        }
+
         method.line_info = ctx->get_line_info();
-        {
+        {    // Set the stack max
             using T = decltype(method.stack_max);
             method.stack_max = static_cast<T>(std::get<int64_t>(properties["@stack_max"].value) & std::numeric_limits<T>::max());
         }
+        // Set the code
         const auto code = ctx->get_code();
         if (const auto max = std::numeric_limits<decltype(method.code_count)>::max(); code.size() >= max)
             errors.error(error(std::format("code_count cannot be >= {}", max), start));
@@ -579,6 +669,9 @@ namespace spasm
         static constinit const auto uint8_max = std::numeric_limits<uint8_t>::max();
         static constinit const auto uint16_max = std::numeric_limits<uint16_t>::max();
         const auto module = get_current_module();
+        const auto klass = context_stack[context_stack.size() - 2]->get_kind() == ContextType::CLASS
+                                   ? cast<ClassContext>(context_stack[context_stack.size() - 2])
+                                   : null;
         const auto ctx = cast<MethodContext>(get_current_context());
 
         if (match(TokenType::LABEL)) {
@@ -637,71 +730,136 @@ namespace spasm
             parse_term();
             return;
         }
-        if (OpcodeInfo::take_from_const_pool(opcode)) {
-            emit_value(module->get_constant(parse_value()));
-        } else {
-            switch (opcode) {
-                case Opcode::LLOAD:
-                case Opcode::LFLOAD:
-                case Opcode::LSTORE:
-                case Opcode::LFSTORE:
-                case Opcode::PLSTORE:
-                case Opcode::PLFSTORE: {
-                    if (match(TokenType::INTEGER)) {
-                        const auto value = str2int(current());
-                        if (value >= uint16_max)
-                            throw error(std::format("value cannot be greater than {}", uint16_max), current());
-                        emit_value(static_cast<uint16_t>(value & uint16_max));
-                    } else {
-                        const auto name = parse_name();
-                        if (const auto idx = ctx->get_local(name)) {
-                            emit_value(*idx);
-                        } else
-                            throw error("undefined local", current());
-                    }
-                    break;
+
+        switch (opcode) {
+            case Opcode::CONST:
+            case Opcode::CONSTL:
+                emit_value(module->get_constant(parse_value()));
+                break;
+            case Opcode::NPOP:
+            case Opcode::NDUP:
+                emit_value(static_cast<uint64_t>(str2int(expect(TokenType::INTEGER))));
+                break;
+            case Opcode::GLOAD:
+            case Opcode::GFLOAD:
+            case Opcode::GSTORE:
+            case Opcode::GFSTORE:
+            case Opcode::PGSTORE:
+            case Opcode::PGFSTORE:
+            case Opcode::GINVOKE:
+            case Opcode::GFINVOKE:
+                emit_value(module->get_constant(parse_signature().to_string()));
+                break;
+            case Opcode::LLOAD:
+            case Opcode::LFLOAD:
+            case Opcode::LSTORE:
+            case Opcode::LFSTORE:
+            case Opcode::PLSTORE:
+            case Opcode::PLFSTORE:
+            case Opcode::LINVOKE:
+            case Opcode::LFINVOKE: {
+                if (match(TokenType::INTEGER)) {
+                    const auto value = str2int(current());
+                    if (value >= uint16_max)
+                        throw error(std::format("value cannot be greater than {}", uint16_max), current());
+                    emit_value(static_cast<uint16_t>(value & uint16_max));
+                } else {
+                    const auto name = parse_name();
+                    if (const auto idx = ctx->get_local(name)) {
+                        emit_value(*idx);
+                    } else
+                        throw error("undefined local", current());
                 }
-                case Opcode::ALOAD:
-                case Opcode::ASTORE:
-                case Opcode::PASTORE: {
-                    if (match(TokenType::INTEGER)) {
-                        const auto value = str2int(current());
-                        if (value >= uint8_max)
-                            throw error(std::format("value cannot be greater than {}", uint8_max), current());
-                        emit_value(static_cast<uint8_t>(value & uint8_max));
-                    } else {
-                        const auto name = parse_name();
-                        if (const auto idx = ctx->get_arg(name)) {
-                            emit_value(*idx);
-                        } else
-                            throw error("undefined arg", current());
-                    }
-                    break;
-                }
-                case Opcode::JMP:
-                case Opcode::JT:
-                case Opcode::JF:
-                case Opcode::JLT:
-                case Opcode::JLE:
-                case Opcode::JEQ:
-                case Opcode::JNE:
-                case Opcode::JGE:
-                case Opcode::JGT: {
-                    const auto label = expect(TokenType::LABEL);
-                    const auto jmp_val = ctx->patch_jump_to(label);
-                    ctx->emit((jmp_val >> 8) & uint8_max);
-                    ctx->emit(jmp_val & uint8_max);
-                    break;
-                }
-                default: {
-                    const auto value_token = expect(TokenType::INTEGER);
-                    const auto value = std::stoi(value_token->get_text());
-                    if (value < 0)
-                        throw error("value cannot be negative", value_token);
-                    emit_value(static_cast<unsigned int>(value));
-                    break;
-                }
+                break;
             }
+            case Opcode::ALOAD:
+            case Opcode::ASTORE:
+            case Opcode::PASTORE:
+            case Opcode::AINVOKE: {
+                if (match(TokenType::INTEGER)) {
+                    const auto value = str2int(current());
+                    if (value >= uint8_max)
+                        throw error(std::format("value cannot be greater than {}", uint8_max), current());
+                    emit_value(static_cast<uint8_t>(value & uint8_max));
+                } else {
+                    const auto name = parse_name();
+                    if (const auto idx = ctx->get_arg(name)) {
+                        emit_value(*idx);
+                    } else
+                        throw error("undefined arg", current());
+                }
+                break;
+            }
+            case Opcode::TLOAD:
+            case Opcode::TFLOAD:
+            case Opcode::TSTORE:
+            case Opcode::TFSTORE:
+            case Opcode::PTSTORE:
+            case Opcode::PTFSTORE: {
+                const auto tok = peek();
+                const auto sign = parse_signature();
+                if (!ctx->has_type_param(sign) && !klass->has_type_param(sign))
+                    throw error("undefined type arg", tok);
+                emit_value(module->get_constant(sign.to_string()));
+                break;
+            }
+            case Opcode::MLOAD:
+            case Opcode::MFLOAD:
+            case Opcode::MSTORE:
+            case Opcode::MFSTORE:
+            case Opcode::PMSTORE:
+            case Opcode::PMFSTORE:
+                emit_value(module->get_constant(parse_signature().to_string()));
+                break;
+            case Opcode::SPLOAD:
+            case Opcode::SPFLOAD:
+                emit_value(module->get_constant(parse_signature().to_string()));
+                break;
+            case Opcode::ARRBUILD:
+            case Opcode::ARRFBUILD:
+                emit_value(static_cast<uint64_t>(str2int(expect(TokenType::INTEGER))));
+                break;
+            case Opcode::INVOKE:
+                emit_value(static_cast<uint64_t>(str2int(expect(TokenType::INTEGER))));
+                break;
+            case Opcode::VINVOKE:
+            case Opcode::VFINVOKE:
+            case Opcode::SPINVOKE:
+            case Opcode::SPFINVOKE:
+                emit_value(module->get_constant(parse_signature().to_string()));
+                break;
+            case Opcode::JMP:
+            case Opcode::JT:
+            case Opcode::JF:
+            case Opcode::JLT:
+            case Opcode::JLE:
+            case Opcode::JEQ:
+            case Opcode::JNE:
+            case Opcode::JGE:
+            case Opcode::JGT: {
+                const auto label = expect(TokenType::LABEL);
+                const auto jmp_val = ctx->patch_jump_to(label);
+                ctx->emit((jmp_val >> 8) & uint8_max);
+                ctx->emit(jmp_val & uint8_max);
+                break;
+            }
+            case Opcode::MTPERF:
+            case Opcode::MTFPERF: {
+                const auto name = parse_name();
+                if (const auto idx = ctx->get_match(name))
+                    emit_value(*idx);
+                else
+                    throw error("undefined match", current());
+                break;
+            }
+            case Opcode::CLOSURELOAD:
+                // TODO: implement this
+                break;
+            case Opcode::REIFIEDLOAD:
+                emit_value(static_cast<uint64_t>(str2int(expect(TokenType::INTEGER))));
+                break;
+            default:
+                break;
         }
         parse_term();
     }

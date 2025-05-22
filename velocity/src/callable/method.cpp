@@ -9,6 +9,7 @@ namespace spade
 
     ObjMethod::ObjMethod(const Sign &sign, Kind kind, const FrameTemplate &frame, const Table<TypeParam *> &type_params, ObjModule *module)
         : ObjCallable(sign, kind, type, module), frame_template(frame), type_params(type_params) {
+        this->tag = ObjTag::METHOD;
         frame_template.set_method(this);
     }
 

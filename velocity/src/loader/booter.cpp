@@ -60,6 +60,7 @@ namespace spade
             modules.insert(modules.end(), imported_mods.begin(), imported_mods.end());
             extend_vec(modules, imported_mods);
         }
+
         for (const auto &module_info: elp.modules) {
             modules.push_back(load_module(module_info));
         }
@@ -70,37 +71,32 @@ namespace spade
 
     Booter::ElpContext Booter::load_elp(const ElpInfo &elp) {
         ElpContext ctx;
-        // Load the constant pool
-        const auto conpool = read_const_pool(elp.constant_pool);
         // Fetch the entry point signature
         if (elp.magic == 0xC0FFEEDE)
-            ctx.entry = conpool[elp.entry]->to_string();
+            ctx.entry = read_utf8(elp.entry);
         // Fetch the import paths
-        const auto imports_obj = cast<ObjArray>(conpool[elp.imports]);
-        ctx.imports.resize(imports_obj->count());
-        for (uint16 i = 0; i < imports_obj->count(); i++) {
-            ctx.imports[i] = imports_obj->get(i)->to_string();
+        ctx.imports.resize(elp.imports_count);
+        for (uint16 i = 0; i < elp.imports_count; i++) {
+            ctx.imports[i] = read_utf8(elp.imports[i]);
         }
-        // Free the constants as they are no longer needed
-        for (const auto constant: conpool) hfree(constant);
         return ctx;
     }
 
     ObjModule *Booter::load_module(const ModuleInfo &info) {
         const auto mgr = vm->get_memory_manager();
 
-        const auto conpool = read_const_pool(info.constant_pool);
-        const fs::path compiled_from = conpool[info.compiled_from]->to_string();
-        const string name = conpool[info.name]->to_string();
-        const Sign init = conpool[info.init]->to_string();
-
-        const auto obj = halloc_mgr<ObjModule>(mgr, current_sign(), current_path(), conpool, Table<MemberSlot>{});
-
+        const auto obj = halloc_mgr<ObjModule>(mgr, Sign(""), cur_mod);
         const auto old_cur_mod = cur_mod;
         cur_mod = obj;
 
+        const auto conpool = read_const_pool(info.constant_pool);
+        obj->set_constant_pool(conpool);
+        obj->set_path(conpool[info.compiled_from]->to_string());
+        const Sign sign = conpool[info.name]->to_string();
+        obj->set_sign(sign);
+        begin_scope(sign.get_name(), true);
+
         Table<MemberSlot> member_slots;
-        begin_scope(name);
         for (const auto &global: info.globals) {
             MemberSlot slot(load_global(global, conpool), Flags(global.access_flags));
             member_slots[slot.get_value()->get_sign().get_name()] = slot;
@@ -113,12 +109,18 @@ namespace spade
             MemberSlot slot(load_class(klass, conpool), Flags(klass.access_flags));
             member_slots[slot.get_value()->get_sign().get_name()] = slot;
         }
-        cur_mod = old_cur_mod;
+        for (const auto &modulla: info.modules) {
+            MemberSlot slot(load_module(modulla), Flags().set_public());
+            member_slots[slot.get_value()->get_sign().get_name()] = slot;
+        }
         obj->get_member_slots() = member_slots;
         vm->set_metadata(current_sign().to_string(), read_meta(info.meta));
+        end_scope();
+        cur_mod = old_cur_mod;
 
-        // Add the module to the vm
-        vm->get_modules()[end_scope().get_name()] = obj;
+        if (sign_stack.empty())
+            // Add the top level module to the vm
+            vm->get_modules()[sign.to_string()] = obj;
         // Try to get init point
         if (const auto init_sign = conpool[info.init]->to_string(); !init_sign.empty())
             obj->set_init(cast<ObjMethod>(vm->get_symbol(init_sign)));
@@ -302,22 +304,22 @@ namespace spade
 
         switch (cp.tag) {
             case 0x00:
-                return halloc_mgr<ObjNull>(mgr);
+                return halloc_mgr<ObjNull>(mgr, get_current_module());
             case 0x01:
-                return halloc_mgr<ObjBool>(mgr, true);
+                return halloc_mgr<ObjBool>(mgr, true, get_current_module());
             case 0x02:
-                return halloc_mgr<ObjBool>(mgr, false);
+                return halloc_mgr<ObjBool>(mgr, false, get_current_module());
             case 0x03:
-                return halloc_mgr<ObjChar>(mgr, static_cast<char>(std::get<uint32_t>(cp.value)));
+                return halloc_mgr<ObjChar>(mgr, static_cast<char>(std::get<uint32_t>(cp.value)), get_current_module());
             case 0x04:
-                return halloc_mgr<ObjInt>(mgr, unsigned_to_signed(std::get<uint64_t>(cp.value)));
+                return halloc_mgr<ObjInt>(mgr, unsigned_to_signed(std::get<uint64_t>(cp.value)), get_current_module());
             case 0x05:
-                return halloc_mgr<ObjFloat>(mgr, raw_to_double(std::get<uint64_t>(cp.value)));
+                return halloc_mgr<ObjFloat>(mgr, raw_to_double(std::get<uint64_t>(cp.value)), get_current_module());
             case 0x06:
-                return halloc_mgr<ObjString>(mgr, std::get<_UTF8>(cp.value).bytes.data(), std::get<_UTF8>(cp.value).len);
+                return halloc_mgr<ObjString>(mgr, std::get<_UTF8>(cp.value).bytes.data(), std::get<_UTF8>(cp.value).len, get_current_module());
             case 0x07: {
                 const auto con = std::get<_Container>(cp.value);
-                const auto array = halloc_mgr<ObjArray>(mgr, con.len);
+                const auto array = halloc_mgr<ObjArray>(mgr, con.len, get_current_module());
                 for (int i = 0; i < con.len; ++i) {
                     array->set(i, read_cp(con.items[i]));
                 }
@@ -387,8 +389,8 @@ namespace spade
         if (const auto it = obj_map.find(type_sign); it != obj_map.end())
             return it->second(mgr);
         else {
-            if (const auto tp = dynamic_cast<TypeParam *>(type))
-                return halloc_mgr<Obj>(mgr, obj_sign, tp, get_current_module());
+            if (is<TypeParam>(type))
+                return halloc_mgr<Obj>(mgr, obj_sign, type, get_current_module());
             if (type && type->get_kind() == Type::Kind::UNRESOLVED) {
                 const auto obj = halloc_mgr<Obj>(mgr, obj_sign, type, get_current_module());
                 post_callbacks.push_back([obj, type] { obj->set_type(type); });

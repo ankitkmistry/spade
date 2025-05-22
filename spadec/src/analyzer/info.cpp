@@ -1,6 +1,5 @@
 #include "info.hpp"
 #include "scope.hpp"
-#include "spimp/error.hpp"
 
 namespace spade
 {

@@ -1,3 +1,4 @@
+#include "callable/table.hpp"
 #include "vm.hpp"
 #include "memory/memory.hpp"
 #include "objects/inbuilt_types.hpp"
@@ -614,18 +615,18 @@ namespace spade
                     case Opcode::MTPERF: {
                         const auto match = frame->get_matches()[state->read_short()];
                         const uint32 offset = match.perform(state->pop());
-                        state->adjust(offset);
+                        state->set_pc(offset);
                         break;
                     }
                     case Opcode::MTFPERF: {
                         const auto match = frame->get_matches()[state->read_byte()];
                         const uint32 offset = match.perform(state->pop());
-                        state->adjust(offset);
+                        state->set_pc(offset);
                         break;
                     }
                     case Opcode::CLOSURELOAD: {
                         const auto method = cast<ObjMethod>(state->pop()->copy());
-                        auto &locals = const_cast<LocalsTable &>(method->get_frame_template().get_locals());
+                        LocalsTable &locals = method->get_frame_template().get_locals();
                         for (uint16 i = locals.get_closure_start(); i < locals.count(); i++) {
                             NamedRef *ref;
                             switch (state->read_byte()) {

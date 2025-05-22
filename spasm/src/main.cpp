@@ -4,7 +4,6 @@
 #include <sstream>
 #include <argparse/argparse.hpp>
 
-#include "spimp/error.hpp"
 #include "utils/error.hpp"
 #include "utils/error_printer.hpp"
 #include "lexer/lexer.hpp"
@@ -12,7 +11,10 @@
 
 using namespace spasm;
 
+// #define ENABLE_CMD_LINE
+
 int main(int argc, char *argv[]) {
+#ifdef ENABLE_CMD_LINE
     argparse::ArgumentParser program("spasm");
     program.add_argument("-o", "--output").help("specifies the output filename").metavar("FILEPATH").default_value("");
     program.add_argument("input-files").required().remaining().nargs(1, -1);
@@ -31,9 +33,12 @@ int main(int argc, char *argv[]) {
         output_path = file_path.parent_path() / (file_path.stem().string() + ".elp");
     else
         output_path = program.get("-o") + ".elp";
+#endif
 
-    // fs::path file_path(R"(D:\Programming\Projects\spade\spasm\res\hello.spa)");
-    // fs::path output_path = file_path.parent_path() / (file_path.stem().string() + ".elp");
+#ifndef ENABLE_CMD_LINE
+    fs::path file_path(R"(D:\Programming\Projects\spade\spasm\res\hello.spa)");
+    fs::path output_path = file_path.parent_path() / (file_path.stem().string() + ".elp");
+#endif
 
     ErrorPrinter error_printer;
     try {

@@ -12,7 +12,7 @@ namespace spade
         bool b;
 
       public:
-        ObjBool(bool value, ObjModule *module = null) : ComparableObj(Sign("bool"), null, module), b(value) {}
+        ObjBool(bool value, ObjModule *module = null);
 
         static ObjBool *value(bool b, MemoryManager *manager = null);
 
@@ -41,7 +41,7 @@ namespace spade
         char c;
 
       public:
-        ObjChar(const char c, ObjModule *module = null) : ComparableObj(Sign("char"), null, module), c(c) {}
+        ObjChar(const char c, ObjModule *module = null);
 
         bool truth() const override {
             return c != '\0';
@@ -61,7 +61,7 @@ namespace spade
 
     class ObjNull : public ComparableObj {
       public:
-        ObjNull(ObjModule *module = null) : ComparableObj(Sign("null"), null, module) {}
+        ObjNull(ObjModule *module = null);
 
         static ObjNull *value(MemoryManager *manager = null);
 
@@ -86,7 +86,7 @@ namespace spade
         string str;
 
       public:
-        ObjString(string str, ObjModule *module = null) : ComparableObj(Sign("string"), null, module), str(str) {}
+        ObjString(string str, ObjModule *module = null);
 
         ObjString(const uint8 *bytes, uint16 len, ObjModule *module = null);
 
@@ -112,9 +112,7 @@ namespace spade
         uint16 length;
 
       public:
-        explicit ObjArray(uint16 length, ObjModule *module = null) : ComparableObj(Sign("array"), null, module), length(length) {
-            array = length == 0 ? null : new Obj *[length] { null };
-        }
+        explicit ObjArray(uint16 length, ObjModule *module = null);
 
         void foreach (const std::function<void(Obj *)> &func) const;
 
@@ -139,9 +137,10 @@ namespace spade
     };
 
     class ObjNumber : public ComparableObj {
-      public:
+      protected:
         ObjNumber(Sign sign, ObjModule *module = null) : ComparableObj(sign, null, module) {}
 
+      public:
         virtual Obj *operator-() const = 0;
 
         virtual Obj *power(const ObjNumber *n) const = 0;

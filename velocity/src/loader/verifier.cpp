@@ -1,5 +1,4 @@
 #include "verifier.hpp"
-#include "elpops/elpdef.hpp"
 
 namespace spade
 {
@@ -7,13 +6,12 @@ namespace spade
         const auto magic = elp.magic;
         if (magic != 0xc0ffeede && magic != 0xdeadcafe)
             throw corrupt();
-        for (const auto &cp: elp.constant_pool) check_cp(cp);
-        for (const auto &module: elp.modules) check_module(module, elp.constant_pool_count);
+        for (const auto &module: elp.modules) check_module(module);
     }
 
-    void Verifier::check_module(const ModuleInfo &module, const uint16 cp_count) {
+    void Verifier::check_module(const ModuleInfo &module) {
         for (int i = 0; i < module.globals_count; i++) {
-            check_global(module.globals[i], cp_count);
+            check_global(module.globals[i], module.constant_pool_count);
         }
     }
 

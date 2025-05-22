@@ -50,7 +50,7 @@ module hello
         vret
     end
 
-    method ref_test()
+    method reif_test()
         local @var ref : hello.Reference[T]
 
         # Reference[Int]
@@ -89,11 +89,7 @@ module hello
         vret
     end
 
-    method @entry main()
-        local @var i : basic.int
-
-        # gfinvoke hello.foo()
-
+    method met_reif_test()
         gfinvoke hello.ref_test()
 
         gfload hello.log[T]([T])
@@ -106,6 +102,10 @@ module hello
         invoke 1
 
         vret
+    end
+
+    method loop_test()
+        local @var i : basic.int
 
         const 0
         plfstore i
@@ -127,6 +127,53 @@ module hello
         plfstore i
         jmp $loop_start
     $loop_end:
+        vret
+    end
+
+    method match_test(basic.int)
+        arg @const val : basic.int
+        match match$0
+            0 -> $match$0$0
+            1 -> $match$0$1
+            2 -> $match$0$2
+            3 -> $match$0$3
+            4 -> $match$0$4
+            _ -> $match$0$5
+        end
+
+        aload val
+        mtfperf match$0
+    $match$0$0:
+        const "zero"
+        jmp $end
+    $match$0$1:
+        const "one"
+        jmp $end
+    $match$0$2:
+        const "two"
+        jmp $end
+    $match$0$3:
+        const "three"
+        jmp $end
+    $match$0$4:
+        const "four"
+        jmp $end
+    $match$0$5:
+        const "none"
+        jmp $end
+    $end:
+        println
+        vret
+    end
+
+    method @entry main()
+        # gfinvoke hello.foo()
+        # gfinvoke hello.reif_test()
+        # gfinvoke hello.met_reif_test()
+        # gfinvoke hello.loop_test()
+
+        const 2
+        gfinvoke hello.match_test(basic.int)
         vret
     end
 end

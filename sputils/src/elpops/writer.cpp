@@ -19,11 +19,9 @@ namespace spade
         write(elp.minor_version);
 
         write(elp.entry);
-        write(elp.imports);
-
-        write(elp.constant_pool_count);
-        for (int i = 0; i < elp.constant_pool_count; ++i) {
-            write(elp.constant_pool[i]);
+        write(elp.imports_count);
+        for (int i = 0; i < elp.imports_count; ++i) {
+            write(elp.imports[i]);
         }
 
         write(elp.modules_count);

@@ -75,6 +75,14 @@ namespace spade
         Obj *get_symbol(const string &sign, bool strict = true) const;
 
         /**
+         * Set the value of the symbol corresponding to the signature \p sign
+         * @throws IllegalAccessError if the symbol cannot be found
+         * @param sign the signature of the symbol
+         * @param val the value
+         */
+        void set_symbol(const string &sign, Obj *val) const;
+
+        /**
          * @param sign the sign of the symbol
          * @return the metadata of the symbol corresponding to \p sign
          */
@@ -88,17 +96,23 @@ namespace spade
         void set_metadata(const string &sign, const Table<string> &meta);
 
         /**
-         * Set the value of the symbol corresponding to the signature \p sign
-         * @throws IllegalAccessError if the symbol cannot be found
-         * @param sign the signature of the symbol
-         * @param val the value
+         * Returns the vm standard type for \p tag or null if the type is unspecified
+         * @exception IllegalAccessError if the standard types are not loaded yet
+         * @param tag the kind of object to get the standard type for
+         * @return Type* the standard type
          */
-        void set_symbol(const string &sign, Obj *val) const;
+        Type *get_vm_type(ObjTag tag);
 
+        /**
+         * @return the set of vm threads
+         */
         std::set<Thread *> &get_threads() {
             return threads;
         }
 
+        /**
+         * @return the set of vm threads
+         */
         const std::set<Thread *> &get_threads() const {
             return threads;
         }
@@ -159,9 +173,14 @@ namespace spade
 
       private:
         /**
+         * Loads the basic types and modules required by the vm
+         */
+        void load_basic();
+
+        /**
          * Checks the casting compatibility between two types
-         * @param type1
-         * @param type2
+         * @param type1 from type
+         * @param type2 destination type
          * @return true if casting can be done, false otherwise
          */
         static bool check_cast(const Type *type1, const Type *type2);

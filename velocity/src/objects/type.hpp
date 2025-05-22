@@ -39,6 +39,7 @@ namespace spade
         Type(const Sign &sign, Kind kind, const Table<TypeParam *> &type_params, const Table<Type *> &supers, const Table<MemberSlot> &member_slots,
              ObjModule *module = null)
             : Obj(sign, null, module), kind(kind), supers(supers), type_params(type_params) {
+            this->tag = ObjTag::TYPE;
             this->member_slots = member_slots;
         }
 

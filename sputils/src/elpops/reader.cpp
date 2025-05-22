@@ -10,13 +10,12 @@ namespace spade
         elp.major_version = read_short();
         elp.minor_version = read_short();
 
-        elp.entry = read_short();
-        elp.imports = read_short();
+        elp.entry = read_utf8();
 
-        elp.constant_pool_count = read_short();
-        elp.constant_pool = vector<CpInfo>(elp.constant_pool_count);
-        for (int i = 0; i < elp.constant_pool_count; ++i) {
-            elp.constant_pool[i] = read_cp_info();
+        elp.imports_count = read_short();
+        elp.imports = vector<_UTF8>(elp.imports_count);
+        for (int i = 0; i < elp.imports_count; ++i) {
+            elp.imports[i] = read_utf8();
         }
 
         elp.modules_count = read_short();

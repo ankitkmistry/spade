@@ -12,7 +12,7 @@ namespace spade
         ElpInfo elp;
         string path;
 
-        void check_module(const ModuleInfo &module, const uint16 cp_count);
+        void check_module(const ModuleInfo &module);
 
         void check_class(const ClassInfo &klass, const uint16 cp_count);
 

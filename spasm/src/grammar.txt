@@ -12,15 +12,17 @@ global ::= PROPERTY name ':' signature NEWLINE;
 method ::= 'method' PROPERTY? signature NEWLINE
             // '@closure_start' NUMBER NEWLINE
             // '@stack_max' NUMBER NEWLINE
-            ('arg' arg)*
-            ('local' local)*
-            ('exception' exception_item)*
+            ('arg' arg
+            | 'local' local
+            | 'exception' exception_item
+            | 'match' name case* 'end')*
             line*
            'end';
 
 arg             ::= PROPERTY name ':' signature NEWLINE;
 local           ::= PROPERTY name ':' signature NEWLINE;
 exception_item  ::= LABEL '-' LABEL '->' LABEL ':' signature NEWLINE;
+case            ::= (value | '_') '->' LABEL
 line            ::= (LABEL ':' NEWLINE)? IDENTIFIER (value | name | LABEL)? NEWLINE;
 
 class ::= 'class' signature NEWLINE

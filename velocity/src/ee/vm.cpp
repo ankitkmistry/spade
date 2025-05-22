@@ -1,4 +1,10 @@
 #include "vm.hpp"
+#include "memory/memory.hpp"
+#include "objects/module.hpp"
+#include "objects/obj.hpp"
+#include "objects/type.hpp"
+#include "objects/typeparam.hpp"
+#include "utils/common.hpp"
 
 namespace spade
 {
@@ -11,7 +17,60 @@ namespace spade
         on_exit_list.push_back(fun);
     }
 
+    void SpadeVM::load_basic() {
+        if (modules.contains("basic"))
+            return;
+        const auto module = halloc_mgr<ObjModule>(manager, Sign("basic"));
+        Table<MemberSlot> members;
+
+        const auto type_any =
+                halloc_mgr<Type>(manager, Sign("basic.any"), Type::Kind::CLASS, Table<TypeParam *>{}, Table<Type *>{}, Table<MemberSlot>{}, module);
+        const Table<Type *> supers = {
+                {type_any->get_sign().to_string(), type_any}
+        };
+
+        const auto type_Enum =
+                halloc_mgr<Type>(manager, Sign("basic.Enum"), Type::Kind::CLASS, Table<TypeParam *>{}, supers, Table<MemberSlot>{}, module);
+        const auto type_Annotation =
+                halloc_mgr<Type>(manager, Sign("basic.Annotation"), Type::Kind::CLASS, Table<TypeParam *>{}, supers, Table<MemberSlot>{}, module);
+        const auto type_Throwable =
+                halloc_mgr<Type>(manager, Sign("basic.Throwable"), Type::Kind::CLASS, Table<TypeParam *>{}, supers, Table<MemberSlot>{}, module);
+
+        const auto type_bool =
+                halloc_mgr<Type>(manager, Sign("basic.bool"), Type::Kind::CLASS, Table<TypeParam *>{}, supers, Table<MemberSlot>{}, module);
+        const auto type_int =
+                halloc_mgr<Type>(manager, Sign("basic.int"), Type::Kind::CLASS, Table<TypeParam *>{}, supers, Table<MemberSlot>{}, module);
+        const auto type_float =
+                halloc_mgr<Type>(manager, Sign("basic.float"), Type::Kind::CLASS, Table<TypeParam *>{}, supers, Table<MemberSlot>{}, module);
+        const auto type_char =
+                halloc_mgr<Type>(manager, Sign("basic.char"), Type::Kind::CLASS, Table<TypeParam *>{}, supers, Table<MemberSlot>{}, module);
+        const auto type_string =
+                halloc_mgr<Type>(manager, Sign("basic.string"), Type::Kind::CLASS, Table<TypeParam *>{}, supers, Table<MemberSlot>{}, module);
+
+        const Table<TypeParam *> type_array_tps{
+                {"[T]", halloc_mgr<TypeParam>(manager, Sign("[T]"), module)}
+        };
+        const auto type_array =
+                halloc_mgr<Type>(manager, Sign("basic.array[T]"), Type::Kind::CLASS, type_array_tps, supers, Table<MemberSlot>{}, module);
+
+        members["any"] = MemberSlot(type_any);
+        members["Enum"] = MemberSlot(type_Enum);
+        members["Annotation"] = MemberSlot(type_Annotation);
+        members["Throwable"] = MemberSlot(type_Throwable);
+        members["bool"] = MemberSlot(type_bool);
+        members["int"] = MemberSlot(type_int);
+        members["float"] = MemberSlot(type_float);
+        members["char"] = MemberSlot(type_char);
+        members["string"] = MemberSlot(type_string);
+        members["array[T]"] = MemberSlot(type_array);
+
+        module->get_member_slots() = members;
+        modules["basic"] = module;
+    }
+
     int SpadeVM::start(const string &file_name, const vector<string> &args) {
+        // Load the basic types and module
+        load_basic();
         // Load the file and get the entry point
         auto entry = loader.load(file_name);
         // Complain if there is no entry point
@@ -66,7 +125,7 @@ namespace spade
             return ObjNull::value();
         Obj *obj;
         if (const auto it = modules.find(elements[0].to_string()); it != modules.end())
-            obj = modules.at(elements[0].to_string());
+            obj = it->second;
         else {
             if (strict)
                 throw IllegalAccessError(std::format("cannot find symbol: {}", sign));
@@ -115,6 +174,32 @@ namespace spade
 
     void SpadeVM::set_metadata(const string &sign, const Table<string> &meta) {
         metadata[sign] = meta;
+    }
+
+    Type *SpadeVM::get_vm_type(ObjTag tag) {
+        switch (tag) {
+            case ObjTag::NULL_:
+                return cast<Type>(get_symbol("basic.any"));
+            case ObjTag::BOOL:
+                return cast<Type>(get_symbol("basic.bool"));
+            case ObjTag::CHAR:
+                return cast<Type>(get_symbol("basic.char"));
+            case ObjTag::STRING:
+                return cast<Type>(get_symbol("basic.string"));
+            case ObjTag::INT:
+                return cast<Type>(get_symbol("basic.int"));
+            case ObjTag::FLOAT:
+                return cast<Type>(get_symbol("basic.float"));
+            case ObjTag::ARRAY:
+                return cast<Type>(get_symbol("basic.array[T]"));
+            case ObjTag::OBJECT:
+                return cast<Type>(get_symbol("basic.any"));
+            case ObjTag::MODULE:
+            case ObjTag::METHOD:
+            case ObjTag::TYPE:
+            case ObjTag::TYPE_PARAM:
+                return null;
+        }
     }
 
     bool SpadeVM::check_cast(const Type *type1, const Type *type2) {

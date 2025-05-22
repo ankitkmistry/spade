@@ -1,7 +1,55 @@
 #include "inbuilt_types.hpp"
+#include "ee/vm.hpp"
+#include "obj.hpp"
 
 namespace spade
 {
+    ObjBool::ObjBool(bool value, ObjModule *module) : ComparableObj(Sign("bool"), null, module), b(value) {
+        this->tag = ObjTag::BOOL;
+        set_type(module                                                              //
+                         ? module->get_info().manager->get_vm()->get_vm_type(tag)    //
+                         : SpadeVM::current()->get_vm_type(tag));
+    }
+
+    ObjChar::ObjChar(const char c, ObjModule *module) : ComparableObj(Sign("char"), null, module), c(c) {
+        this->tag = ObjTag::CHAR;
+        set_type(module                                                              //
+                         ? module->get_info().manager->get_vm()->get_vm_type(tag)    //
+                         : SpadeVM::current()->get_vm_type(tag));
+    }
+
+    ObjNull::ObjNull(ObjModule *module) : ComparableObj(Sign("null"), null, module) {
+        this->tag = ObjTag::NULL_;
+        set_type(module                                                              //
+                         ? module->get_info().manager->get_vm()->get_vm_type(tag)    //
+                         : SpadeVM::current()->get_vm_type(tag));
+    }
+
+    ObjString::ObjString(string str, ObjModule *module) : ComparableObj(Sign("string"), null, module), str(str) {
+        this->tag = ObjTag::STRING;
+        set_type(module                                                              //
+                         ? module->get_info().manager->get_vm()->get_vm_type(tag)    //
+                         : SpadeVM::current()->get_vm_type(tag));
+    }
+
+    ObjString::ObjString(const uint8 *bytes, uint16 len, ObjModule *module) : ComparableObj(Sign("string"), null, module), str() {
+        this->tag = ObjTag::STRING;
+        set_type(module                                                              //
+                         ? module->get_info().manager->get_vm()->get_vm_type(tag)    //
+                         : SpadeVM::current()->get_vm_type(tag));
+
+        str = string(bytes, bytes + len);
+    }
+
+    ObjArray::ObjArray(uint16 length, ObjModule *module) : ComparableObj(Sign("array"), null, module), length(length) {
+        this->tag = ObjTag::ARRAY;
+        set_type(module                                                              //
+                         ? module->get_info().manager->get_vm()->get_vm_type(tag)    //
+                         : SpadeVM::current()->get_vm_type(tag));
+
+        array = length == 0 ? null : new Obj *[length] { null };
+    }
+
     int32 ObjBool::compare(const Obj *rhs) const {
         if (!is<const ObjBool>(rhs))
             return 0;
@@ -12,8 +60,8 @@ namespace spade
         manager = manager == null ? MemoryManager::current() : manager;
         if (manager == null)
             return null;
-        static std::unordered_map<MemoryManager *, ObjBool *> trues = {};
-        static std::unordered_map<MemoryManager *, ObjBool *> falses = {};
+        static std::unordered_map<MemoryManager *, ObjBool *> trues;
+        static std::unordered_map<MemoryManager *, ObjBool *> falses;
         auto &table = (b ? trues : falses);
         if (const auto it = table.find(manager); it != table.end())
             return it->second;
@@ -36,14 +84,10 @@ namespace spade
         manager = manager == null ? MemoryManager::current() : manager;
         if (manager == null)
             return null;
-        static std::unordered_map<MemoryManager *, ObjNull *> nulls = {};
+        static std::unordered_map<MemoryManager *, ObjNull *> nulls;
         if (const auto it = nulls.find(manager); it != nulls.end())
             return it->second;
         return nulls[manager] = halloc_mgr<ObjNull>(manager);
-    }
-
-    ObjString::ObjString(const uint8 *bytes, uint16 len, ObjModule *module) : ComparableObj(Sign("string"), null, module), str() {
-        str = string(bytes, bytes + len);
     }
 
     int32 ObjString::compare(const Obj *rhs) const {

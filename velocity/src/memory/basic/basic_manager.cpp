@@ -3,54 +3,69 @@
 
 namespace spade::basic
 {
+    BasicMemoryManager::~BasicMemoryManager() {
+        for (auto node = head; node;) {
+            const auto next = node->next;
+            delete (char *) node->data;
+            delete node;
+            node = next;
+        }
+    }
+
     void *BasicMemoryManager::allocate(size_t size) {
-        auto p = new char[size]{0};
-        return p;
+        cur_alloc_size = size;
+        allocation_size += size;
+        return new char[size]{0};
     }
 
     void BasicMemoryManager::post_allocation(Obj *obj) {
         if (head == null || last == null) {
-            // FIXME: Memory is lost here (by valgrind) 
             auto node = new LNode;
+
+            node->size = cur_alloc_size;
+            cur_alloc_size = 0;
+
             node->data = obj;
             head = node;
             last = node;
         } else {
             auto node = new LNode;
+
+            node->size = cur_alloc_size;
+            cur_alloc_size = 0;
+
             node->data = obj;
             last->next = node;
-            node->prev = last;
             last = node;
         }
     }
 
     void BasicMemoryManager::deallocate(void *pointer) {
-        for (auto node = head; node->next; node = node->next) {
+        LNode *prev = null;
+        for (auto node = head; node; node = node->next) {
             if (node->data == pointer) {
+                free_size += node->size;
                 if (head == node && node == last) {
                     head = last = null;
                     delete node;
                 } else if (node == head) {
                     head = node->next;
-                    head->prev = null;
                     delete node;
                 } else if (node == last) {
-                    last = node->prev;
-                    last->next = null;
+                    prev->next = null;
                     delete node;
                 } else {
-                    node->prev->next = node->next;
-                    node->next->prev = node->prev;
+                    prev->next = node->next;
                     delete node;
                 }
                 break;
             }
+            prev = node;
         }
         delete (char *) pointer;
     }
 
     void BasicMemoryManager::collect_garbage() {
-        BasicCollector collector{this};
-        collector.gc();
+        BasicCollector(this).gc();
     }
 }    // namespace spade::basic

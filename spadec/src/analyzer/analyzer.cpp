@@ -12,8 +12,6 @@
 #include "parser/printer.hpp"
 #include "scope.hpp"
 #include "scope_tree.hpp"
-#include "spimp/error.hpp"
-#include "spimp/utils.hpp"
 #include "symbol_path.hpp"
 #include "utils/error.hpp"
 

@@ -2,7 +2,6 @@
 #include "lexer/token.hpp"
 #include "parser/ast.hpp"
 #include "scope.hpp"
-#include "spimp/utils.hpp"
 
 #define get_parent_scope() (scope_stack.at(scope_stack.size() - 2))
 

@@ -60,6 +60,10 @@ namespace spade
             return frame_template;
         }
 
+        FrameTemplate &get_frame_template() {
+            return frame_template;
+        }
+
         const Table<TypeParam *> &get_type_params() const {
             return type_params;
         }

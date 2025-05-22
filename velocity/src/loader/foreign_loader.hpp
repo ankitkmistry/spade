@@ -101,7 +101,7 @@ class Library {
 
 class ForeignLoader {
   private:
-    inline static spade::Table<Library *> libraries = {};
+    inline static spade::Table<Library *> libraries;
 
   public:
     static Library *load_simple_library(string path);

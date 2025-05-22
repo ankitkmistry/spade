@@ -9,7 +9,7 @@ namespace spade
         double val;
 
       public:
-        ObjFloat(double val, ObjModule *module = null) : ObjNumber(Sign("float"), module), val(val) {}
+        ObjFloat(double val, ObjModule *module = null);
 
         Obj *copy() const override {
             // Immutable state

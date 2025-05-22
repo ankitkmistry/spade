@@ -11,7 +11,7 @@ namespace spade
      * Representation of a vm thread
      */
     class Thread {
-        inline static std::unordered_map<std::thread::id, Thread *> threads = {};
+        inline static std::unordered_map<std::thread::id, Thread *> threads;
 
       public:
         enum Status {

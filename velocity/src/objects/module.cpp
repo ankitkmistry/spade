@@ -3,13 +3,12 @@
 
 namespace spade
 {
-    ObjModule::ObjModule(const Sign &sign, const fs::path &path, const vector<Obj *> &constant_pool, const Table<MemberSlot> &member_slots)
-        : Obj(sign, null, null), path(path), constant_pool(constant_pool) {
+    ObjModule::ObjModule(const Sign &sign, ObjModule *current) : Obj(sign, null, null) {
+        this->tag = ObjTag::MODULE;
         this->member_slots = member_slots;
     }
 
     Obj *ObjModule::copy() const {
-        // TODO: fix this
         return (Obj *) this;
     }
 
@@ -22,11 +21,10 @@ namespace spade
     }
 
     ObjModule *ObjModule::current() {
-        if (auto thread = Thread::current(); thread != null) {
-            auto state = thread->get_state();
-            if (auto frame = state->get_frame(); frame > state->get_call_stack()) {
+        if (const auto thread = Thread::current()) {
+            const auto state = thread->get_state();
+            if (const auto frame = state->get_frame(); frame > state->get_call_stack())
                 return frame->get_method()->get_module();
-            }
         }
         return null;
     }

@@ -1,9 +1,18 @@
 #include <cmath>
 
 #include "float.hpp"
+#include "module.hpp"
+#include "ee/vm.hpp"
 
 namespace spade
 {
+    ObjFloat::ObjFloat(double val, ObjModule *module) : ObjNumber(Sign("float"), module), val(val) {
+        this->tag = ObjTag::FLOAT;
+        set_type(module                                                              //
+                         ? module->get_info().manager->get_vm()->get_vm_type(tag)    //
+                         : SpadeVM::current()->get_vm_type(tag));
+    }
+
     bool ObjFloat::truth() const {
         return val != 0.0;
     }

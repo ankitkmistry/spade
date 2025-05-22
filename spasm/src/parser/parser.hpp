@@ -1,10 +1,7 @@
 #pragma once
 
 #include "../lexer/lexer.hpp"
-#include "elpops/elpdef.hpp"
 #include "context.hpp"
-#include <concepts>
-#include <memory>
 
 namespace spasm
 {

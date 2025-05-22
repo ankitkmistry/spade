@@ -88,11 +88,9 @@ namespace spade
     }
 
     Exception ExceptionTable::get_target(uint32 pc, const Type *type) const {
-        for (const auto &exception: exceptions) {
-            if (exception.get_from() <= pc && pc < exception.get_to() && exception.get_type() == type) {
+        for (const auto &exception: exceptions)
+            if (exception.get_from() <= pc && pc < exception.get_to() && exception.get_type() == type)
                 return exception;
-            }
-        }
         return Exception::NO_EXCEPTION();
     }
 
@@ -106,11 +104,9 @@ namespace spade
     }
 
     uint64 LineNumberTable::get_source_line(uint32 byte_line) const {
-        for (const auto line_info: line_infos) {
-            if (line_info.byteStart <= byte_line && byte_line < line_info.byteEnd) {
+        for (const auto line_info: line_infos)
+            if (line_info.byteStart <= byte_line && byte_line < line_info.byteEnd)
                 return line_info.sourceLine;
-            }
-        }
         throw IllegalAccessError(std::format("no source line mapping is present for byte line {}", byte_line));
     }
 

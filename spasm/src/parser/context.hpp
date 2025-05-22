@@ -1,13 +1,12 @@
 #pragma once
 
 #include <limits>
-#include <unordered_map>
+#include <unordered_set>
 #include <variant>
 
 #include "../utils/common.hpp"
 #include "../lexer/token.hpp"
 #include "boost/functional/hash.hpp"
-#include "elpops/elpdef.hpp"
 
 namespace spasm
 {
@@ -71,6 +70,31 @@ namespace spasm
         string type;
     };
 
+    class MatchContext {
+        std::unordered_map<cpidx, std::shared_ptr<Token>> cases;
+        std::shared_ptr<Token> default_label;
+
+      public:
+        bool add_case(cpidx value, const std::shared_ptr<Token> label) {
+            if (const auto it = cases.find(value); it != cases.end())
+                return false;
+            cases[value] = label;
+            return true;
+        }
+
+        const std::unordered_map<cpidx, std::shared_ptr<Token>> &get_cases() const {
+            return cases;
+        }
+
+        std::shared_ptr<Token> get_default_label() const {
+            return default_label;
+        }
+
+        void set_default_label(const std::shared_ptr<Token> &label) {
+            default_label = label;
+        }
+    };
+
     enum class ContextType { MODULE, METHOD, CLASS };
 
     class Context {
@@ -87,18 +111,34 @@ namespace spasm
     };
 
     class ClassContext : public Context {
+        std::unordered_set<string> type_params;
+
       public:
         ClassContext() : Context(ContextType::CLASS) {}
+
+        void add_type_param(const Sign &sign) {
+            type_params.insert(sign.to_string());
+        }
+
+        bool has_type_param(const Sign &sign) {
+            return type_params.contains(sign.to_string());
+        }
     };
 
     class MethodContext : public Context {
         uint32_t cur_lineno = 0;
+
         std::unordered_map<string, decltype(std::declval<MethodInfo>().args_count)> args;
         std::unordered_map<string, decltype(std::declval<MethodInfo>().locals_count)> locals;
+        std::unordered_set<string> type_params;
+
         vector<uint8_t> code;
         std::unordered_map<string, uint32_t> labels;
         std::unordered_map<string, vector<std::pair<std::shared_ptr<Token>, uint32_t>>> unresolved_labels;
+
         std::vector<uint32_t> linenos;
+
+        std::unordered_map<string, std::pair<size_t, std::shared_ptr<MatchContext>>> matches;
 
       public:
         MethodContext() : Context(ContextType::METHOD) {}
@@ -109,30 +149,42 @@ namespace spasm
         MethodContext &operator=(MethodContext &&) = default;
         ~MethodContext() = default;
 
+        bool add_match(const string &name, const std::shared_ptr<MatchContext> &match);
+        std::optional<size_t> get_match(const string &name) const;
+        vector<std::pair<string, std::shared_ptr<MatchContext>>> get_matches() const;
+
         bool add_arg(const string &name) {
-            if (auto it = args.find(name); it != args.end())
+            if (const auto it = args.find(name); it != args.end())
                 return false;
             args[name] = args.size();
             return true;
         }
 
         bool add_local(const string &name) {
-            if (auto it = locals.find(name); it != locals.end())
+            if (const auto it = locals.find(name); it != locals.end())
                 return false;
             locals[name] = locals.size();
             return true;
         }
 
         std::optional<decltype(args)::value_type::second_type> get_arg(const string &name) const {
-            if (auto it = args.find(name); it != args.end())
+            if (const auto it = args.find(name); it != args.end())
                 return args.at(name);
             return std::nullopt;
         }
 
         std::optional<decltype(locals)::value_type::second_type> get_local(const string &name) const {
-            if (auto it = locals.find(name); it != locals.end())
+            if (const auto it = locals.find(name); it != locals.end())
                 return locals.at(name);
             return std::nullopt;
+        }
+
+        void add_type_param(const Sign &sign) {
+            type_params.insert(sign.to_string());
+        }
+
+        bool has_type_param(const Sign &sign) {
+            return type_params.contains(sign.to_string());
         }
 
         void set_line(uint32_t lineno) {
@@ -153,35 +205,14 @@ namespace spasm
             return code;
         }
 
-        bool define_label(const string &label) {
-            if (auto it = labels.find(label); it != labels.end())
-                return false;
-            labels[label] = code.size();
-            return true;
-        }
-
-        std::optional<uint32_t> get_label_pos(const string &label) const {
-            if (auto it = labels.find(label); it != labels.end())
-                return labels.at(label);
-            return std::nullopt;
-        }
+        bool define_label(const string &label);
+        std::optional<uint32_t> get_label_pos(const string &label) const;
 
         uint16_t patch_jump_to(const std::shared_ptr<Token> &label) {
             return patch_jump_to(label, code.size() & std::numeric_limits<uint32_t>::max());
         }
 
-        uint16_t patch_jump_to(const std::shared_ptr<Token> &label, const uint32_t current_pos) {
-            if (const auto it = labels.find(label->get_text()); it != labels.end()) {
-                const uint32_t label_pos = it->second;
-                if (current_pos > label_pos)
-                    return -(current_pos + 2 - label_pos);
-                else
-                    return label_pos - current_pos - 2;
-            }
-            unresolved_labels[label->get_text()].emplace_back(label, current_pos);
-            return 0;
-        }
-
+        uint16_t patch_jump_to(const std::shared_ptr<Token> &label, const uint32_t current_pos);
         vector<std::shared_ptr<Token>> resolve_labels();
 
         LineInfo get_line_info() const;

@@ -12,8 +12,10 @@ namespace spade
       protected:
         SpadeVM *vm;
 
-      public:
         MemoryManager(SpadeVM *vm) : vm(vm) {}
+
+      public:
+        virtual ~MemoryManager() {}
 
         /**
          * Allocates a block of memory

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "objects/module.hpp"
-#include "spinfo/sign.hpp"
 #include "utils/common.hpp"
 #include "callable/method.hpp"
 
@@ -25,9 +24,9 @@ namespace spade
         /// List of all loaded modules in the form of [path, modules]
         std::unordered_map<fs::path, vector<ObjModule *>> loaded_mods;
         /// Pool of resolved references
-        std::unordered_map<Sign, Type *> reference_pool = {};
+        std::unordered_map<Sign, Type *> reference_pool;
         /// Pool of unresolved references
-        std::unordered_map<Sign, Type *> unresolved = {};
+        std::unordered_map<Sign, Type *> unresolved;
         // Pointer to current module
         ObjModule *cur_mod = null;
         // List of post processing callbacks
@@ -65,8 +64,9 @@ namespace spade
         Obj *make_obj(const Sign &type_sign, const Sign &obj_sign, Type *type);
         fs::path resolve_path(const fs::path &from_path, const fs::path &path);
 
-        void begin_scope(const string &name) {
-            sign_stack.emplace_back(sign_stack.empty() ? name : sign_stack.back() | name);
+        void begin_scope(const string &name, bool module = false) {
+            sign_stack.emplace_back(sign_stack.empty() ? name
+                                                       : sign_stack.back() | SignElement(name, module ? Sign::Kind::MODULE : Sign::Kind::CLASS));
         }
 
         Sign current_sign() const {

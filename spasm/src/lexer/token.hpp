@@ -23,10 +23,12 @@ namespace spasm
         ARG,
         LOCAL,
         EXCEPTION,
+        MATCH,
         METHOD,
         CLASS,
         FIELD,
         END,
+        UNDERSCORE,
 
         // Other
         INTEGER,
@@ -151,6 +153,8 @@ namespace spasm
                     return "local";
                 case TokenType::EXCEPTION:
                     return "exception";
+                case TokenType::MATCH:
+                    return "match";
                 case TokenType::METHOD:
                     return "method";
                 case TokenType::CLASS:
@@ -159,6 +163,8 @@ namespace spasm
                     return "field";
                 case TokenType::END:
                     return "end";
+                case TokenType::UNDERSCORE:
+                    return "_";
                 case TokenType::INTEGER:
                     return "<integer>";
                 case TokenType::FLOAT:
@@ -228,6 +234,8 @@ namespace spasm
                     return "LOCAL";
                 case TokenType::EXCEPTION:
                     return "EXCEPTION";
+                case TokenType::MATCH:
+                    return "MATCH";
                 case TokenType::METHOD:
                     return "METHOD";
                 case TokenType::CLASS:
@@ -236,6 +244,8 @@ namespace spasm
                     return "FIELD";
                 case TokenType::END:
                     return "END";
+                case TokenType::UNDERSCORE:
+                    return "UNDERSCORE";
                 case TokenType::INTEGER:
                     return "INTEGER";
                 case TokenType::FLOAT:
