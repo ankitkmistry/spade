@@ -1,5 +1,12 @@
+#include <boost/functional/hash.hpp>
+#include <cstddef>
+
 #include "table.hpp"
+#include "boost/container_hash/hash_fwd.hpp"
+#include "objects/inbuilt_types.hpp"
 #include "objects/int.hpp"
+#include "spimp/error.hpp"
+#include "spimp/utils.hpp"
 #include "utils/exceptions.hpp"
 
 namespace spade
@@ -110,16 +117,118 @@ namespace spade
         throw IllegalAccessError(std::format("no source line mapping is present for byte line {}", byte_line));
     }
 
-    uint32 MatchTable::perform(Obj *value) const {
-        // Info: improve this to perform fast matching in case of integer values
-        if (is<ObjInt>(value)) {
-            const auto val = cast<ObjInt>(value)->value();
-            return cases[val].get_location();
+    bool MatchTable::ObjEqual::operator()(Obj *lhs, Obj *rhs) const {
+        if (lhs->get_tag() != rhs->get_tag())
+            return false;
+        switch (lhs->get_tag()) {
+            case ObjTag::NULL_:
+                return true;
+            case ObjTag::BOOL:
+                return lhs->truth() == rhs->truth();
+            case ObjTag::CHAR:
+            case ObjTag::STRING:
+            case ObjTag::INT:
+            case ObjTag::FLOAT:
+                return lhs->to_string() == rhs->to_string();
+            case ObjTag::ARRAY: {
+                const auto lhs_arr = cast<ObjArray>(lhs);
+                const auto rhs_arr = cast<ObjArray>(rhs);
+                if (lhs_arr->count() != rhs_arr->count())
+                    return false;
+                for (size_t i = 0; i < lhs_arr->count(); i++) {
+                    if (!MatchTable::ObjEqual()(lhs_arr->get(i), rhs_arr->get(i)))
+                        return false;
+                }
+                return true;
+            }
+            case ObjTag::OBJECT:
+            case ObjTag::MODULE:
+            case ObjTag::METHOD:
+            case ObjTag::TYPE:
+            case ObjTag::TYPE_PARAM:
+                return lhs == rhs;
         }
-        for (const auto kase: cases) {
-            if (kase.get_value() == value)
-                return kase.get_location();
+        throw Unreachable();
+    }
+
+    void MatchTable::ObjHash::hash_combine(size_t &seed, ObjArray *arr) const {
+        for (size_t i = 0; i < arr->count(); i++) {
+            const auto obj = arr->get(i);
+            switch (obj->get_tag()) {
+                case ObjTag::NULL_:
+                    break;
+                case ObjTag::BOOL:
+                    boost::hash_combine(seed, obj->truth());
+                    break;
+                case ObjTag::CHAR:
+                case ObjTag::STRING:
+                case ObjTag::INT:
+                case ObjTag::FLOAT:
+                    boost::hash_combine(seed, obj->to_string());
+                    break;
+                case ObjTag::ARRAY:
+                    hash_combine(seed, cast<ObjArray>(obj));
+                    break;
+                case ObjTag::OBJECT:
+                case ObjTag::MODULE:
+                case ObjTag::METHOD:
+                case ObjTag::TYPE:
+                case ObjTag::TYPE_PARAM:
+                    boost::hash_combine(seed, obj);
+                    break;
+            }
+        }
+    }
+
+    size_t MatchTable::ObjHash::operator()(Obj *obj) const {
+        size_t seed = 0;
+        boost::hash_combine(seed, obj->get_tag());
+        switch (obj->get_tag()) {
+            case ObjTag::NULL_:
+                break;
+            case ObjTag::BOOL:
+                boost::hash_combine(seed, obj->truth());
+                break;
+            case ObjTag::CHAR:
+            case ObjTag::STRING:
+            case ObjTag::INT:
+            case ObjTag::FLOAT:
+                boost::hash_combine(seed, obj->to_string());
+                break;
+            case ObjTag::ARRAY:
+                hash_combine(seed, cast<ObjArray>(obj));
+                break;
+            case ObjTag::OBJECT:
+            case ObjTag::MODULE:
+            case ObjTag::METHOD:
+            case ObjTag::TYPE:
+            case ObjTag::TYPE_PARAM:
+                boost::hash_combine(seed, obj);
+                break;
+        }
+        return seed;
+    }
+
+    MatchTable::MatchTable(const vector<Case> &cases, uint32 default_location) : default_location(default_location) {
+        for (const auto &kase: cases) {
+            table[kase.get_value()] = kase.get_location();
+        }
+    }
+
+    // #define NAIVE_MATCH_PERFORM
+
+    uint32 MatchTable::perform(Obj *value) const {
+#ifdef NAIVE_MATCH_PERFORM
+        // Info: improve this to perform fast matching in case of integer values
+        for (const auto &[case_value, location]: table) {
+            if (MatchTable::ObjEqual()(value, case_value))
+                return location;
         }
         return default_location;
+#else
+        if (const auto it = table.find(value); it != table.end())
+            return it->second;
+        return default_location;
+#endif
     }
 }    // namespace spade

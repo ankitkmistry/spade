@@ -1,6 +1,8 @@
 #pragma once
 
+#include "objects/inbuilt_types.hpp"
 #include "objects/obj.hpp"
+#include <cstddef>
 
 namespace spade
 {
@@ -425,11 +427,20 @@ namespace spade
         friend class BasicCollector;
 
       private:
-        vector<Case> cases;
+        struct ObjEqual {
+            bool operator()(Obj *lhs, Obj *rhs) const;
+        };
+
+        struct ObjHash {
+            void hash_combine(size_t &seed, ObjArray *arr) const;
+            size_t operator()(Obj *obj) const;
+        };
+
+        std::unordered_map<Obj *, uint32, ObjHash, ObjEqual> table;
         uint32 default_location;
 
       public:
-        MatchTable(const vector<Case> &cases, uint32 default_location) : cases(cases), default_location(default_location) {}
+        MatchTable(const vector<Case> &cases, uint32 default_location);
 
         MatchTable(const MatchTable &other) = default;
         MatchTable(MatchTable &&other) noexcept = default;
@@ -438,24 +449,21 @@ namespace spade
         ~MatchTable() = default;
 
         /**
-         * @return The array of check cases
-         */
-        const vector<Case> &get_cases() const {
-            return cases;
-        }
-
-        /**
          * @return The default location of the check table <i>(starting of the default block)</i>
          */
         uint32 get_default_location() const {
             return default_location;
         }
 
+        std::unordered_map<Obj *, uint32, ObjHash, ObjEqual> get_table() const {
+            return table;
+        }
+
         /**
          * @return The number of the check cases
          */
         size_t count() const {
-            return cases.size();
+            return table.size();
         }
 
         /**

@@ -94,8 +94,8 @@ namespace spade
                 for (size_t i = 0; i < locals.count(); i++) reify_non_rec(locals.get(i), old_tps, new_tps);
                 // Reify the matches
                 for (const auto &match: frame.get_matches()) {
-                    for (const auto &kase: match.get_cases()) {
-                        reify_non_rec(kase.get_value(), old_tps, new_tps);
+                    for (const auto &[value, _]: match.get_table()) {
+                        reify_non_rec(value, old_tps, new_tps);
                     }
                 }
                 // Reify the members as well

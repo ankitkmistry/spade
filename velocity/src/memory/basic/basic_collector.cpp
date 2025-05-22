@@ -70,11 +70,10 @@ namespace spade::basic
             mark(obj);
         }
         for (const auto &match: frame->get_matches()) {
-            // mark every check
-            for (const auto &kase: match.get_cases()) {
+            // mark every match
+            for (const auto &[value, _]: match.get_table()) {
                 // mark every case value
-                auto obj = kase.get_value();
-                mark(obj);
+                mark(value);
             }
         }
         mark(frame->get_method());
@@ -101,39 +100,36 @@ namespace spade::basic
                 });
             } else if (is<ObjMethod>(material)) {
                 auto method = cast<ObjMethod>(material);
-                const FrameTemplate &frameTemplate = method->get_frame_template();
+                const FrameTemplate &frame_template = method->get_frame_template();
                 // mark args
-                for (int i = 0; i < frameTemplate.get_args().count(); ++i) {
-                    const auto &arg = frameTemplate.get_args().get_arg(i);
+                for (int i = 0; i < frame_template.get_args().count(); ++i) {
+                    const auto &arg = frame_template.get_args().get_arg(i);
                     const auto obj = arg.get_value();
                     mark(obj);
                 }
                 // mark locals and closures
-                for (int i = 0; i < frameTemplate.get_locals().count(); ++i) {
-                    if (i < frameTemplate.get_locals().get_closure_start()) {
-                        const auto &local = frameTemplate.get_locals().get_local(i);
+                for (int i = 0; i < frame_template.get_locals().count(); ++i) {
+                    if (i < frame_template.get_locals().get_closure_start()) {
+                        const auto &local = frame_template.get_locals().get_local(i);
                         const auto obj = local.get_value();
                         mark(obj);
                     } else {
-                        const auto closure = frameTemplate.get_locals().get_closure(i);
+                        const auto closure = frame_template.get_locals().get_closure(i);
                         const auto obj = closure->get_value();
                         mark(obj);
                     }
                 }
                 // mark exceptions
-                for (int i = 0; i < frameTemplate.get_exceptions().count(); ++i) {
-                    const auto &exception = frameTemplate.get_exceptions().get(i);
+                for (int i = 0; i < frame_template.get_exceptions().count(); ++i) {
+                    const auto &exception = frame_template.get_exceptions().get(i);
                     const auto obj = exception.get_type();
                     mark(obj);
                 }
                 // mark matches
-                for (const auto &match: frameTemplate.get_matches()) {
-                    for (const auto &kase: match.get_cases()) {
+                for (const auto &match: frame_template.get_matches())
+                    for (const auto &[value, _]: match.get_table())
                         // mark every case value
-                        auto obj = kase.get_value();
-                        mark(obj);
-                    }
-                }
+                        mark(value);
                 // mark type params
                 for (const auto &[name, typeParam]: method->get_type_params()) {
                     mark(typeParam);
