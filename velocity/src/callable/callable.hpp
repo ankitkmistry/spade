@@ -18,7 +18,7 @@ namespace spade
         ObjCallable(const Sign &sign, Kind kind, Type *type, ObjModule *module = null) : Obj(sign, type, module), kind(kind) {}
 
         /**
-         * Calls this method with \p args on the current thread
+         * Calls this method with @p args on the current thread
          * @throws IllegalAccessError if the function is called outside a vm thread
          * @param method the method to be called
          * @param args arguments of the method
@@ -26,7 +26,7 @@ namespace spade
         virtual void call(const vector<Obj *> &args) = 0;
 
         /**
-         * Calls this method with \p args on the current thread
+         * Calls this method with @p args on the current thread
          * @throws IllegalAccessError if the function is called outside a vm thread
          * @param method the method to be called
          * @param args pointer to the args on the stack
@@ -34,10 +34,10 @@ namespace spade
         virtual void call(Obj **args) = 0;
 
         /**
-         * Calls this method with \p args on the current thread.
+         * Calls this method with @p args on the current thread.
          * Invokes the VM, completes the execution of
          * the function and returns the return value.
-         * In case the function returns void, \c ObjNull is returned
+         * In case the function returns void, @c ObjNull is returned
          * @throws IllegalAccessError if the function is called outside a vm thread
          * @param args the method to be called
          * @return the return value of the function

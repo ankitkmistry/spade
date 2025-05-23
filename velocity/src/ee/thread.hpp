@@ -1,12 +1,14 @@
 #pragma once
 
 #include <thread>
-#include "../utils/common.hpp"
+
+#include "utils/common.hpp"
 #include "state.hpp"
 
 namespace spade
 {
     class SpadeVM;
+
     /**
      * Representation of a vm thread
      */
@@ -37,7 +39,17 @@ namespace spade
         int exit_code = 0;
 
       public:
-        Thread(SpadeVM *vm, const std::function<void(Thread *)> &fun);
+        /**
+         * Constructs a new Thread object and blocks until the thread is started.
+         * This is because the global threads table should be updated before @p fun is called.
+         * @p pre_fun is also called before @p fun is called.
+         * This is necessary to ensure that @p fun is able to function normally and does not get
+         * involved in a data race
+         * @param vm The vm of the thread
+         * @param fun The primary function to execute
+         * @param pre_fun The function to execute before @p fun is called
+         */
+        Thread(SpadeVM *vm, const std::function<void(Thread *)> &fun, const std::function<void()> &pre_fun = [] {});
 
         /**
          * @return The exitcode of the thread

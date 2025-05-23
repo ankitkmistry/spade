@@ -243,7 +243,7 @@ namespace spade
 
       public:
         /**
-         * Creates a deep copy of \p obj.
+         * Creates a deep copy of @p obj.
          * This function is more safe than Obj::copy as this prevents
          * unnecessary copies of types, modules and callable objects.
          * The user must always use this function to create safe copies of objects.
@@ -399,8 +399,8 @@ namespace spade
         virtual Obj *get_member(const string &name) const;
 
         /**
-         * Sets the member of this object with \p name and sets it to \p value.
-         * If a member with \p name does not exist then creates a new member and sets it to \p value
+         * Sets the member of this object with @p name and sets it to @p value.
+         * If a member with @p name does not exist then creates a new member and sets it to @p value
          * @param name name of the member
          * @param value value to be set to
          */

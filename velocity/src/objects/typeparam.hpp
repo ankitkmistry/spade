@@ -30,7 +30,7 @@ namespace spade
         }
 
         /**
-         * Changes the type parameter to the specified \p type
+         * Changes the type parameter to the specified @p type
          * @param type the final type
          */
         void set_placeholder(Type *type);

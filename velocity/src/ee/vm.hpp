@@ -70,12 +70,12 @@ namespace spade
         /**
          * @throws IllegalAccessError if the symbol cannot be found
          * @param sign the signature of the symbol
-         * @return the value of the symbol corresponding to the signature \p sign
+         * @return the value of the symbol corresponding to the signature @p sign
          */
         Obj *get_symbol(const string &sign, bool strict = true) const;
 
         /**
-         * Set the value of the symbol corresponding to the signature \p sign
+         * Set the value of the symbol corresponding to the signature @p sign
          * @throws IllegalAccessError if the symbol cannot be found
          * @param sign the signature of the symbol
          * @param val the value
@@ -84,19 +84,19 @@ namespace spade
 
         /**
          * @param sign the sign of the symbol
-         * @return the metadata of the symbol corresponding to \p sign
+         * @return the metadata of the symbol corresponding to @p sign
          */
         const Table<string> &get_metadata(const string &sign);
 
         /**
-         * Sets the metadata of the symbol corresponding to \p sign
+         * Sets the metadata of the symbol corresponding to @p sign
          * @param sign the sign of the symbol
          * @param meta the metadata to be set
          */
         void set_metadata(const string &sign, const Table<string> &meta);
 
         /**
-         * Returns the vm standard type for \p tag or null if the type is unspecified
+         * Returns the vm standard type for @p tag or null if the type is unspecified
          * @exception IllegalAccessError if the standard types are not loaded yet
          * @param tag the kind of object to get the standard type for
          * @return Type* the standard type

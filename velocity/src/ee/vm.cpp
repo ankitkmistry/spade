@@ -95,17 +95,21 @@ namespace spade
     }
 
     int SpadeVM::start(ObjMethod *entry, ObjArray *args) {
-        Thread thread(this, [&](const auto thr) {
-            thr->set_status(Thread::RUNNING);
-            try {
-                entry->call(args ? vector<Obj *>{args} : vector<Obj *>{});
-                run(thr);
-            } catch (const SpadeError &error) {
-                std::cout << "VM Error: " << error.what() << std::endl;
-                return;
-            }
-        });
-        threads.insert(&thread);
+        Thread thread{this,
+                      [&](const auto thr) {
+                          thr->set_status(Thread::RUNNING);
+                          try {
+                              entry->call(args ? vector<Obj *>{args} : vector<Obj *>{});
+                              run(thr);
+                          } catch (const SpadeError &error) {
+                              std::cout << "VM Error: " << error.what() << std::endl;
+                              return;
+                          }
+                      },
+                      [&] {
+                          // Insert thread into vm threads before the thread starts
+                          threads.insert(&thread);
+                      }};
         thread.join();
 
         threads.erase(&thread);

@@ -269,7 +269,7 @@ namespace spade
 
         /**
          * Sets the value of the local at index i to val.
-         * If \p setAsThisRef is true, marks the local as this
+         * If @p setAsThisRef is true, marks the local as this
          * @param i the local index
          * @param val value to be changed
          */
