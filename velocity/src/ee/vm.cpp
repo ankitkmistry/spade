@@ -1,4 +1,5 @@
 #include "vm.hpp"
+#include "jit/jit.hpp"
 #include "memory/memory.hpp"
 #include "objects/module.hpp"
 #include "objects/obj.hpp"
@@ -84,7 +85,10 @@ namespace spade
             } else
                 throw runtime_error("entry point must have zero or one argument (basic.array): " + entry->get_sign().to_string());
             // Enter execution loop
-            run(thread);
+            // run(thread);
+            // Try to compile to native
+            jit_test(entry);
+
         } catch (const SpadeError &error) {
             std::cout << "VM Error: " << error.what() << std::endl;
             exit_code = 1;

@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "ee/vm.hpp"
+#include "jit/jit.hpp"
 #include "memory/basic/basic_manager.hpp"
 
 using namespace spade;
@@ -30,11 +31,7 @@ int run_vm() {
         std::cout << "Memory used: " << manager.get_used_size() << std::endl;
 
         SpadeVM vm(&manager);
-#if defined(OS_LINUX)
-        vm.start("../velocity/res/hello.elp", {});
-#elif defined(OS_WINDOWS)
-        vm.start("..\\velocity\\res\\hello.elp", {}, true);
-#endif
+        vm.start("../velocity/res/hello.elp", {}, true);
         std::cout << "Memory used: " << manager.get_used_size() << std::endl;
         return vm.get_exit_code();
     } catch (const SpadeError &error) {

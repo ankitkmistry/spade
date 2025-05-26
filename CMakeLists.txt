@@ -5,15 +5,15 @@ cmake_minimum_required (VERSION 3.15...3.31)
 
 # Enable Hot Reload for MSVC compilers if supported.
 if (POLICY CMP0141)
-  cmake_policy (SET CMP0141 NEW)
-  set (CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
+    cmake_policy (SET CMP0141 NEW)
+    set (CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
 endif ()
 
 # Project description and versioning.
 project (spade
-  DESCRIPTION "spade: A beautiful programming language"
-  VERSION 1.0
-  LANGUAGES CXX)
+    DESCRIPTION "spade: A beautiful programming language"
+    VERSION 1.0
+    LANGUAGES CXX)
 
 # Set C++ standard to C++20.
 set (CMAKE_CXX_STANDARD 20)
@@ -21,6 +21,10 @@ set (CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Set cmake module path
 set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+set (LLVM_DIR thirdparty/llvm/lib/cmake/llvm)
+
+# Set up llvm
+find_package (LLVM REQUIRED CONFIG)
 
 # Set up boost
 set (BOOST_ROOT "D:\\Programming\\Libraries\\boost_1_87_0")
@@ -30,19 +34,19 @@ set (Boost_USE_STATIC_RUNTIME OFF)
 # Set up cpptrace
 include (FetchContent)
 FetchContent_Declare (
-  cpptrace
-  GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
-  GIT_TAG v0.8.3 # <HASH or TAG>
+    cpptrace
+    GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
+    GIT_TAG v0.8.3 # <HASH or TAG>
 )
 FetchContent_MakeAvailable (cpptrace)
 
 # Set up argparse
-include(FetchContent)
-FetchContent_Declare(
+include (FetchContent)
+FetchContent_Declare (
     argparse
     GIT_REPOSITORY https://github.com/p-ranav/argparse.git
 )
-FetchContent_MakeAvailable(argparse)
+FetchContent_MakeAvailable (argparse)
 
 # Target: sputils
 # It is the central utility library used by all other targets
@@ -50,21 +54,16 @@ file (GLOB_RECURSE SPUTILS_SRCS sputils/src/*.cpp)
 file (GLOB_RECURSE SPUTILS_INCLUDES sputils/src/*.hpp)
 
 add_library (sputils STATIC ${SPUTILS_SRCS} ${SPUTILS_INCLUDES})
+
+if (MSVC)
+    target_compile_definitions (sputils PRIVATE _ITERATOR_DEBUG_LEVEL=0)
+endif ()
+
 target_include_directories (sputils PUBLIC sputils/src)
 
 find_package (Boost 1.74.0 REQUIRED)
 target_include_directories (sputils PUBLIC ${Boost_INCLUDE_DIRS})
 target_link_libraries (sputils ${Boost_LIBRARIES})
-
-# Target: velocity
-# It is the implementation of the Spade Virtual Machine (VM) for Spade.
-file (GLOB_RECURSE VELOCITY_SRCS velocity/src/*.cpp)
-file (GLOB_RECURSE VELOCITY_INCLUDES velocity/src/*.hpp)
-
-add_executable (velocity ${VELOCITY_SRCS} ${VELOCITY_INCLUDES})
-target_include_directories (velocity PRIVATE velocity/src)
-target_include_directories (velocity PUBLIC sputils/src)
-target_link_libraries (velocity sputils)
 
 # Target: spadec
 # It is the compiler of the Spade language
@@ -86,27 +85,65 @@ target_include_directories (spasm PRIVATE spasm/src)
 target_include_directories (spasm PUBLIC sputils/src)
 target_link_libraries (spasm PUBLIC sputils PRIVATE argparse)
 
+# Target: velocity
+# It is the implementation of the Spade Virtual Machine (VM) for Spade.
+file (GLOB_RECURSE VELOCITY_SRCS velocity/src/*.cpp)
+file (GLOB_RECURSE VELOCITY_INCLUDES velocity/src/*.hpp)
+
+add_executable (velocity ${VELOCITY_SRCS} ${VELOCITY_INCLUDES})
+
+# Reference: https://llvm.org/docs/CMake.html
+target_include_directories (velocity PUBLIC velocity/src PUBLIC sputils/src PRIVATE ${LLVM_INCLUDE_DIRS})
+separate_arguments (LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
+add_definitions (${LLVM_DEFINITIONS_LIST})
+
+if (MSVC)
+    target_compile_definitions (velocity PRIVATE _ITERATOR_DEBUG_LEVEL=0)
+endif ()
+
+# Find the libraries that correspond to the LLVM components
+llvm_map_components_to_libnames (LLVM_LIBS core)
+target_link_libraries (velocity PUBLIC sputils PRIVATE ${LLVM_LIBS})
+
+if (NOT CMAKE_BUILD_TYPE EQUAL "Release")
+    if (MSVC)
+        # warning level 4
+        # target_compile_options (sputils PRIVATE /W4)
+        # target_compile_options (spadec PRIVATE /W4)
+        # target_compile_options (spasm PRIVATE /W4)
+        # target_compile_options (velocity PRIVATE /W4 /MD)
+        target_compile_options (sputils PRIVATE /MD)
+        target_compile_options (velocity PRIVATE /MD)
+    else ()
+        # additional warnings
+        # target_compile_options (sputils PRIVATE -Wall -Wextra -Wpedantic)
+        # target_compile_options (spadec PRIVATE -Wall -Wextra -Wpedantic)
+        # target_compile_options (spasm PRIVATE -Wall -Wextra -Wpedantic)
+        # target_compile_options (velocity PRIVATE -Wall -Wextra -Wpedantic)
+    endif ()
+endif ()
+
 if (WIN32)
-  add_custom_command (
-    TARGET spadec POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    $<TARGET_FILE:cpptrace::cpptrace>
-    $<TARGET_FILE_DIR:spadec>
-  )
+    add_custom_command (
+        TARGET spadec POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_FILE:cpptrace::cpptrace>
+        $<TARGET_FILE_DIR:spadec>
+    )
 endif ()
 
 if (APPLE)
-  add_custom_command (
-    TARGET spadec
-    POST_BUILD
-    COMMAND dsymutil $<TARGET_FILE:spadec>
-  )
+    add_custom_command (
+        TARGET spadec
+        POST_BUILD
+        COMMAND dsymutil $<TARGET_FILE:spadec>
+    )
 endif ()
 
-if(CMAKE_BUILD_TYPE EQUAL "RelWithDebInfo")
-  if(MSVC)
-    target_compile_options(spadec /EHsc)
-  endif()
-endif()
+if (CMAKE_BUILD_TYPE EQUAL "RelWithDebInfo")
+    if (MSVC)
+        target_compile_options (spadec /EHsc)
+    endif ()
+endif ()
 
 # TODO: Add tests and install targets if needed.

@@ -1,4 +1,5 @@
 #include "frame_template.hpp"
+#include "ee/vm.hpp"
 
 namespace spade
 {
@@ -12,6 +13,7 @@ namespace spade
         frame.lines = lines;
         frame.matches = matches;
         frame.method = method;
+        frame.module = cast<ObjModule>(SpadeVM::current()->get_symbol(method->get_sign().get_parent_module().to_string()));
         return frame;
     }
 }    // namespace spade

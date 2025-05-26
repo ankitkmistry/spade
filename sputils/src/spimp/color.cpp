@@ -62,23 +62,22 @@ namespace color
          */
     static std::runtime_error _color_win_get_last_error() {
         LPVOID err_msg_buf;
-        FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER              // Allocates a buffer for the message
-                              | FORMAT_MESSAGE_FROM_SYSTEM        // Searches the system message table
-                              | FORMAT_MESSAGE_IGNORE_INSERTS,    // Ignores insert sequences in the message definition.
-                      nullptr,                                    // Handle to the module containing the message table
-                      GetLastError(),                             // Error code to format
-                      0,                                          // Default language
-                      reinterpret_cast<LPSTR>(&err_msg_buf),      // Output buffer for the formatted message
-                      0,                                          // Minimum size of the output buffer
-                      nullptr);                                   // No arguments for insert sequences
-        auto size = std::strlen(static_cast<LPSTR>(err_msg_buf));
+        DWORD n = FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER              // Allocates a buffer for the message
+                                        | FORMAT_MESSAGE_FROM_SYSTEM        // Searches the system message table
+                                        | FORMAT_MESSAGE_IGNORE_INSERTS,    // Ignores insert sequences in the message definition.
+                                nullptr,                                    // Handle to the module containing the message table
+                                GetLastError(),                             // Error code to format
+                                0,                                          // Default language
+                                reinterpret_cast<LPWSTR>(&err_msg_buf),     // Output buffer for the formatted message
+                                0,                                          // Minimum size of the output buffer
+                                nullptr);                                   // No arguments for insert sequences
         // Create a new buffer
-        auto buf = std::make_unique<char[]>(size);
-        std::memcpy(buf.get(), err_msg_buf, size);
+        auto buf = std::make_unique<char[]>(n);
+        std::memcpy(buf.get(), err_msg_buf, n);
         // Free the old buffer
         LocalFree(err_msg_buf);
         // Build the string
-        std::string msg_str{buf.get(), size};
+        std::string msg_str{buf.get(), n};
         return std::runtime_error(msg_str);
     }
 
@@ -148,8 +147,7 @@ namespace color
         if (!GetConsoleScreenBufferInfo(h_console, &csbi))
             throw _color_win_get_last_error();
         // Set the buffer attributes.
-        if (!FillConsoleOutputAttribute(h_console, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE, con_size, coord_screen,
-                                        &chars_written))
+        if (!FillConsoleOutputAttribute(h_console, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE, con_size, coord_screen, &chars_written))
             throw _color_win_get_last_error();
         // Put the cursor in the top left corner.
         SetConsoleCursorPosition(h_console, coord_screen);

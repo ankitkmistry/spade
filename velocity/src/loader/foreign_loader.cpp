@@ -1,4 +1,5 @@
 #include <ranges>
+#include <string>
 
 #include "foreign_loader.hpp"
 
@@ -57,9 +58,9 @@ void Library::unload() {
     FreeLibrary(module);
 }
 
-Library *ForeignLoader::load_simple_library(string path) {
+Library *ForeignLoader::load_simple_library(const string &path) {
     // TODO: Add advanced lookup
-    const HMODULE module = LoadLibrary(path.c_str());
+    const HMODULE module = LoadLibraryA(path.c_str());
     if (module == null) {
         const DWORD error_code = GetLastError();
         const auto err_msg = get_error_message(error_code);

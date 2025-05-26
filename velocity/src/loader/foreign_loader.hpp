@@ -104,7 +104,7 @@ class ForeignLoader {
     inline static spade::Table<Library *> libraries;
 
   public:
-    static Library *load_simple_library(string path);
+    static Library *load_simple_library(const string &path);
 
     static void unload_libraries();
 };

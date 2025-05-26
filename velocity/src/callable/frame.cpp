@@ -25,9 +25,8 @@ namespace spade
           exceptions(frame.exceptions),
           lines(frame.lines),
           matches(frame.matches),
-          method(frame.method) {
-        module = cast<ObjModule>(SpadeVM::current()->get_symbol(method->get_sign().get_parent_module().to_string()));
-
+          method(frame.method), 
+          module(frame.module) {
         stack = new Obj *[stack_max];
         std::memcpy(stack, frame.stack, stack_max * sizeof(Obj *));
         sp = stack + (frame.sp - frame.stack);
@@ -45,7 +44,8 @@ namespace spade
           exceptions(frame.exceptions),
           lines(frame.lines),
           matches(frame.matches),
-          method(frame.method) {
+          method(frame.method), 
+          module(frame.module) {
         module = cast<ObjModule>(SpadeVM::current()->get_symbol(method->get_sign().get_parent_module().to_string()));
         frame.stack = null;
     }
@@ -61,7 +61,7 @@ namespace spade
         lines = frame.lines;
         matches = frame.matches;
         method = frame.method;
-        module = cast<ObjModule>(SpadeVM::current()->get_symbol(method->get_sign().get_parent_module().to_string()));
+        module = frame.module;
 
         delete[] stack;
         stack = new Obj *[stack_max];
@@ -81,7 +81,7 @@ namespace spade
         lines = frame.lines;
         matches = frame.matches;
         method = frame.method;
-        module = cast<ObjModule>(SpadeVM::current()->get_symbol(method->get_sign().get_parent_module().to_string()));
+        module = frame.module;
 
         delete[] stack;
         stack = frame.stack;
