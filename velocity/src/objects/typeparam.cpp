@@ -4,25 +4,22 @@
 
 namespace spade
 {
+    void TypeParam::check_placeholder() const {
+        if (placeholder == null)
+            throw IllegalTypeParamAccessError(sign.to_string());
+    }
+
     void TypeParam::set_placeholder(Type *type) {
         placeholder = type;
         // Trigger changes in all the objects
         for (const auto obj: claimed_objs) obj->set_type(this);
     }
 
-    Type::Kind TypeParam::get_kind() const {
-        check_placeholder();
-        return placeholder->get_kind();
-    }
+    // Obj specific
 
-    const Table<TypeParam *> &TypeParam::get_type_params() const {
+    Type *TypeParam::get_type() const {
         check_placeholder();
-        return placeholder->get_type_params();
-    }
-
-    const Table<Type *> &TypeParam::get_supers() const {
-        check_placeholder();
-        return placeholder->get_supers();
+        return placeholder->get_type();
     }
 
     const Table<MemberSlot> &TypeParam::get_member_slots() const {
@@ -30,43 +27,18 @@ namespace spade
         return placeholder->get_member_slots();
     }
 
-    Table<TypeParam *> &TypeParam::get_type_params() {
-        check_placeholder();
-        return placeholder->get_type_params();
-    }
-
-    Table<Type *> &TypeParam::get_supers() {
-        check_placeholder();
-        return placeholder->get_supers();
-    }
-
     Table<MemberSlot> &TypeParam::get_member_slots() {
         check_placeholder();
         return placeholder->get_member_slots();
     }
 
-    ObjModule *TypeParam::get_module() const {
+    void TypeParam::set_member_slots(const Table<MemberSlot> &member_slots) {
         check_placeholder();
-        return placeholder->get_module();
-    }
-
-    const Table<string> &TypeParam::get_meta() const {
-        check_placeholder();
-        return placeholder->get_meta();
-    }
-
-    const Sign &TypeParam::get_sign() const {
-        check_placeholder();
-        return placeholder->get_sign();
-    }
-
-    Type *TypeParam::get_type() const {
-        check_placeholder();
-        return placeholder->get_type();
+        placeholder->set_member_slots(member_slots);
     }
 
     Obj *TypeParam::copy() const {
-        const auto obj = halloc_mgr<TypeParam>(info.manager, sign, module);
+        const auto obj = halloc_mgr<TypeParam>(info.manager, sign);
         // No need to clear as `claimed_objs` is initialized as empty
         // obj->claimed_objs.clear();
         obj->set_placeholder(placeholder);
@@ -75,11 +47,6 @@ namespace spade
 
     string TypeParam::to_string() const {
         return placeholder ? placeholder->to_string() : Type::to_string();
-    }
-
-    void TypeParam::check_placeholder() const {
-        if (placeholder == null)
-            throw IllegalTypeParamAccessError(sign.to_string());
     }
 
     Obj *TypeParam::get_member(const string &name) const {
@@ -95,6 +62,53 @@ namespace spade
     ObjMethod *TypeParam::get_super_class_method(const string &sign) {
         check_placeholder();
         return placeholder->get_super_class_method(sign);
+    }
+
+    // Type specific
+
+    Type::Kind TypeParam::get_kind() const {
+        check_placeholder();
+        return placeholder->get_kind();
+    }
+
+    const Sign &TypeParam::get_sign() const {
+        check_placeholder();
+        return placeholder->get_sign();
+    }
+
+    void TypeParam::set_sign(const Sign &sign) {
+        check_placeholder();
+        placeholder->set_sign(sign);
+    }
+
+    const Table<TypeParam *> &TypeParam::get_type_params() const {
+        check_placeholder();
+        return placeholder->get_type_params();
+    }
+
+    Table<TypeParam *> &TypeParam::get_type_params() {
+        check_placeholder();
+        return placeholder->get_type_params();
+    }
+
+    void TypeParam::set_type_params(const Table<TypeParam *> &type_params) {
+        check_placeholder();
+        placeholder->set_type_params(type_params);
+    }
+
+    const Table<Type *> &TypeParam::get_supers() const {
+        check_placeholder();
+        return placeholder->get_supers();
+    }
+
+    Table<Type *> &TypeParam::get_supers() {
+        check_placeholder();
+        return placeholder->get_supers();
+    }
+
+    void TypeParam::set_supers(const Table<Type *> &supers) {
+        check_placeholder();
+        placeholder->set_supers(supers);
     }
 
     Type *TypeParam::get_reified(Type *const *args, uint8 count) const {

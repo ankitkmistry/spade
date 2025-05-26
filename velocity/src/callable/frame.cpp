@@ -2,6 +2,7 @@
 
 #include "frame.hpp"
 #include "callable/table.hpp"
+#include "ee/vm.hpp"
 #include "objects/module.hpp"
 #include "method.hpp"
 
@@ -25,6 +26,8 @@ namespace spade
           lines(frame.lines),
           matches(frame.matches),
           method(frame.method) {
+        module = cast<ObjModule>(SpadeVM::current()->get_symbol(method->get_sign().get_parent_module().to_string()));
+
         stack = new Obj *[stack_max];
         std::memcpy(stack, frame.stack, stack_max * sizeof(Obj *));
         sp = stack + (frame.sp - frame.stack);
@@ -43,6 +46,7 @@ namespace spade
           lines(frame.lines),
           matches(frame.matches),
           method(frame.method) {
+        module = cast<ObjModule>(SpadeVM::current()->get_symbol(method->get_sign().get_parent_module().to_string()));
         frame.stack = null;
     }
 
@@ -57,6 +61,7 @@ namespace spade
         lines = frame.lines;
         matches = frame.matches;
         method = frame.method;
+        module = cast<ObjModule>(SpadeVM::current()->get_symbol(method->get_sign().get_parent_module().to_string()));
 
         delete[] stack;
         stack = new Obj *[stack_max];
@@ -76,6 +81,7 @@ namespace spade
         lines = frame.lines;
         matches = frame.matches;
         method = frame.method;
+        module = cast<ObjModule>(SpadeVM::current()->get_symbol(method->get_sign().get_parent_module().to_string()));
 
         delete[] stack;
         stack = frame.stack;
@@ -108,7 +114,12 @@ namespace spade
         return code_count;
     }
 
+    void Frame::set_method(ObjMethod *met) {
+        method = met;
+        module = cast<ObjModule>(SpadeVM::current()->get_symbol(method->get_sign().get_parent_module().to_string()));
+    }
+
     const vector<Obj *> &Frame::get_const_pool() const {
-        return method->get_module()->get_constant_pool();
+        return module->get_constant_pool();
     }
 }    // namespace spade

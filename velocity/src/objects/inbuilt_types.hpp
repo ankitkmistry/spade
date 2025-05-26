@@ -12,7 +12,7 @@ namespace spade
         bool b;
 
       public:
-        ObjBool(bool value, ObjModule *module = null);
+        ObjBool(bool value);
 
         static ObjBool *value(bool b, MemoryManager *manager = null);
 
@@ -32,7 +32,7 @@ namespace spade
         int32 compare(const Obj *rhs) const override;
 
         ObjBool *operator!() const {
-            return halloc_mgr<ObjBool>(info.manager, !b, module);
+            return halloc_mgr<ObjBool>(info.manager, !b);
         }
     };
 
@@ -41,7 +41,7 @@ namespace spade
         char c;
 
       public:
-        ObjChar(const char c, ObjModule *module = null);
+        ObjChar(const char c);
 
         bool truth() const override {
             return c != '\0';
@@ -86,9 +86,9 @@ namespace spade
         string str;
 
       public:
-        ObjString(string str, ObjModule *module = null);
+        ObjString(string str);
 
-        ObjString(const uint8 *bytes, uint16 len, ObjModule *module = null);
+        ObjString(const uint8 *bytes, uint16 len);
 
         bool truth() const override {
             return !str.empty();
@@ -112,7 +112,7 @@ namespace spade
         uint16 length;
 
       public:
-        explicit ObjArray(uint16 length, ObjModule *module = null);
+        explicit ObjArray(uint16 length);
 
         void foreach (const std::function<void(Obj *)> &func) const;
 
@@ -138,7 +138,7 @@ namespace spade
 
     class ObjNumber : public ComparableObj {
       protected:
-        ObjNumber(Sign sign, ObjModule *module = null) : ComparableObj(sign, null, module) {}
+        ObjNumber() : ComparableObj(null) {}
 
       public:
         virtual Obj *operator-() const = 0;

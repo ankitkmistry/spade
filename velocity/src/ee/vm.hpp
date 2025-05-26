@@ -5,7 +5,6 @@
 #include "utils/exceptions.hpp"
 #include "thread.hpp"
 #include "settings.hpp"
-#include "objects/inbuilt_types.hpp"
 #include "memory/manager.hpp"
 #include "loader/booter.hpp"
 
@@ -25,6 +24,8 @@ namespace spade
         vector<std::function<void()>> on_exit_list;
         /// The vm settings
         Settings settings;
+        /// The exit code of the vm (-1 represents unfinished state)
+        int exit_code = -1;
         /// Metadata associated with all objects
         Table<Table<string>> metadata;
         /// The output stream
@@ -44,20 +45,9 @@ namespace spade
          * This function initiates the virtual machine
          * @param filename the path to the bytecode file
          * @param args the command line args array
-         * @return the exit code
+         * @param block blocks the caller if the flag is set
          */
-        int start(const string &filename, const vector<string> &args);
-
-        /**
-         * This function initiates the virtual machine
-         * @warning This function is only to be used when the vm is properly loaded.
-         * The loading operation is done by the loader but
-         * this method does not perform the loading procedure.
-         * @param entry the function object which is the entry point
-         * @param args the array object which has the command line arguments
-         * @return the exit code
-         */
-        int start(ObjMethod *entry, ObjArray *args = null);
+        void start(const string &filename, const vector<string> &args, bool block = false);
 
         /**
          * The vm execution loop
@@ -160,6 +150,13 @@ namespace spade
         }
 
         /**
+         * @return the exit code of the vm
+         */
+        int get_exit_code() const {
+            return exit_code;
+        }
+
+        /**
          * @return whatever written to the output
          */
         string get_output() const {
@@ -177,6 +174,8 @@ namespace spade
          */
         void load_basic();
 
+        void vm_main(const string &filename, const vector<string> &args, Thread *thread);
+
         /**
          * Checks the casting compatibility between two types
          * @param type1 from type
@@ -184,13 +183,6 @@ namespace spade
          * @return true if casting can be done, false otherwise
          */
         static bool check_cast(const Type *type1, const Type *type2);
-
-        /**
-         * Converts a C++ vector to ObjArray
-         * @param args the vector
-         * @return an array object containing the contents of args
-         */
-        ObjArray *args_repr(const vector<string> &args) const;
 
         /**
          * This function writes to the output

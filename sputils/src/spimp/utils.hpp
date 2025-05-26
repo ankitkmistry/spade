@@ -97,7 +97,7 @@ namespace spade
             start += list.size();
         if (end < 0)
             end += list.size();
-        if (start >= list.size() || end >= list.size())
+        if (start >= list.size() || end > list.size())
             throw std::runtime_error("slice(3): index out of bounds");
         if (start > end)
             std::swap(start, end);

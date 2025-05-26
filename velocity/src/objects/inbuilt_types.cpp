@@ -4,48 +4,36 @@
 
 namespace spade
 {
-    ObjBool::ObjBool(bool value, ObjModule *module) : ComparableObj(Sign("bool"), null, module), b(value) {
+    ObjBool::ObjBool(bool value) : ComparableObj(null), b(value) {
         this->tag = ObjTag::BOOL;
-        set_type(module                                                              //
-                         ? module->get_info().manager->get_vm()->get_vm_type(tag)    //
-                         : SpadeVM::current()->get_vm_type(tag));
+        set_type(SpadeVM::current()->get_vm_type(tag));
     }
 
-    ObjChar::ObjChar(const char c, ObjModule *module) : ComparableObj(Sign("char"), null, module), c(c) {
+    ObjChar::ObjChar(const char c) : ComparableObj(null), c(c) {
         this->tag = ObjTag::CHAR;
-        set_type(module                                                              //
-                         ? module->get_info().manager->get_vm()->get_vm_type(tag)    //
-                         : SpadeVM::current()->get_vm_type(tag));
+        set_type(SpadeVM::current()->get_vm_type(tag));
     }
 
-    ObjNull::ObjNull(ObjModule *module) : ComparableObj(Sign("null"), null, module) {
+    ObjNull::ObjNull(ObjModule *module) : ComparableObj(null) {
         this->tag = ObjTag::NULL_;
-        set_type(module                                                              //
-                         ? module->get_info().manager->get_vm()->get_vm_type(tag)    //
-                         : SpadeVM::current()->get_vm_type(tag));
+        set_type(SpadeVM::current()->get_vm_type(tag));
     }
 
-    ObjString::ObjString(string str, ObjModule *module) : ComparableObj(Sign("string"), null, module), str(str) {
+    ObjString::ObjString(string str) : ComparableObj(null), str(str) {
         this->tag = ObjTag::STRING;
-        set_type(module                                                              //
-                         ? module->get_info().manager->get_vm()->get_vm_type(tag)    //
-                         : SpadeVM::current()->get_vm_type(tag));
+        set_type(SpadeVM::current()->get_vm_type(tag));
     }
 
-    ObjString::ObjString(const uint8 *bytes, uint16 len, ObjModule *module) : ComparableObj(Sign("string"), null, module), str() {
+    ObjString::ObjString(const uint8 *bytes, uint16 len) : ComparableObj(null), str() {
         this->tag = ObjTag::STRING;
-        set_type(module                                                              //
-                         ? module->get_info().manager->get_vm()->get_vm_type(tag)    //
-                         : SpadeVM::current()->get_vm_type(tag));
+        set_type(SpadeVM::current()->get_vm_type(tag));
 
         str = string(bytes, bytes + len);
     }
 
-    ObjArray::ObjArray(uint16 length, ObjModule *module) : ComparableObj(Sign("array"), null, module), length(length) {
+    ObjArray::ObjArray(uint16 length) : ComparableObj(null), length(length) {
         this->tag = ObjTag::ARRAY;
-        set_type(module                                                              //
-                         ? module->get_info().manager->get_vm()->get_vm_type(tag)    //
-                         : SpadeVM::current()->get_vm_type(tag));
+        set_type(SpadeVM::current()->get_vm_type(tag));
 
         array = length == 0 ? null : new Obj *[length] { null };
     }
@@ -112,7 +100,7 @@ namespace spade
         if (i >= length)
             throw IndexError("array", i);
         if (array == null)
-            return halloc_mgr<ObjNull>(info.manager, module);
+            return halloc_mgr<ObjNull>(info.manager);
         return array[i >= 0 ? i : length + i];
     }
 

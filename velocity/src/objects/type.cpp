@@ -9,8 +9,12 @@ namespace spade
 {
     std::unordered_map<vector<Type *>, Type *> Type::reification_table = {};
 
+    Type *Type::UNRESOLVED(const Sign &sign, ObjModule *module, MemoryManager *manager) {
+        return halloc_mgr<Type>(manager, sign, Kind::UNRESOLVED, Table<TypeParam *>{}, Table<Type *>{}, Table<MemberSlot>{});
+    }
+
     Obj *Type::copy() const {
-        const auto obj = halloc_mgr<Type>(info.manager, sign, kind, type_params, supers, member_slots, module);
+        const auto obj = halloc_mgr<Type>(info.manager, sign, kind, type_params, supers, member_slots);
         // Copy members
         for (const auto &[name, slot]: member_slots) {
             obj->set_member(name, create_copy(slot.get_value()));
@@ -30,17 +34,6 @@ namespace spade
 
     string Type::to_string() const {
         return std::format("<{} '{}'>", kind_names[static_cast<int>(kind)], sign.to_string());
-    }
-
-    Type *Type::UNRESOLVED(const Sign &sign, ObjModule *module, MemoryManager *manager) {
-        return halloc_mgr<Type>(manager, sign, Kind::UNRESOLVED, Table<TypeParam *>{}, Table<Type *>{}, Table<MemberSlot>{}, module);
-    }
-
-    Type::Type(const Type &type) : Obj(type.sign, null, type.module) {
-        kind = type.kind;
-        type_params = type.type_params;
-        supers = type.supers;
-        member_slots = type.member_slots;
     }
 
     Type *Type::get_reified(Type *const *args, uint8 count) const {

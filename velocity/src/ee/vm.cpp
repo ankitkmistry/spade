@@ -5,6 +5,7 @@
 #include "objects/type.hpp"
 #include "objects/typeparam.hpp"
 #include "utils/common.hpp"
+#include <functional>
 
 namespace spade
 {
@@ -24,34 +25,28 @@ namespace spade
         Table<MemberSlot> members;
 
         const auto type_any =
-                halloc_mgr<Type>(manager, Sign("basic.any"), Type::Kind::CLASS, Table<TypeParam *>{}, Table<Type *>{}, Table<MemberSlot>{}, module);
+                halloc_mgr<Type>(manager, Sign("basic.any"), Type::Kind::CLASS, Table<TypeParam *>{}, Table<Type *>{}, Table<MemberSlot>{});
         const Table<Type *> supers = {
                 {type_any->get_sign().to_string(), type_any}
         };
 
-        const auto type_Enum =
-                halloc_mgr<Type>(manager, Sign("basic.Enum"), Type::Kind::CLASS, Table<TypeParam *>{}, supers, Table<MemberSlot>{}, module);
+        const auto type_Enum = halloc_mgr<Type>(manager, Sign("basic.Enum"), Type::Kind::CLASS, Table<TypeParam *>{}, supers, Table<MemberSlot>{});
         const auto type_Annotation =
-                halloc_mgr<Type>(manager, Sign("basic.Annotation"), Type::Kind::CLASS, Table<TypeParam *>{}, supers, Table<MemberSlot>{}, module);
+                halloc_mgr<Type>(manager, Sign("basic.Annotation"), Type::Kind::CLASS, Table<TypeParam *>{}, supers, Table<MemberSlot>{});
         const auto type_Throwable =
-                halloc_mgr<Type>(manager, Sign("basic.Throwable"), Type::Kind::CLASS, Table<TypeParam *>{}, supers, Table<MemberSlot>{}, module);
+                halloc_mgr<Type>(manager, Sign("basic.Throwable"), Type::Kind::CLASS, Table<TypeParam *>{}, supers, Table<MemberSlot>{});
 
-        const auto type_bool =
-                halloc_mgr<Type>(manager, Sign("basic.bool"), Type::Kind::CLASS, Table<TypeParam *>{}, supers, Table<MemberSlot>{}, module);
-        const auto type_int =
-                halloc_mgr<Type>(manager, Sign("basic.int"), Type::Kind::CLASS, Table<TypeParam *>{}, supers, Table<MemberSlot>{}, module);
-        const auto type_float =
-                halloc_mgr<Type>(manager, Sign("basic.float"), Type::Kind::CLASS, Table<TypeParam *>{}, supers, Table<MemberSlot>{}, module);
-        const auto type_char =
-                halloc_mgr<Type>(manager, Sign("basic.char"), Type::Kind::CLASS, Table<TypeParam *>{}, supers, Table<MemberSlot>{}, module);
+        const auto type_bool = halloc_mgr<Type>(manager, Sign("basic.bool"), Type::Kind::CLASS, Table<TypeParam *>{}, supers, Table<MemberSlot>{});
+        const auto type_int = halloc_mgr<Type>(manager, Sign("basic.int"), Type::Kind::CLASS, Table<TypeParam *>{}, supers, Table<MemberSlot>{});
+        const auto type_float = halloc_mgr<Type>(manager, Sign("basic.float"), Type::Kind::CLASS, Table<TypeParam *>{}, supers, Table<MemberSlot>{});
+        const auto type_char = halloc_mgr<Type>(manager, Sign("basic.char"), Type::Kind::CLASS, Table<TypeParam *>{}, supers, Table<MemberSlot>{});
         const auto type_string =
-                halloc_mgr<Type>(manager, Sign("basic.string"), Type::Kind::CLASS, Table<TypeParam *>{}, supers, Table<MemberSlot>{}, module);
+                halloc_mgr<Type>(manager, Sign("basic.string"), Type::Kind::CLASS, Table<TypeParam *>{}, supers, Table<MemberSlot>{});
 
         const Table<TypeParam *> type_array_tps{
-                {"[T]", halloc_mgr<TypeParam>(manager, Sign("[T]"), module)}
+                {"[T]", halloc_mgr<TypeParam>(manager, Sign("[T]"))}
         };
-        const auto type_array =
-                halloc_mgr<Type>(manager, Sign("basic.array[T]"), Type::Kind::CLASS, type_array_tps, supers, Table<MemberSlot>{}, module);
+        const auto type_array = halloc_mgr<Type>(manager, Sign("basic.array[T]"), Type::Kind::CLASS, type_array_tps, supers, Table<MemberSlot>{});
 
         members["any"] = MemberSlot(type_any);
         members["Enum"] = MemberSlot(type_Enum);
@@ -64,58 +59,55 @@ namespace spade
         members["string"] = MemberSlot(type_string);
         members["array[T]"] = MemberSlot(type_array);
 
-        module->get_member_slots() = members;
+        module->set_member_slots(members);
         modules["basic"] = module;
     }
 
-    int SpadeVM::start(const string &file_name, const vector<string> &args) {
-        // Load the basic types and module
-        load_basic();
-        // Load the file and get the entry point
-        auto entry = loader.load(file_name);
-        // Complain if there is no entry point
-        if (entry == null)
-            throw IllegalAccessError(std::format("cannot find entry point in '{}'", file_name));
-        if (auto args_count = entry->get_frame_template().get_args().count(); args_count >= 1)
-            throw runtime_error("entry point must have zero or one argument (basic.array): " + entry->get_sign().to_string());
-        else if (args_count == 1)
-            // Execute from the entry with cmdline args
-            return start(entry, args_repr(args));
-        else
-            // Execute from the entry
-            return start(entry);
-    }
-
-    ObjArray *SpadeVM::args_repr(const vector<string> &args) const {
-        auto array = halloc_mgr<ObjArray>(manager, args.size());
-        for (int i = 0; i < args.size(); ++i) {
-            array->set(i, halloc_mgr<ObjString>(manager, args[i]));
+    void SpadeVM::vm_main(const string &filename, const vector<string> &args, Thread *thread) {
+        thread->set_status(Thread::RUNNING);
+        try {
+            // Load the basic types and module
+            load_basic();
+            // Load the file and get the entry point
+            const auto entry = loader.load(filename);
+            // Complain if there is no entry point
+            if (entry == null)
+                throw IllegalAccessError(std::format("cannot find entry point in '{}'", filename));
+            // Call the function
+            if (const auto args_count = entry->get_frame_template().get_args().count(); args_count == 0)
+                entry->call({});
+            else if (const auto args_count = entry->get_frame_template().get_args().count(); args_count == 1) {
+                // Convert vector<string> to ObjArray
+                auto array = halloc_mgr<ObjArray>(manager, args.size());
+                for (int i = 0; i < args.size(); ++i) array->set(i, halloc_mgr<ObjString>(manager, args[i]));
+                entry->call(vector<Obj *>{array});
+            } else
+                throw runtime_error("entry point must have zero or one argument (basic.array): " + entry->get_sign().to_string());
+            // Enter execution loop
+            run(thread);
+        } catch (const SpadeError &error) {
+            std::cout << "VM Error: " << error.what() << std::endl;
+            exit_code = 1;
+            return;
         }
-        return array;
+
+        // Remove this thread after execution
+        threads.erase(thread);
+        // If it is empty then cleanup
+        if (threads.empty()) {
+            for (const auto &action: on_exit_list) action();
+            exit_code = 0;
+        }
     }
 
-    int SpadeVM::start(ObjMethod *entry, ObjArray *args) {
-        Thread thread{this,
-                      [&](const auto thr) {
-                          thr->set_status(Thread::RUNNING);
-                          try {
-                              entry->call(args ? vector<Obj *>{args} : vector<Obj *>{});
-                              run(thr);
-                          } catch (const SpadeError &error) {
-                              std::cout << "VM Error: " << error.what() << std::endl;
-                              return;
-                          }
-                      },
-                      [&] {
-                          // Insert thread into vm threads before the thread starts
-                          threads.insert(&thread);
-                      }};
-        thread.join();
+    void SpadeVM::start(const string &filename, const vector<string> &args, bool block) {
+        Thread thread(this, std::bind(&SpadeVM::vm_main, this, filename, args, std::placeholders::_1), [&] {
+            // Insert thread into vm threads before the thread starts
+            threads.insert(&thread);
+        });
 
-        threads.erase(&thread);
-        if (threads.empty())
-            for (const auto &action: on_exit_list) action();
-        return thread.get_exit_code();
+        if (block)
+            thread.join();
     }
 
     ThrowSignal SpadeVM::runtime_error(const string &str) const {

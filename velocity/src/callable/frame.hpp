@@ -2,6 +2,7 @@
 
 #include "utils/common.hpp"
 #include "objects/obj.hpp"
+#include "objects/module.hpp"
 #include "table.hpp"
 
 namespace spade
@@ -30,6 +31,7 @@ namespace spade
         LineNumberTable lines{};
         vector<MatchTable> matches;
         ObjMethod *method = null;
+        ObjModule *module = null;
 
         Frame(uint32 stack_max);
 
@@ -120,14 +122,21 @@ namespace spade
         }
 
         /**
-         * @return The method associated with the this frameTemplate
+         * @return The method associated with the this frame
          */
         ObjMethod *get_method() const {
             return method;
         }
 
         /**
-         * Sets the ip of this frameTemplate to ip
+         * @return The module associated with the this frame
+         */
+        ObjModule *get_module() const {
+            return module;
+        }
+
+        /**
+         * Sets the ip of this frame to ip
          * @param newIp the new ip value
          */
         void set_ip(uint8 *new_ip) {
@@ -135,12 +144,10 @@ namespace spade
         }
 
         /**
-         * Sets the method associated with this frameTemplate
+         * Sets the method associated with this frame
          * @param met the method value
          */
-        void set_method(ObjMethod *met) {
-            method = met;
-        }
+        void set_method(ObjMethod *met);
 
         /**
          * @return The number of items on the stack

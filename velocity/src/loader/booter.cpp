@@ -16,7 +16,7 @@
 #include "objects/typeparam.hpp"
 #include "verifier.hpp"
 
-#define load_sign(index) (current_sign() | conpool[index]->to_string())
+#define load_sign(index) (current_sign().empty() ? conpool[index]->to_string() : current_sign() | conpool[index]->to_string())
 
 namespace spade
 {
@@ -85,35 +85,35 @@ namespace spade
     ObjModule *Booter::load_module(const ModuleInfo &info) {
         const auto mgr = vm->get_memory_manager();
 
-        const auto obj = halloc_mgr<ObjModule>(mgr, Sign(""), cur_mod);
+        const auto obj = halloc_mgr<ObjModule>(mgr, Sign(""));
         const auto old_cur_mod = cur_mod;
         cur_mod = obj;
 
         const auto conpool = read_const_pool(info.constant_pool);
         obj->set_constant_pool(conpool);
         obj->set_path(conpool[info.compiled_from]->to_string());
-        const Sign sign = conpool[info.name]->to_string();
+        const Sign sign = load_sign(info.name);
         obj->set_sign(sign);
         begin_scope(sign.get_name(), true);
 
         Table<MemberSlot> member_slots;
         for (const auto &global: info.globals) {
             MemberSlot slot(load_global(global, conpool), Flags(global.access_flags));
-            member_slots[slot.get_value()->get_sign().get_name()] = slot;
+            member_slots[load_sign(global.name).get_name()] = slot;
         }
         for (const auto &method: info.methods) {
             MemberSlot slot(load_method(method, conpool), Flags(method.access_flags));
-            member_slots[slot.get_value()->get_sign().get_name()] = slot;
+            member_slots[load_sign(method.name).get_name()] = slot;
         }
         for (const auto &klass: info.classes) {
             MemberSlot slot(load_class(klass, conpool), Flags(klass.access_flags));
-            member_slots[slot.get_value()->get_sign().get_name()] = slot;
+            member_slots[load_sign(klass.name).get_name()] = slot;
         }
         for (const auto &modulla: info.modules) {
             MemberSlot slot(load_module(modulla), Flags().set_public());
-            member_slots[slot.get_value()->get_sign().get_name()] = slot;
+            member_slots[load_sign(modulla.name).get_name()] = slot;
         }
-        obj->get_member_slots() = member_slots;
+        obj->set_member_slots(member_slots);
         vm->set_metadata(current_sign().to_string(), read_meta(info.meta));
         end_scope();
         cur_mod = old_cur_mod;
@@ -133,7 +133,7 @@ namespace spade
         const auto type = find_type(type_sign);
 
         vm->set_metadata(sign.to_string(), read_meta(info.meta));
-        return make_obj(type_sign, sign, type);
+        return make_obj(type_sign, type);
     }
 
     Obj *Booter::load_method(const MethodInfo &info, const vector<Obj *> &conpool) {
@@ -157,7 +157,7 @@ namespace spade
         Table<TypeParam *> type_params;
         for (int i = 0; i < info.type_params_count; ++i) {
             const auto name = "[" + conpool[info.type_params[i].name]->to_string() + "]";
-            const auto type_param = halloc_mgr<TypeParam>(mgr, name, get_current_module());
+            const auto type_param = halloc_mgr<TypeParam>(mgr, name);
             type_params[name] = type_param;
             reference_pool[name] = type_param;
         }
@@ -183,7 +183,7 @@ namespace spade
             reference_pool.erase(name);
 
         const FrameTemplate frame_template(info.code, info.stack_max, args, locals, exceptions, lines, matches);
-        return halloc_mgr<ObjMethod>(mgr, sign, kind, frame_template, type_params, get_current_module());
+        return halloc_mgr<ObjMethod>(mgr, sign, kind, frame_template, type_params);
     }
 
     NamedRef Booter::load_arg(const ArgInfo &arg, const vector<Obj *> &conpool) {
@@ -191,7 +191,7 @@ namespace spade
         const Sign type_sign = conpool[arg.type]->to_string();
         const auto type = find_type(type_sign);
         const auto meta = read_meta(arg.meta);
-        const auto obj = make_obj(type_sign, sign, type);
+        const auto obj = make_obj(type_sign, type);
         return NamedRef(sign.get_name(), obj, meta);
     }
 
@@ -200,7 +200,7 @@ namespace spade
         const Sign type_sign = conpool[local.type]->to_string();
         const auto type = find_type(type_sign);
         const auto meta = read_meta(local.meta);
-        const auto obj = make_obj(type_sign, sign, type);
+        const auto obj = make_obj(type_sign, type);
         return NamedRef(sign.get_name(), obj, meta);
     }
 
@@ -242,7 +242,7 @@ namespace spade
         Table<TypeParam *> type_params;
         for (int i = 0; i < info.type_params_count; ++i) {
             const auto name = "[" + conpool[info.type_params[i].name]->to_string() + "]";
-            const auto type_param = halloc_mgr<TypeParam>(mgr, name, get_current_module());
+            const auto type_param = halloc_mgr<TypeParam>(mgr, name);
             type_params[name] = type_param;
             reference_pool[name] = type_param;
         }
@@ -256,11 +256,11 @@ namespace spade
         Table<MemberSlot> member_slots;
         for (const auto &field: info.fields) {
             MemberSlot slot(load_field(field, conpool), Flags(field.access_flags));
-            member_slots[slot.get_value()->get_sign().get_name()] = slot;
+            member_slots[load_sign(field.name).get_name()] = slot;
         }
         for (const auto &method: info.methods) {
             MemberSlot slot(load_method(method, conpool), Flags(method.access_flags));
-            member_slots[slot.get_value()->get_sign().get_name()] = slot;
+            member_slots[load_sign(method.name).get_name()] = slot;
         }
         end_scope();
         vm->set_metadata(sign.to_string(), read_meta(info.meta));
@@ -273,12 +273,12 @@ namespace spade
         // Resolve the type if it was unresolved
         if (const auto obj = resolve_type(sign)) {
             obj->set_kind(kind);
-            obj->get_type_params() = type_params;
-            obj->get_supers() = supers;
-            obj->get_member_slots() = member_slots;
+            obj->set_type_params(type_params);
+            obj->set_supers(supers);
+            obj->set_member_slots(member_slots);
             return obj;
         } else {
-            return halloc_mgr<Type>(mgr, sign, kind, type_params, supers, member_slots, get_current_module());
+            return halloc_mgr<Type>(mgr, sign, kind, type_params, supers, member_slots);
         }
     }
 
@@ -287,7 +287,7 @@ namespace spade
         const auto type = find_type(conpool[info.type]->to_string());
 
         vm->set_metadata(sign.to_string(), read_meta(info.meta));
-        return make_obj(conpool[info.type]->to_string(), sign, type);
+        return make_obj(conpool[info.type]->to_string(), type);
     }
 
     vector<Obj *> Booter::read_const_pool(const vector<CpInfo> &constants) {
@@ -304,22 +304,22 @@ namespace spade
 
         switch (cp.tag) {
             case 0x00:
-                return halloc_mgr<ObjNull>(mgr, get_current_module());
+                return halloc_mgr<ObjNull>(mgr);
             case 0x01:
-                return halloc_mgr<ObjBool>(mgr, true, get_current_module());
+                return halloc_mgr<ObjBool>(mgr, true);
             case 0x02:
-                return halloc_mgr<ObjBool>(mgr, false, get_current_module());
+                return halloc_mgr<ObjBool>(mgr, false);
             case 0x03:
-                return halloc_mgr<ObjChar>(mgr, static_cast<char>(std::get<uint32_t>(cp.value)), get_current_module());
+                return halloc_mgr<ObjChar>(mgr, static_cast<char>(std::get<uint32_t>(cp.value)));
             case 0x04:
-                return halloc_mgr<ObjInt>(mgr, unsigned_to_signed(std::get<uint64_t>(cp.value)), get_current_module());
+                return halloc_mgr<ObjInt>(mgr, unsigned_to_signed(std::get<uint64_t>(cp.value)));
             case 0x05:
-                return halloc_mgr<ObjFloat>(mgr, raw_to_double(std::get<uint64_t>(cp.value)), get_current_module());
+                return halloc_mgr<ObjFloat>(mgr, raw_to_double(std::get<uint64_t>(cp.value)));
             case 0x06:
-                return halloc_mgr<ObjString>(mgr, std::get<_UTF8>(cp.value).bytes.data(), std::get<_UTF8>(cp.value).len, get_current_module());
+                return halloc_mgr<ObjString>(mgr, std::get<_UTF8>(cp.value).bytes.data(), std::get<_UTF8>(cp.value).len);
             case 0x07: {
                 const auto con = std::get<_Container>(cp.value);
-                const auto array = halloc_mgr<ObjArray>(mgr, con.len, get_current_module());
+                const auto array = halloc_mgr<ObjArray>(mgr, con.len);
                 for (int i = 0; i < con.len; ++i) {
                     array->set(i, read_cp(con.items[i]));
                 }
@@ -376,27 +376,27 @@ namespace spade
         return null;
     }
 
-    Obj *Booter::make_obj(const Sign &type_sign, const Sign &obj_sign, Type *type) {
+    Obj *Booter::make_obj(const Sign &type_sign, Type *type) {
         const auto mgr = vm->get_memory_manager();
         static std::unordered_map<Sign, std::function<Obj *(MemoryManager *const)>> obj_map = {
-                {Sign("basic.array"),  [this](MemoryManager *const mgr) { return halloc_mgr<ObjArray>(mgr, 0, get_current_module()); }   },
-                {Sign("basic.bool"),   [this](MemoryManager *const mgr) { return halloc_mgr<ObjBool>(mgr, false, get_current_module()); }},
-                {Sign("basic.char"),   [this](MemoryManager *const mgr) { return halloc_mgr<ObjChar>(mgr, '\0', get_current_module()); } },
-                {Sign("basic.float"),  [this](MemoryManager *const mgr) { return halloc_mgr<ObjFloat>(mgr, 0, get_current_module()); }   },
-                {Sign("basic.int"),    [this](MemoryManager *const mgr) { return halloc_mgr<ObjInt>(mgr, 0, get_current_module()); }     },
-                {Sign("basic.string"), [this](MemoryManager *const mgr) { return halloc_mgr<ObjString>(mgr, "", get_current_module()); } }
+                {Sign("basic.array"),  [this](MemoryManager *const mgr) { return halloc_mgr<ObjArray>(mgr, 0); }   },
+                {Sign("basic.bool"),   [this](MemoryManager *const mgr) { return halloc_mgr<ObjBool>(mgr, false); }},
+                {Sign("basic.char"),   [this](MemoryManager *const mgr) { return halloc_mgr<ObjChar>(mgr, '\0'); } },
+                {Sign("basic.float"),  [this](MemoryManager *const mgr) { return halloc_mgr<ObjFloat>(mgr, 0.0); } },
+                {Sign("basic.int"),    [this](MemoryManager *const mgr) { return halloc_mgr<ObjInt>(mgr, 0); }     },
+                {Sign("basic.string"), [this](MemoryManager *const mgr) { return halloc_mgr<ObjString>(mgr, ""); } }
         };
         if (const auto it = obj_map.find(type_sign); it != obj_map.end())
             return it->second(mgr);
         else {
             if (is<TypeParam>(type))
-                return halloc_mgr<Obj>(mgr, obj_sign, type, get_current_module());
+                return halloc_mgr<Obj>(mgr, type);
             if (type && type->get_kind() == Type::Kind::UNRESOLVED) {
-                const auto obj = halloc_mgr<Obj>(mgr, obj_sign, type, get_current_module());
+                const auto obj = halloc_mgr<Obj>(mgr, type);
                 post_callbacks.push_back([obj, type] { obj->set_type(type); });
                 return obj;
             }
-            return halloc_mgr<Obj>(mgr, obj_sign, type, get_current_module());
+            return halloc_mgr<Obj>(mgr, type);
         }
     }
 

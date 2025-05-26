@@ -2,17 +2,14 @@
 
 #include "int.hpp"
 #include "float.hpp"
-#include "module.hpp"
 #include "ee/vm.hpp"
 #include "memory/memory.hpp"
 
 namespace spade
 {
-    ObjInt::ObjInt(int64 val, ObjModule *module) : ObjNumber(Sign("int"), module), val(val) {
+    ObjInt::ObjInt(int64 val) : ObjNumber(), val(val) {
         this->tag = ObjTag::INT;
-        set_type(module                                                              //
-                         ? module->get_info().manager->get_vm()->get_vm_type(tag)    //
-                         : SpadeVM::current()->get_vm_type(tag));
+        set_type(SpadeVM::current()->get_vm_type(tag));
     }
 
     bool ObjInt::truth() const {

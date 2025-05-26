@@ -32,10 +32,8 @@ namespace spade
         return result;
     }
 
-    Obj::Obj(const Sign &sign, Type *type, ObjModule *module) : module(module), sign(sign), type(type) {
+    Obj::Obj(Type *type) : type(type) {
         // this->tag = ObjTag::OBJECT;
-        if (this->module == null)
-            this->module = ObjModule::current();
         if (type) {
             if (is<TypeParam>(type))
                 // Claim this object by the type param
@@ -44,12 +42,8 @@ namespace spade
         }
     }
 
-    Obj::Obj(const Sign &sign, ObjModule *module) : module(module), sign(sign), type(null) {
-        if (this->module == null)
-            this->module = ObjModule::current();
-        set_type(module                                                              //
-                         ? module->get_info().manager->get_vm()->get_vm_type(tag)    //
-                         : SpadeVM::current()->get_vm_type(tag));
+    Obj::Obj() : type(null) {
+        set_type(SpadeVM::current()->get_vm_type(tag));
         member_slots = type_get_all_members(type, super_class_methods);
     }
 
@@ -145,19 +139,8 @@ namespace spade
         get_member_slots()[name] = MemberSlot{value, Flags().set_public()};
     }
 
-    const Table<string> &Obj::get_meta() const {
-        const static Table<string> no_meta;
-        if (sign.empty())
-            return no_meta;
-        try {
-            return info.manager->get_vm()->get_metadata(sign.to_string());
-        } catch (const IllegalAccessError &) {
-            return no_meta;
-        }
-    }
-
     Obj *Obj::copy() const {
-        const auto obj = halloc_mgr<Obj>(info.manager, sign, type, module);
+        const auto obj = halloc_mgr<Obj>(info.manager, type);
         for (auto [name, slot]: member_slots) {
             obj->set_member(name, create_copy(slot.get_value()));
         }
@@ -165,7 +148,7 @@ namespace spade
     }
 
     string Obj::to_string() const {
-        return std::format("<object {} : '{}'>", type->get_sign().to_string(), sign.to_string());
+        return std::format("<object of type {}>", type->get_sign().to_string());
     }
 
     ObjMethod *Obj::get_super_class_method(const string &m_sign) {

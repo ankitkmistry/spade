@@ -7,14 +7,14 @@ namespace spade
 {
     std::unordered_map<vector<Type *>, ObjMethod *> ObjMethod::reification_table = {};
 
-    ObjMethod::ObjMethod(const Sign &sign, Kind kind, const FrameTemplate &frame, const Table<TypeParam *> &type_params, ObjModule *module)
-        : ObjCallable(sign, kind, type, module), frame_template(frame), type_params(type_params) {
+    ObjMethod::ObjMethod(const Sign &sign, Kind kind, const FrameTemplate &frame, const Table<TypeParam *> &type_params)
+        : ObjCallable(sign, kind), frame_template(frame), type_params(type_params) {
         this->tag = ObjTag::METHOD;
         frame_template.set_method(this);
     }
 
     Obj *ObjMethod::copy() const {
-        const auto obj = halloc_mgr<ObjMethod>(info.manager, sign, kind, frame_template, type_params, module);
+        const auto obj = halloc_mgr<ObjMethod>(info.manager, sign, kind, frame_template, type_params);
         // Copy members
         for (const auto &[name, slot]: member_slots) {
             obj->set_member(name, create_copy(slot.get_value()));

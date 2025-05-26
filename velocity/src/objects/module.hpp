@@ -1,11 +1,12 @@
 #pragma once
 
-#include "../callable/method.hpp"
+#include "objects/obj.hpp"
 
 namespace spade
 {
     class ObjModule : public Obj {
       private:
+        Sign sign;
         /// Path of the module
         fs::path path;
         /// The constant pool of the module
@@ -14,12 +15,16 @@ namespace spade
         ObjMethod *init = null;
 
       public:
-        ObjModule(const Sign &sign, ObjModule *current = null);
-
         static ObjModule *current();
 
-        string get_module_name() const {
-            return sign.get_name();
+        ObjModule(const Sign &sign);
+
+        const Sign &get_sign() const {
+            return sign;
+        }
+
+        void set_sign(const Sign &sign) {
+            this->sign = sign;
         }
 
         const fs::path &get_path() const {
@@ -42,8 +47,8 @@ namespace spade
             return init;
         }
 
-        void set_init(ObjMethod *init_) {
-            init = init_;
+        void set_init(ObjMethod *init) {
+            this->init = init;
         }
 
         Obj *copy() const override;

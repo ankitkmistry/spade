@@ -28,22 +28,22 @@ namespace spade
 
       protected:
         Kind kind;
-        Table<Type *> supers;
+        Sign sign;
         Table<TypeParam *> type_params;
+        Table<Type *> supers;
 
       private:
         // The table of all reified types in the form of [type_arg_specifier -> type]
         static std::unordered_map<vector<Type *>, Type *> reification_table;
 
       public:
-        Type(const Sign &sign, Kind kind, const Table<TypeParam *> &type_params, const Table<Type *> &supers, const Table<MemberSlot> &member_slots,
-             ObjModule *module = null)
-            : Obj(sign, null, module), kind(kind), supers(supers), type_params(type_params) {
+        static Type *UNRESOLVED(const Sign &sign, ObjModule *module = null, MemoryManager *manager = null);
+
+        Type(const Sign &sign, Kind kind, const Table<TypeParam *> &type_params, const Table<Type *> &supers, const Table<MemberSlot> &member_slots)
+            : Obj(null), kind(kind), sign(sign), type_params(type_params), supers(supers) {
             this->tag = ObjTag::TYPE;
             this->member_slots = member_slots;
         }
-
-        Type(const Type &type);
 
         virtual Kind get_kind() const {
             return kind;
@@ -53,20 +53,36 @@ namespace spade
             this->kind = kind;
         }
 
-        virtual const Table<Type *> &get_supers() const {
-            return supers;
+        virtual const Sign &get_sign() const {
+            return sign;
+        }
+
+        virtual void set_sign(const Sign &sign) {
+            this->sign = sign;
         }
 
         virtual const Table<TypeParam *> &get_type_params() const {
             return type_params;
         }
 
+        virtual const Table<Type *> &get_supers() const {
+            return supers;
+        }
+
         virtual Table<Type *> &get_supers() {
             return supers;
         }
 
+        virtual void set_supers(const Table<Type *> &supers) {
+            this->supers = supers;
+        }
+
         virtual Table<TypeParam *> &get_type_params() {
             return type_params;
+        }
+
+        virtual void set_type_params(const Table<TypeParam *> &type_params) {
+            this->type_params = type_params;
         }
 
         /**
@@ -118,8 +134,6 @@ namespace spade
         Obj *copy() const override;
         bool truth() const override;
         string to_string() const override;
-
-        static Type *UNRESOLVED(const Sign &sign, ObjModule *module = null, MemoryManager *manager = null);
     };
 }    // namespace spade
 

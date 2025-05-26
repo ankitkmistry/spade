@@ -304,7 +304,7 @@ string Sign::to_string() const {
 }
 
 Sign::Kind Sign::get_kind() const {
-    return elements.back().get_kind();
+    return elements.back().to_string() == "" ? Sign::Kind::EMPTY : elements.back().get_kind();
 }
 
 Sign Sign::get_parent() const {
@@ -323,18 +323,16 @@ Sign Sign::get_parent_module() const {
             break;
         i++;
     }
-    return Sign(slice(elements, 0, i + 1));
+    return Sign(slice(elements, 0, i));
 }
 
 Sign Sign::get_parent_class() const {
     if (get_kind() != Kind::MODULE) {
         int i = elements.size() - 2;
-        if (i < 0) {
+        if (i < 0)
             return EMPTY;
-        }
-        if (elements[i].get_kind() == Kind::CLASS) {
-            return Sign(slice(elements, 0, i + 1));
-        }
+        if (elements[i].get_kind() == Kind::CLASS)
+            return Sign(slice(elements, 0, i));
     }
     return EMPTY;
 }

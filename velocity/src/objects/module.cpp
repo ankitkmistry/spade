@@ -3,7 +3,7 @@
 
 namespace spade
 {
-    ObjModule::ObjModule(const Sign &sign, ObjModule *current) : Obj(sign, null, null) {
+    ObjModule::ObjModule(const Sign &sign) : Obj(null), sign(sign) {
         this->tag = ObjTag::MODULE;
         this->member_slots = member_slots;
     }
@@ -24,7 +24,7 @@ namespace spade
         if (const auto thread = Thread::current()) {
             const auto state = thread->get_state();
             if (const auto frame = state->get_frame(); frame > state->get_call_stack())
-                return frame->get_method()->get_module();
+                return frame->get_module();
         }
         return null;
     }

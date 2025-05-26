@@ -219,10 +219,6 @@ namespace spade
         std::recursive_mutex monitor;
         /// Memory info of the object
         MemoryInfo info;
-        /// Module where this object belongs to
-        ObjModule *module;
-        /// Signature of the object
-        Sign sign;
         /// Type of the object
         Type *type;
         /// Member slots of the object
@@ -271,7 +267,7 @@ namespace spade
          * @param type
          * @param module
          */
-        Obj(const Sign &sign, Type *type, ObjModule *module = null);
+        Obj(Type *type);
 
         /**
          * Creates a new object instance of type @p type . 
@@ -283,14 +279,7 @@ namespace spade
          * @param type
          * @param module
          */
-        explicit Obj(const Sign &sign, ObjModule *module = null);
-
-        /**
-         * Performs a complete deep copy on the object.
-         * @warning The user should not use this function except in exceptional cases
-         * @return a copy of the object
-         */
-        virtual Obj *copy() const;
+        explicit Obj();
 
         /**
          * @return the tag of the object
@@ -311,39 +300,6 @@ namespace spade
          */
         MemoryInfo &get_info() {
             return info;
-        }
-
-        /**
-         * @return the corresponding truth value of the object
-         */
-        virtual bool truth() const {
-            return true;
-        }
-
-        /**
-         * @return a string representation of this object for VM context only
-         */
-        virtual string to_string() const;
-
-        /**
-         * @return the encapsulating module of the object
-         */
-        virtual ObjModule *get_module() const {
-            return module;
-        }
-
-        /**
-         * @return the signature of the object
-         */
-        virtual const Sign &get_sign() const {
-            return sign;
-        }
-
-        /**
-         * @return sets the signature of the object
-         */
-        virtual void set_sign(const Sign &sign) {
-            this->sign = sign;
         }
 
         /**
@@ -372,6 +328,32 @@ namespace spade
         virtual Table<MemberSlot> &get_member_slots() {
             return member_slots;
         }
+
+        /**
+         * Set the member slots of the object
+         */
+        virtual void set_member_slots(const Table<MemberSlot> &member_slots) {
+            this->member_slots = member_slots;
+        }
+
+        /**
+         * Performs a complete deep copy on the object.
+         * @warning The user should not use this function except in exceptional cases
+         * @return a copy of the object
+         */
+        virtual Obj *copy() const;
+
+        /**
+         * @return the corresponding truth value of the object
+         */
+        virtual bool truth() const {
+            return true;
+        }
+
+        /**
+         * @return a string representation of this object for VM context only
+         */
+        virtual string to_string() const;
 
         /**
          * Enters the monitor for this object.
@@ -412,11 +394,6 @@ namespace spade
          * @return the method of the superclass has been overrode by this object
          */
         virtual ObjMethod *get_super_class_method(const string &mSign);
-
-        /**
-         * @return the meta information of the object
-         */
-        virtual const Table<string> &get_meta() const;
     };
 
     /**
@@ -425,7 +402,7 @@ namespace spade
      */
     class ComparableObj : public Obj {
       public:
-        ComparableObj(Sign sign, Type *type, ObjModule *module) : Obj(sign, type, module) {}
+        ComparableObj(Type *type) : Obj(type) {}
 
         /**
          * Performs comparison between two objects

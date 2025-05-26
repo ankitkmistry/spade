@@ -23,16 +23,18 @@ namespace spade
 
         // Create the thread
         thread = std::thread([&, fun] {
-            // Acquire a lock on the clearance mutex
-            std::unique_lock lock(clr_mutex);
-            // Wait until we got the clearance
-            cv_clear.wait(lock, [&] { return clearance; });
-            pre_fun();
             {
-                // Acquire a lock on the start mutex
-                std::lock_guard lk(start_mutex);
-                // Inform that we have started
-                started = true;
+                // Acquire a lock on the clearance mutex
+                std::unique_lock lock(clr_mutex);
+                // Wait until we got the clearance
+                cv_clear.wait(lock, [&] { return clearance; });
+                pre_fun();
+                {
+                    // Acquire a lock on the start mutex
+                    std::lock_guard lk(start_mutex);
+                    // Inform that we have started
+                    started = true;
+                }
             }
             // Notify the ctor that it can safely exit and destroy all the stuff
             cv_start.notify_one();

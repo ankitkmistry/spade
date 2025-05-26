@@ -61,7 +61,7 @@ namespace spade
 
         Type *find_type(const Sign &sign);
         Type *resolve_type(const Sign &sign);
-        Obj *make_obj(const Sign &type_sign, const Sign &obj_sign, Type *type);
+        Obj *make_obj(const Sign &type_sign, Type *type);
         fs::path resolve_path(const fs::path &from_path, const fs::path &path);
 
         void begin_scope(const string &name, bool module = false) {
@@ -69,7 +69,7 @@ namespace spade
                                                        : sign_stack.back() | SignElement(name, module ? Sign::Kind::MODULE : Sign::Kind::CLASS));
         }
 
-        Sign current_sign() const {
+        const Sign &current_sign() const {
             return sign_stack.empty() ? Sign::EMPTY : sign_stack.back();
         }
 

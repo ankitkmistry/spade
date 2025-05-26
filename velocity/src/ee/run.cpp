@@ -182,7 +182,7 @@ namespace spade
                     }
                     case Opcode::OBJLOAD: {
                         const auto type = cast<Type>(state->pop());
-                        const auto object = halloc_mgr<Obj>(manager, Sign(""), type, frame->get_method()->get_module());
+                        const auto object = halloc_mgr<Obj>(manager, type);
                         state->push(object);
                         break;
                     }

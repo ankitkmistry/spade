@@ -86,7 +86,6 @@ namespace spade::basic
             return;
         obj->get_info().marked = true;
         grayMaterial.push_back(obj);
-        mark(obj->get_module());
         mark(obj->get_type());
     }
 

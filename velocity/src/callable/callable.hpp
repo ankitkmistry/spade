@@ -1,7 +1,6 @@
 #pragma once
 
-#include "../objects/obj.hpp"
-#include "../objects/type.hpp"
+#include "objects/obj.hpp"
 
 namespace spade
 {
@@ -10,12 +9,21 @@ namespace spade
         enum class Kind { FUNCTION, METHOD, CONSTRUCTOR, FOREIGN };
 
       protected:
+        Sign sign;
         Kind kind;
 
         void validate_call_site();
 
       public:
-        ObjCallable(const Sign &sign, Kind kind, Type *type, ObjModule *module = null) : Obj(sign, type, module), kind(kind) {}
+        ObjCallable(const Sign &sign, Kind kind) : Obj(null), sign(sign), kind(kind) {}
+
+        const Sign &get_sign() const {
+            return sign;
+        }
+
+        void set_sign(const Sign &sign) {
+            this->sign = sign;
+        }
 
         /**
          * Calls this method with @p args on the current thread

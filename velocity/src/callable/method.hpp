@@ -15,7 +15,19 @@ namespace spade
         Table<TypeParam *> type_params;
 
       public:
-        ObjMethod(const Sign &sign, Kind kind, const FrameTemplate &frame, const Table<TypeParam *> &type_params, ObjModule *module = null);
+        ObjMethod(const Sign &sign, Kind kind, const FrameTemplate &frame, const Table<TypeParam *> &type_params);
+
+        FrameTemplate &get_frame_template() {
+            return frame_template;
+        }
+
+        const Table<TypeParam *> &get_type_params() const {
+            return type_params;
+        }
+
+        Table<TypeParam *> &get_type_params() {
+            return type_params;
+        }
 
         void call(const vector<Obj *> &args) override;
 
@@ -55,21 +67,5 @@ namespace spade
         Obj *copy() const override;
 
         string to_string() const override;
-
-        const FrameTemplate &get_frame_template() const {
-            return frame_template;
-        }
-
-        FrameTemplate &get_frame_template() {
-            return frame_template;
-        }
-
-        const Table<TypeParam *> &get_type_params() const {
-            return type_params;
-        }
-
-        Table<TypeParam *> &get_type_params() {
-            return type_params;
-        }
     };
 }    // namespace spade

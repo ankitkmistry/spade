@@ -11,7 +11,7 @@ namespace spade
         Obj *self;
 
       public:
-        ObjForeign(const Sign &sign, Kind kind, Type *type, ObjModule *module) : ObjCallable(sign, kind, type, module) {}
+        ObjForeign(const Sign &sign, Kind kind) : ObjCallable(sign, kind) {}
 
         void link_library();
 
