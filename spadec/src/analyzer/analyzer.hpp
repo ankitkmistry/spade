@@ -348,6 +348,7 @@ namespace spade
         void visit(ast::expr::Binary &node);
         void visit(ast::expr::ChainBinary &node);
         void visit(ast::expr::Ternary &node);
+        void visit(ast::expr::Lambda &node);
         void visit(ast::expr::Assignment &node);
 
       private:

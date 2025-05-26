@@ -1,12 +1,13 @@
 #include "parser.hpp"
 #include "lexer/token.hpp"
 #include "parser/ast.hpp"
+#include <memory>
 
 namespace spade
 {
     void Parser::fill_tokens_buffer(int n) {
         for (int i = 0; i < n; ++i) {
-            auto token = lexer->next_token();
+            const auto token = lexer->next_token();
             if (token->get_type() == TokenType::END_OF_FILE && !tokens.empty() && tokens.back()->get_type() == TokenType::END_OF_FILE)
                 break;    // Already EOF occured
             tokens.push_back(token);
@@ -25,7 +26,7 @@ namespace spade
     }
 
     std::shared_ptr<Token> Parser::peek(int i) {
-        auto idx = index + i;
+        const auto idx = index + i;
         if (idx >= tokens.size()) {
             fill_tokens_buffer(FILL_CONSTANT);
             if (idx >= tokens.size())
@@ -65,7 +66,7 @@ namespace spade
 
     std::shared_ptr<ast::Import> Parser::import() {
         std::vector<string> elements;
-        auto start = expect(TokenType::IMPORT);
+        const auto start = expect(TokenType::IMPORT);
         // Check for relative path
         if (match(TokenType::DOT)) {
             if (match(TokenType::DOT))
@@ -73,9 +74,9 @@ namespace spade
             else
                 elements.push_back(".");
         }
-        auto ref = reference();
+        const auto ref = reference();
         // Add all the tokens in reference to elements
-        for (auto tok: ref->get_path()) elements.push_back(tok->get_text());
+        for (const auto tok: ref->get_path()) elements.push_back(tok->get_text());
         // Check for alias or opened import
         std::shared_ptr<Token> alias;
         if (match(TokenType::AS))
@@ -98,7 +99,7 @@ namespace spade
     }
 
     std::shared_ptr<ast::Declaration> Parser::declaration() {
-        auto mods = modifiers();
+        const auto mods = modifiers();
         std::shared_ptr<ast::Declaration> decl;
         switch (peek()->get_type()) {
             case TokenType::VAR:
@@ -123,8 +124,8 @@ namespace spade
     }
 
     std::shared_ptr<ast::Declaration> Parser::compound_decl() {
-        auto token = expect(TokenType::CLASS, TokenType::ENUM, TokenType::INTERFACE, TokenType::ANNOTATION);
-        auto name = expect(TokenType::IDENTIFIER);
+        const auto token = expect(TokenType::CLASS, TokenType::ENUM, TokenType::INTERFACE, TokenType::ANNOTATION);
+        const auto name = expect(TokenType::IDENTIFIER);
         std::vector<std::shared_ptr<ast::decl::TypeParam>> type_params;
         std::vector<std::shared_ptr<ast::decl::Constraint>> constraints;
         bool context_generics = false;
@@ -151,7 +152,7 @@ namespace spade
     }
 
     std::shared_ptr<ast::Declaration> Parser::member_decl() {
-        auto mods = modifiers();
+        const auto mods = modifiers();
         std::shared_ptr<ast::Declaration> decl;
         switch (peek()->get_type()) {
             case TokenType::VAR:
@@ -185,7 +186,7 @@ namespace spade
                                                : throw error(std::format("expected {}", make_expected_string(TokenType::EQUAL, TokenType::LBRACE))))
 
     std::shared_ptr<ast::Declaration> Parser::init_decl() {
-        auto name = expect(TokenType::INIT);
+        const auto name = expect(TokenType::INIT);
         expect(TokenType::LPAREN);
         std::shared_ptr<ast::decl::Params> init_params;
         if (peek()->get_type() != TokenType::RPAREN)
@@ -197,8 +198,8 @@ namespace spade
     }
 
     std::shared_ptr<ast::Declaration> Parser::variable_decl() {
-        auto token = expect(TokenType::VAR, TokenType::CONST);
-        auto name = expect(TokenType::IDENTIFIER);
+        const auto token = expect(TokenType::VAR, TokenType::CONST);
+        const auto name = expect(TokenType::IDENTIFIER);
         std::shared_ptr<ast::Type> var_type;
         if (match(TokenType::COLON))
             var_type = type();
@@ -209,8 +210,8 @@ namespace spade
     }
 
     std::shared_ptr<ast::Declaration> Parser::function_decl() {
-        auto token = expect(TokenType::FUN);
-        auto name = expect(TokenType::IDENTIFIER);
+        const auto token = expect(TokenType::FUN);
+        const auto name = expect(TokenType::IDENTIFIER);
         std::vector<std::shared_ptr<ast::decl::TypeParam>> type_params;
         std::vector<std::shared_ptr<ast::decl::Constraint>> constraints;
         bool context_generics = false;
@@ -254,7 +255,7 @@ namespace spade
             variance = current();
         // else
         //     throw error("expected 'out', 'in");
-        auto name = expect(TokenType::IDENTIFIER);
+        const auto name = expect(TokenType::IDENTIFIER);
         std::shared_ptr<ast::Type> default_type;
         if (match(TokenType::EQUAL))
             default_type = type();
@@ -262,14 +263,14 @@ namespace spade
     }
 
     std::shared_ptr<ast::decl::Constraint> Parser::constraint() {
-        auto arg = expect(TokenType::IDENTIFIER);
+        const auto arg = expect(TokenType::IDENTIFIER);
         expect(TokenType::COLON);
-        auto c_type = type();
+        const auto c_type = type();
         return std::make_shared<ast::decl::Constraint>(arg, c_type);
     }
 
     std::shared_ptr<ast::decl::Parent> Parser::parent() {
-        auto ref = reference();
+        const auto ref = reference();
         std::vector<std::shared_ptr<ast::Type>> type_args;
         if (match(TokenType::LBRACKET)) {
             type_args = type_list();
@@ -279,9 +280,9 @@ namespace spade
     }
 
     std::shared_ptr<ast::decl::Enumerator> Parser::enumerator() {
-        auto name = expect(TokenType::IDENTIFIER);
+        const auto name = expect(TokenType::IDENTIFIER);
         if (match(TokenType::EQUAL)) {
-            auto expr = expression();
+            const auto expr = expression();
             return std::make_shared<ast::decl::Enumerator>(name, expr);
         } else if (match(TokenType::LPAREN)) {
             std::vector<std::shared_ptr<ast::expr::Argument>> args;
@@ -342,9 +343,9 @@ namespace spade
     }
 
     std::shared_ptr<ast::decl::Param> Parser::param() {
-        auto is_const = match(TokenType::CONST);
-        auto variadic = match(TokenType::STAR);
-        auto name = expect(TokenType::IDENTIFIER);
+        const auto is_const = match(TokenType::CONST);
+        const auto variadic = match(TokenType::STAR);
+        const auto name = expect(TokenType::IDENTIFIER);
         std::shared_ptr<ast::Type> param_type;
         std::shared_ptr<ast::Expression> expr;
         if (match(TokenType::COLON))
@@ -382,7 +383,7 @@ namespace spade
     }
 
     std::shared_ptr<ast::Statement> Parser::block() {
-        auto start = expect(TokenType::LBRACE);
+        const auto start = expect(TokenType::LBRACE);
         std::vector<std::shared_ptr<ast::Statement>> stmts;
         while (peek()->get_type() != TokenType::RBRACE) {
             switch (peek()->get_type()) {
@@ -402,7 +403,7 @@ namespace spade
                     break;
             }
         }
-        auto end = expect(TokenType::RBRACE);
+        const auto end = expect(TokenType::RBRACE);
         return std::make_shared<ast::stmt::Block>(start, end, stmts);
     }
 
@@ -421,18 +422,18 @@ namespace spade
             case TokenType::BREAK:
                 return std::make_shared<ast::stmt::Break>(advance());
             case TokenType::THROW: {
-                auto token = advance();
-                auto expr = expression();
+                const auto token = advance();
+                const auto expr = expression();
                 return std::make_shared<ast::stmt::Throw>(token, expr);
             }
             case TokenType::RETURN: {
-                auto token = advance();
-                auto expr = rule_optional(&Parser::expression);
+                const auto token = advance();
+                const auto expr = rule_optional(&Parser::expression);
                 return expr ? std::make_shared<ast::stmt::Return>(token, expr) : std::make_shared<ast::stmt::Return>(token);
             }
             case TokenType::YIELD: {
-                auto token = advance();
-                auto expr = expression();
+                const auto token = advance();
+                const auto expr = expression();
                 return std::make_shared<ast::stmt::Yield>(token, expr);
             }
             default: {
@@ -453,33 +454,33 @@ namespace spade
                                                : throw error(std::format("expected {}", make_expected_string(TokenType::COLON, TokenType::LBRACE))))
 
     std::shared_ptr<ast::Statement> Parser::if_stmt() {
-        auto token = expect(TokenType::IF);
-        auto expr = expression();
-        auto body = BODY();
-        auto else_body = match(TokenType::ELSE) ? BODY() : null;
+        const auto token = expect(TokenType::IF);
+        const auto expr = expression();
+        const auto body = BODY();
+        const auto else_body = match(TokenType::ELSE) ? BODY() : null;
         return std::make_shared<ast::stmt::If>(token, expr, body, else_body);
     }
 
     std::shared_ptr<ast::Statement> Parser::while_stmt() {
-        auto token = expect(TokenType::WHILE);
-        auto expr = expression();
-        auto body = BODY();
-        auto else_body = match(TokenType::ELSE) ? BODY() : null;
+        const auto token = expect(TokenType::WHILE);
+        const auto expr = expression();
+        const auto body = BODY();
+        const auto else_body = match(TokenType::ELSE) ? BODY() : null;
         return std::make_shared<ast::stmt::While>(token, expr, body, else_body);
     }
 
     std::shared_ptr<ast::Statement> Parser::do_while_stmt() {
-        auto token = expect(TokenType::DO);
-        auto body = block();
+        const auto token = expect(TokenType::DO);
+        const auto body = block();
         expect(TokenType::WHILE);
-        auto expr = expression();
-        auto else_body = match(TokenType::ELSE) ? BODY() : null;
+        const auto expr = expression();
+        const auto else_body = match(TokenType::ELSE) ? BODY() : null;
         return std::make_shared<ast::stmt::DoWhile>(token, body, expr, else_body);
     }
 
     std::shared_ptr<ast::Statement> Parser::try_stmt() {
-        auto token = expect(TokenType::TRY);
-        auto body = BODY();
+        const auto token = expect(TokenType::TRY);
+        const auto body = BODY();
         std::shared_ptr<ast::Statement> finally;
         std::vector<std::shared_ptr<ast::Statement>> catches;
         if (match(TokenType::FINALLY))
@@ -495,26 +496,26 @@ namespace spade
     }
 
     std::shared_ptr<ast::Statement> Parser::catch_stmt() {
-        auto token = expect(TokenType::CATCH);
-        auto refs = reference_list();
+        const auto token = expect(TokenType::CATCH);
+        const auto refs = reference_list();
         std::shared_ptr<ast::decl::Variable> symbol;
         if (match(TokenType::AS)) {
-            auto symbol_token = expect(TokenType::IDENTIFIER);
-            auto var_tok = std::make_shared<Token>(TokenType::CONST, "const", symbol_token->get_line(), symbol_token->get_col());
+            const auto symbol_token = expect(TokenType::IDENTIFIER);
+            const auto var_tok = std::make_shared<Token>(TokenType::CONST, "const", symbol_token->get_line(), symbol_token->get_col());
             symbol = std::make_shared<ast::decl::Variable>(var_tok, symbol_token, symbol_token, null, null);
         }
-        auto body = BODY();
+        const auto body = BODY();
         return std::make_shared<ast::stmt::Catch>(token, refs, symbol, body);
     }
 
 #undef BODY
 
     std::shared_ptr<ast::Expression> Parser::expression() {
-        return rule_or(&Parser::assignment, &Parser::ternary);
+        return rule_or(&Parser::assignment, &Parser::lambda_expr);
     }
 
     std::shared_ptr<ast::Expression> Parser::assignment() {
-        auto assignees = assignee_list();
+        const auto assignees = assignee_list();
         std::shared_ptr<Token> op1;
         switch (peek()->get_type()) {
             case TokenType::PLUS:
@@ -538,7 +539,7 @@ namespace spade
                     op2 = expect(TokenType::EQUAL);
                 } else
                     op1 = advance();
-                auto exprs = expr_list();
+                const auto exprs = expr_list();
                 return std::make_shared<ast::expr::Assignment>(assignees, op1, op2, exprs);
             }
             default:
@@ -549,12 +550,41 @@ namespace spade
         }
     }
 
+    std::shared_ptr<ast::Expression> Parser::lambda_expr() {
+        if (match(TokenType::FUN)) {
+            const auto token = current();
+            std::shared_ptr<ast::decl::Params> lm_params;
+            if (match(TokenType::LPAREN)) {
+                if (peek()->get_type() != TokenType::RPAREN)
+                    lm_params = params();
+                expect(TokenType::RPAREN);
+            }
+            std::shared_ptr<ast::Type> ret_type;
+            if (match(TokenType::ARROW))
+                ret_type = type();
+            std::shared_ptr<ast::Statement> def;
+            switch (peek()->get_type()) {
+                case TokenType::COLON:
+                    advance();
+                    def = std::make_shared<ast::stmt::Expr>(ternary());
+                    break;
+                case TokenType::LBRACE:
+                    def = block();
+                    break;
+                default:
+                    throw error(std::format("expected {}", make_expected_string(TokenType::COLON, TokenType::LBRACE)));
+            }
+            return std::make_shared<ast::expr::Lambda>(token, current(), lm_params, ret_type, def);
+        }
+        return ternary();
+    }
+
     std::shared_ptr<ast::Expression> Parser::ternary() {
-        auto expr1 = logic_or();
+        const auto expr1 = logic_or();
         if (match(TokenType::IF)) {
-            auto expr2 = logic_or();
+            const auto expr2 = logic_or();
             expect(TokenType::ELSE);
-            auto expr3 = logic_or();
+            const auto expr3 = logic_or();
             return std::make_shared<ast::expr::Ternary>(expr2, expr1, expr3);
         }
         return expr1;
@@ -563,8 +593,8 @@ namespace spade
     std::shared_ptr<ast::Expression> Parser::logic_or() {
         auto left = logic_and();
         while (match(TokenType::OR)) {
-            auto op = current();
-            auto right = logic_and();
+            const auto op = current();
+            const auto right = logic_and();
             left = std::make_shared<ast::expr::Binary>(left, op, right);
         }
         return left;
@@ -573,8 +603,8 @@ namespace spade
     std::shared_ptr<ast::Expression> Parser::logic_and() {
         auto left = logic_not();
         while (match(TokenType::AND)) {
-            auto op = current();
-            auto right = logic_not();
+            const auto op = current();
+            const auto right = logic_not();
             left = std::make_shared<ast::expr::Binary>(left, op, right);
         }
         return left;
@@ -582,8 +612,8 @@ namespace spade
 
     std::shared_ptr<ast::Expression> Parser::logic_not() {
         if (match(TokenType::NOT)) {
-            auto op = current();
-            auto expr = logic_not();
+            const auto op = current();
+            const auto expr = logic_not();
             return std::make_shared<ast::expr::Unary>(op, expr);
         }
         return conditional();
@@ -609,7 +639,7 @@ namespace spade
                 break;
         }
         if (op) {
-            auto right = relational();
+            const auto right = relational();
             left = std::make_shared<ast::expr::Binary>(left, op, op_extra, right);
         }
         return left;
@@ -618,7 +648,7 @@ namespace spade
     std::shared_ptr<ast::Expression> Parser::relational() {
         std::vector<std::shared_ptr<ast::Expression>> exprs;
         std::vector<std::shared_ptr<Token>> ops;
-        auto expr = bit_or();
+        const auto expr = bit_or();
         while (true) {
             switch (peek()->get_type()) {
                 case TokenType::LT:
@@ -643,8 +673,8 @@ namespace spade
     std::shared_ptr<ast::Expression> Parser::bit_or() {
         auto left = bit_xor();
         while (match(TokenType::PIPE)) {
-            auto op = current();
-            auto right = bit_xor();
+            const auto op = current();
+            const auto right = bit_xor();
             left = std::make_shared<ast::expr::Binary>(left, op, right);
         }
         return left;
@@ -653,8 +683,8 @@ namespace spade
     std::shared_ptr<ast::Expression> Parser::bit_xor() {
         auto left = bit_and();
         while (match(TokenType::CARET)) {
-            auto op = current();
-            auto right = bit_and();
+            const auto op = current();
+            const auto right = bit_and();
             left = std::make_shared<ast::expr::Binary>(left, op, right);
         }
         return left;
@@ -663,8 +693,8 @@ namespace spade
     std::shared_ptr<ast::Expression> Parser::bit_and() {
         auto left = shift();
         while (match(TokenType::AMPERSAND)) {
-            auto op = current();
-            auto right = shift();
+            const auto op = current();
+            const auto right = shift();
             left = std::make_shared<ast::expr::Binary>(left, op, right);
         }
         return left;
@@ -673,8 +703,8 @@ namespace spade
     std::shared_ptr<ast::Expression> Parser::shift() {
         auto left = term();
         while (match(TokenType::LSHIFT) || match(TokenType::RSHIFT) || match(TokenType::URSHIFT)) {
-            auto op = current();
-            auto right = term();
+            const auto op = current();
+            const auto right = term();
             left = std::make_shared<ast::expr::Binary>(left, op, right);
         }
         return left;
@@ -683,8 +713,8 @@ namespace spade
     std::shared_ptr<ast::Expression> Parser::term() {
         auto left = factor();
         while (match(TokenType::PLUS) || match(TokenType::DASH)) {
-            auto op = current();
-            auto right = factor();
+            const auto op = current();
+            const auto right = factor();
             left = std::make_shared<ast::expr::Binary>(left, op, right);
         }
         return left;
@@ -693,8 +723,8 @@ namespace spade
     std::shared_ptr<ast::Expression> Parser::factor() {
         auto left = power();
         while (match(TokenType::STAR) || match(TokenType::SLASH) || match(TokenType::PERCENT)) {
-            auto op = current();
-            auto right = power();
+            const auto op = current();
+            const auto right = power();
             left = std::make_shared<ast::expr::Binary>(left, op, right);
         }
         return left;
@@ -718,8 +748,8 @@ namespace spade
     std::shared_ptr<ast::Expression> Parser::cast() {
         auto expr = elvis();
         while (match(TokenType::AS)) {
-            auto safe = match(TokenType::HOOK);
-            auto cast_type = type();
+            const auto safe = match(TokenType::HOOK);
+            const auto cast_type = type();
             expr = std::make_shared<ast::expr::Cast>(expr, safe, cast_type);
         }
         return expr;
@@ -728,8 +758,8 @@ namespace spade
     std::shared_ptr<ast::Expression> Parser::elvis() {
         auto left = unary();
         while (match(TokenType::ELVIS)) {
-            auto op = current();
-            auto right = unary();
+            const auto op = current();
+            const auto right = unary();
             left = std::make_shared<ast::expr::Binary>(left, op, right);
         }
         return left;
@@ -740,8 +770,8 @@ namespace spade
             case TokenType::TILDE:
             case TokenType::DASH:
             case TokenType::PLUS: {
-                auto op = advance();
-                auto expr = unary();
+                const auto op = advance();
+                const auto expr = unary();
                 return std::make_shared<ast::expr::Unary>(op, expr);
             }
             default:
@@ -757,7 +787,7 @@ namespace spade
             switch (peek()->get_type()) {
                 case TokenType::DOT: {
                     expect(TokenType::DOT);
-                    auto member = expect(TokenType::IDENTIFIER, TokenType::INIT);
+                    const auto member = expect(TokenType::IDENTIFIER, TokenType::INIT);
                     caller = std::make_shared<ast::expr::DotAccess>(caller, safe, member);
                     break;
                 }
@@ -776,13 +806,13 @@ namespace spade
                     advance();
                     caller = rule_or<ast::Expression, ast::expr::Index, ast::expr::Reify>(
                             [&] {
-                                auto slices = slice_list();
-                                auto end = expect(TokenType::RBRACKET);
+                                const auto slices = slice_list();
+                                const auto end = expect(TokenType::RBRACKET);
                                 return std::make_shared<ast::expr::Index>(end, caller, safe, slices);
                             },
                             [&] {
-                                auto type_args = type_list();
-                                auto end = expect(TokenType::RBRACKET);
+                                const auto type_args = type_list();
+                                const auto end = expect(TokenType::RBRACKET);
                                 return std::make_shared<ast::expr::Reify>(end, caller, safe, type_args);
                             });
                     break;
@@ -799,7 +829,7 @@ namespace spade
             name = advance();
             advance();
         }
-        auto expr = expression();
+        const auto expr = expression();
         return name ? std::make_shared<ast::expr::Argument>(name, expr) : std::make_shared<ast::expr::Argument>(expr);
     }
 
@@ -878,7 +908,7 @@ namespace spade
                 std::shared_ptr<Token> end;
                 std::shared_ptr<Token> start = end = advance();
                 if (match(TokenType::LBRACKET)) {
-                    auto ref = reference();
+                    const auto ref = reference();
                     end = expect(TokenType::RBRACKET);
                     return std::make_shared<ast::expr::Super>(start, end, ref);
                 }
@@ -888,7 +918,7 @@ namespace spade
                 return std::make_shared<ast::expr::Self>(advance());
             case TokenType::LPAREN: {
                 advance();
-                auto expr = expression();
+                const auto expr = expression();
                 expect(TokenType::RPAREN);
                 return expr;
             }
@@ -906,8 +936,8 @@ namespace spade
     std::shared_ptr<ast::Type> Parser::union_type() {
         auto left = intersection_type();
         while (match(TokenType::PIPE)) {
-            auto op = current();
-            auto right = intersection_type();
+            const auto op = current();
+            const auto right = intersection_type();
             left = std::make_shared<ast::type::BinaryOp>(left, op, right);
         }
         return left;
@@ -916,15 +946,15 @@ namespace spade
     std::shared_ptr<ast::Type> Parser::intersection_type() {
         auto left = nullable_type();
         while (match(TokenType::AMPERSAND)) {
-            auto op = current();
-            auto right = nullable_type();
+            const auto op = current();
+            const auto right = nullable_type();
             left = std::make_shared<ast::type::BinaryOp>(left, op, right);
         }
         return left;
     }
 
     std::shared_ptr<ast::Type> Parser::nullable_type() {
-        auto type = primary_type();
+        const auto type = primary_type();
         if (match(TokenType::HOOK))
             return std::make_shared<ast::type::Nullable>(current(), type);
         return type;
@@ -933,10 +963,10 @@ namespace spade
     std::shared_ptr<ast::Type> Parser::primary_type() {
         switch (peek()->get_type()) {
             case TokenType::IDENTIFIER: {
-                auto ref = reference();
+                const auto ref = reference();
                 if (match(TokenType::LBRACKET)) {
-                    auto list = type_list();
-                    auto end = expect(TokenType::RBRACKET);
+                    const auto list = type_list();
+                    const auto end = expect(TokenType::RBRACKET);
                     return std::make_shared<ast::type::Reference>(end, ref, list);
                 }
                 return std::make_shared<ast::type::Reference>(ref);
@@ -944,7 +974,7 @@ namespace spade
             case TokenType::TYPE:
                 return std::make_shared<ast::type::TypeLiteral>(advance());
             case TokenType::LPAREN: {
-                auto start = advance();
+                const auto start = advance();
                 return rule_or<ast::Type, ast::type::Function, ast::Type>(
                         [&] {
                             std::vector<std::shared_ptr<ast::Type>> params;
@@ -953,17 +983,17 @@ namespace spade
                                 expect(TokenType::RPAREN);
                             }
                             expect(TokenType::ARROW);
-                            auto ret_type = type();
+                            const auto ret_type = type();
                             return std::make_shared<ast::type::Function>(start, params, ret_type);
                         },
                         [&] {
-                            auto grouped = type();
+                            const auto grouped = type();
                             expect(TokenType::RPAREN);
                             return grouped;
                         });
             }
             case TokenType::OBJECT: {
-                auto start = advance();
+                const auto start = advance();
                 std::vector<std::shared_ptr<ast::type::TypeBuilderMember>> members;
                 if (match(TokenType::LBRACE)) {
                     if (peek()->get_type() != TokenType::RBRACE)
@@ -979,7 +1009,7 @@ namespace spade
     }
 
     std::shared_ptr<ast::type::TypeBuilderMember> Parser::type_builder_member() {
-        auto name = expect(TokenType::IDENTIFIER, TokenType::INIT);
+        const auto name = expect(TokenType::IDENTIFIER, TokenType::INIT);
         std::shared_ptr<ast::Type> m_type;
         if (match(TokenType::COLON))
             m_type = type();
@@ -990,7 +1020,7 @@ namespace spade
         std::vector<std::shared_ptr<ast::Type>> list;
         list.push_back(type());
         while (match(TokenType::COMMA)) {
-            if (auto item = rule_optional(&Parser::type)) {
+            if (const auto item = rule_optional(&Parser::type)) {
                 list.push_back(item);
             } else
                 break;
@@ -1002,7 +1032,7 @@ namespace spade
         std::vector<std::shared_ptr<ast::Expression>> list;
         list.push_back(postfix());
         while (match(TokenType::COMMA)) {
-            if (auto item = rule_optional(&Parser::postfix)) {
+            if (const auto item = rule_optional(&Parser::postfix)) {
                 list.push_back(item);
             } else
                 break;
@@ -1014,7 +1044,7 @@ namespace spade
         std::vector<std::shared_ptr<ast::Expression>> list;
         list.push_back(expression());
         while (match(TokenType::COMMA)) {
-            if (auto item = rule_optional(&Parser::expression)) {
+            if (const auto item = rule_optional(&Parser::expression)) {
                 list.push_back(item);
             } else
                 break;
@@ -1026,7 +1056,7 @@ namespace spade
         std::vector<std::shared_ptr<ast::expr::Argument>> list;
         list.push_back(argument());
         while (match(TokenType::COMMA)) {
-            if (auto item = rule_optional(&Parser::argument)) {
+            if (const auto item = rule_optional(&Parser::argument)) {
                 list.push_back(item);
             } else
                 break;
@@ -1038,7 +1068,7 @@ namespace spade
         std::vector<std::shared_ptr<ast::expr::Slice>> list;
         list.push_back(slice());
         while (match(TokenType::COMMA)) {
-            if (auto item = rule_optional(&Parser::slice)) {
+            if (const auto item = rule_optional(&Parser::slice)) {
                 list.push_back(item);
             } else
                 break;
@@ -1050,7 +1080,7 @@ namespace spade
         std::vector<std::shared_ptr<ast::Reference>> list;
         list.push_back(reference());
         while (match(TokenType::COMMA)) {
-            if (auto item = rule_optional(&Parser::reference)) {
+            if (const auto item = rule_optional(&Parser::reference)) {
                 list.push_back(item);
             } else
                 break;
@@ -1064,7 +1094,7 @@ namespace spade
         if (list.front() == null)
             return {};
         while (match(TokenType::COMMA)) {
-            if (auto item = rule_optional(&Parser::param)) {
+            if (const auto item = rule_optional(&Parser::param)) {
                 list.push_back(item);
             } else
                 break;
@@ -1076,7 +1106,7 @@ namespace spade
         std::vector<std::shared_ptr<ast::decl::TypeParam>> list;
         list.push_back(type_param());
         while (match(TokenType::COMMA)) {
-            if (auto item = rule_optional(&Parser::type_param)) {
+            if (const auto item = rule_optional(&Parser::type_param)) {
                 list.push_back(item);
             } else
                 break;
@@ -1088,7 +1118,7 @@ namespace spade
         std::vector<std::shared_ptr<ast::decl::Constraint>> list;
         list.push_back(constraint());
         while (match(TokenType::COMMA)) {
-            if (auto item = rule_optional(&Parser::constraint)) {
+            if (const auto item = rule_optional(&Parser::constraint)) {
                 list.push_back(item);
             } else
                 break;
@@ -1100,7 +1130,7 @@ namespace spade
         std::vector<std::shared_ptr<ast::decl::Parent>> list;
         list.push_back(parent());
         while (match(TokenType::COMMA)) {
-            if (auto item = rule_optional(&Parser::parent)) {
+            if (const auto item = rule_optional(&Parser::parent)) {
                 list.push_back(item);
             } else
                 break;
@@ -1112,7 +1142,7 @@ namespace spade
         std::vector<std::shared_ptr<ast::decl::Enumerator>> list;
         list.push_back(enumerator());
         while (match(TokenType::COMMA)) {
-            if (auto item = rule_optional(&Parser::enumerator)) {
+            if (const auto item = rule_optional(&Parser::enumerator)) {
                 list.push_back(item);
             } else
                 break;
@@ -1124,7 +1154,7 @@ namespace spade
         std::vector<std::shared_ptr<ast::type::TypeBuilderMember>> list;
         list.push_back(type_builder_member());
         while (match(TokenType::COMMA)) {
-            if (auto item = rule_optional(&Parser::type_builder_member)) {
+            if (const auto item = rule_optional(&Parser::type_builder_member)) {
                 list.push_back(item);
             } else
                 break;
@@ -1133,7 +1163,7 @@ namespace spade
     }
 
     std::shared_ptr<ast::Module> Parser::parse() {
-        auto mod = module();
+        const auto mod = module();
         index = 0;
         return mod;
     }

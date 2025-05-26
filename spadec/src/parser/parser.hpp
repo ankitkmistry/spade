@@ -189,10 +189,12 @@ namespace spade
         std::shared_ptr<ast::Statement> catch_stmt();
 
         // Expressions
-        /// expression ::= assignment | ternary
+        /// expression ::= assignment | lambda_expr
         std::shared_ptr<ast::Expression> expression();
         /// assignment ::= assignee_list ('+' | '-' | '*' | '/' | '%' | '**' | '<<' | '>>' | '>>>' | '&' | '|' | '^' | '??') '=' expr_list
         std::shared_ptr<ast::Expression> assignment();
+        /// lambda_expr ::= 'fun' ('(' params? ')')? ('->' type)? (':' ternary | block);
+        std::shared_ptr<ast::Expression> lambda_expr();
         /// ternary ::= logic_or ('if' logic_or 'else' logic_or)?
         std::shared_ptr<ast::Expression> ternary();
 

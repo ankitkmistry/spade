@@ -217,6 +217,14 @@ namespace spade::ast
         print(expr.get_on_false(), "on_false");
     }
 
+    void Printer::visit(expr::Lambda &expr) {
+        write_repr(&expr);
+        ss << "expr::Lambda";
+        print(expr.get_params(), "params");
+        print(expr.get_return_type(), "return_type");
+        print(expr.get_definition(), "definition");
+    }
+
     void Printer::visit(expr::Assignment &expr) {
         write_repr(&expr);
         ss << "expr::Assignment";

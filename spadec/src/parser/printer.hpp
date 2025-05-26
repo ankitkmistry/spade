@@ -126,6 +126,7 @@ namespace spade::ast
         void visit(expr::Binary &expr) override;
         void visit(expr::ChainBinary &expr) override;
         void visit(expr::Ternary &expr) override;
+        void visit(expr::Lambda &expr) override;
         void visit(expr::Assignment &expr) override;
 
         void visit(stmt::Block &stmt) override;

@@ -988,6 +988,10 @@ lt_le_ge_gt_common:
         _res_expr_info.value_info.b_const = expr_info1.value_info.b_const || expr_info2.value_info.b_const;
     }
 
+    void Analyzer::visit(ast::expr::Lambda &node) {
+        // TODO: implement this
+    }
+
     void Analyzer::visit(ast::expr::Assignment &node) {
         if (node.get_assignees().size() != node.get_exprs().size())
             throw error(std::format("expected {} values but got {}", node.get_assignees().size(), node.get_exprs().size()), &node);

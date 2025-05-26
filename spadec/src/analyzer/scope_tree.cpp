@@ -266,6 +266,8 @@ namespace spade
 
     void ScopeTreeBuilder::visit(ast::expr::Ternary &node) {}
 
+    void ScopeTreeBuilder::visit(ast::expr::Lambda &node) {}
+
     void ScopeTreeBuilder::visit(ast::expr::Assignment &node) {}
 
     void ScopeTreeBuilder::visit(ast::stmt::Block &node) {}

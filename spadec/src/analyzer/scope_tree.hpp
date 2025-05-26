@@ -67,6 +67,7 @@ namespace spade
         void visit(ast::expr::Binary &node) override;
         void visit(ast::expr::ChainBinary &node) override;
         void visit(ast::expr::Ternary &node) override;
+        void visit(ast::expr::Lambda &node) override;
         void visit(ast::expr::Assignment &node) override;
         void visit(ast::stmt::Block &node) override;
         void visit(ast::stmt::If &node) override;

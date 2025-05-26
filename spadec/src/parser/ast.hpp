@@ -25,12 +25,14 @@ namespace spade::ast
     class Reference;
     class AstNode;
     class Expression;
+    class Statement;
 
     namespace expr
     {
         class Slice;
         class Argument;
         class Assignment;
+        class Lambda;
         class Ternary;
         class ChainBinary;
         class Binary;
@@ -107,6 +109,7 @@ namespace spade::ast
         virtual void visit(expr::Binary &node) = 0;
         virtual void visit(expr::ChainBinary &node) = 0;
         virtual void visit(expr::Ternary &node) = 0;
+        virtual void visit(expr::Lambda &node) = 0;
         virtual void visit(expr::Assignment &node) = 0;
         // Statement visitor
         virtual void visit(stmt::Block &node) = 0;
@@ -665,6 +668,35 @@ namespace spade::ast
 
             const std::shared_ptr<Expression> &get_on_false() const {
                 return on_false;
+            }
+
+            void accept(VisitorBase *visitor) override {
+                visitor->visit(*this);
+            }
+        };
+
+        class Lambda : public Expression {
+            std::shared_ptr<ast::decl::Params> params;
+            std::shared_ptr<ast::Type> return_type;
+            std::shared_ptr<ast::Statement> definition;
+
+          public:
+            template<typename T>
+                requires HasLineInfo<T>
+            Lambda(const std::shared_ptr<Token> &token, T end, const std::shared_ptr<ast::decl::Params> &params,
+                   const std::shared_ptr<ast::Type> &return_type, const std::shared_ptr<ast::Statement> &definition)
+                : Expression(token, end), params(params), return_type(return_type), definition(definition) {}
+
+            const std::shared_ptr<ast::decl::Params> &get_params() const {
+                return params;
+            }
+
+            const std::shared_ptr<ast::Type> &get_return_type() const {
+                return return_type;
+            }
+
+            const std::shared_ptr<ast::Statement> &get_definition() const {
+                return definition;
             }
 
             void accept(VisitorBase *visitor) override {

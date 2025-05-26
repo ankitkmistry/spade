@@ -50,8 +50,12 @@ catch_stmt      ::= 'catch' reference_list ('as' IDENTIFIER)? (':' statement | b
 
 
 // Expressions
-expression  ::= assignment | ternary;
+expression  ::= assignment | lambda_expr;
 assignment  ::= assignee_list ('+' | '-' | '*' | '/' | '%' | '**' | '<<' | '>>' | '>>>' | '&' | '|' | '^' | '??') '=' expr_list;
+
+lambda_expr ::= 'fun' ('(' params? ')')? ('->' type)? (':' ternary | block)
+              | ternary;
+
 ternary     ::= logic_or ('if' logic_or 'else' logic_or)?;
 
 // Binary
