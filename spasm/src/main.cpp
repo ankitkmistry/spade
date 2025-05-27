@@ -11,7 +11,7 @@
 
 using namespace spasm;
 
-// #define ENABLE_CMD_LINE
+#define ENABLE_CMD_LINE
 
 int main(int argc, char *argv[]) {
 #ifdef ENABLE_CMD_LINE

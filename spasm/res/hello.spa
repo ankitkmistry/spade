@@ -172,8 +172,24 @@ module hello
         # gfinvoke hello.met_reif_test()
         # gfinvoke hello.loop_test()
 
+        # const 2
+        # gfinvoke hello.match_test(basic.int)
+        # vret
+
+        const 23
+        const 24
+        jlt $l1
+        vret
+    $l1:
         const 2
-        gfinvoke hello.match_test(basic.int)
+        const 787
+        add
+        jmp $l2
+    $l2:
+        i2f
+        const 5.6
+        add
+        println
         vret
     end
 end

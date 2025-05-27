@@ -55,10 +55,6 @@ file (GLOB_RECURSE SPUTILS_INCLUDES sputils/src/*.hpp)
 
 add_library (sputils STATIC ${SPUTILS_SRCS} ${SPUTILS_INCLUDES})
 
-if (MSVC)
-    target_compile_definitions (sputils PRIVATE _ITERATOR_DEBUG_LEVEL=0)
-endif ()
-
 target_include_directories (sputils PUBLIC sputils/src)
 
 find_package (Boost 1.74.0 REQUIRED)
@@ -97,30 +93,33 @@ target_include_directories (velocity PUBLIC velocity/src PUBLIC sputils/src PRIV
 separate_arguments (LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
 add_definitions (${LLVM_DEFINITIONS_LIST})
 
-if (MSVC)
-    target_compile_definitions (velocity PRIVATE _ITERATOR_DEBUG_LEVEL=0)
-endif ()
-
 # Find the libraries that correspond to the LLVM components
 llvm_map_components_to_libnames (LLVM_LIBS core)
 target_link_libraries (velocity PUBLIC sputils PRIVATE ${LLVM_LIBS})
 
-if (NOT CMAKE_BUILD_TYPE EQUAL "Release")
-    if (MSVC)
-        # warning level 4
-        # target_compile_options (sputils PRIVATE /W4)
-        # target_compile_options (spadec PRIVATE /W4)
-        # target_compile_options (spasm PRIVATE /W4)
-        # target_compile_options (velocity PRIVATE /W4 /MD)
-        target_compile_options (sputils PRIVATE /MD)
-        target_compile_options (velocity PRIVATE /MD)
-    else ()
-        # additional warnings
-        # target_compile_options (sputils PRIVATE -Wall -Wextra -Wpedantic)
-        # target_compile_options (spadec PRIVATE -Wall -Wextra -Wpedantic)
-        # target_compile_options (spasm PRIVATE -Wall -Wextra -Wpedantic)
-        # target_compile_options (velocity PRIVATE -Wall -Wextra -Wpedantic)
-    endif ()
+if (MSVC)
+    # warning level 4
+    # target_compile_options (sputils PRIVATE /W4)
+    # target_compile_options (spadec PRIVATE /W4)
+    # target_compile_options (spasm PRIVATE /W4)
+    # target_compile_options (velocity PRIVATE /W4)
+    target_compile_options (sputils PRIVATE /MD)
+    target_compile_definitions (sputils PRIVATE _ITERATOR_DEBUG_LEVEL=0)
+
+    target_compile_options (spadec PRIVATE /MD)
+    target_compile_definitions (spadec PRIVATE _ITERATOR_DEBUG_LEVEL=0)
+
+    target_compile_options (spasm PRIVATE /MD)
+    target_compile_definitions (spasm PRIVATE _ITERATOR_DEBUG_LEVEL=0)
+
+    target_compile_options (velocity PRIVATE /MD)
+    target_compile_definitions (velocity PRIVATE _ITERATOR_DEBUG_LEVEL=0)
+else ()
+    # additional warnings
+    # target_compile_options (sputils PRIVATE -Wall -Wextra -Wpedantic)
+    # target_compile_options (spadec PRIVATE -Wall -Wextra -Wpedantic)
+    # target_compile_options (spasm PRIVATE -Wall -Wextra -Wpedantic)
+    # target_compile_options (velocity PRIVATE -Wall -Wextra -Wpedantic)
 endif ()
 
 if (WIN32)

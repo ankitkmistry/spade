@@ -7,7 +7,7 @@
             "program": "${workspaceFolder}/build/spasm.exe",
             "args": [
                 "-o",
-                ".\\spasm\\res\\hello",
+                ".\\velocity\\res\\hello",
                 ".\\spasm\\res\\hello.spa",
             ],
             "stopAtEntry": false,
