@@ -8,7 +8,7 @@
 #pragma warning (disable : 4291)
 #elif defined (__LINUX__) || defined(__gnu_linux__) || defined(__linux__)
 #define OS_LINUX
-#elif defined (__APPLE__)
+#elif defined __APPLE__
 #define OS_MAC
 #endif
 
@@ -16,6 +16,8 @@
 #define COMPILER_GCC
 #elif defined _MSC_VER
 #define COMPILER_MSVC
+#elif defined __clang__
+#define COMPILER_CLANG
 #else
 #define COMPILER_OTHER
 #endif

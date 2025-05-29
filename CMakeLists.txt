@@ -94,7 +94,7 @@ separate_arguments (LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
 add_definitions (${LLVM_DEFINITIONS_LIST})
 
 # Find the libraries that correspond to the LLVM components
-llvm_map_components_to_libnames (LLVM_LIBS core)
+llvm_map_components_to_libnames (LLVM_LIBS core support orcjit native)
 target_link_libraries (velocity PUBLIC sputils PRIVATE ${LLVM_LIBS})
 
 if (MSVC)

@@ -25,8 +25,8 @@ namespace spade
         Obj **sp = null;
 
       private:
-        ArgsTable args;
-        LocalsTable locals{0};
+        VariableTable args;
+        VariableTable locals;
         ExceptionTable exceptions;
         LineNumberTable lines{};
         vector<MatchTable> matches;
@@ -68,14 +68,14 @@ namespace spade
         /**
          * @return The arguments table
          */
-        ArgsTable &get_args() {
+        VariableTable &get_args() {
             return args;
         }
 
         /**
          * @return The locals table
          */
-        LocalsTable &get_locals() {
+        VariableTable &get_locals() {
             return locals;
         }
 
@@ -89,14 +89,14 @@ namespace spade
         /**
          * @return The arguments table
          */
-        const ArgsTable &get_args() const {
+        const VariableTable &get_args() const {
             return args;
         }
 
         /**
          * @return The locals table
          */
-        const LocalsTable &get_locals() const {
+        const VariableTable &get_locals() const {
             return locals;
         }
 

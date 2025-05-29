@@ -15,15 +15,15 @@ namespace spade
         uint32 code_count;
         uint8 *code;
         uint32 stack_max;
-        ArgsTable args;
-        LocalsTable locals;
+        VariableTable args;
+        VariableTable locals;
         ExceptionTable exceptions;
         LineNumberTable lines;
         vector<MatchTable> matches;
         ObjMethod *method;
 
       public:
-        FrameTemplate(const vector<uint8> &code, uint32 stack_max, const ArgsTable &args, const LocalsTable &locals, const ExceptionTable &exceptions,
+        FrameTemplate(const vector<uint8> &code, uint32 stack_max, const VariableTable &args, const VariableTable &locals, const ExceptionTable &exceptions,
                       const LineNumberTable &lines, const vector<MatchTable> &matches, ObjMethod *method = null)
             : code_count(static_cast<uint32>(code.size())),
               code(null),
@@ -126,11 +126,11 @@ namespace spade
             return stack_max;
         }
 
-        const ArgsTable &get_args() const {
+        const VariableTable &get_args() const {
             return args;
         }
 
-        const LocalsTable &get_locals() const {
+        const VariableTable &get_locals() const {
             return locals;
         }
 
@@ -146,11 +146,11 @@ namespace spade
             return matches;
         }
 
-        ArgsTable &get_args() {
+        VariableTable &get_args() {
             return args;
         }
 
-        LocalsTable &get_locals() {
+        VariableTable &get_locals() {
             return locals;
         }
 

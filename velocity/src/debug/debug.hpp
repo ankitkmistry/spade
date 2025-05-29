@@ -18,9 +18,9 @@ namespace spade
 
         static void print_code(const uint8 *code, const uint8 *ip, const uint32 codeCount, const vector<Obj *> &pool, LineNumberTable lineInfos);
 
-        static void print_locals(const LocalsTable &locals);
+        static void print_locals(const VariableTable &locals);
 
-        static void print_args(const ArgsTable &args);
+        static void print_args(const VariableTable &args);
 
         static void print_const_pool(const vector<Obj *> &pool);
 

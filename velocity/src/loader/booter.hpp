@@ -46,8 +46,8 @@ namespace spade
         Obj *load_global(const GlobalInfo &info, const vector<Obj *> &conpool);
 
         Obj *load_method(const MethodInfo &info, const vector<Obj *> &conpool);
-        NamedRef load_arg(const ArgInfo &arg, const vector<Obj *> &conpool);
-        NamedRef load_local(const LocalInfo &local, const vector<Obj *> &conpool);
+        void load_arg(const ArgInfo &arg, size_t i, VariableTable &table, const vector<Obj *> &conpool);
+        void load_local(const LocalInfo &local, size_t i, VariableTable &table, const vector<Obj *> &conpool);
         Exception load_exception(const ExceptionTableInfo &exception, const vector<Obj *> &conpool);
         MatchTable load_match(const MatchInfo match, const vector<Obj *> &conpool);
 

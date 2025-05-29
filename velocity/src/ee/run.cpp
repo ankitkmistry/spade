@@ -1,9 +1,10 @@
-#include "callable/table.hpp"
 #include "vm.hpp"
+#include "callable/table.hpp"
 #include "memory/memory.hpp"
 #include "objects/inbuilt_types.hpp"
-#include "objects/float.hpp"
+#include "objects/pointer.hpp"
 #include "objects/int.hpp"
+#include "objects/float.hpp"
 #include "objects/typeparam.hpp"
 #include "debug/debug.hpp"
 
@@ -39,17 +40,15 @@ namespace spade
                     case Opcode::POP:
                         state->pop();
                         break;
-                    case Opcode::NPOP: {
-                        const uint8 count = (uint8) state->read_byte();
-                        frame->sp -= count;
+                    case Opcode::NPOP:
+                        frame->sp -= state->read_byte();
                         break;
-                    }
                     case Opcode::DUP:
                         state->push(state->peek());
                         break;
                     case Opcode::NDUP: {
-                        const uint8 count = (uint8) state->read_byte();
-                        for (int i = 0; i < count; ++i) {
+                        const uint8 count = state->read_byte();
+                        for (uint8 i = 0; i < count; ++i) {
                             frame->sp[i] = frame->sp[-1];
                         }
                         frame->sp += count;
@@ -70,7 +69,8 @@ namespace spade
                     case Opcode::SPLOAD: {
                         const auto obj = state->pop();
                         const auto sign = state->load_const(state->read_short())->to_string();
-                        state->push(obj->get_super_class_method(sign));
+                        // TODO: just load a closure instead
+                        // state->push(obj->get_super_class_method(sign));
                         break;
                     }
                     case Opcode::GFLOAD:
@@ -88,7 +88,8 @@ namespace spade
                     case Opcode::SPFLOAD: {
                         const auto obj = state->pop();
                         const auto sign = state->load_const(state->read_byte())->to_string();
-                        state->push(obj->get_super_class_method(sign));
+                        // TODO: just load a closure instead
+                        // state->push(obj->get_super_class_method(sign));
                         break;
                     }
                     case Opcode::PGSTORE:
@@ -188,7 +189,7 @@ namespace spade
                     }
                     case Opcode::ARRUNPACK: {
                         const auto array = cast<ObjArray>(state->pop());
-                        array->foreach ([&state](const auto item) { state->push(item); });
+                        array->foreach ([state](const auto item) { state->push(item); });
                         break;
                     }
                     case Opcode::ARRPACK: {
@@ -208,7 +209,7 @@ namespace spade
                         break;
                     }
                     case Opcode::ARRFBUILD: {
-                        const uint8 count = (uint8) state->read_byte();
+                        const uint8 count = state->read_byte();
                         const auto array = halloc_mgr<ObjArray>(manager, count);
                         state->push(array);
                         break;
@@ -291,7 +292,7 @@ namespace spade
                         // Get the method
                         const auto method = cast<ObjMethod>(frame->get_locals().get(state->read_short()));
                         // Get the arg count
-                        const uint8 count = (uint8) method->get_frame_template().get_args().count();
+                        const uint8 count = method->get_frame_template().get_args().count();
                         // Pop the arguments
                         frame->sp -= count;
                         // Call it
@@ -302,7 +303,7 @@ namespace spade
                         // Get the method
                         const auto method = cast<ObjMethod>(get_symbol(state->load_const(state->read_short())->to_string()));
                         // Get the arg count
-                        const uint8 count = (uint8) method->get_frame_template().get_args().count();
+                        const uint8 count = method->get_frame_template().get_args().count();
                         // Pop the arguments
                         frame->sp -= count;
                         // Call it
@@ -333,7 +334,7 @@ namespace spade
                         // Get the method
                         const auto method = cast<ObjMethod>(frame->get_locals().get(state->read_byte()));
                         // Get the arg count
-                        const uint8 count = (uint8) method->get_frame_template().get_args().count();
+                        const uint8 count = method->get_frame_template().get_args().count();
                         // Pop the arguments
                         frame->sp -= count;
                         // Call it
@@ -344,7 +345,7 @@ namespace spade
                         // Get the method
                         const auto method = cast<ObjMethod>(get_symbol(state->load_const(state->read_byte())->to_string()));
                         // Get the arg count
-                        const uint8 count = (uint8) method->get_frame_template().get_args().count();
+                        const uint8 count = method->get_frame_template().get_args().count();
                         // Pop the arguments
                         frame->sp -= count;
                         // Call it
@@ -355,7 +356,7 @@ namespace spade
                         // Get the method
                         const auto method = cast<ObjMethod>(frame->get_args().get(state->read_byte()));
                         // Get the arg count
-                        const uint8 count = (uint8) method->get_frame_template().get_args().count();
+                        const uint8 count = method->get_frame_template().get_args().count();
                         // Pop the arguments
                         frame->sp -= count;
                         // Call it
@@ -394,50 +395,50 @@ namespace spade
                         break;
                     }
                     case Opcode::JLT: {
-                        const auto b = cast<ComparableObj>(state->pop());
-                        const auto a = cast<ComparableObj>(state->pop());
+                        ObjComparable const *b = cast<ObjComparable>(state->pop());
+                        ObjComparable const &a = *cast<ObjComparable>(state->pop());
                         const int16 offset = static_cast<int16>(state->read_short());
-                        if ((*a < b)->truth())
+                        if ((a < b)->truth())
                             state->adjust(offset);
                         break;
                     }
                     case Opcode::JLE: {
-                        const auto b = cast<ComparableObj>(state->pop());
-                        const auto a = cast<ComparableObj>(state->pop());
+                        ObjComparable const *b = cast<ObjComparable>(state->pop());
+                        ObjComparable const &a = *cast<ObjComparable>(state->pop());
                         const int16 offset = static_cast<int16>(state->read_short());
-                        if ((*a <= b)->truth())
+                        if ((a <= b)->truth())
                             state->adjust(offset);
                         break;
                     }
                     case Opcode::JEQ: {
-                        const auto b = cast<ComparableObj>(state->pop());
-                        const auto a = cast<ComparableObj>(state->pop());
+                        ObjComparable const *b = cast<ObjComparable>(state->pop());
+                        ObjComparable const &a = *cast<ObjComparable>(state->pop());
                         const int16 offset = static_cast<int16>(state->read_short());
-                        if ((*a == b)->truth())
+                        if ((a == b)->truth())
                             state->adjust(offset);
                         break;
                     }
                     case Opcode::JNE: {
-                        const auto b = cast<ComparableObj>(state->pop());
-                        const auto a = cast<ComparableObj>(state->pop());
+                        ObjComparable const *b = cast<ObjComparable>(state->pop());
+                        ObjComparable const &a = *cast<ObjComparable>(state->pop());
                         const int16 offset = static_cast<int16>(state->read_short());
-                        if ((*a != b)->truth())
+                        if ((a != b)->truth())
                             state->adjust(offset);
                         break;
                     }
                     case Opcode::JGE: {
-                        const auto b = cast<ComparableObj>(state->pop());
-                        const auto a = cast<ComparableObj>(state->pop());
+                        ObjComparable const *b = cast<ObjComparable>(state->pop());
+                        ObjComparable const &a = *cast<ObjComparable>(state->pop());
                         const int16 offset = static_cast<int16>(state->read_short());
-                        if ((*a >= b)->truth())
+                        if ((a >= b)->truth())
                             state->adjust(offset);
                         break;
                     }
                     case Opcode::JGT: {
-                        const auto b = cast<ComparableObj>(state->pop());
-                        const auto a = cast<ComparableObj>(state->pop());
+                        ObjComparable const *b = cast<ObjComparable>(state->pop());
+                        ObjComparable const &a = *cast<ObjComparable>(state->pop());
                         const int16 offset = static_cast<int16>(state->read_short());
-                        if ((*a > b)->truth())
+                        if ((a > b)->truth())
                             state->adjust(offset);
                         break;
                     }
@@ -553,58 +554,58 @@ namespace spade
                         break;
                     }
                     case Opcode::LT: {
-                        const auto b = cast<ComparableObj>(state->pop());
-                        const auto a = cast<ComparableObj>(state->pop());
-                        state->push(*a < b);
+                        ObjComparable const *b = cast<ObjComparable>(state->pop());
+                        ObjComparable const &a = *cast<ObjComparable>(state->pop());
+                        state->push(a < b);
                         break;
                     }
                     case Opcode::LE: {
-                        const auto b = cast<ComparableObj>(state->pop());
-                        const auto a = cast<ComparableObj>(state->pop());
-                        state->push(*a <= b);
+                        ObjComparable const *b = cast<ObjComparable>(state->pop());
+                        ObjComparable const &a = *cast<ObjComparable>(state->pop());
+                        state->push(a <= b);
                         break;
                     }
                     case Opcode::EQ: {
-                        const auto b = cast<ComparableObj>(state->pop());
-                        const auto a = cast<ComparableObj>(state->pop());
-                        state->push(*a == b);
+                        ObjComparable const *b = cast<ObjComparable>(state->pop());
+                        ObjComparable const &a = *cast<ObjComparable>(state->pop());
+                        state->push(a == b);
                         break;
                     }
                     case Opcode::NE: {
-                        const auto b = cast<ComparableObj>(state->pop());
-                        const auto a = cast<ComparableObj>(state->pop());
-                        state->push(*a != b);
+                        ObjComparable const *b = cast<ObjComparable>(state->pop());
+                        ObjComparable const &a = *cast<ObjComparable>(state->pop());
+                        state->push(a != b);
                         break;
                     }
                     case Opcode::GE: {
-                        const auto b = cast<ComparableObj>(state->pop());
-                        const auto a = cast<ComparableObj>(state->pop());
-                        state->push(*a >= b);
+                        ObjComparable const *b = cast<ObjComparable>(state->pop());
+                        ObjComparable const &a = *cast<ObjComparable>(state->pop());
+                        state->push(a >= b);
                         break;
                     }
                     case Opcode::GT: {
-                        const auto b = cast<ComparableObj>(state->pop());
-                        const auto a = cast<ComparableObj>(state->pop());
-                        state->push(*a > b);
+                        ObjComparable const *b = cast<ObjComparable>(state->pop());
+                        ObjComparable const &a = *cast<ObjComparable>(state->pop());
+                        state->push(a > b);
                         break;
                     }
                     case Opcode::IS: {
                         const auto b = state->pop();
                         const auto a = state->pop();
-                        state->push(halloc_mgr<ObjBool>(manager, a == b));
+                        state->push(ObjBool::value(a == b, manager));
                         break;
                     }
                     case Opcode::NIS: {
                         const auto b = state->pop();
                         const auto a = state->pop();
-                        state->push(halloc_mgr<ObjBool>(manager, a != b));
+                        state->push(ObjBool::value(a != b, manager));
                         break;
                     }
                     case Opcode::ISNULL:
-                        state->push(halloc_mgr<ObjBool>(manager, is<ObjNull>(state->pop())));
+                        state->push(ObjBool::value(is<ObjNull>(state->pop()), manager));
                         break;
                     case Opcode::NISNULL:
-                        state->push(halloc_mgr<ObjBool>(manager, !is<ObjNull>(state->pop())));
+                        state->push(ObjBool::value(!is<ObjNull>(state->pop()), manager));
                         break;
                     case Opcode::ENTERMONITOR:
                         state->pop()->enter_monitor();
@@ -625,40 +626,50 @@ namespace spade
                         break;
                     }
                     case Opcode::CLOSURELOAD: {
+                        // * Stack layout
+                        // Initial  -> [ ... | <method>]
+                        // Final    -> [ ... ]
+                        // 
+                        // * Instruction layout
+                        // +---------------------------------------------------------------+
+                        // | closureload capture_count:u8                                  |
+                        // |     capture_dest:u16 capture_type:u8 capture_from:(u8 or u16) |
+                        // +---------------------------------------------------------------+
+                        // If capture_type is 0x00 -> capture_from is u8
+                        // If capture_type is 0x01 -> capture_from is u16
+                        // 
                         const auto method = cast<ObjMethod>(state->pop()->copy());
-                        LocalsTable &locals = method->get_frame_template().get_locals();
-                        for (uint16 i = locals.get_closure_start(); i < locals.count(); i++) {
-                            NamedRef *ref;
-                            switch (state->read_byte()) {
-                                case 0x00:    // Arg as closure
-                                    ref = &frame->get_args().get_arg(state->read_byte());
-                                    break;
-                                case 0x01:    // Local as closure
-                                    ref = &frame->get_locals().get_local(state->read_short());
-                                    break;
-                                case 0x02:    // Type param as closure
+                        VariableTable &locals = method->get_frame_template().get_locals();
 
-                                    // TODO: implement this
-                                    // ref = frame->get_method()->get_type_param(state->load_const(state->read_short())->to_string());
+                        const uint8 capture_count = state->read_byte();
+                        for (uint8 i = 0; i < capture_count; i++) {
+                            const uint16 local_idx = state->read_short();
+                            ObjPointer *capture;
+                            switch (state->read_byte()) {
+                                case 0x00:
+                                    capture = frame->get_args().ramp_up(state->read_byte());
+                                    break;
+                                case 0x01:
+                                    capture = frame->get_locals().ramp_up(state->read_short());
                                     break;
                                 default:
                                     throw Unreachable();
                             }
-                            locals.add_closure(ref);
+                            locals.set(i, capture);
                         }
                         break;
                     }
                     case Opcode::REIFIEDLOAD: {
                         const uint8 count = state->read_byte();
                         // Pop the arguments
-                        for (int i = 0; i < count; i++) state->pop();
+                        frame->sp -= count;
                         const auto args = frame->sp;
                         const auto obj = state->pop();
-                        if (is<ObjMethod>(obj)) {
+                        if (is<ObjMethod>(obj))
                             state->push(cast<ObjMethod>(obj)->get_reified(args, count));
-                        } else if (is<Type>(obj)) {
+                        else if (is<Type>(obj))
                             state->push(cast<Type>(obj)->get_reified(args, count));
-                        } else
+                        else
                             throw runtime_error(std::format("cannot set_placeholder value of {}", obj->get_type()->to_string()));
                         break;
                     }

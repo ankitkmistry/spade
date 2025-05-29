@@ -8,24 +8,21 @@
 
 namespace spade
 {
-    static Table<MemberSlot> type_get_all_members(Type *type, Table<ObjMethod *> &super_methods) {
+    static Table<MemberSlot> type_get_all_members(Type *type) {
         if (is<TypeParam>(type))
-            if (!cast<TypeParam>(type)->get_placeholder()) {
-                super_methods = {};
+            if (!cast<TypeParam>(type)->get_placeholder())
                 return {};
-            }
 
         Table<MemberSlot> result;
 
         for (const auto super: type->get_supers() | std::views::values)
-            for (const auto &[name, member]: type_get_all_members(super, super_methods))
+            for (const auto &[name, member]: type_get_all_members(super))
                 result[name] = MemberSlot{Obj::create_copy(member.get_value()), member.get_flags()};
 
         for (const auto &[name, member]: type->get_member_slots()) {
             // Save methods that are being overrode
             if (is<ObjMethod>(member.get_value()) && result.contains(name)) {
                 const auto method = cast<ObjMethod>(member.get_value());
-                super_methods[method->get_sign().to_string()] = method;
             }
             result[name] = MemberSlot{Obj::create_copy(member.get_value()), member.get_flags()};
         }
@@ -38,18 +35,18 @@ namespace spade
             if (is<TypeParam>(type))
                 // Claim this object by the type param
                 cast<TypeParam>(type)->claim(this);
-            member_slots = type_get_all_members(type, super_class_methods);
+            member_slots = type_get_all_members(type);
         }
     }
 
     Obj::Obj() : type(null) {
         set_type(SpadeVM::current()->get_vm_type(tag));
-        member_slots = type_get_all_members(type, super_class_methods);
+        member_slots = type_get_all_members(type);
     }
 
     void Obj::set_type(Type *destType) {
         if (type == destType) {
-            member_slots = type_get_all_members(type, super_class_methods);
+            member_slots = type_get_all_members(type);
             return;
         }
         // Unclaim the object from the previous type if it was a type param
@@ -60,11 +57,9 @@ namespace spade
             if (is<TypeParam>(type))
                 // Claim this object by the type param
                 cast<TypeParam>(type)->claim(this);
-            member_slots = type_get_all_members(type, super_class_methods);
-        } else {
+            member_slots = type_get_all_members(type);
+        } else
             member_slots.clear();
-            super_class_methods.clear();
-        }
     }
 
     void Obj::reify(Obj *obj, const Table<TypeParam *> &old_tps, const Table<TypeParam *> &new_tps) {
@@ -151,33 +146,27 @@ namespace spade
         return std::format("<object of type {}>", type->get_sign().to_string());
     }
 
-    ObjMethod *Obj::get_super_class_method(const string &m_sign) {
-        if (const auto it = super_class_methods.find(m_sign); it != super_class_methods.end())
-            return it->second;
-        throw IllegalAccessError(std::format("cannot find superclass method: {} in {}", m_sign, to_string()));
-    }
-
-    ObjBool *ComparableObj::operator<(const Obj *rhs) const {
+    ObjBool *ObjComparable::operator<(const Obj *rhs) const {
         return halloc_mgr<ObjBool>(info.manager, compare(rhs) < 0);
     }
 
-    ObjBool *ComparableObj::operator>(const Obj *rhs) const {
+    ObjBool *ObjComparable::operator>(const Obj *rhs) const {
         return halloc_mgr<ObjBool>(info.manager, compare(rhs) > 0);
     }
 
-    ObjBool *ComparableObj::operator<=(const Obj *rhs) const {
+    ObjBool *ObjComparable::operator<=(const Obj *rhs) const {
         return halloc_mgr<ObjBool>(info.manager, compare(rhs) <= 0);
     }
 
-    ObjBool *ComparableObj::operator>=(const Obj *rhs) const {
+    ObjBool *ObjComparable::operator>=(const Obj *rhs) const {
         return halloc_mgr<ObjBool>(info.manager, compare(rhs) >= 0);
     }
 
-    ObjBool *ComparableObj::operator==(const Obj *rhs) const {
+    ObjBool *ObjComparable::operator==(const Obj *rhs) const {
         return halloc_mgr<ObjBool>(info.manager, compare(rhs) == 0);
     }
 
-    ObjBool *ComparableObj::operator!=(const Obj *rhs) const {
+    ObjBool *ObjComparable::operator!=(const Obj *rhs) const {
         return halloc_mgr<ObjBool>(info.manager, compare(rhs) != 0);
     }
 }    // namespace spade

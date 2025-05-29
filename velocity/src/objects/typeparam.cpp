@@ -59,11 +59,6 @@ namespace spade
         placeholder->set_member(name, value);
     }
 
-    ObjMethod *TypeParam::get_super_class_method(const string &sign) {
-        check_placeholder();
-        return placeholder->get_super_class_method(sign);
-    }
-
     // Type specific
 
     Type::Kind TypeParam::get_kind() const {

@@ -1,37 +1,38 @@
 #include "inbuilt_types.hpp"
-#include "ee/vm.hpp"
 #include "obj.hpp"
+#include "ee/vm.hpp"
+#include "memory/memory.hpp"
 
 namespace spade
 {
-    ObjBool::ObjBool(bool value) : ComparableObj(null), b(value) {
+    ObjBool::ObjBool(bool value) : ObjComparable(null), b(value) {
         this->tag = ObjTag::BOOL;
         set_type(SpadeVM::current()->get_vm_type(tag));
     }
 
-    ObjChar::ObjChar(const char c) : ComparableObj(null), c(c) {
+    ObjChar::ObjChar(const char c) : ObjComparable(null), c(c) {
         this->tag = ObjTag::CHAR;
         set_type(SpadeVM::current()->get_vm_type(tag));
     }
 
-    ObjNull::ObjNull(ObjModule *module) : ComparableObj(null) {
+    ObjNull::ObjNull(ObjModule *module) : ObjComparable(null) {
         this->tag = ObjTag::NULL_;
         set_type(SpadeVM::current()->get_vm_type(tag));
     }
 
-    ObjString::ObjString(string str) : ComparableObj(null), str(str) {
+    ObjString::ObjString(string str) : ObjComparable(null), str(str) {
         this->tag = ObjTag::STRING;
         set_type(SpadeVM::current()->get_vm_type(tag));
     }
 
-    ObjString::ObjString(const uint8 *bytes, uint16 len) : ComparableObj(null), str() {
+    ObjString::ObjString(const uint8 *bytes, uint16 len) : ObjComparable(null), str() {
         this->tag = ObjTag::STRING;
         set_type(SpadeVM::current()->get_vm_type(tag));
 
         str = string(bytes, bytes + len);
     }
 
-    ObjArray::ObjArray(uint16 length) : ComparableObj(null), length(length) {
+    ObjArray::ObjArray(uint16 length) : ObjComparable(null), length(length) {
         this->tag = ObjTag::ARRAY;
         set_type(SpadeVM::current()->get_vm_type(tag));
 

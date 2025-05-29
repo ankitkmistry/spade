@@ -133,32 +133,28 @@ namespace spade
         }
     }
 
-    void DebugOp::print_locals(const LocalsTable &locals) {
+    void DebugOp::print_locals(const VariableTable &locals) {
         if (locals.count() == 0)
             return;
-        LocalVarTable table{locals.get_closure_start()};
+        LocalVarTable table;
         ClosureTable closure;
         uint8 i;
-        for (i = 0; i < locals.get_closure_start(); ++i) {
-            auto const &local = locals.get_local(i);
-            table.add(i, local.get_name(), local.get_value());
-        }
-        for (uint8 j = 0; i < locals.count(); i++, j++) {
-            auto node = locals.get_closure(i);
-            closure.add(j, node->get_name(), node->get_value());
+        for (i = 0; i < locals.count(); ++i) {
+            auto const &name = locals.get_meta(i).at("name");
+            auto const &value = locals.get(i);
+            table.add(i, name, value);
         }
         std::cout << table;
-        if (locals.get_closure_start() < locals.count())
-            std::cout << closure;
     }
 
-    void DebugOp::print_args(const ArgsTable &args) {
+    void DebugOp::print_args(const VariableTable &args) {
         if (args.count() == 0)
             return;
         ArgumentTable table;
         for (uint8 i = 0; i < args.count(); ++i) {
-            auto arg = args.get_arg(i);
-            table.add(i, arg.get_name(), arg.get_value());
+            auto const &name = args.get_meta(i).at("name");
+            auto const &value = args.get(i);
+            table.add(i, name, value);
         }
         std::cout << table;
     }

@@ -1,5 +1,7 @@
 #include "basic_collector.hpp"
 #include "ee/vm.hpp"
+#include "memory/memory.hpp"
+#include "objects/inbuilt_types.hpp"
 
 namespace spade::basic
 {
@@ -47,21 +49,13 @@ namespace spade::basic
         }
         // mark args
         for (int i = 0; i < frame->get_args().count(); ++i) {
-            const auto arg = frame->get_args().get_arg(i);
-            const auto obj = arg.get_value();
+            const auto obj = frame->get_args().get(i);
             mark(obj);
         }
         // mark locals and closures
         for (int i = 0; i < frame->get_locals().count(); ++i) {
-            if (i < frame->get_locals().get_closure_start()) {
-                const auto local = frame->get_locals().get_local(i);
-                const auto obj = local.get_value();
-                mark(obj);
-            } else {
-                const auto closure = frame->get_locals().get_closure(i);
-                const auto obj = closure->get_value();
-                mark(obj);
-            }
+            const auto obj = frame->get_locals().get(i);
+            mark(obj);
         }
         // mark exceptions
         for (int i = 0; i < frame->get_exceptions().count(); ++i) {
@@ -93,7 +87,7 @@ namespace spade::basic
         for (const auto material: grayMaterial) {
             if (is<ObjArray>(material)) {
                 auto array = cast<ObjArray>(material);
-                array->foreach ([&](auto val) {
+                array->foreach ([&](const auto val) {
                     // mark every value of the array
                     mark(val);
                 });
@@ -102,21 +96,13 @@ namespace spade::basic
                 const FrameTemplate &frame_template = method->get_frame_template();
                 // mark args
                 for (int i = 0; i < frame_template.get_args().count(); ++i) {
-                    const auto &arg = frame_template.get_args().get_arg(i);
-                    const auto obj = arg.get_value();
+                    const auto obj = frame_template.get_args().get(i);
                     mark(obj);
                 }
                 // mark locals and closures
                 for (int i = 0; i < frame_template.get_locals().count(); ++i) {
-                    if (i < frame_template.get_locals().get_closure_start()) {
-                        const auto &local = frame_template.get_locals().get_local(i);
-                        const auto obj = local.get_value();
-                        mark(obj);
-                    } else {
-                        const auto closure = frame_template.get_locals().get_closure(i);
-                        const auto obj = closure->get_value();
-                        mark(obj);
-                    }
+                    const auto obj = frame_template.get_locals().get(i);
+                    mark(obj);
                 }
                 // mark exceptions
                 for (int i = 0; i < frame_template.get_exceptions().count(); ++i) {

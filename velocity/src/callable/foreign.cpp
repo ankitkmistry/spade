@@ -1,5 +1,6 @@
 #include "foreign.hpp"
 #include "ee/vm.hpp"
+#include "objects/inbuilt_types.hpp"
 
 namespace spade
 {

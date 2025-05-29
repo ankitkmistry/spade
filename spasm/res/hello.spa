@@ -176,20 +176,23 @@ module hello
         # gfinvoke hello.match_test(basic.int)
         # vret
 
-        const 23
-        const 24
-        jlt $l1
-        vret
-    $l1:
-        const 2
-        const 787
-        add
-        jmp $l2
-    $l2:
-        i2f
-        const 5.6
-        add
+        local @var i : basic.int
+
+        const 0
+        plfstore i
+    $cond:
+        lfload i
+        const 10
+        jge $end
+    $body:
+        lfload i
         println
-        vret
+        lfload i
+        const 1
+        add
+        plfstore i
+        jmp $cond
+    $end:
+        vret        
     end
 end

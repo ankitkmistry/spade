@@ -54,7 +54,6 @@ namespace spade
         string to_string() const override;
         Obj *get_member(const string &name) const override;
         void set_member(const string &name, Obj *value) override;
-        ObjMethod *get_super_class_method(const string &sign) override;
 
         // Type specific
         Kind get_kind() const override;

@@ -20,12 +20,12 @@ namespace spade
           code_count(frame.code_count),
           code(frame.code),
           ip(frame.ip),
-          args(frame.args.copy()),
-          locals(frame.locals.copy()),
+          args(frame.args),
+          locals(frame.locals),
           exceptions(frame.exceptions),
           lines(frame.lines),
           matches(frame.matches),
-          method(frame.method), 
+          method(frame.method),
           module(frame.module) {
         stack = new Obj *[stack_max];
         std::memcpy(stack, frame.stack, stack_max * sizeof(Obj *));
@@ -44,7 +44,7 @@ namespace spade
           exceptions(frame.exceptions),
           lines(frame.lines),
           matches(frame.matches),
-          method(frame.method), 
+          method(frame.method),
           module(frame.module) {
         module = cast<ObjModule>(SpadeVM::current()->get_symbol(method->get_sign().get_parent_module().to_string()));
         frame.stack = null;
@@ -55,8 +55,8 @@ namespace spade
         code_count = frame.code_count;
         code = frame.code;
         ip = frame.ip;
-        args = frame.args.copy();
-        locals = frame.locals.copy();
+        args = frame.args;
+        locals = frame.locals;
         exceptions = frame.exceptions;
         lines = frame.lines;
         matches = frame.matches;

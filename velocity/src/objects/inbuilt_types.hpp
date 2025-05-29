@@ -1,13 +1,12 @@
 #pragma once
 
 #include "memory/manager.hpp"
-#include "memory/memory.hpp"
 #include "utils/common.hpp"
 #include "obj.hpp"
 
 namespace spade
 {
-    class ObjBool : public ComparableObj {
+    class ObjBool : public ObjComparable {
       private:
         bool b;
 
@@ -32,11 +31,11 @@ namespace spade
         int32 compare(const Obj *rhs) const override;
 
         ObjBool *operator!() const {
-            return halloc_mgr<ObjBool>(info.manager, !b);
+            return ObjBool::value(!b, info.manager);
         }
     };
 
-    class ObjChar : public ComparableObj {
+    class ObjChar : public ObjComparable {
       private:
         char c;
 
@@ -59,7 +58,7 @@ namespace spade
         int32 compare(const Obj *rhs) const override;
     };
 
-    class ObjNull : public ComparableObj {
+    class ObjNull : public ObjComparable {
       public:
         ObjNull(ObjModule *module = null);
 
@@ -81,7 +80,7 @@ namespace spade
         int32 compare(const Obj *rhs) const override;
     };
 
-    class ObjString : public ComparableObj {
+    class ObjString : public ObjComparable {
       private:
         string str;
 
@@ -106,7 +105,7 @@ namespace spade
         int32 compare(const Obj *rhs) const override;
     };
 
-    class ObjArray final : public ComparableObj {
+    class ObjArray final : public ObjComparable {
       private:
         Obj **array;
         uint16 length;
@@ -136,9 +135,9 @@ namespace spade
         int32 compare(const Obj *rhs) const override;
     };
 
-    class ObjNumber : public ComparableObj {
+    class ObjNumber : public ObjComparable {
       protected:
-        ObjNumber() : ComparableObj(null) {}
+        ObjNumber() : ObjComparable(null) {}
 
       public:
         virtual Obj *operator-() const = 0;

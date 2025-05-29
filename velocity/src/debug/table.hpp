@@ -44,7 +44,7 @@ namespace spade
       public:
         CallStackTable() : DataTable("Call Stack", {"i", "method", "args", "pc"}) {}
 
-        void add(uint16 i, ObjMethod *method, const ArgsTable &args, uint32 pc) {
+        void add(uint16 i, ObjMethod *method, const VariableTable &args, uint32 pc) {
             set({std::to_string(i), method->to_string(), args.to_string(), std::to_string(pc)});
         }
     };
@@ -60,8 +60,7 @@ namespace spade
 
     class LocalVarTable : public DataTable {
       public:
-        explicit LocalVarTable(uint16 closureStart)
-            : DataTable(std::format("Locals Table | closureStart: {}", closureStart), {"slot", "name", "value"}) {}
+        explicit LocalVarTable() : DataTable("Locals Table", {"slot", "name", "value"}) {}
 
         void add(uint8 slot, const string &name, Obj *value) {
             set({std::to_string(slot), name, value->to_string()});

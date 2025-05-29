@@ -16,9 +16,9 @@ namespace spade
     class ObjInt;
     class ObjFloat;
     class ObjArray;
-    class ObjArray;
     class ObjModule;
     class ObjMethod;
+    class ObjPointer;
     class Type;
     class TypeParam;
 
@@ -195,8 +195,10 @@ namespace spade
         FLOAT,
         // ObjArray
         ARRAY,
-        // ObjArray
+        // Obj
         OBJECT,
+        // ObjPointer
+        POINTER,
 
         // ObjModule
         MODULE,
@@ -223,8 +225,6 @@ namespace spade
         Type *type;
         /// Member slots of the object
         Table<MemberSlot> member_slots;
-        /// Methods of superclass which have been overrode
-        Table<ObjMethod *> super_class_methods;
 
         /**
          * Changes pointer to type params @p obj specified in @p old_tps to pointers specified in @p new_tps.
@@ -387,22 +387,15 @@ namespace spade
          * @param value value to be set to
          */
         virtual void set_member(const string &name, Obj *value);
-
-        /**
-         * @throws IllegalAccessError if the superclass method cannot be found
-         * @param mSign complete signature of the method
-         * @return the method of the superclass has been overrode by this object
-         */
-        virtual ObjMethod *get_super_class_method(const string &mSign);
     };
 
     /**
      * The abstract description of a comparable object in the virtual machine.
      * Simple comparison operations can be performed on this kind of object
      */
-    class ComparableObj : public Obj {
+    class ObjComparable : public Obj {
       public:
-        ComparableObj(Type *type) : Obj(type) {}
+        ObjComparable(Type *type) : Obj(type) {}
 
         /**
          * Performs comparison between two objects
@@ -443,8 +436,8 @@ namespace spade
             return obj->get_tag() == ObjTag::FLOAT;
         else if constexpr (std::same_as<T, ObjArray>)
             return obj->get_tag() == ObjTag::ARRAY;
-        else if constexpr (std::same_as<T, ObjArray>)
-            return obj->get_tag() == ObjTag::OBJECT;
+        else if constexpr (std::same_as<T, Obj>)
+            return true;
         else if constexpr (std::same_as<T, ObjModule>)
             return obj->get_tag() == ObjTag::MODULE;
         else if constexpr (std::same_as<T, ObjMethod>)
@@ -453,6 +446,8 @@ namespace spade
             return obj->get_tag() == ObjTag::TYPE;
         else if constexpr (std::same_as<T, TypeParam>)
             return obj->get_tag() == ObjTag::TYPE_PARAM;
+        else if constexpr (std::same_as<T, ObjPointer>)
+            return obj->get_tag() == ObjTag::POINTER;
         else
             return dynamic_cast<T *>(obj) != null;
     }

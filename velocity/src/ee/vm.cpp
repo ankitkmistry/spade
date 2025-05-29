@@ -1,12 +1,13 @@
 #include "vm.hpp"
-#include "jit/jit.hpp"
 #include "memory/memory.hpp"
+#include "utils/common.hpp"
 #include "objects/module.hpp"
 #include "objects/obj.hpp"
 #include "objects/type.hpp"
 #include "objects/typeparam.hpp"
-#include "utils/common.hpp"
-#include <functional>
+#include "objects/inbuilt_types.hpp"
+
+#include "jit/jit.hpp"
 
 namespace spade
 {
@@ -85,9 +86,9 @@ namespace spade
             } else
                 throw runtime_error("entry point must have zero or one argument (basic.array): " + entry->get_sign().to_string());
             // Enter execution loop
-            // run(thread);
+            run(thread);
             // Try to compile to native
-            jit_test(entry);
+            // jit_test(entry);
 
         } catch (const SpadeError &error) {
             std::cout << "VM Error: " << error.what() << std::endl;
@@ -194,10 +195,7 @@ namespace spade
                 return cast<Type>(get_symbol("basic.array[T]"));
             case ObjTag::OBJECT:
                 return cast<Type>(get_symbol("basic.any"));
-            case ObjTag::MODULE:
-            case ObjTag::METHOD:
-            case ObjTag::TYPE:
-            case ObjTag::TYPE_PARAM:
+            default:
                 return null;
         }
     }

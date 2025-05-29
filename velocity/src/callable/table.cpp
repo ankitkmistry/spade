@@ -1,97 +1,88 @@
-#include <boost/functional/hash.hpp>
 #include <cstddef>
+#include <boost/functional/hash.hpp>
 
 #include "table.hpp"
-#include "boost/container_hash/hash_fwd.hpp"
-#include "objects/inbuilt_types.hpp"
-#include "objects/int.hpp"
-#include "spimp/error.hpp"
-#include "spimp/utils.hpp"
 #include "utils/exceptions.hpp"
+#include "objects/inbuilt_types.hpp"
+#include "objects/pointer.hpp"
+#include "memory/memory.hpp"
 
 namespace spade
 {
-    NamedRef::NamedRef(const NamedRef &other) : name(other.name), value(Obj::create_copy(other.value)), meta(other.meta) {}
-
-    NamedRef::NamedRef(NamedRef &&other) noexcept : name(std::move(other.name)), value(other.value), meta(std::move(other.meta)) {}
-
-    NamedRef &NamedRef::operator=(const NamedRef &other) {
-        name = other.name;
-        value = Obj::create_copy(other.value);
-        meta = other.meta;
-        return *this;
-    }
-
-    NamedRef &NamedRef::operator=(NamedRef &&other) noexcept {
-        name = std::move(other.name);
-        value = other.value;
-        meta = std::move(other.meta);
-        return *this;
-    }
-
-    Obj *ArgsTable::get(uint8 i) const {
-        if (i >= args.size())
-            throw IndexError("argument", i);
-        return args[i].get_value();
-    }
-
-    void ArgsTable::set(uint8 i, Obj *val) {
-        if (i >= args.size())
-            throw IndexError("argument", i);
-        args[i].set_value(val);
-    }
-
-    ArgsTable ArgsTable::copy() const {
-        ArgsTable new_args;
-        new_args.args.reserve(args.size());
-        for (const auto arg: args) {
-            new_args.add_arg(arg);
+    VariableTable::VariableTable(const VariableTable &other) {
+        values = vector<Obj *>(other.values.size());
+        for (size_t i = 0; i < other.count(); i++) {
+            values[i] = Obj::create_copy(other.values[i]);
         }
-        return new_args;
     }
 
-    Obj *LocalsTable::get(uint16 i) const {
-        if (i >= closureStart)
-            return get_closure(i)->get_value();
-        return get_local(i).get_value();
+    VariableTable::VariableTable(VariableTable &&other) noexcept {
+        values = std::move(other.values);
+        metas = std::move(other.metas);
     }
 
-    void LocalsTable::set(uint16 i, Obj *val) {
-        if (i >= closureStart)
-            get_closure(i)->set_value(val);
+    VariableTable &VariableTable::operator=(const VariableTable &other) {
+        values = vector<Obj *>(other.values.size());
+        for (size_t i = 0; i < other.count(); i++) {
+            values[i] = Obj::create_copy(other.values[i]);
+        }
+        return *this;
+    }
+
+    VariableTable &VariableTable::operator=(VariableTable &&other) noexcept {
+        values = std::move(other.values);
+        metas = std::move(other.metas);
+        return *this;
+    }
+
+    ObjPointer *VariableTable::ramp_up(uint8 i) {
+        if (i >= values.size())
+            throw IndexError("variable", i);
+        auto &value = values[i];
+        if (is<ObjPointer>(value))
+            return cast<ObjPointer>(value);
+        const auto pointer = halloc_mgr<ObjPointer>(value->get_info().manager, value);
+        value = pointer;
+        return pointer;
+    }
+
+    Obj *VariableTable::get(uint8 i) const {
+        if (i >= values.size())
+            throw IndexError("variable", i);
+
+        const auto value = values[i];
+        // Don't return the pointer, instead get the dereferenced value
+        return is<ObjPointer>(value) ? cast<ObjPointer>(value)->get() : value;
+    }
+
+    void VariableTable::set(uint8 i, Obj *val) {
+        if (i >= values.size())
+            throw IndexError("variable", i);
+
+        auto &value = values[i];
+        // Don't set the value if it is a pointer, instead change the value it is pointing at
+        if (is<ObjPointer>(value))
+            cast<ObjPointer>(value)->set(val);
         else
-            get_local(i).set_value(val);
+            value = val;
     }
 
-    const NamedRef &LocalsTable::get_local(uint16 i) const {
-        if (i >= locals.size())
-            throw IndexError("local", i);
-        return locals[i];
+    const Table<string> &VariableTable::get_meta(uint8 i) const {
+        if (i >= metas.size())
+            throw IndexError("variable", i);
+        return metas[i];
     }
 
-    NamedRef &LocalsTable::get_local(uint16 i) {
-        if (i >= locals.size())
-            throw IndexError("local", i);
-        return locals[i];
+    Table<string> &VariableTable::get_meta(uint8 i) {
+        if (i >= metas.size())
+            throw IndexError("variable", i);
+        return metas[i];
     }
 
-    NamedRef *LocalsTable::get_closure(uint16 i) const {
-        if (i - closureStart >= closures.size())
-            throw IndexError("closure", i - closureStart);
-        return closures[i - closureStart];
-    }
-
-    LocalsTable LocalsTable::copy() const {
-        LocalsTable new_locals{closureStart};
-        new_locals.locals.reserve(locals.size());
-        for (const auto local: locals) {
-            new_locals.add_local(local);
-        }
-        new_locals.closures.reserve(closures.size());
-        for (const auto closure: closures) {
-            new_locals.add_closure(closure);
-        }
-        return new_locals;
+    void VariableTable::set_meta(uint8 i, const Table<string> &meta) {
+        if (i >= metas.size())
+            throw IndexError("variable", i);
+        metas[i] = meta;
     }
 
     Exception ExceptionTable::get_target(uint32 pc, const Type *type) const {
@@ -146,42 +137,13 @@ namespace spade
             case ObjTag::METHOD:
             case ObjTag::TYPE:
             case ObjTag::TYPE_PARAM:
+            case ObjTag::POINTER:
                 return lhs == rhs;
         }
         throw Unreachable();
     }
 
-    void MatchTable::ObjHash::hash_combine(size_t &seed, ObjArray *arr) const {
-        for (size_t i = 0; i < arr->count(); i++) {
-            const auto obj = arr->get(i);
-            switch (obj->get_tag()) {
-                case ObjTag::NULL_:
-                    break;
-                case ObjTag::BOOL:
-                    boost::hash_combine(seed, obj->truth());
-                    break;
-                case ObjTag::CHAR:
-                case ObjTag::STRING:
-                case ObjTag::INT:
-                case ObjTag::FLOAT:
-                    boost::hash_combine(seed, obj->to_string());
-                    break;
-                case ObjTag::ARRAY:
-                    hash_combine(seed, cast<ObjArray>(obj));
-                    break;
-                case ObjTag::OBJECT:
-                case ObjTag::MODULE:
-                case ObjTag::METHOD:
-                case ObjTag::TYPE:
-                case ObjTag::TYPE_PARAM:
-                    boost::hash_combine(seed, obj);
-                    break;
-            }
-        }
-    }
-
-    size_t MatchTable::ObjHash::operator()(Obj *obj) const {
-        size_t seed = 0;
+    void MatchTable::ObjHash::hash(size_t &seed, Obj *obj) const {
         boost::hash_combine(seed, obj->get_tag());
         switch (obj->get_tag()) {
             case ObjTag::NULL_:
@@ -195,17 +157,28 @@ namespace spade
             case ObjTag::FLOAT:
                 boost::hash_combine(seed, obj->to_string());
                 break;
-            case ObjTag::ARRAY:
-                hash_combine(seed, cast<ObjArray>(obj));
+            case ObjTag::ARRAY: {
+                const auto arr = cast<ObjArray>(obj);
+                for (size_t i = 0; i < arr->count(); i++) {
+                    const auto obj = arr->get(i);
+                    hash(seed, obj);
+                }
                 break;
+            }
             case ObjTag::OBJECT:
             case ObjTag::MODULE:
             case ObjTag::METHOD:
             case ObjTag::TYPE:
             case ObjTag::TYPE_PARAM:
+            case ObjTag::POINTER:
                 boost::hash_combine(seed, obj);
                 break;
         }
+    }
+
+    size_t MatchTable::ObjHash::operator()(Obj *obj) const {
+        size_t seed = 0;
+        hash(seed, obj);
         return seed;
     }
 

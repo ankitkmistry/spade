@@ -1,8 +1,30 @@
+#include "jit.hpp"
+
+#ifndef DISABLE_JIT
+
 #include <cstddef>
 #include <cstring>
 #include <memory>
 #include <ostream>
 #include <variant>
+
+#include "utils/constants.hpp"
+
+#ifdef COMPILER_MSVC
+#    pragma warning(push)
+#    pragma warning(disable : 4624)
+#    pragma warning(disable : 4244)
+#endif
+
+#ifdef COMPILER_GCC
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wall"
+#endif
+
+#ifdef COMPILER_CLANG
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wall"
+#endif
 
 #include "llvm/ADT/APFloat.h"
 #include "llvm/IR/BasicBlock.h"
@@ -14,15 +36,34 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
-#include "llvm/IR/Value.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/IR/PassManager.h"
+#include "llvm/IR/Value.h"
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Passes/PassBuilder.h"
+#include "llvm/Passes/StandardInstrumentations.h"
+#include "llvm/Transforms/InstCombine/InstCombine.h"
+#include "llvm/Transforms/Scalar/GVN.h"
+#include "llvm/Transforms/Scalar/Reassociate.h"
+#include "llvm/Transforms/Scalar/SimplifyCFG.h"
+#include "llvm/Transforms/Utils/Mem2Reg.h"
 
-#include "jit.hpp"
+#ifdef COMPILER_MSVC
+#    pragma warning(pop)
+#endif
+
+#ifdef COMPILER_GCC
+#    pragma GCC diagnostic pop
+#endif
+
+#ifdef COMPILER_CLANG
+#    pragma clang diagnostic pop
+#endif
+
 #include "objects/inbuilt_types.hpp"
 #include "objects/obj.hpp"
 #include "utils/common.hpp"
-#include "utils/constants.hpp"
 #include "spinfo/opcode.hpp"
 #include "callable/frame_template.hpp"
 #include "objects/int.hpp"
@@ -35,7 +76,8 @@
 #    define JIT_API_EXPORT extern "C"
 #endif
 
-JIT_API_EXPORT uint8_t obj_truth(int8_t *pointer) {
+        JIT_API_EXPORT uint8_t
+        obj_truth(int8_t *pointer) {
     const auto obj = (spade::Obj *) pointer;
     return obj->truth() ? 1 : 0;
 }
@@ -46,8 +88,8 @@ JIT_API_EXPORT int8_t *obj_to_string(int8_t *pointer) {
 }
 
 JIT_API_EXPORT int32_t obj_cmp(int8_t *p1, int8_t *p2) {
-    const auto obj1 = (spade::ComparableObj *) p1;
-    const auto obj2 = (spade::ComparableObj *) p2;
+    const auto obj1 = (spade::ObjComparable *) p1;
+    const auto obj2 = (spade::ObjComparable *) p2;
     return obj1->compare(obj2);
 }
 
@@ -95,6 +137,14 @@ namespace spade
         Instruction &operator=(Instruction &&) = default;
         ~Instruction() = default;
 
+        std::pair<uint8 *, uint8 *> range() const {
+            return {pos, pos + OpcodeInfo::params_count(opcode)};
+        }
+
+        bool contains(uint8 *ip) const {
+            return pos <= ip && ip < pos + OpcodeInfo::params_count(opcode);
+        }
+
         uint8 *get_pos() const {
             return pos;
         }
@@ -133,6 +183,17 @@ namespace spade
         Block &operator=(Block &&) = default;
         ~Block() = default;
 
+        std::pair<uint8 *, uint8 *> range() const {
+            if (instructions.empty())
+                return {null, null};
+            return {instructions.front().range().first, instructions.back().range().second};
+        }
+
+        bool contains(uint8 *ip) const {
+            const auto pair = range();
+            return pair.first <= ip && ip < pair.second;
+        }
+
         const vector<Instruction> &get_instructions() const {
             return instructions;
         }
@@ -158,11 +219,21 @@ namespace spade
         vector<Block> blocks;
         vector<Obj *> conpool;
         vector<llvm::Value *> stack;
+        vector<llvm::AllocaInst *> locals;
 
         // LLVM specific
         std::unique_ptr<llvm::LLVMContext> l_context;
         std::unique_ptr<llvm::Module> l_module;
         std::unique_ptr<llvm::IRBuilder<>> l_builder;
+
+        std::unique_ptr<llvm::FunctionPassManager> l_fpm;
+        std::unique_ptr<llvm::LoopAnalysisManager> l_lam;
+        std::unique_ptr<llvm::FunctionAnalysisManager> l_fam;
+        std::unique_ptr<llvm::CGSCCAnalysisManager> l_cgam;
+        std::unique_ptr<llvm::ModuleAnalysisManager> l_mam;
+        std::unique_ptr<llvm::PassInstrumentationCallbacks> l_pic;
+        std::unique_ptr<llvm::StandardInstrumentations> l_si;
+
         llvm::Function *fn;
         bool has_return_type = false;
 
@@ -176,6 +247,35 @@ namespace spade
         llvm::Function *fn_obj_to_string;
 
       public:
+        size_t find_ip_in_blocks(const vector<Block> &blocks, uint8 *ip, size_t start, size_t end) {
+            if (end - start == 0)
+                return -1;
+            if (end - start == 1)
+                if (blocks[start].contains(ip))
+                    return start;
+            if (end - start == 2) {
+                if (blocks[start].contains(ip))
+                    return start;
+                else if (blocks[start + 1].contains(ip))
+                    return start + 1;
+            }
+
+            auto start_ip = blocks[start].range().first;
+            size_t mid = (start + end) / 2;
+            auto mid_ip = blocks[mid].range().first;
+            auto end_ip = blocks[end - 1].range().second;
+
+            if (start_ip <= ip && ip < mid_ip)
+                return find_ip_in_blocks(blocks, ip, start, mid);
+            if (mid_ip <= ip && ip < end_ip)
+                return find_ip_in_blocks(blocks, ip, mid, end);
+            return -1;
+        }
+
+        size_t find_ip_in_blocks(const vector<Block> &blocks, uint8 *ip) {
+            return find_ip_in_blocks(blocks, ip, 0, blocks.size());
+        }
+
         void init_instructions() {
             // [from_ip] -> [to_block_idx]
             std::unordered_map<uint8 *, size_t> jump_tos;
@@ -238,10 +338,6 @@ namespace spade
                     cur_block = {};
                     for (const auto &ins: block.get_instructions()) {
                         if (const auto it = split_points.find(ins.get_pos()); it != split_points.end()) {
-                            // 3 -> one increment for opcode, 2 increments for param
-                            // final_ip = from_ip + 3 + offset
-                            // from_ip = final_ip - offset - 3
-                            jump_tos[ins.get_pos() - it->second - 3] = result.size();
                             if (!cur_block.empty()) {
                                 result.push_back(cur_block);
                                 cur_block = {};
@@ -250,6 +346,17 @@ namespace spade
                         cur_block.add_instruction(ins);
                     }
                     result.push_back(cur_block);
+                }
+                for (const auto &block: result) {
+                    for (const auto &ins: block.get_instructions()) {
+                        if (const auto it = split_points.find(ins.get_pos()); it != split_points.end()) {
+                            // 3 -> one increment for opcode, 2 increments for param
+                            // final_ip = from_ip + 3 + offset
+                            // from_ip = final_ip - offset - 3
+                            const auto ip = ins.get_pos() - it->second - 3;
+                            jump_tos[ip] = find_ip_in_blocks(result, ip);
+                        }
+                    }
                 }
                 this->blocks = result;
             }
@@ -282,7 +389,38 @@ namespace spade
 
             l_context = std::make_unique<llvm::LLVMContext>();
             l_module = std::make_unique<llvm::Module>("spadejit", *l_context);
+
+            // Create a new builder for the module
             l_builder = std::make_unique<llvm::IRBuilder<>>(*l_context);
+
+            // Create new pass and analysis managers
+            l_fpm = std::make_unique<llvm::FunctionPassManager>();
+            l_lam = std::make_unique<llvm::LoopAnalysisManager>();
+            l_fam = std::make_unique<llvm::FunctionAnalysisManager>();
+            l_cgam = std::make_unique<llvm::CGSCCAnalysisManager>();
+            l_mam = std::make_unique<llvm::ModuleAnalysisManager>();
+            l_pic = std::make_unique<llvm::PassInstrumentationCallbacks>();
+            l_si = std::make_unique<llvm::StandardInstrumentations>(*l_context, /*DebugLogging*/ true);
+
+            l_si->registerCallbacks(*l_pic, l_mam.get());
+
+            // Add transform passes.
+            // Promote allocas to registers.
+            l_fpm->addPass(llvm::PromotePass());
+            // Do simple "peephole" optimizations and bit-twiddling optzns.
+            l_fpm->addPass(llvm::InstCombinePass());
+            // Reassociate expressions.
+            l_fpm->addPass(llvm::ReassociatePass());
+            // Eliminate Common SubExpressions.
+            l_fpm->addPass(llvm::GVNPass());
+            // Simplify the control flow graph (deleting unreachable blocks, etc).
+            l_fpm->addPass(llvm::SimplifyCFGPass());
+
+            // Register analysis passes used in these transform passes.
+            llvm::PassBuilder l_pb;
+            l_pb.registerModuleAnalyses(*l_mam);
+            l_pb.registerFunctionAnalyses(*l_fam);
+            l_pb.crossRegisterProxies(*l_lam, *l_fam, *l_cgam, *l_mam);
 
             // l_ptr_t : i8*
             l_ptr_t = llvm::PointerType::get(llvm::Type::getInt8Ty(*l_context), 0);
@@ -420,17 +558,30 @@ namespace spade
                     case Opcode::PGFSTORE:
                         break;
                     case Opcode::LLOAD:
+                    case Opcode::LFLOAD: {
+                        const auto index = *instr.get_param();
+                        const auto local = locals[index];
+                        push(l_builder->CreateLoad(local->getAllocatedType(), local, frame.get_locals().get_local(index).get_name()));
                         break;
-                    case Opcode::LFLOAD:
-                        break;
+                    }
                     case Opcode::LSTORE:
+                    case Opcode::LFSTORE: {
+                        const auto index = *instr.get_param();
+                        const auto local = locals[index];
+                        const auto value = top();
+                        if (local->getAllocatedType() == value->getType())
+                            l_builder->CreateStore(value, local);
                         break;
-                    case Opcode::LFSTORE:
-                        break;
+                    }
                     case Opcode::PLSTORE:
+                    case Opcode::PLFSTORE: {
+                        const auto index = *instr.get_param();
+                        const auto local = locals[index];
+                        const auto value = pop();
+                        if (local->getAllocatedType() == value->getType())
+                            l_builder->CreateStore(value, local);
                         break;
-                    case Opcode::PLFSTORE:
-                        break;
+                    }
                     case Opcode::ALOAD:
                         break;
                     case Opcode::ASTORE:
@@ -845,13 +996,12 @@ namespace spade
                     llvm::BasicBlock *dest_branch = get_llvm_block(dest_block);
                     if (dest_branch) {
                         l_builder->CreateBr(dest_branch);
-                        if (next_block) {
-                            llvm::BasicBlock *bb_next = llvm::BasicBlock::Create(*l_context, "block");
-                            l_builder->CreateBr(bb_next);
-                            fn->insert(fn->end(), bb_next);
-                            return bb_next;
-                        } else
-                            return null;
+                        // if (next_block) {
+                        //     llvm::BasicBlock *bb_next = llvm::BasicBlock::Create(*l_context, "block");
+                        //     fn->insert(fn->end(), bb_next);
+                        //     return bb_next;
+                        // } else
+                        return null;
                     } else {
                         dest_branch = llvm::BasicBlock::Create(*l_context, "dest");
                         l_builder->CreateBr(dest_branch);
@@ -939,11 +1089,41 @@ namespace spade
         }
 
         void generate() {
-            llvm::BasicBlock *bb = null;
-            for (size_t i = 0; i < blocks.size();) {
-                auto &block = blocks[i];
+            size_t i = 0;
+            Block &block = blocks[i];
+            llvm::BasicBlock *bb = llvm::BasicBlock::Create(*l_context, "prologue", fn);
+
+            l_builder->SetInsertPoint(bb);
+
+            for (size_t local_idx = 0; local_idx < frame.get_locals().get_closure_start(); local_idx++) {
+                const auto &local = frame.get_locals().get_local(local_idx);
+                const auto &name = local.get_name();
+                const auto value = local.get_value();
+                llvm::Type *type;
+                if (is<ObjNull>(value))
+                    type = l_ptr_t;
+                else if (is<ObjBool>(value))
+                    type = llvm::Type::getInt1Ty(*l_context);
+                else if (is<ObjChar>(value))
+                    type = llvm::Type::getInt8Ty(*l_context);
+                else if (is<ObjInt>(value))
+                    type = llvm::Type::getInt64Ty(*l_context);
+                else if (is<ObjFloat>(value))
+                    type = llvm::Type::getDoubleTy(*l_context);
+                else
+                    type = l_ptr_t;
+                locals.push_back(l_builder->CreateAlloca(type, null, name));
+            }
+            bb = llvm::BasicBlock::Create(*l_context, "start", fn);
+            l_builder->CreateBr(bb);
+            l_builder->SetInsertPoint(bb);
+            generate(block);
+            bb = patch_block_end(i);
+
+            for (; i < blocks.size();) {
                 if (!bb)
-                    bb = llvm::BasicBlock::Create(*l_context, "start", fn);
+                    break;
+                block = blocks[i];
                 l_builder->SetInsertPoint(bb);
                 generate(block);
                 bb = patch_block_end(i);
@@ -960,7 +1140,8 @@ namespace spade
             fn = llvm::Function::Create(fn_type, llvm::Function::ExternalLinkage, fn_name, *l_module);
             // Start generation
             generate();
-            llvm::verifyFunction(*fn);
+            llvm::verifyFunction(*fn, &llvm::errs());
+            // l_fpm->run(*fn, *l_fam);
         }
 
       private:
@@ -1158,6 +1339,11 @@ namespace spade
     }
 
     void jit_test(ObjMethod *method) {
+        llvm::InitializeNativeTarget();
+        llvm::InitializeNativeTargetAsmPrinter();
+        llvm::InitializeNativeTargetAsmParser();
+        // llvm::ExitOnError exit_on_error;
+
         JitCompiler compiler(method->get_frame_template());
         compiler.compile();
         std::cout << method->to_string() << std::endl;
@@ -1168,3 +1354,5 @@ namespace spade
         std::cout << "---------------------------------------------" << std::endl;
     }
 }    // namespace spade
+
+#endif

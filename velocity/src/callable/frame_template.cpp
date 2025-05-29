@@ -7,8 +7,8 @@ namespace spade
         Frame frame(stack_max);
         frame.code_count = code_count;
         frame.ip = frame.code = code;
-        frame.args = args.copy();
-        frame.locals = locals.copy();
+        frame.args = args;
+        frame.locals = locals;
         frame.exceptions = exceptions;
         frame.lines = lines;
         frame.matches = matches;

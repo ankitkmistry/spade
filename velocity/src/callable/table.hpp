@@ -1,63 +1,79 @@
 #pragma once
 
-#include "objects/inbuilt_types.hpp"
-#include "objects/obj.hpp"
 #include <cstddef>
+
+#include "objects/obj.hpp"
 
 namespace spade
 {
-    /**
-     * Represents the base class for nodes used in arg tables, local tables, etc.
-     */
-    class NamedRef final {
-      protected:
-        string name;
-        Obj *value;
-        Table<string> meta;
+    class VariableTable {
+        vector<Obj *> values;
+        vector<Table<string>> metas;
 
       public:
-        NamedRef(const string &name, Obj *value, const Table<string> &meta) : name(name), value(value), meta(meta) {}
+        VariableTable(size_t count) : values(count) {}
 
-        NamedRef(const NamedRef &other);
-        NamedRef(NamedRef &&other) noexcept;
-        NamedRef &operator=(const NamedRef &other);
-        NamedRef &operator=(NamedRef &&other) noexcept;
-        ~NamedRef() = default;
+        VariableTable() = default;
+        VariableTable(const VariableTable &other);
+        VariableTable(VariableTable &&other) noexcept;
+        VariableTable &operator=(const VariableTable &other);
+        VariableTable &operator=(VariableTable &&other) noexcept;
+        ~VariableTable() = default;
 
         /**
-         * Sets the value of the named ref
-         * @param val
+         * Ramps up the value of the argument at index i to a pointer where the pointer 
+         * points to the actual value of the argument before ramping up.
+         * If the value was already ramped up, then the value is no longer ramped up
+         * and the existing pointer is returned
+         * @param i index of the argument
+         * @return ObjPointer* the pointer obj
          */
-        void set_value(Obj *val) {
-            value = val;
+        ObjPointer *ramp_up(uint8 i);
+
+        /**
+         * @return The value of the argument at index i
+         * @param i the argument index
+         */
+        Obj *get(uint8 i) const;
+
+        /**
+         * Sets the value of the argument at index i to val
+         * @param i the argument index
+         * @param val value to be changed
+         */
+        void set(uint8 i, Obj *val);
+
+        /**
+         * @param i index of the argument
+         * @return The metadata associated to the argument at index i
+         */
+        const Table<string> &get_meta(uint8 i) const;
+
+        /**
+         * @param i index of the argument
+         * @return The metadata associated to the argument at index i
+         */
+        Table<string> &get_meta(uint8 i);
+
+        /**
+         * Sets the metadata associated to the argument at index i
+         * @param i index of the argument
+         * @param meta the meta table to set
+         */
+        void set_meta(uint8 i, const Table<string> &meta);
+
+        /**
+         * @return The total number of arguments present
+         */
+        uint8 count() const {
+            return values.size() & 0xff;
         }
 
         /**
-         * @return The value of the named ref
-         */
-        Obj *get_value() const {
-            return value;
-        }
-
-        /**
-         * @return The name attached to the named ref
-         */
-        const string &get_name() const {
-            return name;
-        }
-
-        /**
-         * @return The metadata associated to the named ref
-         */
-        const Table<string> &get_meta() const {
-            return meta;
-        }
-
-        /**
-         * @return The string representation of the named ref
+         * @return The string representation of the table
          */
         string to_string() const {
-            return name;
+            return "(" + list_to_string(values) + ")";
         }
     };
 
@@ -129,206 +145,6 @@ namespace spade
 
         static bool IS_NO_EXCEPTION(const Exception &exception) {
             return exception.type == null;
-        }
-    };
-
-    /**
-     * Represents a case in a match statement
-     */
-    class Case {
-      private:
-        Obj *value = null;
-        uint32 location = -1;
-
-      public:
-        Case(Obj *value, uint32 location) : value(value), location(location) {}
-
-        Case() = default;
-        Case(const Case &other) = default;
-        Case(Case &&other) noexcept = default;
-        Case &operator=(const Case &other) = default;
-        Case &operator=(Case &&other) noexcept = default;
-        ~Case() = default;
-
-        /**
-         * @return The value to be matched
-         */
-        Obj *get_value() const {
-            return value;
-        }
-
-        /**
-         * @return The destination location in the code
-         */
-        uint32 get_location() const {
-            return location;
-        }
-    };
-
-    /**
-     * Represents the argument table
-     */
-    class ArgsTable {
-        friend class BasicCollector;
-
-        friend class FrameTemplate;
-
-      private:
-        vector<NamedRef> args;
-
-      public:
-        ArgsTable() = default;
-        ArgsTable(const ArgsTable &other) = default;
-        ArgsTable(ArgsTable &&other) noexcept = default;
-        ArgsTable &operator=(const ArgsTable &other) = default;
-        ArgsTable &operator=(ArgsTable &&other) noexcept = default;
-        ~ArgsTable() = default;
-
-        /**
-         * Sets the value of the argument at index i to val
-         * @param i the argument index
-         * @param val value to be changed
-         */
-        void set(uint8 i, Obj *val);
-
-        /**
-         * @return The value of the argument at index i
-         * @param i the argument index
-         */
-        Obj *get(uint8 i) const;
-
-        /**
-         * Adds a new argument at the end of the table
-         * @param arg the argument to be added
-         */
-        void add_arg(const NamedRef &arg) {
-            args.push_back(arg);
-        }
-
-        /**
-         * @return The argument at index i
-         * @param i the argument index
-         */
-        const NamedRef &get_arg(uint8 i) const {
-            return args[i];
-        }
-
-        /**
-         * @return The argument at index i
-         * @param i the argument index
-         */
-        NamedRef &get_arg(uint8 i) {
-            return args[i];
-        }
-
-        ArgsTable copy() const;
-
-        /**
-         * @return The total number of arguments present
-         */
-        uint8 count() const {
-            return args.size() & 0xff;
-        }
-
-        /**
-         * @return The string representation of the table
-         */
-        string to_string() const {
-            return "(" + list_to_string(args) + ")";
-        }
-    };
-
-    /**
-     * Represents the locals table
-     */
-    class LocalsTable {
-        friend class BasicCollector;
-
-        friend class FrameTemplate;
-
-      private:
-        uint16 closureStart;
-        vector<NamedRef> locals;
-        vector<NamedRef *> closures;
-
-      public:
-        explicit LocalsTable(uint16 closureStart) : closureStart(closureStart), locals() {}
-
-        LocalsTable(const LocalsTable &other) = default;
-        LocalsTable(LocalsTable &&other) noexcept = default;
-        LocalsTable &operator=(const LocalsTable &other) = default;
-        LocalsTable &operator=(LocalsTable &&other) noexcept = default;
-        ~LocalsTable() = default;
-
-        /**
-         * @return The index of the locals table starting from which closures are stored up to the end of the table
-         */
-        uint16 get_closure_start() const {
-            return closureStart;
-        }
-
-        /**
-         * Sets the value of the local at index i to val.
-         * If @p setAsThisRef is true, marks the local as this
-         * @param i the local index
-         * @param val value to be changed
-         */
-        void set(uint16 i, Obj *val);
-
-        /**
-         * @return The value of the local at index i
-         * @param i the local index
-         */
-        Obj *get(uint16 i) const;
-
-        /**
-         * Adds a new local at the end of the table
-         * @param local the local to be added
-         */
-        void add_local(NamedRef local) {
-            locals.push_back(local);
-        }
-
-        /**
-         * Adds a new closure at the end of the table
-         * @param closure the closure to be added
-         */
-        void add_closure(NamedRef *closure) {
-            closures.push_back(closure);
-        }
-
-        /**
-         * @return The local at index i
-         * @param i the local index
-         */
-        const NamedRef &get_local(uint16 i) const;
-
-        /**
-         * @return The local at index i
-         * @param i the local index
-         */
-        NamedRef &get_local(uint16 i);
-
-        /**
-         * @return The closure at index i
-         * @param i the closure index
-         */
-        NamedRef *get_closure(uint16 i) const;
-
-        LocalsTable copy() const;
-
-        /**
-         * @return The total number of locals and closures present
-         */
-        uint16 count() const {
-            return locals.size() + closures.size() & 0xffff;
-        }
-
-        /**
-         * @return The string representation of the table
-         */
-        string to_string() const {
-            return "(" + list_to_string(locals) + ")";
         }
     };
 
@@ -421,6 +237,39 @@ namespace spade
     };
 
     /**
+     * Represents a case in a match statement
+     */
+    class Case {
+      private:
+        Obj *value = null;
+        uint32 location = -1;
+
+      public:
+        Case(Obj *value, uint32 location) : value(value), location(location) {}
+
+        Case() = default;
+        Case(const Case &other) = default;
+        Case(Case &&other) noexcept = default;
+        Case &operator=(const Case &other) = default;
+        Case &operator=(Case &&other) noexcept = default;
+        ~Case() = default;
+
+        /**
+         * @return The value to be matched
+         */
+        Obj *get_value() const {
+            return value;
+        }
+
+        /**
+         * @return The destination location in the code
+         */
+        uint32 get_location() const {
+            return location;
+        }
+    };
+
+    /**
      * Represents a check table
      */
     class MatchTable {
@@ -432,7 +281,7 @@ namespace spade
         };
 
         struct ObjHash {
-            void hash_combine(size_t &seed, ObjArray *arr) const;
+            void hash(size_t &seed, Obj *obj) const;
             size_t operator()(Obj *obj) const;
         };
 

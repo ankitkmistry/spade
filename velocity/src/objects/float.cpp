@@ -2,6 +2,7 @@
 
 #include "float.hpp"
 #include "ee/vm.hpp"
+#include "memory/memory.hpp"
 
 namespace spade
 {
