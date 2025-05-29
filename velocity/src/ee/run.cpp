@@ -69,8 +69,10 @@ namespace spade
                     case Opcode::SPLOAD: {
                         const auto obj = state->pop();
                         const auto sign = state->load_const(state->read_short())->to_string();
-                        // TODO: just load a closure instead
-                        // state->push(obj->get_super_class_method(sign));
+                        const auto method = cast<ObjMethod>(get_symbol(sign)->copy());
+                        method->get_frame_template().get_locals().ramp_up(0);
+                        method->get_frame_template().get_locals().set(0, obj);
+                        state->push(method);
                         break;
                     }
                     case Opcode::GFLOAD:
@@ -88,8 +90,10 @@ namespace spade
                     case Opcode::SPFLOAD: {
                         const auto obj = state->pop();
                         const auto sign = state->load_const(state->read_byte())->to_string();
-                        // TODO: just load a closure instead
-                        // state->push(obj->get_super_class_method(sign));
+                        const auto method = cast<ObjMethod>(get_symbol(sign)->copy());
+                        method->get_frame_template().get_locals().ramp_up(0);
+                        method->get_frame_template().get_locals().set(0, obj);
+                        state->push(method);
                         break;
                     }
                     case Opcode::PGSTORE:
