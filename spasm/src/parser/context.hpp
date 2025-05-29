@@ -205,6 +205,10 @@ namespace spasm
             return code;
         }
 
+        vector<uint8_t> &get_code() {
+            return code;
+        }
+
         bool define_label(const string &label);
         std::optional<uint32_t> get_label_pos(const string &label) const;
 

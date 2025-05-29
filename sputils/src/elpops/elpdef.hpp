@@ -1,5 +1,6 @@
 #pragma once
 
+#include <unordered_map>
 #include <variant>
 
 #include "spimp/common.hpp"
@@ -13,6 +14,9 @@ namespace spade
         uint16_t len = 0;
         // Sequence of bytes
         vector<uint8_t> bytes;
+
+        _UTF8() = default;
+        explicit _UTF8(const string &str);
 
         bool operator==(const _UTF8 &rhs) const;
         bool operator!=(const _UTF8 &rhs) const;
@@ -77,6 +81,9 @@ namespace spade
 
         // Meta information table
         vector<_Meta> table;
+
+        MetaInfo() = default;
+        explicit MetaInfo(const std::unordered_map<string, string> &map);
     };
 
     struct GlobalInfo {
@@ -105,8 +112,6 @@ namespace spade
         // 0x00 : VAR
         // 0x01 : CONST
         uint16_t kind = 0;
-        // [string] Name of the arg
-        cpidx name;
         // [sign] Type signature of the arg
         cpidx type;
         // Meta information of the arg
@@ -118,8 +123,6 @@ namespace spade
         // 0x00 : VAR
         // 0x01 : CONST
         uint16_t kind = 0;
-        // [string] Name of the local
-        cpidx name;
         // [sign] Type signature of the local
         cpidx type;
         // Meta information of the local

@@ -169,14 +169,12 @@ namespace spade
 
     void ElpWriter::write(const LocalInfo &info) {
         write(info.kind);
-        write(info.name);
         write(info.type);
         write(info.meta);
     }
 
     void ElpWriter::write(const ArgInfo &info) {
         write(info.kind);
-        write(info.name);
         write(info.type);
         write(info.meta);
     }

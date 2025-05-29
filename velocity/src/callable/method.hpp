@@ -16,6 +16,7 @@ namespace spade
 
       public:
         ObjMethod(const Sign &sign, Kind kind, const FrameTemplate &frame, const Table<TypeParam *> &type_params);
+        ObjMethod(const Sign &sign, Kind kind, FrameTemplate &&frame, const Table<TypeParam *> &type_params);
 
         FrameTemplate &get_frame_template() {
             return frame_template;

@@ -5,6 +5,7 @@
 #include "objects/obj.hpp"
 #include "manager.hpp"
 #include <concepts>
+#include <utility>
 
 namespace spade
 {
@@ -61,7 +62,7 @@ namespace spade
         void *memory = manager->allocate(sizeof(T));
         if (memory == null)
             throw MemoryError(sizeof(T));
-        Obj *obj = new (memory) T(args...);
+        Obj *obj = new (memory) T(std::forward<Args>(args)...);
         obj->get_info().manager = manager;
         manager->post_allocation(obj);
         return (T *) obj;

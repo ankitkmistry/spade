@@ -1,9 +1,33 @@
 #include "elpdef.hpp"
 #include "spimp/error.hpp"
 #include "spimp/utils.hpp"
+#include <limits>
 
 namespace spade
 {
+    _UTF8::_UTF8(const string &str) : len(str.size() & std::numeric_limits<uint16_t>::max()), bytes(str.begin(), str.end()) {}
+
+    bool _UTF8::operator==(const _UTF8 &rhs) const {
+        return len == rhs.len && std::memcmp(bytes.data(), rhs.bytes.data(), len) == 0;
+    }
+
+    bool _UTF8::operator!=(const _UTF8 &rhs) const {
+        return !(rhs == *this);
+    }
+
+    bool _Container::operator==(const _Container &rhs) const {
+        if (len != rhs.len)
+            return false;
+        for (int i = 0; i < len; ++i)
+            if (items[i] != rhs.items[i])
+                return false;
+        return true;
+    }
+
+    bool _Container::operator!=(const _Container &rhs) const {
+        return !(rhs == *this);
+    }
+
     bool CpInfo::operator==(const CpInfo &rhs) const {
         if (tag != rhs.tag)
             return false;
@@ -44,11 +68,7 @@ namespace spade
     }
 
     CpInfo CpInfo::from_string(const string &str) {
-        _UTF8 utf8;
-        utf8.len = str.size();
-        utf8.bytes = vector<uint8_t>(utf8.len);
-        std::memcpy(utf8.bytes.data(), str.data(), utf8.len);
-        return CpInfo{.tag = 0x06, .value = utf8};
+        return CpInfo{.tag = 0x06, .value = _UTF8(str)};
     }
 
     CpInfo CpInfo::from_array(const std::vector<CpInfo> &v) {
@@ -61,24 +81,10 @@ namespace spade
         return CpInfo{.tag = 0x07, .value = arr};
     }
 
-    bool _UTF8::operator==(const _UTF8 &rhs) const {
-        return len == rhs.len && std::memcmp(bytes.data(), rhs.bytes.data(), len) == 0;
-    }
-
-    bool _UTF8::operator!=(const _UTF8 &rhs) const {
-        return !(rhs == *this);
-    }
-
-    bool _Container::operator==(const _Container &rhs) const {
-        if (len != rhs.len)
-            return false;
-        for (int i = 0; i < len; ++i)
-            if (items[i] != rhs.items[i])
-                return false;
-        return true;
-    }
-
-    bool _Container::operator!=(const _Container &rhs) const {
-        return !(rhs == *this);
+    MetaInfo::MetaInfo(const std::unordered_map<string, string> &map) : len(static_cast<uint16_t>(map.size())) {
+        table.reserve(map.size());
+        for (const auto &[key, value]: map) {
+            table.emplace_back(_UTF8(key), _UTF8(value));
+        }
     }
 }    // namespace spade

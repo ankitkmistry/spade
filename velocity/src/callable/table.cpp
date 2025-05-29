@@ -14,6 +14,7 @@ namespace spade
         for (size_t i = 0; i < other.count(); i++) {
             values[i] = Obj::create_copy(other.values[i]);
         }
+        metas = other.metas;
     }
 
     VariableTable::VariableTable(VariableTable &&other) noexcept {
@@ -26,6 +27,7 @@ namespace spade
         for (size_t i = 0; i < other.count(); i++) {
             values[i] = Obj::create_copy(other.values[i]);
         }
+        metas = other.metas;
         return *this;
     }
 

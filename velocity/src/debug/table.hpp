@@ -67,15 +67,6 @@ namespace spade
         }
     };
 
-    class ClosureTable : public DataTable {
-      public:
-        ClosureTable() : DataTable("Closures", {"slot", "name", "value"}) {}
-
-        void add(uint8 slot, const string &name, Obj *value) {
-            set({std::to_string(slot), name, value->to_string()});
-        }
-    };
-
     class ExcTable : public DataTable {
       public:
         ExcTable() : DataTable("Exception Table", {"from", "to", "target", "exception"}) {}

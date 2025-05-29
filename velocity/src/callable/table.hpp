@@ -11,7 +11,7 @@ namespace spade
         vector<Table<string>> metas;
 
       public:
-        VariableTable(size_t count) : values(count) {}
+        VariableTable(size_t count) : values(count), metas(count) {}
 
         VariableTable() = default;
         VariableTable(const VariableTable &other);

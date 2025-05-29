@@ -55,14 +55,12 @@ namespace spade
     void Verifier::check_arg(const ArgInfo &arg, const uint16 cp_count) {
         if (arg.kind > 0x01)
             throw corrupt();
-        check_range(arg.name, cp_count);
         check_range(arg.type, cp_count);
     }
 
     void Verifier::check_local(const LocalInfo &local, const uint16 cp_count) {
         if (local.kind > 0x01)
             throw corrupt();
-        check_range(local.name, cp_count);
         check_range(local.type, cp_count);
     }
 

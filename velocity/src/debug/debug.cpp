@@ -4,6 +4,7 @@
 #include "objects/int.hpp"
 #include "table.hpp"
 #include "ee/vm.hpp"
+#include <string>
 
 namespace spade
 {
@@ -78,7 +79,13 @@ namespace spade
         auto byteLineMaxLen = std::to_string(codeCount - 1).length();
         auto sourceLineMaxLen = std::to_string(lineTable.get_line_infos().back().sourceLine).length() + 2;
         uint64 sourceLine = 0;
-        for (uint32 i = 0; i < codeCount;) {
+        uint32 i = 0;
+        const auto read_byte = [&i, code]() -> uint8 { return code[i++]; };
+        const auto read_short = [&i, code]() -> uint16 {
+            i += 2;
+            return code[i - 2] << 8 | code[i - 1];
+        };
+        while (i < codeCount) {
             uint64 sourceLineTemp = lineTable.get_source_line(i);
             string sourceLineStr;
             if (sourceLine != sourceLineTemp) {
@@ -90,20 +97,18 @@ namespace spade
             // Get the start of the line
             auto start = i;
             // Get the opcode
-            auto opcode = static_cast<Opcode>(code[i++]);
+            auto opcode = static_cast<Opcode>(read_byte());
             // The parameters of the opcode, if any
             string param;
             switch (OpcodeInfo::params_count(opcode)) {
                 case 1: {
-                    auto num = code[i++];
+                    uint8 num = read_byte();
                     string valStr = OpcodeInfo::take_from_const_pool(opcode) ? std::format("({})", pool[num]->to_string()) : "";
                     param = std::format("{} {}", num, valStr);
                     break;
                 }
                 case 2: {
-                    auto num1 = code[i++];
-                    auto num2 = code[i++];
-                    int num = (num1 << 8) | num2;
+                    uint16 num = read_short();
                     switch (opcode) {
                         case Opcode::JMP:
                         case Opcode::JT:
@@ -125,6 +130,33 @@ namespace spade
                 }
                 default:
                     param = "";
+                    if (opcode == Opcode::CLOSURELOAD) {
+                        auto count = read_byte();
+                        param.append("[");
+                        for (uint8 i = 0; i < count; i++) {
+                            auto local_idx = read_short();
+                            param.append(std::to_string(local_idx));
+                            param.append("->");
+                            switch (read_byte()) {
+                                case 0:
+                                    param.append("arg(");
+                                    param.append(std::to_string(read_byte()));
+                                    param.append(")");
+                                    break;
+                                case 1:
+                                    param.append("local(");
+                                    param.append(std::to_string(read_short()));
+                                    param.append(")");
+                                    break;
+                                default:
+                                    throw Unreachable();
+                            }
+                            param.append(", ");
+                        }
+                        param.pop_back();
+                        param.pop_back();
+                        param.append("]");
+                    }
                     break;
             }
             string finalStr = std::format(" {} {: >{}}: {} {} {}\n", (start == ip - code - 1 ? ">" : " "), start, byteLineMaxLen, sourceLineStr,
@@ -137,10 +169,13 @@ namespace spade
         if (locals.count() == 0)
             return;
         LocalVarTable table;
-        ClosureTable closure;
         uint8 i;
         for (i = 0; i < locals.count(); ++i) {
-            auto const &name = locals.get_meta(i).at("name");
+            string name;
+            if (locals.get_meta(i).contains("name"))
+                name = locals.get_meta(i).at("name");
+            else
+                name = std::format("var{}", i);
             auto const &value = locals.get(i);
             table.add(i, name, value);
         }
@@ -152,7 +187,11 @@ namespace spade
             return;
         ArgumentTable table;
         for (uint8 i = 0; i < args.count(); ++i) {
-            auto const &name = args.get_meta(i).at("name");
+            string name;
+            if (args.get_meta(i).contains("name"))
+                name = args.get_meta(i).at("name");
+            else
+                name = std::format("var{}", i);
             auto const &value = args.get(i);
             table.add(i, name, value);
         }

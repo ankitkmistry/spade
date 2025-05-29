@@ -9,7 +9,6 @@
 
 #include "parser.hpp"
 #include "context.hpp"
-#include "elpops/elpdef.hpp"
 #include "lexer/token.hpp"
 #include "utils/error.hpp"
 
@@ -399,8 +398,10 @@ namespace spasm
         if (context_stack[context_stack.size() - 2]->get_kind() == ContextType::CLASS) {
             LocalInfo self;
             self.kind = 0;
-            self.name = get_current_module()->get_constant("self");
             self.type = get_current_module()->get_constant(current_sign.get_parent().to_string());
+            self.meta = MetaInfo({
+                    {"name", "self"}
+            });
             locals.push_back(self);
             ctx->add_local("self");
         }
@@ -623,8 +624,10 @@ outside:
             arg.kind = 1;
         } else
             throw error("expected '@var', '@const'", property);
-        arg.name = get_current_module()->get_constant(name);
         arg.type = get_current_module()->get_constant(type);
+        arg.meta = MetaInfo({
+                {"name", name}
+        });
         return arg;
     }
 
@@ -647,8 +650,10 @@ outside:
             local.kind = 1;
         } else
             throw error("expected '@var', '@const'", property);
-        local.name = get_current_module()->get_constant(name);
         local.type = get_current_module()->get_constant(type);
+        local.meta = MetaInfo({
+                {"name", name}
+        });
         return local;
     }
 
@@ -693,6 +698,8 @@ outside:
 
         const auto emit_value = [&](std::unsigned_integral auto const value) {
             switch (OpcodeInfo::params_count(opcode)) {
+                case 0:
+                    break;
                 case 1: {
                     if (value >= uint8_max) {
                         ErrorGroup<ParserError> errors;
@@ -716,12 +723,31 @@ outside:
                             errors.note(error(std::format("use '{}' instead", OpcodeInfo::to_string(OpcodeInfo::alternate(opcode))), opcode_token));
                         throw errors;
                     }
-                    if constexpr (std::same_as<decltype(value), const uint8_t>)
+                    if constexpr (std::same_as<decltype(value), const uint8_t>) {
                         ctx->emit(0);
-                    else
+                        ctx->emit(value);
+                    } else {
                         ctx->emit((value >> 8) & uint8_max);
-                    ctx->emit(value & uint8_max);
+                        ctx->emit(value & uint8_max);
+                    }
+                    break;
                 default:
+                    if (value >= uint16_max) {
+                        ErrorGroup<ParserError> errors;
+                        errors.error(error(
+                                std::format("opcode '{}' cannot accept a value more than {} (value={})", opcode_token->get_text(), uint16_max, value),
+                                opcode_token));
+                        if (opcode != OpcodeInfo::alternate(opcode))
+                            errors.note(error(std::format("use '{}' instead", OpcodeInfo::to_string(OpcodeInfo::alternate(opcode))), opcode_token));
+                        throw errors;
+                    }
+                    if constexpr (std::same_as<decltype(value), const uint8_t>) {
+                        ctx->emit(0);
+                        ctx->emit(value);
+                    } else {
+                        ctx->emit((value >> 8) & uint8_max);
+                        ctx->emit(value & uint8_max);
+                    }
                     break;
             }
         };
@@ -852,9 +878,74 @@ outside:
                     throw error("undefined match", current());
                 break;
             }
-            case Opcode::CLOSURELOAD:
-                // TODO: implement this
+            case Opcode::CLOSURELOAD: {
+                parse_term();
+                size_t capture_count_loc = ctx->get_code().size();
+                ctx->emit(0);
+
+                size_t capture_count = 0;
+                while (!match(TokenType::END)) {
+                    if (peek()->get_type() == TokenType::END_OF_FILE)
+                        expect(TokenType::END);
+
+                    if (match(TokenType::INTEGER)) {
+                        const auto value = str2int(current());
+                        if (value >= uint16_max)
+                            throw error(std::format("value cannot be greater than {}", uint16_max), current());
+                        emit_value(static_cast<uint16_t>(value & uint16_max));
+                    }
+
+                    expect(TokenType::ARROW);
+                    if (match(TokenType::LOCAL)) {
+                        ctx->emit(1);
+                        if (match(TokenType::INTEGER)) {
+                            const auto value = str2int(current());
+                            if (value >= uint16_max)
+                                throw error(std::format("value cannot be greater than {}", uint16_max), current());
+                            emit_value(static_cast<uint16_t>(value & uint16_max));
+                        } else {
+                            const auto name = parse_name();
+                            if (const auto idx = ctx->get_local(name)) {
+                                emit_value(*idx);
+                            } else
+                                throw error("undefined local", current());
+                        }
+                    } else if (match(TokenType::ARG)) {
+                        ctx->emit(0);
+                        if (match(TokenType::INTEGER)) {
+                            const auto value = str2int(current());
+                            if (value >= uint8_max)
+                                throw error(std::format("value cannot be greater than {}", uint8_max), current());
+                            emit_value(static_cast<uint8_t>(value & uint8_max));
+                        } else {
+                            const auto name = parse_name();
+                            if (const auto idx = ctx->get_arg(name)) {
+                                emit_value(*idx);
+                            } else
+                                throw error("undefined arg", current());
+                        }
+                    } else {
+                        const auto name = parse_name();
+                        const auto arg_idx = ctx->get_arg(name);
+                        const auto local_idx = ctx->get_local(name);
+
+                        if (arg_idx && local_idx) {
+                            throw error("cannot resolve name, specify 'local' or 'arg'", current());
+                        } else if (arg_idx) {
+                            ctx->emit(0);
+                            emit_value(*arg_idx);
+                        } else if (local_idx) {
+                            ctx->emit(1);
+                            emit_value(*local_idx);
+                        } else
+                            throw error("undefined arg or local", current());
+                    }
+                    capture_count++;
+                    parse_term();
+                }
+                ctx->get_code()[capture_count_loc] = capture_count;
                 break;
+            }
             case Opcode::REIFIEDLOAD:
                 emit_value(static_cast<uint64_t>(str2int(expect(TokenType::INTEGER))));
                 break;

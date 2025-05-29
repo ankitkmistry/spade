@@ -629,7 +629,7 @@ namespace spade
                         // * Stack layout
                         // Initial  -> [ ... | <method>]
                         // Final    -> [ ... ]
-                        // 
+                        //
                         // * Instruction layout
                         // +---------------------------------------------------------------+
                         // | closureload capture_count:u8                                  |
@@ -637,11 +637,10 @@ namespace spade
                         // +---------------------------------------------------------------+
                         // If capture_type is 0x00 -> capture_from is u8
                         // If capture_type is 0x01 -> capture_from is u16
-                        // 
+                        //
+                        const uint8 capture_count = state->read_byte();
                         const auto method = cast<ObjMethod>(state->pop()->copy());
                         VariableTable &locals = method->get_frame_template().get_locals();
-
-                        const uint8 capture_count = state->read_byte();
                         for (uint8 i = 0; i < capture_count; i++) {
                             const uint16 local_idx = state->read_short();
                             ObjPointer *capture;
@@ -657,6 +656,7 @@ namespace spade
                             }
                             locals.set(i, capture);
                         }
+                        state->push(method);
                         break;
                     }
                     case Opcode::REIFIEDLOAD: {

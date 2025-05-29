@@ -188,30 +188,22 @@ namespace spade
             // Remove the unresolved types from ref pool
             reference_pool.erase(name);
 
-        const FrameTemplate frame_template(info.code, info.stack_max, std::move(args), std::move(locals), exceptions, lines, matches);
-        return halloc_mgr<ObjMethod>(mgr, sign, kind, frame_template, type_params);
+        FrameTemplate frame_template(info.code, info.stack_max, std::move(args), std::move(locals), exceptions, lines, matches);
+        return halloc_mgr<ObjMethod>(mgr, sign, kind, std::move(frame_template), type_params);
     }
 
     void Booter::load_arg(const ArgInfo &arg, size_t i, VariableTable &table, const vector<Obj *> &conpool) {
-        const auto sign = load_sign(arg.name);
         const Sign type_sign = conpool[arg.type]->to_string();
 
-        auto meta = read_meta(arg.meta);
-        meta["name"] = sign.get_name();
-
         table.set(i, make_obj(type_sign, find_type(type_sign)));
-        table.set_meta(i, meta);
+        table.set_meta(i, read_meta(arg.meta));
     }
 
     void Booter::load_local(const LocalInfo &local, size_t i, VariableTable &table, const vector<Obj *> &conpool) {
-        const auto sign = load_sign(local.name);
         const Sign type_sign = conpool[local.type]->to_string();
 
-        auto meta = read_meta(local.meta);
-        meta["name"] = sign.get_name();
-
         table.set(i, make_obj(type_sign, find_type(type_sign)));
-        table.set_meta(i, meta);
+        table.set_meta(i, read_meta(local.meta));
     }
 
     Exception Booter::load_exception(const ExceptionTableInfo &exception, const vector<Obj *> &conpool) {
@@ -314,11 +306,11 @@ namespace spade
 
         switch (cp.tag) {
             case 0x00:
-                return halloc_mgr<ObjNull>(mgr);
+                return ObjNull::value(mgr);
             case 0x01:
-                return halloc_mgr<ObjBool>(mgr, true);
+                return ObjBool::value(true, mgr);
             case 0x02:
-                return halloc_mgr<ObjBool>(mgr, false);
+                return ObjBool::value(false, mgr);
             case 0x03:
                 return halloc_mgr<ObjChar>(mgr, static_cast<char>(std::get<uint32_t>(cp.value)));
             case 0x04:
@@ -389,12 +381,13 @@ namespace spade
     Obj *Booter::make_obj(const Sign &type_sign, Type *type) {
         const auto mgr = vm->get_memory_manager();
         static std::unordered_map<Sign, std::function<Obj *(MemoryManager *const)>> obj_map = {
-                {Sign("basic.array"),  [this](MemoryManager *const mgr) { return halloc_mgr<ObjArray>(mgr, 0); }   },
-                {Sign("basic.bool"),   [this](MemoryManager *const mgr) { return halloc_mgr<ObjBool>(mgr, false); }},
-                {Sign("basic.char"),   [this](MemoryManager *const mgr) { return halloc_mgr<ObjChar>(mgr, '\0'); } },
-                {Sign("basic.float"),  [this](MemoryManager *const mgr) { return halloc_mgr<ObjFloat>(mgr, 0.0); } },
-                {Sign("basic.int"),    [this](MemoryManager *const mgr) { return halloc_mgr<ObjInt>(mgr, 0); }     },
-                {Sign("basic.string"), [this](MemoryManager *const mgr) { return halloc_mgr<ObjString>(mgr, ""); } }
+                {Sign("basic.any"),    [](MemoryManager *const mgr) { return halloc_mgr<Obj>(mgr); }          },
+                {Sign("basic.array"),  [](MemoryManager *const mgr) { return halloc_mgr<ObjArray>(mgr, 0); }  },
+                {Sign("basic.bool"),   [](MemoryManager *const mgr) { return ObjBool::value(false, mgr); }    },
+                {Sign("basic.char"),   [](MemoryManager *const mgr) { return halloc_mgr<ObjChar>(mgr, '\0'); }},
+                {Sign("basic.float"),  [](MemoryManager *const mgr) { return halloc_mgr<ObjFloat>(mgr, 0.0); }},
+                {Sign("basic.int"),    [](MemoryManager *const mgr) { return halloc_mgr<ObjInt>(mgr, 0); }    },
+                {Sign("basic.string"), [](MemoryManager *const mgr) { return halloc_mgr<ObjString>(mgr, ""); }}
         };
         if (const auto it = obj_map.find(type_sign); it != obj_map.end())
             return it->second(mgr);

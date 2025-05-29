@@ -423,32 +423,32 @@ namespace spade
     bool is(Obj *obj) {
         using T = std::remove_cv_t<ObjType>;
         if constexpr (std::same_as<T, ObjNull>)
-            return obj->get_tag() == ObjTag::NULL_;
+            return obj != null && obj->get_tag() == ObjTag::NULL_;
         else if constexpr (std::same_as<T, ObjBool>)
-            return obj->get_tag() == ObjTag::BOOL;
+            return obj != null && obj->get_tag() == ObjTag::BOOL;
         else if constexpr (std::same_as<T, ObjChar>)
-            return obj->get_tag() == ObjTag::CHAR;
+            return obj != null && obj->get_tag() == ObjTag::CHAR;
         else if constexpr (std::same_as<T, ObjString>)
-            return obj->get_tag() == ObjTag::STRING;
+            return obj != null && obj->get_tag() == ObjTag::STRING;
         else if constexpr (std::same_as<T, ObjInt>)
-            return obj->get_tag() == ObjTag::INT;
+            return obj != null && obj->get_tag() == ObjTag::INT;
         else if constexpr (std::same_as<T, ObjFloat>)
-            return obj->get_tag() == ObjTag::FLOAT;
+            return obj != null && obj->get_tag() == ObjTag::FLOAT;
         else if constexpr (std::same_as<T, ObjArray>)
-            return obj->get_tag() == ObjTag::ARRAY;
+            return obj != null && obj->get_tag() == ObjTag::ARRAY;
         else if constexpr (std::same_as<T, Obj>)
-            return true;
+            return obj != null;
         else if constexpr (std::same_as<T, ObjModule>)
-            return obj->get_tag() == ObjTag::MODULE;
+            return obj != null && obj->get_tag() == ObjTag::MODULE;
         else if constexpr (std::same_as<T, ObjMethod>)
-            return obj->get_tag() == ObjTag::METHOD;
+            return obj != null && obj->get_tag() == ObjTag::METHOD;
         else if constexpr (std::same_as<T, Type>)
-            return obj->get_tag() == ObjTag::TYPE;
+            return obj != null && obj->get_tag() == ObjTag::TYPE;
         else if constexpr (std::same_as<T, TypeParam>)
-            return obj->get_tag() == ObjTag::TYPE_PARAM;
+            return obj != null && obj->get_tag() == ObjTag::TYPE_PARAM;
         else if constexpr (std::same_as<T, ObjPointer>)
-            return obj->get_tag() == ObjTag::POINTER;
+            return obj != null && obj->get_tag() == ObjTag::POINTER;
         else
-            return dynamic_cast<T *>(obj) != null;
+            return obj != null && dynamic_cast<T *>(obj) != null;
     }
 }    // namespace spade

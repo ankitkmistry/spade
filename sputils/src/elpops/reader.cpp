@@ -201,7 +201,6 @@ namespace spade
     LocalInfo ElpReader::read_local_info() {
         LocalInfo local;
         local.kind = read_short();
-        local.name = read_short();
         local.type = read_short();
         local.meta = read_meta_info();
         return local;
@@ -210,7 +209,6 @@ namespace spade
     ArgInfo ElpReader::read_arg_info() {
         ArgInfo arg;
         arg.kind = read_short();
-        arg.name = read_short();
         arg.type = read_short();
         arg.meta = read_meta_info();
         return arg;

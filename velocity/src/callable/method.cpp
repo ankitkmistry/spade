@@ -13,6 +13,12 @@ namespace spade
         frame_template.set_method(this);
     }
 
+    ObjMethod::ObjMethod(const Sign &sign, Kind kind, FrameTemplate &&frame, const Table<TypeParam *> &type_params)
+        : ObjCallable(sign, kind), frame_template(std::move(frame)), type_params(type_params) {
+        this->tag = ObjTag::METHOD;
+        frame_template.set_method(this);
+    }
+
     Obj *ObjMethod::copy() const {
         const auto obj = halloc_mgr<ObjMethod>(info.manager, sign, kind, frame_template, type_params);
         // Copy members

@@ -104,32 +104,6 @@ module hello
         vret
     end
 
-    method loop_test()
-        local @var i : basic.int
-
-        const 0
-        plfstore i
-        
-    $loop_start:
-        lfload i
-        const 10
-        jge $loop_end
-
-        const "hello, world "
-        lfload i
-        o2s
-        concat
-        println
-
-        lfload i
-        const 1
-        add
-        plfstore i
-        jmp $loop_start
-    $loop_end:
-        vret
-    end
-
     method match_test(basic.int)
         arg @const val : basic.int
         match match$0
@@ -166,16 +140,7 @@ module hello
         vret
     end
 
-    method @entry main()
-        # gfinvoke hello.foo()
-        # gfinvoke hello.reif_test()
-        # gfinvoke hello.met_reif_test()
-        # gfinvoke hello.loop_test()
-
-        # const 2
-        # gfinvoke hello.match_test(basic.int)
-        # vret
-
+    method print_1_to_10()
         local @var i : basic.int
 
         const 0
@@ -193,6 +158,55 @@ module hello
         plfstore i
         jmp $cond
     $end:
+        vret
+    end
+
+    method greet()
+        local @const name : basic.string
+
+        const "Hello, "
+        lfload name
+        concat
+        println
+        vret
+    end
+
+    method @entry main()
+        # gfinvoke hello.foo()
+        # gfinvoke hello.reif_test()
+        # gfinvoke hello.met_reif_test()
+        # gfinvoke hello.loop_test()
+
+        # const 2
+        # gfinvoke hello.match_test(basic.int)
+        # vret
+
+        local @var greet : basic.any
+
+        local @var name : basic.string
+
+        gfload hello.greet()
+        closureload
+            0 -> name
+        end
+        plfstore greet
+
+        const "foo"
+        plfstore name
+        linvoke greet
+
+        const "bar"
+        plfstore name
+        linvoke greet
+
+        const "baz"
+        plfstore name
+        linvoke greet
+
+        const "bax"
+        plfstore name
+        linvoke greet
+
         vret        
     end
 end
