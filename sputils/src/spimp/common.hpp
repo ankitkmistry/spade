@@ -17,21 +17,20 @@
 #if defined __GNUC__
 #    define COMPILER_GCC
 #elif defined _MSC_VER
-#    define COMPILER_MSVC
+#    if defined __clang__
+#        define COMPILER_CLANG
+#    else
+#        define COMPILER_MSVC
+#    endif
+#elif defined __clang__
+#    define COMPILER_CLANG
 #else
 #    define COMPILER_OTHER
 #endif
 
-#include <cstdint>
-#include <cstdio>
-#include <cstring>
-#include <cassert>
 #include <format>
-#include <map>
-#include <stdexcept>
 #include <string>
 #include <vector>
-#include <set>
 
 #define null (nullptr)
 

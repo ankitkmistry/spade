@@ -1,4 +1,5 @@
 #include "analyzer.hpp"
+#include "info.hpp"
 #include "parser/ast.hpp"
 #include "scope.hpp"
 
@@ -47,16 +48,19 @@ namespace spade
     void Analyzer::visit(ast::stmt::Throw &node) {
         node.get_expression()->accept(this);
         switch (_res_expr_info.tag) {
-            case ExprInfo::Type::NORMAL:
-                if (!_res_expr_info.type_info.type->has_super(get_internal<scope::Compound>(Internal::SPADE_THROWABLE)))
+            case ExprInfo::Kind::NORMAL:
+                if (_res_expr_info.type_info().tag == TypeInfo::Kind::BASIC &&
+                    _res_expr_info.type_info().basic().type->has_super(get_internal<scope::Compound>(Internal::SPADE_THROWABLE)))
+                    ;
+                else
                     throw error(std::format("expression type must be a subtype of '{}'", get_internal(Internal::SPADE_THROWABLE)->to_string()),
                                 node.get_expression());
                 break;
-            case ExprInfo::Type::STATIC:
+            case ExprInfo::Kind::STATIC:
                 throw error("cannot throw a type", &node);
-            case ExprInfo::Type::MODULE:
+            case ExprInfo::Kind::MODULE:
                 throw error("cannot throw a module", &node);
-            case ExprInfo::Type::FUNCTION_SET:
+            case ExprInfo::Kind::FUNCTION_SET:
                 throw error("cannot throw a function", &node);
         }
     }
@@ -64,9 +68,12 @@ namespace spade
     void Analyzer::visit(ast::stmt::Catch &node) {
         for (const auto &ref: node.get_references()) {
             ref->accept(this);
-            if (_res_expr_info.tag != ExprInfo::Type::STATIC)
+            if (_res_expr_info.tag != ExprInfo::Kind::STATIC)
                 throw error("reference must be a type", ref);
-            else if (!_res_expr_info.type_info.type->has_super(get_internal<scope::Compound>(Internal::SPADE_THROWABLE)))
+            if (_res_expr_info.type_info().tag == TypeInfo::Kind::BASIC &&
+                _res_expr_info.type_info().basic().type->has_super(get_internal<scope::Compound>(Internal::SPADE_THROWABLE)))
+                ;
+            else
                 throw error(std::format("reference must be a subtype of '{}'", get_internal(Internal::SPADE_THROWABLE)->to_string()), ref);
         }
         declare_variable(*node.get_symbol());
@@ -94,7 +101,7 @@ namespace spade
 
     void Analyzer::visit(ast::stmt::Return &node) {
         auto ret_type = get_current_function()->get_ret_type();
-        if (ret_type.type == &*get_internal(Internal::SPADE_VOID)) {
+        if (ret_type.tag == TypeInfo::Kind::BASIC && ret_type.basic().type == &*get_internal(Internal::SPADE_VOID)) {
             if (node.get_expression())
                 throw error("void function cannot return a value", node.get_expression());
         } else if (auto expression = node.get_expression()) {

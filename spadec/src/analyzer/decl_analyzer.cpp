@@ -114,7 +114,8 @@ namespace spade
                     scope->set_ret_type(_res_type_info);
                 } else {
                     TypeInfo return_type;
-                    return_type.type = scope->is_init() ? scope->get_enclosing_compound() : get_internal<scope::Compound>(Internal::SPADE_VOID);
+                    return_type.basic().type =
+                            scope->is_init() ? scope->get_enclosing_compound() : get_internal<scope::Compound>(Internal::SPADE_VOID);
                     scope->set_ret_type(return_type);
                 }
 
@@ -122,7 +123,8 @@ namespace spade
                     params->accept(this);
 
 #define check_ret_type_bool(OPERATOR)                                                                                                                \
-    if (node.get_name()->get_text() == OV_OP_##OPERATOR && scope->get_ret_type().type != get_internal<scope::Compound>(Internal::SPADE_BOOL)) {      \
+    if (node.get_name()->get_text() == OV_OP_##OPERATOR && scope->get_ret_type().tag == TypeInfo::Kind::BASIC &&                                     \
+        scope->get_ret_type().basic().type != get_internal<scope::Compound>(Internal::SPADE_BOOL)) {                                                 \
         throw error(std::format("'{}' must return a '{}'", scope->to_string(), get_internal(Internal::SPADE_BOOL)->to_string()), scope);             \
     }
                 // relational operators specific check
@@ -262,15 +264,15 @@ namespace spade
     void Analyzer::visit(ast::decl::Parent &node) {
         node.get_reference()->accept(this);
         // Check if the super class is a scope::Compound
-        if (_res_expr_info.tag != ExprInfo::Type::STATIC)
+        if (_res_expr_info.tag != ExprInfo::Kind::STATIC)
             throw error("reference is not a type", &node);
         // Get the parent type info and type args if any
-        TypeInfo parent_type_info = _res_expr_info.type_info;
+        TypeInfo parent_type_info = _res_expr_info.type_info();
         if (!node.get_type_args().empty()) {
-            parent_type_info.type_args.reserve(node.get_type_args().size());
+            parent_type_info.basic().type_args.reserve(node.get_type_args().size());
             for (auto type_arg: node.get_type_args()) {
                 type_arg->accept(this);
-                parent_type_info.type_args.push_back(_res_type_info);
+                parent_type_info.basic().type_args.push_back(_res_type_info);
             }
         }
         _res_type_info.reset();
@@ -521,7 +523,7 @@ namespace spade
 
             for (auto parent: node.get_parents()) {
                 parent->accept(this);
-                auto parent_compound = _res_type_info.type;
+                auto parent_compound = _res_type_info.basic().type;
                 if (parent_compound->is_final())
                     throw ErrorGroup<AnalyzerError>()
                             .error(error(std::format("cannot inherit final '{}'", parent_compound->to_string()), parent))

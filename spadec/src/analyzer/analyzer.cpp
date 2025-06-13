@@ -97,28 +97,28 @@ namespace spade
                 auto function = cast<scope::Function>(scope);
                 for (const auto &param: function->get_pos_only_params()) {
                     if (param.name == name) {
-                        expr_info.tag = ExprInfo::Type::NORMAL;
+                        expr_info.tag = ExprInfo::Kind::NORMAL;
                         expr_info.value_info.b_const = param.b_const;
                         expr_info.value_info.b_lvalue = true;
-                        expr_info.type_info = param.type_info;
+                        expr_info.type_info() = param.type_info;
                         return expr_info;
                     }
                 }
                 for (const auto &param: function->get_pos_kwd_params()) {
                     if (param.name == name) {
-                        expr_info.tag = ExprInfo::Type::NORMAL;
+                        expr_info.tag = ExprInfo::Kind::NORMAL;
                         expr_info.value_info.b_const = param.b_const;
                         expr_info.value_info.b_lvalue = true;
-                        expr_info.type_info = param.type_info;
+                        expr_info.type_info() = param.type_info;
                         return expr_info;
                     }
                 }
                 for (const auto &param: function->get_kwd_only_params()) {
                     if (param.name == name) {
-                        expr_info.tag = ExprInfo::Type::NORMAL;
+                        expr_info.tag = ExprInfo::Kind::NORMAL;
                         expr_info.value_info.b_const = param.b_const;
                         expr_info.value_info.b_lvalue = true;
-                        expr_info.type_info = param.type_info;
+                        expr_info.type_info() = param.type_info;
                         return expr_info;
                     }
                 }
@@ -130,10 +130,10 @@ namespace spade
                     result = &*cur_compound->get_super_fields().at(name);
                 } else if (cur_compound->get_super_functions().contains(name)) {
                     // Check in super class functions
-                    expr_info.tag = ExprInfo::Type::FUNCTION_SET;
+                    expr_info.tag = ExprInfo::Kind::FUNCTION_SET;
                     expr_info.value_info.b_const = true;
                     expr_info.value_info.b_lvalue = true;
-                    expr_info.functions = cur_compound->get_super_functions().at(name);
+                    expr_info.functions() = cur_compound->get_super_functions().at(name);
                     return expr_info;
                 }
             }
@@ -170,21 +170,21 @@ namespace spade
         switch (result->get_type()) {
             case scope::ScopeType::FOLDER_MODULE:
             case scope::ScopeType::MODULE:
-                expr_info.tag = ExprInfo::Type::MODULE;
+                expr_info.tag = ExprInfo::Kind::MODULE;
                 expr_info.value_info.b_const = true;
-                expr_info.module = cast<scope::Module>(&*result);
+                expr_info.module() = cast<scope::Module>(&*result);
                 break;
             case scope::ScopeType::COMPOUND:
-                expr_info.tag = ExprInfo::Type::STATIC;
+                expr_info.tag = ExprInfo::Kind::STATIC;
                 expr_info.value_info.b_const = true;
-                expr_info.type_info.type = cast<scope::Compound>(&*result);
+                expr_info.type_info().basic().type = cast<scope::Compound>(&*result);
                 break;
             case scope::ScopeType::FUNCTION:
                 throw Unreachable();    // surely some scope tree builder error
             case scope::ScopeType::FUNCTION_SET:
-                expr_info.tag = ExprInfo::Type::FUNCTION_SET;
+                expr_info.tag = ExprInfo::Kind::FUNCTION_SET;
                 expr_info.value_info.b_const = true;
-                expr_info.functions = cast<scope::FunctionSet>(result);
+                expr_info.functions() = cast<scope::FunctionSet>(result);
                 break;
             case scope::ScopeType::BLOCK:
                 throw Unreachable();    // surely some parser error
@@ -192,9 +192,9 @@ namespace spade
                 expr_info = get_var_expr_info(cast<scope::Variable>(result), node);
                 break;
             case scope::ScopeType::ENUMERATOR:
-                expr_info.tag = ExprInfo::Type::NORMAL;
+                expr_info.tag = ExprInfo::Kind::NORMAL;
                 expr_info.value_info.b_const = true;
-                expr_info.type_info.type = result->get_enclosing_compound();
+                expr_info.type_info().basic().type = result->get_enclosing_compound();
                 break;
         }
         expr_info.value_info.b_lvalue = true;
@@ -226,7 +226,7 @@ namespace spade
         // Do not check static context if we are accessing a ctor
         {    // static context code
             bool static_context = false;
-            if (auto fun = get_current_function())
+            if (const auto fun = get_current_function())
                 static_context = fun->is_static();
             if (from_scope->get_type() == scope::ScopeType::VARIABLE)
                 static_context = cast<const scope::Variable>(from_scope)->is_static();
@@ -411,51 +411,80 @@ namespace spade
     }
 
     TypeInfo Analyzer::resolve_assign(const TypeInfo &type_info, const ExprInfo &expr_info, const ast::AstNode &node) {
+        if (type_info.tag != expr_info.type_info().tag)
+            throw error(std::format("cannot assign value of type '{}' to type '{}'", expr_info.type_info().to_string(), type_info.to_string()),
+                        &node);
+
         TypeInfo result;
-        // Check type inference
-        switch (expr_info.tag) {
-            case ExprInfo::Type::NORMAL:
-                result = type_info;
-                if (!expr_info.is_null() && type_info.type != expr_info.type_info.type && !expr_info.type_info.type->has_super(type_info.type))
-                    throw error(std::format("cannot assign value of type '{}' to type '{}'", expr_info.type_info.to_string(), type_info.to_string()),
-                                &node);
-                if (!type_info.b_nullable && expr_info.type_info.b_nullable) {
-                    expr_info.is_null() ? throw error(std::format("cannot assign 'null' to type '{}'", type_info.to_string()), &node)
-                                        : throw error(std::format("cannot assign value of type '{}' to type '{}'", expr_info.type_info.to_string(),
-                                                                  type_info.to_string()),
-                                                      &node);
-                }
-                if (type_info.type_args.empty() && expr_info.type_info.type_args.empty()) {
-                    // no type args, plain vanilla
-                } else if (/* type_info.type_args.empty() &&  */ !expr_info.type_info.type_args.empty()) {
-                    // deduce from type_info
-                    result.type_args = expr_info.type_info.type_args;
-                } else if (!type_info.type_args.empty() /*  && expr_info.type_info.type_args.empty() */) {
-                    // deduce from expr_info
-                    // TODO: check type args
-                } else /* if(!type_info.type_args.empty() && !expr_info.type_info.type_args.empty()) */ {
-                    if (type_info.type_args.size() != expr_info.type_info.type_args.size())
-                        throw error(std::format("failed to deduce type arguments"), &node);    // failed deducing
-                    // now both type_info and expr_info have typeargs (same size)
-                    // check if both of them are same
-                    // TODO: implement covariance and contravariance
+
+        switch (expr_info.type_info().tag) {
+            case TypeInfo::Kind::BASIC:
+                // Check type inference
+                switch (expr_info.tag) {
+                    case ExprInfo::Kind::NORMAL:
+                        if (type_info.tag != TypeInfo::Kind::BASIC)
+                            throw error(std::format("cannot assign value of type '{}' to type '{}'", expr_info.type_info().to_string(),
+                                                    type_info.to_string()),
+                                        &node);
+                        result = type_info;
+                        if (!expr_info.is_null() && type_info.basic().type != expr_info.type_info().basic().type &&
+                            !expr_info.type_info().basic().type->has_super(type_info.basic().type))
+                            throw error(std::format("cannot assign value of type '{}' to type '{}'", expr_info.type_info().to_string(),
+                                                    type_info.to_string()),
+                                        &node);
+                        if (!type_info.nullable() && expr_info.type_info().nullable()) {
+                            expr_info.is_null() ? throw error(std::format("cannot assign 'null' to type '{}'", type_info.to_string()), &node)
+                                                : throw error(std::format("cannot assign value of type '{}' to type '{}'",
+                                                                          expr_info.type_info().to_string(), type_info.to_string()),
+                                                              &node);
+                        }
+                        if (type_info.basic().type_args.empty() && expr_info.type_info().basic().type_args.empty()) {
+                            // no type args, plain vanilla
+                        } else if (/* type_info.basic().type_args.empty() &&  */ !expr_info.type_info().basic().type_args.empty()) {
+                            // deduce from type_info
+                            result.basic().type_args = expr_info.type_info().basic().type_args;
+                        } else if (!type_info.basic().type_args.empty() /*  && expr_info.type_info().basic().type_args.empty() */) {
+                            // deduce from expr_info
+                            // TODO: check type args
+                        } else /* if(!type_info.basic().type_args.empty() && !expr_info.type_info().basic().type_args.empty()) */ {
+                            if (type_info.basic().type_args.size() != expr_info.type_info().basic().type_args.size())
+                                throw error(std::format("failed to deduce type arguments"), &node);    // failed deducing
+                            // now both type_info and expr_info have typeargs (same size)
+                            // check if both of them are same
+                            // TODO: implement covariance and contravariance
+                        }
+                        break;
+                    case ExprInfo::Kind::STATIC:
+                        if (type_info.tag != TypeInfo::Kind::BASIC)
+                            throw error(std::format("cannot assign value of type '{}' to type '{}'", expr_info.type_info().to_string(),
+                                                    type_info.to_string()),
+                                        &node);
+                        result = type_info;
+                        if (!type_info.basic().is_type_literal())
+                            throw error(std::format("cannot assign value of type '{}' to type '{}'", expr_info.type_info().to_string(),
+                                                    type_info.to_string()),
+                                        &node);
+                        if (!type_info.nullable() && expr_info.type_info().nullable())
+                            throw error(std::format("cannot assign value of type '{}' to type '{}'", expr_info.type_info().to_string(),
+                                                    type_info.to_string()),
+                                        &node);
+                        break;
+                    case ExprInfo::Kind::MODULE:
+                        throw error(std::format("cannot assign a module to type '{}'", type_info.to_string()), &node);
+                    case ExprInfo::Kind::FUNCTION_SET:
+                        // TODO: implement function assignments
+                        if (type_info.tag != TypeInfo::Kind::FUNCTION)
+                            throw error(std::format("cannot assign value of type '{}' to type '{}'", expr_info.type_info().to_string(),
+                                                    type_info.to_string()),
+                                        &node);
+                        break;
                 }
                 break;
-            case ExprInfo::Type::STATIC:
-                result = type_info;
-                if (!type_info.is_type_literal())
-                    throw error(std::format("cannot assign value of type '{}' to type '{}'", expr_info.type_info.to_string(), type_info.to_string()),
-                                &node);
-                if (!type_info.b_nullable && expr_info.type_info.b_nullable)
-                    throw error(std::format("cannot assign value of type '{}' to type '{}'", expr_info.type_info.to_string(), type_info.to_string()),
-                                &node);
-                break;
-            case ExprInfo::Type::MODULE:
-                throw error(std::format("cannot assign a module to type '{}'", type_info.to_string()), &node);
-            case ExprInfo::Type::FUNCTION_SET:
-                // TODO: implement function resolution
+            case TypeInfo::Kind::FUNCTION:
+                // TODO: implement function assignments
                 break;
         }
+
         return result;
     }
 
@@ -465,7 +494,7 @@ namespace spade
             type->accept(this);
             type_info = _res_type_info;
 
-            if (auto scope = dynamic_cast<scope::Variable *>(get_current_scope())) {
+            if (const auto scope = dynamic_cast<scope::Variable *>(get_current_scope())) {
                 scope->set_type_info(type_info);
                 scope->set_eval(scope::Variable::Eval::DONE);    // mimic as if type resolution is completed
             }
@@ -480,26 +509,26 @@ namespace spade
             expr->accept(this);
             resolve_indexer(_res_expr_info, true, node);
             switch (_res_expr_info.tag) {
-                case ExprInfo::Type::NORMAL:
-                    type_info = _res_expr_info.type_info;
+                case ExprInfo::Kind::NORMAL:
+                    type_info = _res_expr_info.type_info();
                     break;
-                case ExprInfo::Type::STATIC:
+                case ExprInfo::Kind::STATIC:
                     type_info.reset();    // `type` literal
                     break;
-                case ExprInfo::Type::MODULE:
+                case ExprInfo::Kind::MODULE:
                     throw error("cannot assign a module to a variable", &node);
-                case ExprInfo::Type::FUNCTION_SET:
+                case ExprInfo::Kind::FUNCTION_SET:
                     // TODO: implement function types
                     throw Unreachable();
             }
         } else {
             // type_info.reset();
-            type_info.type = get_internal<scope::Compound>(Internal::SPADE_ANY);
+            type_info.basic().type = get_internal<scope::Compound>(Internal::SPADE_ANY);
             // nullable by default
-            type_info.b_nullable = true;
+            type_info.nullable() = true;
         }
         // Assigning to a variable, so set the type info
-        if (auto scope = dynamic_cast<scope::Variable *>(get_current_scope())) {
+        if (const auto scope = dynamic_cast<scope::Variable *>(get_current_scope())) {
             scope->set_type_info(type_info);
             scope->set_eval(scope::Variable::Eval::DONE);
         }
@@ -662,21 +691,21 @@ namespace spade
                     for (auto param: fun->get_pos_only_params()) {
                         if (priority == 3)
                             break;
-                        if (param.type_info.type != arg_infos[i].expr_info.type_info.type)
+                        if (param.type_info != arg_infos[i].expr_info.type_info())
                             priority = 3;
                         i++;
                     }
                     for (auto param: fun->get_pos_kwd_params()) {
                         if (priority == 3)
                             break;
-                        if (param.type_info.type != arg_infos[i].expr_info.type_info.type)
+                        if (param.type_info != arg_infos[i].expr_info.type_info())
                             priority = 3;
                         i++;
                     }
                     for (auto param: fun->get_kwd_only_params()) {
                         if (priority == 3)
                             break;
-                        if (param.type_info.type != arg_infos[i].expr_info.type_info.type)
+                        if (param.type_info != arg_infos[i].expr_info.type_info())
                             priority = 3;
                         i++;
                     }
@@ -701,8 +730,8 @@ namespace spade
         LOGGER.log_debug(std::format("resolved call candidate: {}", candidate->to_string()));
 
         ExprInfo expr_info;
-        expr_info.tag = ExprInfo::Type::NORMAL;
-        expr_info.type_info = candidate->get_ret_type();
+        expr_info.tag = ExprInfo::Kind::NORMAL;
+        expr_info.type_info() = candidate->get_ret_type();
         // TODO: also convey generic info
         return expr_info;
     }
@@ -714,7 +743,7 @@ namespace spade
             // mimic as if it was non-nullable because we check nullabilty is already checked in the indexer visitor
             ExprInfo caller_info;
             caller_info = indexer_info.caller_info;
-            caller_info.type_info.b_nullable = false;
+            caller_info.type_info().nullable() = false;
 
             auto member = get_member(caller_info, get ? OV_OP_GET_ITEM : OV_OP_SET_ITEM, node, errors);
             if (!errors.get_errors().empty())
@@ -722,17 +751,17 @@ namespace spade
                         .error(error(std::format("'{}' is not indexable", indexer_info.caller_info.to_string()), indexer_info.node))
                         .extend(errors);
             switch (member.tag) {
-                case ExprInfo::Type::NORMAL:
-                case ExprInfo::Type::STATIC:
-                case ExprInfo::Type::MODULE:
+                case ExprInfo::Kind::NORMAL:
+                case ExprInfo::Kind::STATIC:
+                case ExprInfo::Kind::MODULE:
                     throw error(std::format("'{}' is not indexable", indexer_info.caller_info.to_string()), indexer_info.node);
                     break;
-                case ExprInfo::Type::FUNCTION_SET: {
-                    result = resolve_call(member.functions, indexer_info.arg_infos, node);
+                case ExprInfo::Kind::FUNCTION_SET: {
+                    result = resolve_call(member.functions(), indexer_info.arg_infos, node);
                     // This is the property of safe indexer operator
                     // where 'a?[...]' returns 'a[...]' if 'a' is not null, else returns null
-                    if (indexer_info.caller_info.type_info.b_nullable)
-                        result.type_info.b_nullable = true;
+                    if (indexer_info.caller_info.type_info().nullable())
+                        result.type_info().nullable() = true;
                     break;
                 }
             }
@@ -742,31 +771,31 @@ namespace spade
 
     ExprInfo Analyzer::get_var_expr_info(scope::Variable *var_scope, const ast::AstNode &node) {
         ExprInfo expr_info;
-        expr_info.tag = ExprInfo::Type::NORMAL;
+        expr_info.tag = ExprInfo::Kind::NORMAL;
         switch (var_scope->get_eval()) {
             case scope::Variable::Eval::NOT_STARTED: {
                 auto old_cur_scope = get_current_scope();    // save context
                 cur_scope = var_scope->get_parent();         // change context
                 var_scope->get_node()->accept(this);         // visit variable
                 cur_scope = old_cur_scope;                   // reset context
-                expr_info.type_info = var_scope->get_type_info();
+                expr_info.type_info() = var_scope->get_type_info();
                 break;
             }
             case scope::Variable::Eval::PROGRESS:
                 if (get_current_scope()->get_type() == scope::ScopeType::VARIABLE) {
                     auto cur_var_scope = cast<scope::Variable>(get_current_scope());
                     if (cur_var_scope->get_eval() == scope::Variable::Eval::DONE) {
-                        expr_info.type_info = cur_var_scope->get_type_info();    // sense correct
+                        expr_info.type_info() = cur_var_scope->get_type_info();    // sense correct
                         break;
                     }
                 }
-                expr_info.type_info.type = get_internal<scope::Compound>(Internal::SPADE_ANY);
-                expr_info.type_info.b_nullable = true;
-                warning(std::format("type inference is ambiguous, defaulting to '{}'", expr_info.type_info.to_string()), &node);
+                expr_info.type_info().basic().type = get_internal<scope::Compound>(Internal::SPADE_ANY);
+                expr_info.type_info().nullable() = true;
+                warning(std::format("type inference is ambiguous, defaulting to '{}'", expr_info.type_info().to_string()), &node);
                 note("declared here", var_scope);
                 break;
             case scope::Variable::Eval::DONE:
-                expr_info.type_info = var_scope->get_type_info();
+                expr_info.type_info() = var_scope->get_type_info();
                 break;
         }
         if (var_scope->get_variable_node()->get_token()->get_type() == TokenType::CONST)
@@ -777,7 +806,7 @@ namespace spade
     std::shared_ptr<scope::Variable> Analyzer::declare_variable(ast::decl::Variable &node) {
         auto scope = std::make_shared<scope::Variable>(&node);
         auto name = node.get_name();
-        if (auto fun = get_current_function()) {
+        if (const auto fun = get_current_function()) {
             // Check if the variable is not overshadowing parameters
             if (fun->has_param(name->get_text()))
                 throw ErrorGroup<AnalyzerError>()
@@ -865,7 +894,7 @@ namespace spade
         {    // Check positional only parameters (with also overlapping pos-kwd parameters)
             if (!fun1_pos_only.empty() && !fun2_pos_only.empty()) {
                 for (size_t i = 0; i < fun1_pos_only.size() && i < fun2_pos_only.size(); i++) {
-                    if (fun1_pos_only[i].type_info.type != fun2_pos_only[i].type_info.type)
+                    if (!fun1_pos_only[i].type_info.weak_equals(fun2_pos_only[i].type_info))
                         return;
                 }
                 size_t min_size = std::min(fun1_pos_only.size(), fun2_pos_only.size());
@@ -874,7 +903,7 @@ namespace spade
             }
             if (!fun1_pos_only.empty() && !fun2_pos_kwd.empty()) {
                 for (size_t i = 0; i < fun1_pos_only.size() && i < fun2_pos_kwd.size(); i++) {
-                    if (fun1_pos_only[i].type_info.type != fun2_pos_kwd[i].type_info.type)
+                    if (!fun1_pos_only[i].type_info.weak_equals(fun2_pos_kwd[i].type_info))
                         return;
                 }
                 size_t min_size = std::min(fun1_pos_only.size(), fun2_pos_kwd.size());
@@ -883,7 +912,7 @@ namespace spade
             }
             if (!fun1_pos_kwd.empty() && !fun2_pos_only.empty()) {
                 for (size_t i = 0; i < fun1_pos_kwd.size() && i < fun2_pos_only.size(); i++) {
-                    if (fun1_pos_kwd[i].type_info.type != fun2_pos_only[i].type_info.type)
+                    if (!fun1_pos_kwd[i].type_info.weak_equals(fun2_pos_only[i].type_info))
                         return;
                 }
                 size_t min_size = std::min(fun1_pos_kwd.size(), fun2_pos_only.size());
@@ -897,7 +926,7 @@ namespace spade
         {    // Check pos-kwd parameters
             if (!fun1_pos_kwd.empty() && !fun2_pos_kwd.empty()) {
                 for (size_t i = 0; i < fun1_pos_kwd.size() && i < fun2_pos_kwd.size(); i++) {
-                    if (fun1_pos_kwd[i].type_info.type != fun2_pos_kwd[i].type_info.type) {
+                    if (!fun1_pos_kwd[i].type_info.weak_equals(fun2_pos_kwd[i].type_info)) {
                         if (check_fun_kwd_params(fun1, fun1_pos_kwd, fun1_pos_kwd_default, fun2, fun2_pos_kwd, fun2_pos_kwd_default))
                             return;
                         else
@@ -915,9 +944,9 @@ namespace spade
                     auto param2 = i < fun2_pos_kwd.size() ? fun2_pos_kwd[i] : fun2_pos_kwd_default[i - fun2_pos_kwd.size()];
                     if (i >= fun1_pos_kwd.size() && i >= fun2_pos_kwd.size()) {
                         // if both are default then types must be different
-                        if (param1.type_info.type == param2.type_info.type)
+                        if (param1.type_info.weak_equals(param2.type_info))
                             AMBIGUOUS();
-                    } else if (param1.type_info.type != param2.type_info.type) {
+                    } else if (!param1.type_info.weak_equals(param2.type_info)) {
                         if (check_fun_kwd_params(fun1, fun1_pos_kwd, fun1_pos_kwd_default, fun2, fun2_pos_kwd, fun2_pos_kwd_default))
                             return;
                         else
@@ -934,7 +963,7 @@ namespace spade
         if (!check_fun_kwd_params(fun1, fun1_pos_kwd, fun1_pos_kwd_default, fun2, fun2_pos_kwd, fun2_pos_kwd_default))
             AMBIGUOUS();
 
-            // AMBIGUOUS();
+        // AMBIGUOUS();
 #undef AMBIGUOUS
     }
 
@@ -965,20 +994,20 @@ namespace spade
         for (const auto &[name, param]: fun1_kwd) {
             if (fun2_kwd.contains(name)) {
                 if (param.b_default) {
-                    if (param.type_info.type == fun2_kwd[name].type_info.type)
+                    if (param.type_info.weak_equals(fun2_kwd[name].type_info))
                         return false;
-                } else if (param.type_info.type != fun2_kwd[name].type_info.type)
+                } else if (!param.type_info.weak_equals(fun2_kwd[name].type_info))
                     return true;
                 fun2_kwd.erase(name);
             } else if (param.b_default)
                 continue;
-            else if (!fun2_kwd_only_variadic || param.type_info.type != fun2_kwd_only_variadic->type_info.type)
+            else if (!fun2_kwd_only_variadic || !param.type_info.weak_equals(fun2_kwd_only_variadic->type_info))
                 return true;
         }
         for (const auto &[name, param]: fun2_kwd) {
             if (param.b_default)
                 continue;
-            else if (!fun2_kwd_only_variadic || param.type_info.type != fun2_kwd_only_variadic->type_info.type)
+            else if (!fun2_kwd_only_variadic || !param.type_info.weak_equals(fun2_kwd_only_variadic->type_info))
                 return true;
         }
         return false;
@@ -1049,38 +1078,44 @@ namespace spade
     ExprInfo Analyzer::get_member(const ExprInfo &caller_info, const string &member_name, bool safe, const ast::AstNode &node,
                                   ErrorGroup<AnalyzerError> &errors) {
         ExprInfo expr_info;
+
+        if (caller_info.type_info().tag != TypeInfo::Kind::BASIC) {
+            errors.error(error(std::format("cannot access from type '{}'", caller_info.to_string()), &node));
+            return expr_info;
+        }
+
         switch (caller_info.tag) {
-            case ExprInfo::Type::NORMAL: {
+            case ExprInfo::Kind::NORMAL: {
                 if (caller_info.is_null()) {
                     errors.error(error("cannot access 'null'", &node));
                     return expr_info;
                 }
-                if (caller_info.type_info.b_nullable && !safe) {
+                if (caller_info.type_info().nullable() && !safe) {
                     errors.error(error(std::format("cannot access member of nullable '{}'", caller_info.to_string()), &node))
                             .note(error("use safe dot access operator '?.'", &node));
                     return expr_info;
                 }
-                if (!caller_info.type_info.b_nullable && safe) {
+                if (!caller_info.type_info().nullable() && safe) {
                     errors.error(error(std::format("cannot use safe dot access operator on non-nullable '{}'", caller_info.to_string()), &node))
                             .note(error("remove the safe dot access operator '?.'", &node));
                     return expr_info;
                 }
-                if (caller_info.type_info.is_type_literal()) {
+                if (caller_info.type_info().basic().is_type_literal()) {
                     warning("'type' causes dynamic resolution, hence expression becomes 'spade.any?'", &node);
-                    expr_info.tag = ExprInfo::Type::NORMAL;
-                    expr_info.type_info.type = get_internal<scope::Compound>(Internal::SPADE_ANY);
-                    expr_info.type_info.b_nullable = true;
+                    expr_info.tag = ExprInfo::Kind::NORMAL;
+                    expr_info.type_info().basic().type = get_internal<scope::Compound>(Internal::SPADE_ANY);
+                    expr_info.type_info().nullable() = true;
                 } else {
-                    auto member_scope = caller_info.type_info.type->get_variable(member_name);
+                    auto member_scope = caller_info.type_info().basic().type->get_variable(member_name);
                     if (!member_scope)
                         // Provision of super fields and functions
-                        if (auto compound = caller_info.type_info.type) {
+                        if (const auto compound = caller_info.type_info().basic().type) {
                             if (compound->get_super_fields().contains(member_name)) {
                                 member_scope = compound->get_super_fields().at(member_name);
                             } else if (compound->get_super_functions().contains(member_name)) {
-                                expr_info.tag = ExprInfo::Type::FUNCTION_SET;
+                                expr_info.tag = ExprInfo::Kind::FUNCTION_SET;
                                 expr_info.value_info.b_const = true;
-                                expr_info.functions = compound->get_super_functions().at(member_name);
+                                expr_info.functions() = compound->get_super_functions().at(member_name);
                                 break;
                             }
                         }
@@ -1091,23 +1126,24 @@ namespace spade
                     resolve_context(member_scope, node);
                     switch (member_scope->get_type()) {
                         case scope::ScopeType::COMPOUND:
-                            expr_info.tag = ExprInfo::Type::STATIC;
+                            expr_info.tag = ExprInfo::Kind::STATIC;
                             expr_info.value_info.b_const = true;
-                            expr_info.type_info.type = cast<scope::Compound>(&*member_scope);
+                            expr_info.type_info().basic().type = cast<scope::Compound>(&*member_scope);
                             break;
                         case scope::ScopeType::FUNCTION:
                             throw Unreachable();    // surely some symbol tree builder error
                         case scope::ScopeType::FUNCTION_SET:
-                            expr_info.tag = ExprInfo::Type::FUNCTION_SET;
+                            expr_info.tag = ExprInfo::Kind::FUNCTION_SET;
                             expr_info.value_info.b_const = true;
-                            expr_info.functions = cast<scope::FunctionSet>(&*member_scope);
+                            expr_info.functions() = cast<scope::FunctionSet>(&*member_scope);
                             break;
                         case scope::ScopeType::VARIABLE:
                             expr_info = get_var_expr_info(&*cast<scope::Variable>(member_scope), node);
                             break;
                         case scope::ScopeType::ENUMERATOR:
                             errors.error(error("cannot access enumerator from an object (you should use the type)", &node))
-                                    .note(error(std::format("use {}.{}", caller_info.type_info.type->to_string(false), member_name), &node));
+                                    .note(error(std::format("use {}.{}", caller_info.type_info().basic().type->to_string(false), member_name),
+                                                &node));
                             return expr_info;
                         default:
                             throw Unreachable();    // surely some parser error
@@ -1115,24 +1151,24 @@ namespace spade
                 }
                 break;
             }
-            case ExprInfo::Type::STATIC: {
-                if (caller_info.type_info.b_nullable && !safe) {
+            case ExprInfo::Kind::STATIC: {
+                if (caller_info.type_info().nullable() && !safe) {
                     errors.error(error(std::format("cannot access member of nullable '{}'", caller_info.to_string()), &node))
                             .note(error("use safe dot access operator '?.'", &node));
                     return expr_info;
                 }
-                if (!caller_info.type_info.b_nullable && safe) {
+                if (!caller_info.type_info().nullable() && safe) {
                     errors.error(error(std::format("cannot use safe dot access operator on non-nullable '{}'", caller_info.to_string()), &node))
                             .note(error("remove the safe dot access operator '?.'", &node));
                     return expr_info;
                 }
-                if (caller_info.type_info.is_type_literal()) {
+                if (caller_info.type_info().basic().is_type_literal()) {
                     warning("'type' causes dynamic resolution, hence expression becomes 'spade.any?'", &node);
-                    expr_info.tag = ExprInfo::Type::NORMAL;
-                    expr_info.type_info.type = get_internal<scope::Compound>(Internal::SPADE_ANY);
-                    expr_info.type_info.b_nullable = true;
+                    expr_info.tag = ExprInfo::Kind::NORMAL;
+                    expr_info.type_info().basic().type = get_internal<scope::Compound>(Internal::SPADE_ANY);
+                    expr_info.type_info().nullable() = true;
                 } else {
-                    auto member_scope = caller_info.type_info.type->get_variable(member_name);
+                    auto member_scope = caller_info.type_info().basic().type->get_variable(member_name);
                     if (!member_scope) {
                         errors.error(error(std::format("'{}' has no member named '{}'", caller_info.to_string(), member_name), &node));
                         return expr_info;
@@ -1140,20 +1176,20 @@ namespace spade
                     resolve_context(member_scope, node);
                     switch (member_scope->get_type()) {
                         case scope::ScopeType::COMPOUND:
-                            expr_info.tag = ExprInfo::Type::STATIC;
+                            expr_info.tag = ExprInfo::Kind::STATIC;
                             expr_info.value_info.b_const = true;
-                            expr_info.type_info.type = cast<scope::Compound>(&*member_scope);
+                            expr_info.type_info().basic().type = cast<scope::Compound>(&*member_scope);
                             break;
                         case scope::ScopeType::FUNCTION:
                             throw Unreachable();    // surely some symbol tree builder error
                         case scope::ScopeType::FUNCTION_SET:
-                            expr_info.tag = ExprInfo::Type::FUNCTION_SET;
+                            expr_info.tag = ExprInfo::Kind::FUNCTION_SET;
                             expr_info.value_info.b_const = true;
-                            expr_info.functions = cast<scope::FunctionSet>(&*member_scope);
-                            expr_info.functions.remove_if([](const std::pair<const SymbolPath &, const scope::Function *> &item) {
+                            expr_info.functions() = cast<scope::FunctionSet>(&*member_scope);
+                            expr_info.functions().remove_if([](const std::pair<const SymbolPath &, const scope::Function *> &item) {
                                 return !item.second->is_static() && !item.second->is_init();
                             });
-                            if (expr_info.functions.empty()) {
+                            if (expr_info.functions().empty()) {
                                 errors.error(error(
                                         std::format("cannot access non-static '{}' of '{}'", member_scope->to_string(), caller_info.to_string()),
                                         &node));
@@ -1172,9 +1208,9 @@ namespace spade
                             break;
                         }
                         case scope::ScopeType::ENUMERATOR:
-                            expr_info.type_info.type = caller_info.type_info.type;
+                            expr_info.type_info().basic().type = caller_info.type_info().basic().type;
                             expr_info.value_info.b_const = true;
-                            expr_info.tag = ExprInfo::Type::NORMAL;
+                            expr_info.tag = ExprInfo::Kind::NORMAL;
                             break;
                         default:
                             throw Unreachable();    // surely some parser error
@@ -1182,16 +1218,16 @@ namespace spade
                 }
                 break;
             }
-            case ExprInfo::Type::MODULE: {
+            case ExprInfo::Kind::MODULE: {
                 if (safe) {
                     errors.error(error("cannot use safe dot access operator on a module", &node));
                     return expr_info;
                 }
-                if (!caller_info.module->has_variable(member_name)) {
+                if (!caller_info.module()->has_variable(member_name)) {
                     errors.error(error(std::format("cannot access member: '{}'", member_name), &node));
                     return expr_info;
                 }
-                auto member_scope = caller_info.module->get_variable(member_name);
+                auto member_scope = caller_info.module()->get_variable(member_name);
                 if (!member_scope) {
                     errors.error(error(std::format("'{}' has no member named '{}'", caller_info.to_string(), member_name), &node));
                     return expr_info;
@@ -1200,21 +1236,21 @@ namespace spade
                 switch (member_scope->get_type()) {
                     case scope::ScopeType::FOLDER_MODULE:
                     case scope::ScopeType::MODULE:
-                        expr_info.tag = ExprInfo::Type::MODULE;
+                        expr_info.tag = ExprInfo::Kind::MODULE;
                         expr_info.value_info.b_const = true;
-                        expr_info.module = cast<scope::Module>(&*member_scope);
+                        expr_info.module() = cast<scope::Module>(&*member_scope);
                         break;
                     case scope::ScopeType::COMPOUND:
-                        expr_info.tag = ExprInfo::Type::STATIC;
+                        expr_info.tag = ExprInfo::Kind::STATIC;
                         expr_info.value_info.b_const = true;
-                        expr_info.type_info.type = cast<scope::Compound>(&*member_scope);
+                        expr_info.type_info().basic().type = cast<scope::Compound>(&*member_scope);
                         break;
                     case scope::ScopeType::FUNCTION:
                         throw Unreachable();    // surely some symbol tree builder error
                     case scope::ScopeType::FUNCTION_SET:
-                        expr_info.tag = ExprInfo::Type::FUNCTION_SET;
+                        expr_info.tag = ExprInfo::Kind::FUNCTION_SET;
                         expr_info.value_info.b_const = true;
-                        expr_info.functions = cast<scope::FunctionSet>(&*member_scope);
+                        expr_info.functions() = cast<scope::FunctionSet>(&*member_scope);
                         break;
                     case scope::ScopeType::VARIABLE:
                         expr_info = get_var_expr_info(&*cast<scope::Variable>(member_scope), node);
@@ -1224,7 +1260,7 @@ namespace spade
                 }
                 break;
             }
-            case ExprInfo::Type::FUNCTION_SET: {
+            case ExprInfo::Kind::FUNCTION_SET: {
                 errors.error(error("cannot access member of callable type", &node));
                 return expr_info;
             }
@@ -1234,14 +1270,14 @@ namespace spade
         // where 'a?.b' returns 'a.b' if 'a' is not null, else returns null
         if (safe) {
             switch (expr_info.tag) {
-                case ExprInfo::Type::NORMAL:
-                case ExprInfo::Type::STATIC:
-                    expr_info.type_info.b_nullable = true;
+                case ExprInfo::Kind::NORMAL:
+                case ExprInfo::Kind::STATIC:
+                    expr_info.type_info().nullable() = true;
                     break;
-                case ExprInfo::Type::MODULE:
+                case ExprInfo::Kind::MODULE:
                     break;
-                case ExprInfo::Type::FUNCTION_SET:
-                    expr_info.functions.b_nullable = true;
+                case ExprInfo::Kind::FUNCTION_SET:
+                    expr_info.functions().b_nullable = true;
                     break;
             }
         }
@@ -1358,7 +1394,7 @@ namespace spade
 
         // Visit all declarations
         for (auto [_, module_scope]: module_scopes) {
-            if (auto node = module_scope->get_node()) {
+            if (const auto node = module_scope->get_node()) {
                 cur_scope = null;
                 node->accept(this);
             }
@@ -1387,16 +1423,16 @@ namespace spade
         scope::Scope *scope = null;
         auto expr_info = resolve_name(node.get_path()[0]->get_text(), node);
         switch (expr_info.tag) {
-            case ExprInfo::Type::NORMAL:
-                scope = expr_info.type_info.type;
+            case ExprInfo::Kind::NORMAL:
+                scope = expr_info.type_info().basic().type;
                 break;
-            case ExprInfo::Type::STATIC:
-                scope = expr_info.type_info.type;
+            case ExprInfo::Kind::STATIC:
+                scope = expr_info.type_info().basic().type;
                 break;
-            case ExprInfo::Type::MODULE:
-                scope = expr_info.module;
+            case ExprInfo::Kind::MODULE:
+                scope = expr_info.module();
                 break;
-            case ExprInfo::Type::FUNCTION_SET:
+            case ExprInfo::Kind::FUNCTION_SET:
                 break;
         }
         if (!node.get_path().empty() && !scope)
@@ -1413,25 +1449,25 @@ namespace spade
         switch (scope->get_type()) {
             case scope::ScopeType::FOLDER_MODULE:
             case scope::ScopeType::MODULE:
-                _res_expr_info.tag = ExprInfo::Type::MODULE;
-                _res_expr_info.module = cast<scope::Module>(scope);
+                _res_expr_info.tag = ExprInfo::Kind::MODULE;
+                _res_expr_info.module() = cast<scope::Module>(scope);
                 break;
             case scope::ScopeType::COMPOUND:
-                _res_expr_info.tag = ExprInfo::Type::STATIC;
-                _res_expr_info.type_info.type = cast<scope::Compound>(scope);
+                _res_expr_info.tag = ExprInfo::Kind::STATIC;
+                _res_expr_info.type_info().basic().type = cast<scope::Compound>(scope);
                 break;
             case scope::ScopeType::FUNCTION:
                 throw Unreachable();
             case scope::ScopeType::FUNCTION_SET:
-                _res_expr_info.tag = ExprInfo::Type::FUNCTION_SET;
-                _res_expr_info.functions = expr_info.functions;
+                _res_expr_info.tag = ExprInfo::Kind::FUNCTION_SET;
+                _res_expr_info.functions() = expr_info.functions();
                 break;
             case scope::ScopeType::BLOCK:
                 throw Unreachable();
             case scope::ScopeType::VARIABLE:
             case scope::ScopeType::ENUMERATOR:
-                _res_expr_info.tag = ExprInfo::Type::NORMAL;
-                _res_expr_info.type_info.type = cast<scope::Compound>(scope);
+                _res_expr_info.tag = ExprInfo::Kind::NORMAL;
+                _res_expr_info.type_info().basic().type = scope->get_enclosing_compound();
                 break;
         }
     }
@@ -1440,9 +1476,9 @@ namespace spade
         // Find the type scope
         node.get_reference()->accept(this);
         // Check if the reference is a type
-        if (_res_expr_info.tag != ExprInfo::Type::STATIC)
+        if (_res_expr_info.tag != ExprInfo::Kind::STATIC)
             throw error("reference is not a type", &node);
-        auto type_scope = _res_expr_info.type_info.type;
+        auto type_scope = _res_expr_info.type_info().basic().type;
         // Check for type arguments
         std::vector<TypeInfo> type_args;
         for (auto type_arg: node.get_type_args()) {
@@ -1450,11 +1486,12 @@ namespace spade
             type_args.push_back(_res_type_info);
         }
         _res_type_info.reset();
-        _res_type_info.type = type_scope;
-        _res_type_info.type_args = type_args;
+        _res_type_info.basic().type = type_scope;
+        _res_type_info.basic().type_args = type_args;
     }
 
     void Analyzer::visit(ast::type::Function &node) {
+        // TODO: implement this
         _res_type_info.reset();
     }
 
@@ -1469,7 +1506,7 @@ namespace spade
     void Analyzer::visit(ast::type::Nullable &node) {
         _res_type_info.reset();
         node.get_type()->accept(this);
-        _res_type_info.b_nullable = true;
+        _res_type_info.nullable() = true;
     }
 
     void Analyzer::visit(ast::type::TypeBuilder &node) {

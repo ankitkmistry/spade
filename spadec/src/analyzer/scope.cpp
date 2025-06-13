@@ -65,43 +65,7 @@ namespace spade::scope
         // TODO: add support for type arguments
         if (node) {
             result += "(";
-            string pos_only;
-            for (size_t i = 0; i < pos_only_params.size(); i++) {
-                pos_only += pos_only_params[i].to_string(false);
-                if (i != pos_only_params.size() - 1)
-                    pos_only += ", ";
-            }
-            string pos_kwd;
-            for (size_t i = 0; i < pos_kwd_params.size(); i++) {
-                pos_kwd += pos_kwd_params[i].to_string(false);
-                if (i != pos_kwd_params.size() - 1)
-                    pos_kwd += ", ";
-            }
-            string kwd_only;
-            for (size_t i = 0; i < kwd_only_params.size(); i++) {
-                kwd_only += kwd_only_params[i].to_string(false);
-                if (i != kwd_only_params.size() - 1)
-                    kwd_only += ", ";
-            }
-            if (!pos_only.empty())
-                if (!pos_kwd.empty())
-                    if (!kwd_only.empty())
-                        result += std::format("{}, *, {}, /, {}", pos_only, pos_kwd, kwd_only);
-                    else
-                        result += std::format("{}, *, {}", pos_only, pos_kwd);
-                else if (!kwd_only.empty())
-                    result += std::format("{}, *, /, {}", pos_only, kwd_only);
-                else
-                    result += std::format("{}, *", pos_only);
-            else if (!pos_kwd.empty())
-                if (!kwd_only.empty())
-                    result += std::format("{}, /, {}", pos_kwd, kwd_only);
-                else
-                    result += std::format("{}", pos_kwd);
-            else if (!kwd_only.empty())
-                result += std::format("/, {}", kwd_only);
-            else
-                result += "";
+            result += params_string(pos_only_params, pos_kwd_params, kwd_only_params);
             result += ")";
         }
         return (decorated ? (is_init() ? "ctor " : "function ") : "") + result;

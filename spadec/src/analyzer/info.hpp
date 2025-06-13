@@ -1,8 +1,10 @@
 #pragma once
 
+#include <variant>
+
+#include "utils/common.hpp"
 #include "parser/ast.hpp"
 #include "symbol_path.hpp"
-#include "utils/common.hpp"
 
 namespace spade
 {
@@ -16,7 +18,9 @@ namespace spade
         class FunctionSet;
     }    // namespace scope
 
-    struct TypeInfo {
+    struct TypeInfo;
+
+    struct BasicType {
         /// scope of the type
         scope::Compound *type = null;
         /// type args of the type
@@ -24,54 +28,166 @@ namespace spade
         /// flag if the type is nullable
         bool b_nullable = false;
 
-        TypeInfo() = default;
-
-        TypeInfo(const TypeInfo &other) : type(other.type), type_args(other.type_args), b_nullable(other.b_nullable) {}
-
-        TypeInfo(TypeInfo &&other) noexcept = default;
-
-        TypeInfo &operator=(const TypeInfo &other) {
-            type = other.type;
-            if (!other.type_args.empty())
-                type_args = other.type_args;
-            else
-                type_args.clear();
-            b_nullable = other.b_nullable;
-            return *this;
+        bool is_type_literal() const {
+            return type == null && type_args.empty();
         }
 
-        TypeInfo &operator=(TypeInfo &&other) noexcept {
-            type = std::move(other.type);
-            if (!other.type_args.empty())
-                type_args = std::move(other.type_args);
-            else
-                type_args.clear();
-            b_nullable = std::move(other.b_nullable);
-            return *this;
+        bool weak_equals(const BasicType &other) const;
+
+        bool operator==(const BasicType &other) const;
+
+        bool operator!=(const BasicType &other) const {
+            return !(*this == other);
         }
 
-        ~TypeInfo() {
-            reset();
+        string to_string(bool decorated) const;
+    };
+
+    struct ParamInfo;
+
+    class FunctionType {
+        std::unique_ptr<TypeInfo> m_ret_type;
+        std::vector<ParamInfo> m_pos_only_params;
+        std::vector<ParamInfo> m_pos_kwd_params;
+        std::vector<ParamInfo> m_kwd_only_params;
+
+      public:
+        /// type args of the type
+        // TODO: To be implemented in future
+        // std::vector<TypeInfo> type_args;
+        /// flag if the type is nullable
+        bool b_nullable = false;
+
+        FunctionType();
+        FunctionType(const FunctionType &other);
+        FunctionType(FunctionType &&);
+        FunctionType &operator=(const FunctionType &other);
+        FunctionType &operator=(FunctionType &&);
+        ~FunctionType();
+
+        TypeInfo &return_type() {
+            return *m_ret_type;
+        }
+
+        const TypeInfo &return_type() const {
+            return *m_ret_type;
+        }
+
+        std::vector<ParamInfo> &pos_only_params() {
+            return m_pos_only_params;
+        }
+
+        const std::vector<ParamInfo> &pos_only_params() const {
+            return m_pos_only_params;
+        }
+
+        std::vector<ParamInfo> &pos_kwd_params() {
+            return m_pos_kwd_params;
+        }
+
+        const std::vector<ParamInfo> &pos_kwd_params() const {
+            return m_pos_kwd_params;
+        }
+
+        std::vector<ParamInfo> &kwd_only_params() {
+            return m_kwd_only_params;
+        }
+
+        const std::vector<ParamInfo> &kwd_only_params() const {
+            return m_kwd_only_params;
+        }
+
+        bool weak_equals(const FunctionType &other) const;
+
+        bool operator==(const FunctionType &other) const;
+
+        bool operator!=(const FunctionType &other) const {
+            return !(*this == other);
+        }
+
+        string to_string(bool decorated = true) const;
+    };
+
+    class TypeInfo {
+      public:
+        enum class Kind {
+            BASIC,
+            FUNCTION,
+        } tag = Kind::BASIC;
+
+      private:
+        std::variant<BasicType, FunctionType> variant;
+
+      public:
+        bool &nullable() {
+            if (const auto value = std::get_if<BasicType>(&variant))
+                return value->b_nullable;
+            if (const auto value = std::get_if<FunctionType>(&variant))
+                return value->b_nullable;
+            throw Unreachable();
+        }
+
+        bool nullable() const {
+            if (const auto value = std::get_if<BasicType>(&variant))
+                return value->b_nullable;
+            if (const auto value = std::get_if<FunctionType>(&variant))
+                return value->b_nullable;
+            throw Unreachable();
+        }
+
+        BasicType &basic() {
+            if (const auto value = std::get_if<BasicType>(&variant))
+                return *value;
+            return (tag = Kind::BASIC, std::get<BasicType>(variant = BasicType()));
+        }
+
+        const BasicType &basic() const {
+            if (const auto value = std::get_if<BasicType>(&variant))
+                return *value;
+            return std::get<BasicType>(variant);    // TODO: Fix undefined behaviour by error reporting
+        }
+
+        FunctionType &function() {
+            if (const auto value = std::get_if<FunctionType>(&variant))
+                return *value;
+            return (tag = Kind::FUNCTION, std::get<FunctionType>(variant = FunctionType()));
+        }
+
+        const FunctionType &function() const {
+            if (const auto value = std::get_if<FunctionType>(&variant))
+                return *value;
+            return std::get<FunctionType>(variant);    // TODO: Fix undefined behaviour by error reporting
+        }
+
+        void reset() {
+            tag = Kind::BASIC;
+            variant = {};
+        }
+
+        bool weak_equals(const TypeInfo &other) const {
+            if (tag != other.tag)
+                return false;
+            switch (tag) {
+                case Kind::BASIC:
+                    return basic().weak_equals(other.basic());
+                case Kind::FUNCTION:
+                    return function().weak_equals(other.function());
+            }
         }
 
         bool operator==(const TypeInfo &other) const {
-            return type == other.type && b_nullable == other.b_nullable && type_args == other.type_args;
+            if (tag != other.tag)
+                return false;
+            switch (tag) {
+                case Kind::BASIC:
+                    return basic() == other.basic();
+                case Kind::FUNCTION:
+                    return function() == other.function();
+            }
         }
 
         bool operator!=(const TypeInfo &other) const {
             return !(*this == other);
-        }
-
-        void reset() {
-            if (type)
-                type = null;
-            if (!type_args.empty())
-                type_args.clear();
-            b_nullable = false;
-        }
-
-        bool is_type_literal() const {
-            return type == null && type_args.empty();
         }
 
         string to_string(bool decorated = true) const;
@@ -159,125 +275,73 @@ namespace spade
     };
 
     struct ExprInfo {
-        enum class Type {
+        enum class Kind {
             NORMAL,
             STATIC,
             MODULE,
             FUNCTION_SET,
-        } tag = Type::NORMAL;
+        } tag = Kind::NORMAL;
 
-        union {
-            TypeInfo type_info;
-            scope::Module *module;
-        };
+        // union {
+        //     TypeInfo type_info;
+        //     scope::Module *module;
+        // };
 
         // Placed this outside the union due to some union related runtime errors.
         // The cause of the error is that FunctionInfo is a object which has a STL container
         // and during construction of the object everything is initialized to zero which corrupts
         // the state of the STL container. This is why it is necessary to put functions outside the union
-        FunctionInfo functions;
+        // FunctionInfo functions;
+      private:
+        std::variant<TypeInfo, scope::Module *, FunctionInfo> variant;
 
+      public:
         ValueInfo value_info;
 
-        ExprInfo() : type_info() {}
-
-        ExprInfo(const ExprInfo &other) : tag(other.tag), value_info(other.value_info) {
-            switch (tag) {
-                case Type::NORMAL:
-                case Type::STATIC:
-                    type_info = other.type_info;
-                    break;
-                case Type::MODULE:
-                    module = other.module;
-                    break;
-                case Type::FUNCTION_SET:
-                    functions = other.functions;
-                    break;
-            }
+        TypeInfo &type_info() {
+            if (const auto value = std::get_if<TypeInfo>(&variant))
+                return *value;
+            return (tag = Kind::NORMAL, std::get<TypeInfo>(variant = TypeInfo()));
         }
 
-        ExprInfo(ExprInfo &&other) noexcept : tag(other.tag), value_info(other.value_info) {
-            switch (tag) {
-                case Type::NORMAL:
-                case Type::STATIC:
-                    type_info = std::move(other.type_info);
-                    break;
-                case Type::MODULE:
-                    module = std::move(other.module);
-                    break;
-                case Type::FUNCTION_SET:
-                    functions = std::move(other.functions);
-                    break;
-            }
+        const TypeInfo &type_info() const {
+            if (const auto value = std::get_if<TypeInfo>(&variant))
+                return *value;
+            return std::get<TypeInfo>(variant);    // TODO: Fix undefined behaviour by error reporting
         }
 
-        ExprInfo &operator=(const ExprInfo &other) {
-            if (this != &other) {
-                reset();
-                tag = other.tag;
-                value_info = other.value_info;
-                switch (tag) {
-                    case Type::NORMAL:
-                    case Type::STATIC:
-                        type_info = other.type_info;
-                        break;
-                    case Type::MODULE:
-                        module = other.module;
-                        break;
-                    case Type::FUNCTION_SET:
-                        functions = other.functions;
-                        break;
-                }
-            }
-            return *this;
+        scope::Module *&module() {
+            if (const auto value = std::get_if<scope::Module *>(&variant))
+                return *value;
+            return (tag = Kind::MODULE, std::get<scope::Module *>(variant = null));
         }
 
-        ExprInfo &operator=(ExprInfo &&other) noexcept {
-            if (this != &other) {
-                reset();
-                tag = other.tag;
-                value_info = other.value_info;
-                switch (tag) {
-                    case Type::NORMAL:
-                    case Type::STATIC:
-                        type_info = std::move(other.type_info);
-                        break;
-                    case Type::MODULE:
-                        module = std::move(other.module);
-                        break;
-                    case Type::FUNCTION_SET:
-                        functions = std::move(other.functions);
-                        break;
-                }
-            }
-            return *this;
+        const scope::Module *const &module() const {
+            if (const auto value = std::get_if<scope::Module *>(&variant))
+                return *value;
+            return std::get<scope::Module *>(variant);    // TODO: Fix undefined behaviour by error reporting
         }
 
-        ~ExprInfo() {
-            reset();
+        FunctionInfo &functions() {
+            if (const auto value = std::get_if<FunctionInfo>(&variant))
+                return *value;
+            return (tag = Kind::FUNCTION_SET, std::get<FunctionInfo>(variant = FunctionInfo()));
+        }
+
+        const FunctionInfo &functions() const {
+            if (const auto value = std::get_if<FunctionInfo>(&variant))
+                return *value;
+            return std::get<FunctionInfo>(variant);    // TODO: Fix undefined behaviour by error reporting
         }
 
         void reset() {
-            switch (tag) {
-                case Type::NORMAL:
-                    type_info.reset();
-                    break;
-                case Type::STATIC:
-                    type_info.reset();
-                    break;
-                case Type::MODULE:
-                    module = null;
-                    break;
-                case Type::FUNCTION_SET:
-                    functions.clear();
-                    break;
-            }
-            tag = Type::NORMAL;
+            tag = Kind::NORMAL;
+            variant = {};
             value_info.reset();
         }
 
         bool is_null() const {
-            return tag == Type::NORMAL && value_info.b_null && type_info.b_nullable;
+            return value_info.b_null;
         }
 
         string to_string(bool decorated = true) const;
@@ -299,8 +363,13 @@ namespace spade
             type_info.reset();
         }
 
+        bool operator==(const ParamInfo &other) const;
+
         string to_string(bool decorated = true) const;
     };
+
+    string params_string(const std::vector<ParamInfo> &pos_only_params, const std::vector<ParamInfo> &pos_kwd_params,
+                         const std::vector<ParamInfo> &kwd_only_params);
 
     struct ArgumentInfo {
         bool b_kwd = false;
