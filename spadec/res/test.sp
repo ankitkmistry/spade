@@ -63,6 +63,24 @@ class CounterFn {
 
 const do_count = CounterFn()
 
+fun lambda() {
+	var fn1 = fun (i: int) { return i + 1 }
+	var fn2 = fun (x: int, y: int): x + y
+	var fn3 = fun (): 124124
+	var fn4 = fun : 124124
+	var fn5 = fun -> int: 124124
+	var fn6 = fun { 124124 }
+
+	fn1(1)
+	fn2(35, 34)
+	fn3()
+	fn4() as float
+	fn5()
+	fn6()
+	# var fn = fn1 as int
+	# fn1(1)
+}
+
 fun main() { 
 	var text = "hello, world"
 	text = text[::-1] # "dlrow ,olleh"

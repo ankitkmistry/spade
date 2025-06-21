@@ -94,7 +94,7 @@ namespace spade
             }
             if (scope->get_type() == scope::ScopeType::FUNCTION) {
                 // Check for parameters
-                auto function = cast<scope::Function>(scope);
+                const auto function = cast<scope::Function>(scope);
                 for (const auto &param: function->get_pos_only_params()) {
                     if (param.name == name) {
                         expr_info.tag = ExprInfo::Kind::NORMAL;
@@ -114,6 +114,37 @@ namespace spade
                     }
                 }
                 for (const auto &param: function->get_kwd_only_params()) {
+                    if (param.name == name) {
+                        expr_info.tag = ExprInfo::Kind::NORMAL;
+                        expr_info.value_info.b_const = param.b_const;
+                        expr_info.value_info.b_lvalue = true;
+                        expr_info.type_info() = param.type_info;
+                        return expr_info;
+                    }
+                }
+            }
+            if (scope->get_type() == scope::ScopeType::LAMBDA) {
+                // Check for parameters
+                const auto lambda = cast<scope::Lambda>(scope);
+                for (const auto &param: lambda->get_fn().pos_only_params()) {
+                    if (param.name == name) {
+                        expr_info.tag = ExprInfo::Kind::NORMAL;
+                        expr_info.value_info.b_const = param.b_const;
+                        expr_info.value_info.b_lvalue = true;
+                        expr_info.type_info() = param.type_info;
+                        return expr_info;
+                    }
+                }
+                for (const auto &param: lambda->get_fn().pos_kwd_params()) {
+                    if (param.name == name) {
+                        expr_info.tag = ExprInfo::Kind::NORMAL;
+                        expr_info.value_info.b_const = param.b_const;
+                        expr_info.value_info.b_lvalue = true;
+                        expr_info.type_info() = param.type_info;
+                        return expr_info;
+                    }
+                }
+                for (const auto &param: lambda->get_fn().kwd_only_params()) {
                     if (param.name == name) {
                         expr_info.tag = ExprInfo::Kind::NORMAL;
                         expr_info.value_info.b_const = param.b_const;
@@ -186,8 +217,6 @@ namespace spade
             expr_info.value_info.b_const = true;
             expr_info.functions() = cast<scope::FunctionSet>(result);
             break;
-        case scope::ScopeType::BLOCK:
-            throw Unreachable();    // surely some parser error
         case scope::ScopeType::VARIABLE:
             expr_info = get_var_expr_info(cast<scope::Variable>(result), node);
             break;
@@ -196,6 +225,9 @@ namespace spade
             expr_info.value_info.b_const = true;
             expr_info.type_info().basic().type = result->get_enclosing_compound();
             break;
+        case scope::ScopeType::BLOCK:
+        case scope::ScopeType::LAMBDA:
+            throw Unreachable();
         }
         expr_info.value_info.b_lvalue = true;
         return expr_info;
@@ -256,8 +288,9 @@ namespace spade
                 case scope::ScopeType::ENUMERATOR:    // enumerators can be referenced from static ctx
                     break;
                 case scope::ScopeType::FUNCTION_SET:    // spare function sets
+                case scope::ScopeType::LAMBDA:          // spare lambdas
                 case scope::ScopeType::BLOCK:
-                    throw Unreachable();
+                    break;
                 }
             }
         }
@@ -279,6 +312,7 @@ namespace spade
             modifiers = cast<ast::Declaration>(to_scope->get_node())->get_modifiers();
             break;
         }
+        case scope::ScopeType::LAMBDA:
         case scope::ScopeType::FUNCTION_SET:
         case scope::ScopeType::BLOCK:
             throw Unreachable();    // surely some parser error
@@ -349,16 +383,51 @@ namespace spade
             LOGGER.log_debug(std::format("check_cast: from = {}, to = {}", (from ? "non-null" : "null"), (to ? "non-null" : "null")));
             return;
         }
+        if (from == to)
+            return;
+        if (to == get_internal(Internal::SPADE_STRING))
+            return;
+
+        {
+            const auto report_err = [&] {
+                if (safe)
+                    warning("expression is always 'null'", &node);
+                else
+                    throw error(std::format("cannot cast '{}' to '{}'", from->to_string(), to->to_string()), &node);
+            };
+            // Hardcoded conversions supported by the compiler
+            if (from == get_internal(Internal::SPADE_ANY) && to != get_internal(Internal::SPADE_ANY)) {
+                report_err();
+                return;
+            } else if (from == get_internal(Internal::SPADE_INT)) {
+                if (to == get_internal(Internal::SPADE_FLOAT))
+                    return;
+                else {
+                    report_err();
+                    return;
+                }
+            } else if (from == get_internal(Internal::SPADE_FLOAT)) {
+                if (to == get_internal(Internal::SPADE_INT))
+                    return;
+                else {
+                    report_err();
+                    return;
+                }
+            }
+        }
+
         // take advantage of super classes
         if (from->has_super(to))
             return;
-        // setup error state
+
+        // Setup error state
         bool error_state = false;
         ErrorGroup<AnalyzerError> err_grp;
         if (safe)
             err_grp.warning(error("expression is always 'null'", &node));
         else
             err_grp.error(error(std::format("cannot cast '{}' to '{}'", from->to_string(), to->to_string()), &node));
+
         // duck typing
         // check if the members of 'to' is subset of members of 'from'
         for (const auto &[to_member_name, to_member]: to->get_members()) {
@@ -814,9 +883,9 @@ namespace spade
         switch (var_scope->get_eval()) {
         case scope::Variable::Eval::NOT_STARTED: {
             const auto old_cur_scope = get_current_scope();    // save context
-            cur_scope = var_scope->get_parent();         // change context
-            var_scope->get_node()->accept(this);         // visit variable
-            cur_scope = old_cur_scope;                   // reset context
+            cur_scope = var_scope->get_parent();               // change context
+            var_scope->get_node()->accept(this);               // visit variable
+            cur_scope = old_cur_scope;                         // reset context
             expr_info.type_info() = var_scope->get_type_info();
             break;
         }
@@ -855,7 +924,7 @@ namespace spade
             if (!get_current_scope()->new_variable(name, scope))
                 throw ErrorGroup<AnalyzerError>()
                         .error(error(std::format("redeclaration of '{}'", name->get_text()), name))
-                        .note(error("already declared here", scope));
+                        .note(error("already declared here", get_current_scope()->get_variable(name->get_text())));
         }
         cur_scope = &*scope;
         return scope;
@@ -1118,13 +1187,12 @@ namespace spade
                                   ErrorGroup<AnalyzerError> &errors) {
         ExprInfo expr_info;
 
-        if (caller_info.type_info().tag != TypeInfo::Kind::BASIC) {
-            errors.error(error(std::format("cannot access from type '{}'", caller_info.to_string()), &node));
-            return expr_info;
-        }
-
         switch (caller_info.tag) {
         case ExprInfo::Kind::NORMAL: {
+            if (caller_info.type_info().tag != TypeInfo::Kind::BASIC) {
+                errors.error(error(std::format("cannot access from type '{}'", caller_info.to_string()), &node));
+                return expr_info;
+            }
             if (caller_info.is_null()) {
                 errors.error(error("cannot access 'null'", &node));
                 return expr_info;
@@ -1183,13 +1251,20 @@ namespace spade
                     errors.error(error("cannot access enumerator from an object (you should use the type)", &node))
                             .note(error(std::format("use {}.{}", caller_info.type_info().basic().type->to_string(false), member_name), &node));
                     return expr_info;
-                default:
+                case scope::ScopeType::FOLDER_MODULE:
+                case scope::ScopeType::MODULE:
+                case scope::ScopeType::LAMBDA:
+                case scope::ScopeType::BLOCK:
                     throw Unreachable();    // surely some parser error
                 }
             }
             break;
         }
         case ExprInfo::Kind::STATIC: {
+            if (caller_info.type_info().tag != TypeInfo::Kind::BASIC) {
+                errors.error(error(std::format("cannot access from type '{}'", caller_info.to_string()), &node));
+                return expr_info;
+            }
             if (caller_info.type_info().nullable() && !safe) {
                 errors.error(error(std::format("cannot access member of nullable '{}'", caller_info.to_string()), &node))
                         .note(error("use safe dot access operator '?.'", &node));
@@ -1248,7 +1323,10 @@ namespace spade
                     expr_info.value_info.b_const = true;
                     expr_info.tag = ExprInfo::Kind::NORMAL;
                     break;
-                default:
+                case scope::ScopeType::FOLDER_MODULE:
+                case scope::ScopeType::MODULE:
+                case scope::ScopeType::LAMBDA:
+                case scope::ScopeType::BLOCK:
                     throw Unreachable();    // surely some parser error
                 }
             }
@@ -1291,7 +1369,9 @@ namespace spade
             case scope::ScopeType::VARIABLE:
                 expr_info = get_var_expr_info(&*cast<scope::Variable>(member_scope), node);
                 break;
-            default:
+            case scope::ScopeType::LAMBDA:
+            case scope::ScopeType::BLOCK:
+            case scope::ScopeType::ENUMERATOR:
                 throw Unreachable();    // surely some parser error
             }
             break;
@@ -1499,6 +1579,7 @@ namespace spade
             _res_expr_info.functions() = expr_info.functions();
             break;
         case scope::ScopeType::BLOCK:
+        case scope::ScopeType::LAMBDA:
             throw Unreachable();
         case scope::ScopeType::VARIABLE:
         case scope::ScopeType::ENUMERATOR:

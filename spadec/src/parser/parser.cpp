@@ -382,7 +382,7 @@ namespace spade
         return statement();
     }
 
-    std::shared_ptr<ast::Statement> Parser::block() {
+    std::shared_ptr<ast::stmt::Block> Parser::block() {
         const auto start = expect(TokenType::LBRACE);
         std::vector<std::shared_ptr<ast::Statement>> stmts;
         while (peek()->get_type() != TokenType::RBRACE) {
@@ -552,29 +552,40 @@ namespace spade
 
     std::shared_ptr<ast::Expression> Parser::lambda_expr() {
         if (match(TokenType::FUN)) {
+            bool expr_only = false;
+
             const auto token = current();
+
             std::shared_ptr<ast::decl::Params> lm_params;
             if (match(TokenType::LPAREN)) {
                 if (peek()->get_type() != TokenType::RPAREN)
                     lm_params = params();
                 expect(TokenType::RPAREN);
             }
+
             std::shared_ptr<ast::Type> ret_type;
             if (match(TokenType::ARROW))
                 ret_type = type();
-            std::shared_ptr<ast::Statement> def;
+
+            std::shared_ptr<ast::stmt::Block> def;
             switch (peek()->get_type()) {
-            case TokenType::COLON:
+            case TokenType::COLON: {
                 advance();
-                def = std::make_shared<ast::stmt::Expr>(ternary());
+                const auto start = peek();
+                const auto expr = std::make_shared<ast::stmt::Expr>(ternary());
+                def = std::make_shared<ast::stmt::Block>(start, current(), std::vector<std::shared_ptr<ast::Statement>>{expr});
+                expr_only = true;
                 break;
+            }
             case TokenType::LBRACE:
                 def = block();
+                expr_only = false;
                 break;
             default:
                 throw error(std::format("expected {}", make_expected_string(TokenType::COLON, TokenType::LBRACE)));
             }
-            return std::make_shared<ast::expr::Lambda>(token, current(), lm_params, ret_type, def);
+
+            return std::make_shared<ast::expr::Lambda>(token, current(), expr_only, lm_params, ret_type, def);
         }
         return ternary();
     }

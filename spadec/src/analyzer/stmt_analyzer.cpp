@@ -100,7 +100,8 @@ namespace spade
     }
 
     void Analyzer::visit(ast::stmt::Return &node) {
-        auto ret_type = get_current_function()->get_ret_type();
+        const auto ret_type = get_current_function()->get_ret_type();
+        
         if (ret_type.tag == TypeInfo::Kind::BASIC && ret_type.basic().type == &*get_internal(Internal::SPADE_VOID)) {
             if (node.get_expression())
                 throw error("void function cannot return a value", node.get_expression());

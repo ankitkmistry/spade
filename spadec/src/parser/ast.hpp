@@ -676,16 +676,21 @@ namespace spade::ast
         };
 
         class Lambda : public Expression {
+            bool expr_only;
             std::shared_ptr<ast::decl::Params> params;
             std::shared_ptr<ast::Type> return_type;
-            std::shared_ptr<ast::Statement> definition;
+            std::shared_ptr<ast::stmt::Block> definition;
 
           public:
             template<typename T>
                 requires HasLineInfo<T>
-            Lambda(const std::shared_ptr<Token> &token, T end, const std::shared_ptr<ast::decl::Params> &params,
-                   const std::shared_ptr<ast::Type> &return_type, const std::shared_ptr<ast::Statement> &definition)
-                : Expression(token, end), params(params), return_type(return_type), definition(definition) {}
+            Lambda(const std::shared_ptr<Token> &token, T end, bool expr_only, const std::shared_ptr<ast::decl::Params> &params,
+                   const std::shared_ptr<ast::Type> &return_type, const std::shared_ptr<ast::stmt::Block> &definition)
+                : Expression(token, end), expr_only(expr_only), params(params), return_type(return_type), definition(definition) {}
+
+            bool get_expr_only() const {
+                return expr_only;
+            }
 
             const std::shared_ptr<ast::decl::Params> &get_params() const {
                 return params;
@@ -695,7 +700,7 @@ namespace spade::ast
                 return return_type;
             }
 
-            const std::shared_ptr<ast::Statement> &get_definition() const {
+            const std::shared_ptr<ast::stmt::Block> &get_definition() const {
                 return definition;
             }
 

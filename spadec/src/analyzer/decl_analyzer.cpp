@@ -16,8 +16,6 @@ namespace spade
     void Analyzer::visit(ast::decl::Constraint &node) {}
 
     void Analyzer::visit(ast::decl::Param &node) {
-        auto fun = cast<scope::Function>(get_current_scope());
-
         ParamInfo param_info;
         param_info.b_const = node.get_is_const() != null;
         param_info.b_variadic = node.get_variadic() != null;
@@ -245,7 +243,7 @@ namespace spade
         }
 
         if (mode == Mode::DEFINITION)
-            if (auto definition = node.get_definition())
+            if (const auto &definition = node.get_definition())
                 definition->accept(this);
 
         end_scope();    // pop the function
@@ -335,7 +333,7 @@ namespace spade
         //                        value(vector[Scope]) is the list of matching scopes
         std::unordered_map<string, std::vector<scope::Scope *>> member_table;
 
-        for (auto super: supers) {
+        for (const auto super: supers) {
             if (!super)
                 continue;
             for (const auto &[member_name, member]: super->get_members()) {
@@ -343,6 +341,7 @@ namespace spade
                 switch (member_scope->get_type()) {
                 case scope::ScopeType::FOLDER_MODULE:
                 case scope::ScopeType::MODULE:
+                case scope::ScopeType::LAMBDA:
                 case scope::ScopeType::FUNCTION:
                 case scope::ScopeType::BLOCK:
                     throw Unreachable();              // surely some parser or scope tree error

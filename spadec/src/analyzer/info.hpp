@@ -280,7 +280,7 @@ namespace spade
             return functions.erase(path) > 0;
         }
 
-        bool remove_if(std::function<bool(const std::pair<const SymbolPath &, const scope::Function *> &)> pred) {
+        bool remove_if(const std::function<bool(const std::pair<const SymbolPath &, const scope::Function *> &)> &pred) {
             return std::erase_if(functions, pred) > 0;
         }
 

@@ -61,12 +61,10 @@ namespace spade::scope
     }
 
     bool operator==(const Function &fun1, const Function &fun2) {
-        if (fun1.get_ret_type() != fun2.get_ret_type() ||                  //
-            fun1.get_pos_only_params() != fun2.get_pos_only_params() ||    //
-            fun1.get_pos_kwd_params() != fun2.get_pos_kwd_params() ||      //
-            fun1.get_kwd_only_params() != fun2.get_kwd_only_params())
-            return false;
-        return true;
+        return fun1.get_ret_type() == fun2.get_ret_type() &&                  //
+               fun1.get_pos_only_params() == fun2.get_pos_only_params() &&    //
+               fun1.get_pos_kwd_params() == fun2.get_pos_kwd_params() &&      //
+               fun1.get_kwd_only_params() == fun2.get_kwd_only_params();
     }
 
     string Function::to_string(bool decorated) const {

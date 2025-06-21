@@ -18,7 +18,7 @@ namespace spade::scope
     class Compound;
     class Function;
 
-    enum class ScopeType { FOLDER_MODULE, MODULE, COMPOUND, FUNCTION, FUNCTION_SET, BLOCK, VARIABLE, ENUMERATOR };
+    enum class ScopeType { FOLDER_MODULE, MODULE, COMPOUND, LAMBDA, FUNCTION, FUNCTION_SET, BLOCK, VARIABLE, ENUMERATOR };
 
     class Scope {
       public:
@@ -384,6 +384,33 @@ namespace spade::scope
             default:
                 throw Unreachable();    // surely some parser error
             }
+        }
+    };
+
+    class Lambda : public Scope {
+        FunctionType type;
+
+      public:
+        Lambda(ast::expr::Lambda *node) : Scope(ScopeType::LAMBDA, node) {}
+
+        FunctionType &get_fn() {
+            return type;
+        }
+
+        const FunctionType &get_fn() const {
+            return type;
+        }
+
+        void set_fn(const FunctionType &t) {
+            type = t;
+        }
+
+        ast::expr::Lambda *get_lambda_node() const {
+            return cast<ast::expr::Lambda>(node);
+        }
+
+        string to_string(bool decorated = true) const override {
+            return type.to_string(decorated);
         }
     };
 

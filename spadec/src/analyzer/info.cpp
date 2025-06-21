@@ -74,8 +74,12 @@ namespace spade
     }
 
     bool ParamInfo::operator==(const ParamInfo &other) const {
-        return b_const == other.b_const && b_variadic == other.b_variadic && b_default == other.b_default && b_kwd_only == other.b_kwd_only &&
-               name == other.name && type_info == other.type_info && node == other.node;
+        return b_const == other.b_const &&          //
+               b_variadic == other.b_variadic &&    //
+               b_default == other.b_default &&      //
+               b_kwd_only == other.b_kwd_only &&    //
+               name == other.name &&                //
+               type_info == other.type_info;
     }
 
     bool operator==(const FunctionType &fn_type, scope::Function *function) {

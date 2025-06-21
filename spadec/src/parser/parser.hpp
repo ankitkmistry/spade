@@ -168,7 +168,7 @@ namespace spade
         /// statements ::= block | statement
         std::shared_ptr<ast::Statement> statements();
         /// block ::= '{' (block | declaration | statement)* '}'
-        std::shared_ptr<ast::Statement> block();
+        std::shared_ptr<ast::stmt::Block> block();
         /// statement ::= if_stmt | while_stmt | do_while_stmt | try_stmt
         ///             | 'continue' | 'break'
         //              | 'throw' expression

@@ -1,6 +1,7 @@
 #include "analyzer.hpp"
 #include "info.hpp"
 #include "lexer/token.hpp"
+#include "parser/ast.hpp"
 #include "scope.hpp"
 #include "utils/error.hpp"
 
@@ -509,15 +510,16 @@ namespace spade
         node.get_expr()->accept(this);
         auto expr_info = _res_expr_info;
         resolve_indexer(expr_info, true, node);
+
         if (expr_info.tag != ExprInfo::Kind::NORMAL)
             throw error(std::format("cannot cast '{}'", expr_info.to_string()), &node);
+        if (expr_info.type_info().tag != TypeInfo::Kind::BASIC)
+            throw error(std::format("cannot cast '{}'", expr_info.to_string()), &node);
+
         node.get_type()->accept(this);
-        auto type_cast_info = _res_type_info;
+        const auto type_cast_info = _res_type_info;
         if (type_cast_info.nullable())
             throw error("cast type cannot be nullable", &node);
-
-        _res_expr_info.reset();
-        _res_expr_info.tag = ExprInfo::Kind::NORMAL;
 
         if (expr_info.is_null()) {
             if (node.get_safe()) {
@@ -526,6 +528,9 @@ namespace spade
             } else
                 throw error("cannot cast 'null'", &node);
         }
+
+        _res_expr_info.reset();
+        _res_expr_info.tag = ExprInfo::Kind::NORMAL;
 
         switch (type_cast_info.tag) {
         case TypeInfo::Kind::BASIC:
@@ -542,7 +547,7 @@ namespace spade
             break;
         case TypeInfo::Kind::FUNCTION:
             // TODO: enable function casting
-            throw error(std::format("cannot cast '{}'", expr_info.to_string()), &node);
+            throw error(std::format("cannot cast to '{}'", type_cast_info.to_string()), &node);
         }
 
         _res_expr_info.value_info.b_lvalue = false;
@@ -1036,13 +1041,54 @@ lt_le_ge_gt_common:
     void Analyzer::visit(ast::expr::Lambda &node) {
         FunctionType fun;
         // Get the parameters
-        node.get_params()->accept(this);
-        fun.pos_only_params() = _res_params_info.pos_only;
-        fun.pos_kwd_params() = _res_params_info.pos_kwd;
-        fun.kwd_only_params() = _res_params_info.kwd_only;
+        if (const auto &params = node.get_params()) {
+            params->accept(this);
+            fun.pos_only_params() = _res_params_info.pos_only;
+            fun.pos_kwd_params() = _res_params_info.pos_kwd;
+            fun.kwd_only_params() = _res_params_info.kwd_only;
+        }
         // Get the return type
-        node.get_return_type()->accept(this);
-        fun.return_type() = _res_type_info;
+        if (const auto &return_type = node.get_return_type()) {
+            return_type->accept(this);
+            fun.return_type() = _res_type_info;
+        } else {
+            // TODO: improve type inference in lambdas
+            if (node.get_expr_only()) {
+                const auto stmt = cast<ast::stmt::Expr>(node.get_definition()->get_statements()[0]);
+
+                const auto scope = std::make_shared<scope::Lambda>(&node);
+                scope->set_fn(fun);
+                get_current_scope()->new_variable(std::format("lambda#{}", get_current_scope()->get_members().size()), null, scope);
+                cur_scope = &*scope;
+                /**/ node.get_definition()->accept(this);
+                end_scope();
+
+                switch (_res_expr_info.tag) {
+                case ExprInfo::Kind::NORMAL:
+                    fun.return_type() = _res_expr_info.type_info();
+                    break;
+                case ExprInfo::Kind::STATIC:
+                    fun.return_type().basic() = {};
+                case ExprInfo::Kind::MODULE:
+                    throw error("cannot return a module", &node);
+                case ExprInfo::Kind::FUNCTION_SET: {
+                    const auto &fun_set = _res_expr_info.functions();
+                    if (fun_set.size() != 1)
+                        throw error("invalid return type for lambda", &node);
+
+                    const auto &fn_expr = fun_set.get_functions().begin()->second;
+                    fun.return_type().function().return_type() = fn_expr->get_ret_type();
+                    fun.return_type().function().pos_only_params() = fn_expr->get_pos_only_params();
+                    fun.return_type().function().pos_kwd_params() = fn_expr->get_pos_kwd_params();
+                    fun.return_type().function().kwd_only_params() = fn_expr->get_kwd_only_params();
+                    break;
+                }
+                }
+            } else {
+                fun.return_type().basic().type = get_internal<scope::Compound>(Internal::SPADE_VOID);
+                warning(std::format("cannot infer return type for lambda, defaulting to '{}'", fun.return_type().to_string()), &node);
+            }
+        }
         // Return a function type
         _res_expr_info.reset();
         _res_expr_info.type_info().function() = fun;
