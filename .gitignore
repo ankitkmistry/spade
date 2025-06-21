@@ -432,6 +432,8 @@ FodyWeavers.xsd
 # JetBrains Rider
 *.sln.iml
 
+thirdparty
+
 out
 build
 .kdev4
