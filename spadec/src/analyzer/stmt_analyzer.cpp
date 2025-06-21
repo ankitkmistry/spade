@@ -48,20 +48,20 @@ namespace spade
     void Analyzer::visit(ast::stmt::Throw &node) {
         node.get_expression()->accept(this);
         switch (_res_expr_info.tag) {
-            case ExprInfo::Kind::NORMAL:
-                if (_res_expr_info.type_info().tag == TypeInfo::Kind::BASIC &&
-                    _res_expr_info.type_info().basic().type->has_super(get_internal<scope::Compound>(Internal::SPADE_THROWABLE)))
-                    ;
-                else
-                    throw error(std::format("expression type must be a subtype of '{}'", get_internal(Internal::SPADE_THROWABLE)->to_string()),
-                                node.get_expression());
-                break;
-            case ExprInfo::Kind::STATIC:
-                throw error("cannot throw a type", &node);
-            case ExprInfo::Kind::MODULE:
-                throw error("cannot throw a module", &node);
-            case ExprInfo::Kind::FUNCTION_SET:
-                throw error("cannot throw a function", &node);
+        case ExprInfo::Kind::NORMAL:
+            if (_res_expr_info.type_info().tag == TypeInfo::Kind::BASIC &&
+                _res_expr_info.type_info().basic().type->has_super(get_internal<scope::Compound>(Internal::SPADE_THROWABLE)))
+                ;
+            else
+                throw error(std::format("expression type must be a subtype of '{}'", get_internal(Internal::SPADE_THROWABLE)->to_string()),
+                            node.get_expression());
+            break;
+        case ExprInfo::Kind::STATIC:
+            throw error("cannot throw a type", &node);
+        case ExprInfo::Kind::MODULE:
+            throw error("cannot throw a module", &node);
+        case ExprInfo::Kind::FUNCTION_SET:
+            throw error("cannot throw a function", &node);
         }
     }
 

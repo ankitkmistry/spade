@@ -21,14 +21,8 @@ namespace spade
         CompilerError() : SpadeError("") {}
 
       public:
-        CompilerError(const string &message, const fs::path &file_path, int line_start, int col_start, int line_end,
-                      int col_end)
-            : SpadeError(message),
-              file_path(file_path),
-              line_start(line_start),
-              col_start(col_start),
-              line_end(line_end),
-              col_end(col_end) {}
+        CompilerError(const string &message, const fs::path &file_path, int line_start, int col_start, int line_end, int col_end)
+            : SpadeError(message), file_path(file_path), line_start(line_start), col_start(col_start), line_end(line_end), col_end(col_end) {}
 
         bool has_no_location() const {
             return line_start == -1 || col_start == -1 || line_end == -1 || col_end == -1;
@@ -76,16 +70,15 @@ namespace spade
     class ImportError : public CompilerError {
       public:
         ImportError(const string &msg, const fs::path &file_path, const std::shared_ptr<ast::Import> &import)
-            : CompilerError(msg, file_path, import->get_line_start(), import->get_col_start(), import->get_line_end(),
-                            import->get_col_end()) {}
+            : CompilerError(msg, file_path, import->get_line_start(), import->get_col_start(), import->get_line_end(), import->get_col_end()) {}
     };
 
     class AnalyzerError : public CompilerError {
       public:
         template<ast::HasLineInfo T>
         AnalyzerError(const string &msg, const fs::path &file_path, T node)
-            : CompilerError(msg, file_path, node ? node->get_line_start() : -1, node ? node->get_col_start() : -1,
-                            node ? node->get_line_end() : -1, node ? node->get_col_end() : -1) {}
+            : CompilerError(msg, file_path, node ? node->get_line_start() : -1, node ? node->get_col_start() : -1, node ? node->get_line_end() : -1,
+                            node ? node->get_col_end() : -1) {}
     };
 
     enum class ErrorType { ERROR, WARNING, NOTE };
@@ -122,6 +115,14 @@ namespace spade
         ErrorGroup<T> &extend(const ErrorGroup<T> &other) {
             extend_vec(errors, other.errors);
             return *this;
+        }
+
+        operator bool() const {
+            return !errors.empty();
+        }
+
+        bool empty() const {
+            return errors.empty();
         }
 
         const std::vector<std::pair<ErrorType, T>> &get_errors() const {

@@ -147,66 +147,66 @@ namespace spade
         // Compound declaration specific checks
         if (auto compound = dynamic_cast<ast::decl::Compound *>(node)) {
             switch (compound->get_token()->get_type()) {
-                case TokenType::CLASS:
-                    if (modifier_counts[TokenType::OVERRIDE] > 0)
-                        throw error("classes cannot be 'override'", node);
-                    break;
-                case TokenType::ENUM:
-                    if (modifier_counts[TokenType::ABSTRACT] > 0)
-                        throw error("enums cannot be 'abstract'", node);
-                    if (modifier_counts[TokenType::OVERRIDE] > 0)
-                        throw error("enums cannot be 'override'", node);
-                    break;
-                case TokenType::INTERFACE:
-                    if (modifier_counts[TokenType::ABSTRACT] > 0)
-                        throw error("interfaces cannot be 'abstract'", node);
-                    if (modifier_counts[TokenType::FINAL] > 0)
-                        throw error("interfaces cannot be 'final'", node);
-                    if (modifier_counts[TokenType::OVERRIDE] > 0)
-                        throw error("interfaces cannot be 'override'", node);
-                    break;
-                case TokenType::ANNOTATION:
-                    if (modifier_counts[TokenType::ABSTRACT] > 0)
-                        throw error("annotations cannot be 'abstract'", node);
-                    if (modifier_counts[TokenType::OVERRIDE] > 0)
-                        throw error("annotations cannot be 'override'", node);
-                    break;
-                default:
-                    throw Unreachable();    // surely some parser error
+            case TokenType::CLASS:
+                if (modifier_counts[TokenType::OVERRIDE] > 0)
+                    throw error("classes cannot be 'override'", node);
+                break;
+            case TokenType::ENUM:
+                if (modifier_counts[TokenType::ABSTRACT] > 0)
+                    throw error("enums cannot be 'abstract'", node);
+                if (modifier_counts[TokenType::OVERRIDE] > 0)
+                    throw error("enums cannot be 'override'", node);
+                break;
+            case TokenType::INTERFACE:
+                if (modifier_counts[TokenType::ABSTRACT] > 0)
+                    throw error("interfaces cannot be 'abstract'", node);
+                if (modifier_counts[TokenType::FINAL] > 0)
+                    throw error("interfaces cannot be 'final'", node);
+                if (modifier_counts[TokenType::OVERRIDE] > 0)
+                    throw error("interfaces cannot be 'override'", node);
+                break;
+            case TokenType::ANNOTATION:
+                if (modifier_counts[TokenType::ABSTRACT] > 0)
+                    throw error("annotations cannot be 'abstract'", node);
+                if (modifier_counts[TokenType::OVERRIDE] > 0)
+                    throw error("annotations cannot be 'override'", node);
+                break;
+            default:
+                throw Unreachable();    // surely some parser error
             }
         }
         // Parent class/compound specific checks
         if (auto compound = dynamic_cast<ast::decl::Compound *>(scope_stack.back()->get_node())) {
             switch (compound->get_token()->get_type()) {
-                case TokenType::CLASS:
-                    break;
-                case TokenType::ENUM:
-                    if (modifier_counts[TokenType::ABSTRACT] > 0)
-                        throw error("'abstract' members are not allowed in enums", node);
-                    if (modifier_counts[TokenType::FINAL] > 0)
-                        throw error("'final' members are not allowed in enums", node);
-                    break;
-                case TokenType::INTERFACE:
-                    if (modifier_counts[TokenType::ABSTRACT] > 0)
-                        throw error("'abstract' members are not allowed in interfaces", node);
-                    if (modifier_counts[TokenType::FINAL] > 0 && modifier_counts[TokenType::STATIC] == 0)
-                        throw error("'final' members are not allowed in interfaces (but final static is allowed)", node);
-                    if (modifier_counts[TokenType::OVERRIDE] > 0)
-                        throw error("'override' members are not allowed in interfaces", node);
+            case TokenType::CLASS:
+                break;
+            case TokenType::ENUM:
+                if (modifier_counts[TokenType::ABSTRACT] > 0)
+                    throw error("'abstract' members are not allowed in enums", node);
+                if (modifier_counts[TokenType::FINAL] > 0)
+                    throw error("'final' members are not allowed in enums", node);
+                break;
+            case TokenType::INTERFACE:
+                if (modifier_counts[TokenType::ABSTRACT] > 0)
+                    throw error("'abstract' members are not allowed in interfaces", node);
+                if (modifier_counts[TokenType::FINAL] > 0 && modifier_counts[TokenType::STATIC] == 0)
+                    throw error("'final' members are not allowed in interfaces (but final static is allowed)", node);
+                if (modifier_counts[TokenType::OVERRIDE] > 0)
+                    throw error("'override' members are not allowed in interfaces", node);
 
-                    // constants and static variables are allowed in interfaces
-                    if (auto field = dynamic_cast<ast::decl::Variable *>(node)) {
-                        if (field->get_token()->get_type() != TokenType::CONST && modifier_counts[TokenType::STATIC] == 0) {
-                            throw error("fields are not allowed in interfaces (static and const fields are allowed)", node);
-                        }
+                // constants and static variables are allowed in interfaces
+                if (auto field = dynamic_cast<ast::decl::Variable *>(node)) {
+                    if (field->get_token()->get_type() != TokenType::CONST && modifier_counts[TokenType::STATIC] == 0) {
+                        throw error("fields are not allowed in interfaces (static and const fields are allowed)", node);
                     }
-                    break;
-                case TokenType::ANNOTATION:
-                    if (modifier_counts[TokenType::ABSTRACT] > 0)
-                        throw error("'abstract' members are not allowed in annotations", node);
-                    break;
-                default:
-                    throw Unreachable();    // surely some parser error
+                }
+                break;
+            case TokenType::ANNOTATION:
+                if (modifier_counts[TokenType::ABSTRACT] > 0)
+                    throw error("'abstract' members are not allowed in annotations", node);
+                break;
+            default:
+                throw Unreachable();    // surely some parser error
             }
         }
         // Constructor specific checks
@@ -364,34 +364,34 @@ namespace spade
                 throw Unreachable();    // surely some parser error
             if (scope_stack.back()->get_type() == scope::ScopeType::COMPOUND) {
                 switch (cast<scope::Compound>(scope_stack.back())->get_compound_node()->get_token()->get_type()) {
-                    case TokenType::CLASS:
-                        if (node.get_token()->get_type() == TokenType::ANNOTATION)
-                            throw error("annotations are not allowed in classes", &node);
-                        break;
-                    case TokenType::ENUM:
-                        if (node.get_token()->get_type() == TokenType::ENUM)
-                            throw error("nested enums are not allowed", &node);
-                        if (node.get_token()->get_type() == TokenType::ANNOTATION)
-                            throw error("annotations are not allowed in enums", &node);
-                        break;
-                    case TokenType::INTERFACE:
-                        if (node.get_token()->get_type() == TokenType::CLASS)
-                            throw error("classes are not allowed in interfaces", &node);
-                        if (node.get_token()->get_type() == TokenType::ENUM)
-                            throw error("enums are not allowed in interfaces", &node);
-                        if (node.get_token()->get_type() == TokenType::ANNOTATION)
-                            throw error("annotations are not allowed in interfaces", &node);
-                        break;
-                    case TokenType::ANNOTATION:
-                        if (node.get_token()->get_type() == TokenType::CLASS)
-                            throw error("classes are not allowed in annotations", &node);
-                        if (node.get_token()->get_type() == TokenType::ENUM)
-                            throw error("enums are not allowed in annotations", &node);
-                        if (node.get_token()->get_type() == TokenType::ANNOTATION)
-                            throw error("annotations are not allowed in annotations", &node);
-                        break;
-                    default:
-                        throw Unreachable();    // surely some parser error
+                case TokenType::CLASS:
+                    if (node.get_token()->get_type() == TokenType::ANNOTATION)
+                        throw error("annotations are not allowed in classes", &node);
+                    break;
+                case TokenType::ENUM:
+                    if (node.get_token()->get_type() == TokenType::ENUM)
+                        throw error("nested enums are not allowed", &node);
+                    if (node.get_token()->get_type() == TokenType::ANNOTATION)
+                        throw error("annotations are not allowed in enums", &node);
+                    break;
+                case TokenType::INTERFACE:
+                    if (node.get_token()->get_type() == TokenType::CLASS)
+                        throw error("classes are not allowed in interfaces", &node);
+                    if (node.get_token()->get_type() == TokenType::ENUM)
+                        throw error("enums are not allowed in interfaces", &node);
+                    if (node.get_token()->get_type() == TokenType::ANNOTATION)
+                        throw error("annotations are not allowed in interfaces", &node);
+                    break;
+                case TokenType::ANNOTATION:
+                    if (node.get_token()->get_type() == TokenType::CLASS)
+                        throw error("classes are not allowed in annotations", &node);
+                    if (node.get_token()->get_type() == TokenType::ENUM)
+                        throw error("enums are not allowed in annotations", &node);
+                    if (node.get_token()->get_type() == TokenType::ANNOTATION)
+                        throw error("annotations are not allowed in annotations", &node);
+                    break;
+                default:
+                    throw Unreachable();    // surely some parser error
                 }
                 effectively_static = true;
             }

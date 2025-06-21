@@ -31,6 +31,38 @@ namespace spade
     FunctionType &FunctionType::operator=(FunctionType &&) = default;
     FunctionType::~FunctionType() = default;
 
+    bool FunctionType::is_variadic() const {
+        return !pos_only_params().empty() && pos_only_params().back().b_variadic || !pos_kwd_params().empty() && pos_kwd_params().back().b_variadic ||
+               !kwd_only_params().empty() && kwd_only_params().back().b_variadic;
+    }
+
+    bool FunctionType::is_default() const {
+        // pos_only parameters are never default
+        return std::any_of(std::execution::par_unseq, pos_kwd_params().begin(), pos_kwd_params().end(),
+                           [](const auto &param) { return param.b_default; }) ||
+               std::any_of(std::execution::par_unseq, kwd_only_params().begin(), kwd_only_params().end(),
+                           [](const auto &param) { return param.b_default; });
+    }
+
+    size_t FunctionType::min_param_count() const {
+        std::atomic<size_t> result = m_pos_only_params.size();
+        // Pos only parameters are never default or variadic
+        // So they are counted as min_param_count
+        std::for_each(std::execution::par_unseq, m_pos_kwd_params.begin(), m_pos_kwd_params.end(), [&](const ParamInfo &param) {
+            if (!param.b_default && !param.b_variadic)
+                result.fetch_add(1, std::memory_order_relaxed);
+        });
+        std::for_each(std::execution::par_unseq, m_kwd_only_params.begin(), m_kwd_only_params.end(), [&](const ParamInfo &param) {
+            if (!param.b_default && !param.b_variadic)
+                result.fetch_add(1, std::memory_order_relaxed);
+        });
+        return result;
+    }
+
+    size_t FunctionType::param_count() const {
+        return m_pos_only_params.size() + m_pos_kwd_params.size() + m_kwd_only_params.size();
+    }
+
     bool FunctionType::weak_equals(const FunctionType &other) const {
         return return_type() == other.return_type() && other.pos_only_params() == other.pos_only_params() &&
                other.pos_kwd_params() == other.pos_kwd_params() && other.kwd_only_params() == other.kwd_only_params();
@@ -44,6 +76,15 @@ namespace spade
     bool ParamInfo::operator==(const ParamInfo &other) const {
         return b_const == other.b_const && b_variadic == other.b_variadic && b_default == other.b_default && b_kwd_only == other.b_kwd_only &&
                name == other.name && type_info == other.type_info && node == other.node;
+    }
+
+    bool operator==(const FunctionType &fn_type, scope::Function *function) {
+        if (fn_type.return_type() != function->get_ret_type() ||               //
+            fn_type.pos_only_params() != function->get_pos_only_params() ||    //
+            fn_type.pos_kwd_params() != function->get_pos_kwd_params() ||      //
+            fn_type.kwd_only_params() != function->get_pos_only_params())
+            return false;
+        return true;
     }
 
     string BasicType::to_string(bool decorated) const {
@@ -71,24 +112,24 @@ namespace spade
 
     string TypeInfo::to_string(bool decorated) const {
         switch (tag) {
-            case Kind::BASIC:
-                return basic().to_string(decorated);
-            case Kind::FUNCTION:
-                return function().to_string(decorated);
+        case Kind::BASIC:
+            return basic().to_string(decorated);
+        case Kind::FUNCTION:
+            return function().to_string(decorated);
         }
     }
 
     string ExprInfo::to_string(bool decorated) const {
         switch (tag) {
-            case Kind::NORMAL:
-            case Kind::STATIC:
-                return type_info().to_string(decorated);
-            case Kind::MODULE:
-                return module()->to_string(decorated);
-            case Kind::FUNCTION_SET:
-                return functions().to_string(decorated);
-            default:
-                throw Unreachable();    // to remove MSVC warning
+        case Kind::NORMAL:
+        case Kind::STATIC:
+            return type_info().to_string(decorated);
+        case Kind::MODULE:
+            return module()->to_string(decorated);
+        case Kind::FUNCTION_SET:
+            return functions().to_string(decorated);
+        default:
+            throw Unreachable();    // to remove MSVC warning
         }
     }
 

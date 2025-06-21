@@ -60,7 +60,7 @@ ContinuationIndentWidth: 8
 
 IndentAccessModifiers: false
 IndentCaseBlocks: false
-IndentCaseLabels: true
+IndentCaseLabels: false
 IndentExternBlock: Indent
 IndentGotoLabels: false
 IndentPPDirectives: AfterHash

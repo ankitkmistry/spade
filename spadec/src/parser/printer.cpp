@@ -70,12 +70,12 @@ namespace spade::ast
         ss << leading_conv(level);
         ss << "kind: ";
         switch (node.get_kind()) {
-            case expr::Slice::Kind::INDEX:
-                ss << "INDEX";
-                break;
-            case expr::Slice::Kind::SLICE:
-                ss << "SLICE";
-                break;
+        case expr::Slice::Kind::INDEX:
+            ss << "INDEX";
+            break;
+        case expr::Slice::Kind::SLICE:
+            ss << "SLICE";
+            break;
         }
         end_level();
         print(node.get_from(), "from");

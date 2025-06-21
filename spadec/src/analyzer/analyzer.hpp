@@ -35,6 +35,21 @@ namespace spade
             SPADE_VOID,
             SPADE_SLICE,
         };
+
+        const inline static string INTERNAL_NAMES[]{
+                /* [SPADE] = */ "spade",
+                /* [SPADE_ANY] = */ "any",
+                /* [SPADE_ENUM] = */ "Enum",
+                /* [SPADE_ANNOTATION] = */ "Annotation",
+                /* [SPADE_THROWABLE] = */ "Throwable",
+                /* [SPADE_INT] = */ "int",
+                /* [SPADE_FLOAT] = */ "float",
+                /* [SPADE_BOOL] = */ "bool",
+                /* [SPADE_STRING] = */ "string",
+                /* [SPADE_VOID] = */ "void",
+                /* [SPADE_SLICE] = */ "Slice",
+        };
+
         std::unordered_map<Internal, std::shared_ptr<scope::Scope>> internals;
 
         std::unordered_map<fs::path, std::shared_ptr<scope::Scope>> module_scopes;
@@ -61,49 +76,14 @@ namespace spade
                     case Internal::SPADE:
                         scope = get_current_scope()->get_enclosing_module();
                         break;
-                    case Internal::SPADE_ANY:
+                    default:
                         scope = get_current_scope()->get_enclosing_module();
-                        scope = &*scope->get_variable("any");
-                        break;
-                    case Internal::SPADE_ENUM:
-                        scope = get_current_scope()->get_enclosing_module();
-                        scope = &*scope->get_variable("Enum");
-                        break;
-                    case Internal::SPADE_ANNOTATION:
-                        scope = get_current_scope()->get_enclosing_module();
-                        scope = &*scope->get_variable("Annotation");
-                        break;
-                    case Internal::SPADE_THROWABLE:
-                        scope = get_current_scope()->get_enclosing_module();
-                        scope = &*scope->get_variable("Throwable");
-                        break;
-                    case Internal::SPADE_INT:
-                        scope = get_current_scope()->get_enclosing_module();
-                        scope = &*scope->get_variable("int");
-                        break;
-                    case Internal::SPADE_FLOAT:
-                        scope = get_current_scope()->get_enclosing_module();
-                        scope = &*scope->get_variable("float");
-                        break;
-                    case Internal::SPADE_BOOL:
-                        scope = get_current_scope()->get_enclosing_module();
-                        scope = &*scope->get_variable("bool");
-                        break;
-                    case Internal::SPADE_STRING:
-                        scope = get_current_scope()->get_enclosing_module();
-                        scope = &*scope->get_variable("string");
-                        break;
-                    case Internal::SPADE_VOID:
-                        scope = get_current_scope()->get_enclosing_module();
-                        scope = &*scope->get_variable("void");
-                        break;
-                    case Internal::SPADE_SLICE:
-                        scope = get_current_scope()->get_enclosing_module();
-                        scope = &*scope->get_variable("Slice");
+                        scope = &*scope->get_variable(INTERNAL_NAMES[static_cast<int>(kind)]);
                         break;
                 }
             } else
                 scope = &*internals[kind];
+
             if constexpr (std::same_as<T, scope::Scope>)
                 return scope;
             else
@@ -158,6 +138,9 @@ namespace spade
          */
         TypeInfo resolve_assign(std::shared_ptr<ast::Type> type, std::shared_ptr<ast::Expression> expr, const ast::AstNode &node);
 
+        void check_fun_params(const std::vector<ArgumentInfo> &arg_infos, const std::vector<ParamInfo> pos_only, const std::vector<ParamInfo> pos_kwd,
+                              const std::vector<ParamInfo> kwd_only, const ast::AstNode &node, ErrorGroup<AnalyzerError> &errors);
+
         /**
          * This function checks whether @p function can meet the requirements provided by
          * @p{arg_infos}. If this function returns true then @p errors are not changed
@@ -169,6 +152,19 @@ namespace spade
          * @return false if function cannot take @p arg_infos
          */
         bool check_fun_call(scope::Function *function, const std::vector<ArgumentInfo> &arg_infos, const ast::AstNode &node,
+                            ErrorGroup<AnalyzerError> &errors);
+
+        /**
+         * This function checks whether @p function can meet the requirements provided by
+         * @p{arg_infos}. If this function returns true then @p errors are not changed
+         * @param function the function to be checked
+         * @param arg_infos the arguments to use
+         * @param node the source ast node used for error messages
+         * @param errors the place where errors are to be reported
+         * @return true if function can take @p arg_infos
+         * @return false if function cannot take @p arg_infos
+         */
+        bool check_fun_call(const FunctionType &function, const std::vector<ArgumentInfo> &arg_infos, const ast::AstNode &node,
                             ErrorGroup<AnalyzerError> &errors);
 
         /**
@@ -375,6 +371,7 @@ namespace spade
 
       private:
         ParamInfo _res_param_info;
+        ParamsInfo _res_params_info;
 
       public:
         void visit(ast::decl::Param &node);

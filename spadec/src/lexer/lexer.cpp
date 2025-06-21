@@ -95,175 +95,175 @@ namespace spade
         while (!is_at_end()) {
             start = end;
             switch (int c = advance()) {
-                case '(':
-                    return get_token(TokenType::LPAREN);
-                case ')':
-                    return get_token(TokenType::RPAREN);
-                case '{':
-                    return get_token(TokenType::LBRACE);
-                case '}':
-                    return get_token(TokenType::RBRACE);
-                case '[':
-                    return get_token(TokenType::LBRACKET);
-                case ']':
-                    return get_token(TokenType::RBRACKET);
-                case '<':
-                    if (match('<'))
-                        return get_token(TokenType::LT);
-                    if (match('='))
-                        return get_token(TokenType::LE);
+            case '(':
+                return get_token(TokenType::LPAREN);
+            case ')':
+                return get_token(TokenType::RPAREN);
+            case '{':
+                return get_token(TokenType::LBRACE);
+            case '}':
+                return get_token(TokenType::RBRACE);
+            case '[':
+                return get_token(TokenType::LBRACKET);
+            case ']':
+                return get_token(TokenType::RBRACKET);
+            case '<':
+                if (match('<'))
                     return get_token(TokenType::LT);
-                case '>':
-                    if (match('>')) {
-                        if (match('>'))
-                            return get_token(TokenType::URSHIFT);
-                        return get_token(TokenType::RSHIFT);
-                    }
-                    if (match('='))
-                        return get_token(TokenType::GE);
-                    return get_token(TokenType::GT);
-                case '!':
-                    if (match('='))
-                        return get_token(TokenType::NE);
-                    throw make_error("unexpected character: !");
-                case '?':
-                    if (match('?'))
-                        return get_token(TokenType::ELVIS);
-                    return get_token(TokenType::HOOK);
-                case '~':
-                    return get_token(TokenType::TILDE);
-                case '+':
-                    return get_token(TokenType::PLUS);
-                case '-':
+                if (match('='))
+                    return get_token(TokenType::LE);
+                return get_token(TokenType::LT);
+            case '>':
+                if (match('>')) {
                     if (match('>'))
-                        return get_token(TokenType::ARROW);
-                    return get_token(TokenType::DASH);
-                case '*':
-                    if (match('*'))
-                        return get_token(TokenType::STAR_STAR);
-                    return get_token(TokenType::STAR);
-                case '/': {
-                    if (match('*')) {
-                        col++;
-                        while (true) {
-                            if (match('*')) {
-                                col++;
-                                if (match('/')) {
-                                    col++;
-                                    break;
-                                }
-                            }
-                            advance();
-                            col++;
-                        }
-                    } else
-                        return get_token(TokenType::SLASH);
-                    break;
+                        return get_token(TokenType::URSHIFT);
+                    return get_token(TokenType::RSHIFT);
                 }
-                case '%':
-                    return get_token(TokenType::PERCENT);
-                case '&':
-                    return get_token(TokenType::AMPERSAND);
-                case '|':
-                    return get_token(TokenType::PIPE);
-                case '^':
-                    return get_token(TokenType::CARET);
-                case '.':
-                    return get_token(TokenType::DOT);
-                case ',':
-                    return get_token(TokenType::COMMA);
-                case '=':
-                    if (match('='))
-                        return get_token(TokenType::EQ);
-                    return get_token(TokenType::EQUAL);
-                case ':':
-                    return get_token(TokenType::COLON);
-                // String
-                case '"':
+                if (match('='))
+                    return get_token(TokenType::GE);
+                return get_token(TokenType::GT);
+            case '!':
+                if (match('='))
+                    return get_token(TokenType::NE);
+                throw make_error("unexpected character: !");
+            case '?':
+                if (match('?'))
+                    return get_token(TokenType::ELVIS);
+                return get_token(TokenType::HOOK);
+            case '~':
+                return get_token(TokenType::TILDE);
+            case '+':
+                return get_token(TokenType::PLUS);
+            case '-':
+                if (match('>'))
+                    return get_token(TokenType::ARROW);
+                return get_token(TokenType::DASH);
+            case '*':
+                if (match('*'))
+                    return get_token(TokenType::STAR_STAR);
+                return get_token(TokenType::STAR);
+            case '/': {
+                if (match('*')) {
+                    col++;
                     while (true) {
-                        if (peek() == EOF)
-                            throw make_error("expected '\"'");
-                        if (match('\\'))
-                            advance();
-                        if (match('"'))
-                            break;
-                        advance();
-                    }
-                    return get_token(TokenType::STRING);
-                case '\'':
-                    while (true) {
-                        if (peek() == EOF)
-                            throw make_error("expected '''");
-                        if (match('\\'))
-                            advance();
-                        if (match('\''))
-                            break;
-                        advance();
-                    }
-                    return get_token(TokenType::STRING);
-                // Whitespace
-                case '#':
-                    while (peek() != '\n') {
-                        if (peek() == EOF)
-                            return get_token(TokenType::END_OF_FILE);
+                        if (match('*')) {
+                            col++;
+                            if (match('/')) {
+                                col++;
+                                break;
+                            }
+                        }
                         advance();
                         col++;
                     }
-                    break;
-                case ' ':
-                case '\t':
-                case '\r':
-                    start = end;
+                } else
+                    return get_token(TokenType::SLASH);
+                break;
+            }
+            case '%':
+                return get_token(TokenType::PERCENT);
+            case '&':
+                return get_token(TokenType::AMPERSAND);
+            case '|':
+                return get_token(TokenType::PIPE);
+            case '^':
+                return get_token(TokenType::CARET);
+            case '.':
+                return get_token(TokenType::DOT);
+            case ',':
+                return get_token(TokenType::COMMA);
+            case '=':
+                if (match('='))
+                    return get_token(TokenType::EQ);
+                return get_token(TokenType::EQUAL);
+            case ':':
+                return get_token(TokenType::COLON);
+            // String
+            case '"':
+                while (true) {
+                    if (peek() == EOF)
+                        throw make_error("expected '\"'");
+                    if (match('\\'))
+                        advance();
+                    if (match('"'))
+                        break;
+                    advance();
+                }
+                return get_token(TokenType::STRING);
+            case '\'':
+                while (true) {
+                    if (peek() == EOF)
+                        throw make_error("expected '''");
+                    if (match('\\'))
+                        advance();
+                    if (match('\''))
+                        break;
+                    advance();
+                }
+                return get_token(TokenType::STRING);
+            // Whitespace
+            case '#':
+                while (peek() != '\n') {
+                    if (peek() == EOF)
+                        return get_token(TokenType::END_OF_FILE);
+                    advance();
                     col++;
-                    break;
-                case '\n':
-                    line++;
-                    col = 1;
-                    start = end;
-                    break;
-                default: {
-                    if (std::isalpha(c) || c == '_') {
-                        while (std::isalnum(c = peek()) || c == '_') advance();
-                        auto token = get_token(TokenType::IDENTIFIER);
-                        TokenType keyword_type;
-                        if (TokenInfo::get_type_if_keyword(token->get_text(), keyword_type)) {
-                            token->set_type(keyword_type);
-                            return token;
-                        }
+                }
+                break;
+            case ' ':
+            case '\t':
+            case '\r':
+                start = end;
+                col++;
+                break;
+            case '\n':
+                line++;
+                col = 1;
+                start = end;
+                break;
+            default: {
+                if (std::isalpha(c) || c == '_') {
+                    while (std::isalnum(c = peek()) || c == '_') advance();
+                    auto token = get_token(TokenType::IDENTIFIER);
+                    TokenType keyword_type;
+                    if (TokenInfo::get_type_if_keyword(token->get_text(), keyword_type)) {
+                        token->set_type(keyword_type);
                         return token;
                     }
-                    if (is_decimal_digit(c)) {
-                        if (c == '0') {
-                            if (match('b') || match('B')) {
-                                if (!is_binary_digit(peek()))
-                                    throw make_error("expected binary digit");
-                                while (is_binary_digit(c = peek()) || c == '_') advance();
-                            } else if (match('x') || match('X')) {
-                                if (!is_hex_digit(peek()))
-                                    throw make_error("expected hexadecimal digit");
-                                while (is_hex_digit(c = peek()) || c == '_') advance();
-                                if (match('.')) {
-                                    complete_float_part(is_hex_digit, 'p', 'P');
-                                    return get_token(TokenType::FLOAT);
-                                }
-                            } else {
-                                if (match('.')) {
-                                    complete_float_part(is_decimal_digit, 'e', 'E');
-                                    return get_token(TokenType::FLOAT);
-                                }
-                                while (is_octal_digit(c = peek()) || c == '_') advance();
+                    return token;
+                }
+                if (is_decimal_digit(c)) {
+                    if (c == '0') {
+                        if (match('b') || match('B')) {
+                            if (!is_binary_digit(peek()))
+                                throw make_error("expected binary digit");
+                            while (is_binary_digit(c = peek()) || c == '_') advance();
+                        } else if (match('x') || match('X')) {
+                            if (!is_hex_digit(peek()))
+                                throw make_error("expected hexadecimal digit");
+                            while (is_hex_digit(c = peek()) || c == '_') advance();
+                            if (match('.')) {
+                                complete_float_part(is_hex_digit, 'p', 'P');
+                                return get_token(TokenType::FLOAT);
                             }
                         } else {
-                            while (is_decimal_digit(c = peek()) || c == '_') advance();
                             if (match('.')) {
                                 complete_float_part(is_decimal_digit, 'e', 'E');
                                 return get_token(TokenType::FLOAT);
                             }
+                            while (is_octal_digit(c = peek()) || c == '_') advance();
                         }
-                        return get_token(TokenType::INTEGER);
+                    } else {
+                        while (is_decimal_digit(c = peek()) || c == '_') advance();
+                        if (match('.')) {
+                            complete_float_part(is_decimal_digit, 'e', 'E');
+                            return get_token(TokenType::FLOAT);
+                        }
                     }
-                    throw make_error(std::format("unexpected character: {:c}", c));
+                    return get_token(TokenType::INTEGER);
                 }
+                throw make_error(std::format("unexpected character: {:c}", c));
+            }
             }
         }
         return get_token(TokenType::END_OF_FILE);

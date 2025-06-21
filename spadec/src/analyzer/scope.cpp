@@ -60,6 +60,15 @@ namespace spade::scope
         return false;
     }
 
+    bool operator==(const Function &fun1, const Function &fun2) {
+        if (fun1.get_ret_type() != fun2.get_ret_type() ||                  //
+            fun1.get_pos_only_params() != fun2.get_pos_only_params() ||    //
+            fun1.get_pos_kwd_params() != fun2.get_pos_kwd_params() ||      //
+            fun1.get_kwd_only_params() != fun2.get_kwd_only_params())
+            return false;
+        return true;
+    }
+
     string Function::to_string(bool decorated) const {
         string result = parent->get_path().to_string();
         // TODO: add support for type arguments

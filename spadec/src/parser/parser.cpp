@@ -102,22 +102,22 @@ namespace spade
         const auto mods = modifiers();
         std::shared_ptr<ast::Declaration> decl;
         switch (peek()->get_type()) {
-            case TokenType::VAR:
-            case TokenType::CONST:
-                decl = variable_decl();
-                break;
-            case TokenType::FUN:
-                decl = function_decl();
-                break;
-            case TokenType::CLASS:
-            case TokenType::INTERFACE:
-            case TokenType::ENUM:
-            case TokenType::ANNOTATION:
-                decl = compound_decl();
-                break;
-            default:
-                throw error(std::format("expected {}", make_expected_string(TokenType::VAR, TokenType::CONST, TokenType::FUN, TokenType::CLASS,
-                                                                            TokenType::INTERFACE, TokenType::ENUM, TokenType::ANNOTATION)));
+        case TokenType::VAR:
+        case TokenType::CONST:
+            decl = variable_decl();
+            break;
+        case TokenType::FUN:
+            decl = function_decl();
+            break;
+        case TokenType::CLASS:
+        case TokenType::INTERFACE:
+        case TokenType::ENUM:
+        case TokenType::ANNOTATION:
+            decl = compound_decl();
+            break;
+        default:
+            throw error(std::format("expected {}", make_expected_string(TokenType::VAR, TokenType::CONST, TokenType::FUN, TokenType::CLASS,
+                                                                        TokenType::INTERFACE, TokenType::ENUM, TokenType::ANNOTATION)));
         }
         decl->set_modifiers(mods);
         return decl;
@@ -155,26 +155,26 @@ namespace spade
         const auto mods = modifiers();
         std::shared_ptr<ast::Declaration> decl;
         switch (peek()->get_type()) {
-            case TokenType::VAR:
-            case TokenType::CONST:
-                decl = variable_decl();
-                break;
-            case TokenType::FUN:
-                decl = function_decl();
-                break;
-            case TokenType::INIT:
-                decl = init_decl();
-                break;
-            case TokenType::CLASS:
-            case TokenType::INTERFACE:
-            case TokenType::ENUM:
-            case TokenType::ANNOTATION:
-                decl = compound_decl();
-                break;
-            default:
-                throw error(std::format("expected {}",
-                                        make_expected_string(TokenType::VAR, TokenType::CONST, TokenType::FUN, TokenType::INIT, TokenType::CLASS,
-                                                             TokenType::INTERFACE, TokenType::ENUM, TokenType::ANNOTATION)));
+        case TokenType::VAR:
+        case TokenType::CONST:
+            decl = variable_decl();
+            break;
+        case TokenType::FUN:
+            decl = function_decl();
+            break;
+        case TokenType::INIT:
+            decl = init_decl();
+            break;
+        case TokenType::CLASS:
+        case TokenType::INTERFACE:
+        case TokenType::ENUM:
+        case TokenType::ANNOTATION:
+            decl = compound_decl();
+            break;
+        default:
+            throw error(
+                    std::format("expected {}", make_expected_string(TokenType::VAR, TokenType::CONST, TokenType::FUN, TokenType::INIT,
+                                                                    TokenType::CLASS, TokenType::INTERFACE, TokenType::ENUM, TokenType::ANNOTATION)));
         }
         decl->set_modifiers(mods);
         return decl;
@@ -387,20 +387,20 @@ namespace spade
         std::vector<std::shared_ptr<ast::Statement>> stmts;
         while (peek()->get_type() != TokenType::RBRACE) {
             switch (peek()->get_type()) {
-                case TokenType::LBRACE:
-                    stmts.push_back(block());
-                    break;
-                case TokenType::VAR:
-                case TokenType::FUN:
-                case TokenType::CLASS:
-                case TokenType::INTERFACE:
-                case TokenType::ENUM:
-                case TokenType::ANNOTATION:
-                    stmts.push_back(std::make_shared<ast::stmt::Declaration>(declaration()));
-                    break;
-                default:
-                    stmts.push_back(statement());
-                    break;
+            case TokenType::LBRACE:
+                stmts.push_back(block());
+                break;
+            case TokenType::VAR:
+            case TokenType::FUN:
+            case TokenType::CLASS:
+            case TokenType::INTERFACE:
+            case TokenType::ENUM:
+            case TokenType::ANNOTATION:
+                stmts.push_back(std::make_shared<ast::stmt::Declaration>(declaration()));
+                break;
+            default:
+                stmts.push_back(statement());
+                break;
             }
         }
         const auto end = expect(TokenType::RBRACE);
@@ -409,42 +409,42 @@ namespace spade
 
     std::shared_ptr<ast::Statement> Parser::statement() {
         switch (peek()->get_type()) {
-            case TokenType::IF:
-                return if_stmt();
-            case TokenType::WHILE:
-                return while_stmt();
-            case TokenType::DO:
-                return do_while_stmt();
-            case TokenType::TRY:
-                return try_stmt();
-            case TokenType::CONTINUE:
-                return std::make_shared<ast::stmt::Continue>(advance());
-            case TokenType::BREAK:
-                return std::make_shared<ast::stmt::Break>(advance());
-            case TokenType::THROW: {
-                const auto token = advance();
-                const auto expr = expression();
-                return std::make_shared<ast::stmt::Throw>(token, expr);
+        case TokenType::IF:
+            return if_stmt();
+        case TokenType::WHILE:
+            return while_stmt();
+        case TokenType::DO:
+            return do_while_stmt();
+        case TokenType::TRY:
+            return try_stmt();
+        case TokenType::CONTINUE:
+            return std::make_shared<ast::stmt::Continue>(advance());
+        case TokenType::BREAK:
+            return std::make_shared<ast::stmt::Break>(advance());
+        case TokenType::THROW: {
+            const auto token = advance();
+            const auto expr = expression();
+            return std::make_shared<ast::stmt::Throw>(token, expr);
+        }
+        case TokenType::RETURN: {
+            const auto token = advance();
+            const auto expr = rule_optional(&Parser::expression);
+            return expr ? std::make_shared<ast::stmt::Return>(token, expr) : std::make_shared<ast::stmt::Return>(token);
+        }
+        case TokenType::YIELD: {
+            const auto token = advance();
+            const auto expr = expression();
+            return std::make_shared<ast::stmt::Yield>(token, expr);
+        }
+        default: {
+            int tok_idx = index;
+            try {
+                return std::make_shared<ast::stmt::Expr>(expression());
+            } catch (const ParserError &) {
+                index = tok_idx;
+                throw error("expected a statement or expression");
             }
-            case TokenType::RETURN: {
-                const auto token = advance();
-                const auto expr = rule_optional(&Parser::expression);
-                return expr ? std::make_shared<ast::stmt::Return>(token, expr) : std::make_shared<ast::stmt::Return>(token);
-            }
-            case TokenType::YIELD: {
-                const auto token = advance();
-                const auto expr = expression();
-                return std::make_shared<ast::stmt::Yield>(token, expr);
-            }
-            default: {
-                int tok_idx = index;
-                try {
-                    return std::make_shared<ast::stmt::Expr>(expression());
-                } catch (const ParserError &) {
-                    index = tok_idx;
-                    throw error("expected a statement or expression");
-                }
-            }
+        }
         }
     }
 
@@ -518,35 +518,35 @@ namespace spade
         const auto assignees = assignee_list();
         std::shared_ptr<Token> op1;
         switch (peek()->get_type()) {
-            case TokenType::PLUS:
-            case TokenType::DASH:
-            case TokenType::STAR:
-            case TokenType::SLASH:
-            case TokenType::PERCENT:
-            case TokenType::STAR_STAR:
-            case TokenType::LSHIFT:
-            case TokenType::RSHIFT:
-            case TokenType::URSHIFT:
-            case TokenType::AMPERSAND:
-            case TokenType::PIPE:
-            case TokenType::CARET:
-            case TokenType::ELVIS:
+        case TokenType::PLUS:
+        case TokenType::DASH:
+        case TokenType::STAR:
+        case TokenType::SLASH:
+        case TokenType::PERCENT:
+        case TokenType::STAR_STAR:
+        case TokenType::LSHIFT:
+        case TokenType::RSHIFT:
+        case TokenType::URSHIFT:
+        case TokenType::AMPERSAND:
+        case TokenType::PIPE:
+        case TokenType::CARET:
+        case TokenType::ELVIS:
+            op1 = advance();
+            [[fallthrough]];
+        case TokenType::EQUAL: {
+            std::shared_ptr<Token> op2;
+            if (op1) {
+                op2 = expect(TokenType::EQUAL);
+            } else
                 op1 = advance();
-                [[fallthrough]];
-            case TokenType::EQUAL: {
-                std::shared_ptr<Token> op2;
-                if (op1) {
-                    op2 = expect(TokenType::EQUAL);
-                } else
-                    op1 = advance();
-                const auto exprs = expr_list();
-                return std::make_shared<ast::expr::Assignment>(assignees, op1, op2, exprs);
-            }
-            default:
-                throw error(std::format("expected {}", make_expected_string(TokenType::PLUS, TokenType::DASH, TokenType::STAR, TokenType::SLASH,
-                                                                            TokenType::PERCENT, TokenType::STAR_STAR, TokenType::LSHIFT,
-                                                                            TokenType::RSHIFT, TokenType::URSHIFT, TokenType::AMPERSAND,
-                                                                            TokenType::PIPE, TokenType::CARET, TokenType::ELVIS, TokenType::EQUAL)));
+            const auto exprs = expr_list();
+            return std::make_shared<ast::expr::Assignment>(assignees, op1, op2, exprs);
+        }
+        default:
+            throw error(std::format("expected {}", make_expected_string(TokenType::PLUS, TokenType::DASH, TokenType::STAR, TokenType::SLASH,
+                                                                        TokenType::PERCENT, TokenType::STAR_STAR, TokenType::LSHIFT,
+                                                                        TokenType::RSHIFT, TokenType::URSHIFT, TokenType::AMPERSAND, TokenType::PIPE,
+                                                                        TokenType::CARET, TokenType::ELVIS, TokenType::EQUAL)));
         }
     }
 
@@ -564,15 +564,15 @@ namespace spade
                 ret_type = type();
             std::shared_ptr<ast::Statement> def;
             switch (peek()->get_type()) {
-                case TokenType::COLON:
-                    advance();
-                    def = std::make_shared<ast::stmt::Expr>(ternary());
-                    break;
-                case TokenType::LBRACE:
-                    def = block();
-                    break;
-                default:
-                    throw error(std::format("expected {}", make_expected_string(TokenType::COLON, TokenType::LBRACE)));
+            case TokenType::COLON:
+                advance();
+                def = std::make_shared<ast::stmt::Expr>(ternary());
+                break;
+            case TokenType::LBRACE:
+                def = block();
+                break;
+            default:
+                throw error(std::format("expected {}", make_expected_string(TokenType::COLON, TokenType::LBRACE)));
             }
             return std::make_shared<ast::expr::Lambda>(token, current(), lm_params, ret_type, def);
         }
@@ -624,19 +624,19 @@ namespace spade
         std::shared_ptr<Token> op;
         std::shared_ptr<Token> op_extra;
         switch (peek()->get_type()) {
-            case TokenType::IS:
-                op = advance();
-                op_extra = match(TokenType::NOT);
-                break;
-            case TokenType::NOT:
-                op = advance();
-                op_extra = expect(TokenType::IN);
-                break;
-            case TokenType::IN:
-                op = advance();
-                break;
-            default:
-                break;
+        case TokenType::IS:
+            op = advance();
+            op_extra = match(TokenType::NOT);
+            break;
+        case TokenType::NOT:
+            op = advance();
+            op_extra = expect(TokenType::IN);
+            break;
+        case TokenType::IN:
+            op = advance();
+            break;
+        default:
+            break;
         }
         if (op) {
             const auto right = relational();
@@ -651,21 +651,21 @@ namespace spade
         const auto expr = bit_or();
         while (true) {
             switch (peek()->get_type()) {
-                case TokenType::LT:
-                case TokenType::LE:
-                case TokenType::EQ:
-                case TokenType::NE:
-                case TokenType::GE:
-                case TokenType::GT:
-                    ops.push_back(advance());
-                    if (exprs.empty())
-                        exprs.push_back(expr);
-                    exprs.push_back(bit_or());
-                    break;
-                default:
-                    if (exprs.empty())
-                        return expr;
-                    return std::make_shared<ast::expr::ChainBinary>(exprs, ops);
+            case TokenType::LT:
+            case TokenType::LE:
+            case TokenType::EQ:
+            case TokenType::NE:
+            case TokenType::GE:
+            case TokenType::GT:
+                ops.push_back(advance());
+                if (exprs.empty())
+                    exprs.push_back(expr);
+                exprs.push_back(bit_or());
+                break;
+            default:
+                if (exprs.empty())
+                    return expr;
+                return std::make_shared<ast::expr::ChainBinary>(exprs, ops);
             }
         }
     }
@@ -767,15 +767,15 @@ namespace spade
 
     std::shared_ptr<ast::Expression> Parser::unary() {
         switch (peek()->get_type()) {
-            case TokenType::TILDE:
-            case TokenType::DASH:
-            case TokenType::PLUS: {
-                const auto op = advance();
-                const auto expr = unary();
-                return std::make_shared<ast::expr::Unary>(op, expr);
-            }
-            default:
-                return postfix();
+        case TokenType::TILDE:
+        case TokenType::DASH:
+        case TokenType::PLUS: {
+            const auto op = advance();
+            const auto expr = unary();
+            return std::make_shared<ast::expr::Unary>(op, expr);
+        }
+        default:
+            return postfix();
         }
     }
 
@@ -785,40 +785,40 @@ namespace spade
         while (true) {
             safe = match(TokenType::HOOK) ? current() : null;
             switch (peek()->get_type()) {
-                case TokenType::DOT: {
-                    expect(TokenType::DOT);
-                    const auto member = expect(TokenType::IDENTIFIER, TokenType::INIT);
-                    caller = std::make_shared<ast::expr::DotAccess>(caller, safe, member);
-                    break;
+            case TokenType::DOT: {
+                expect(TokenType::DOT);
+                const auto member = expect(TokenType::IDENTIFIER, TokenType::INIT);
+                caller = std::make_shared<ast::expr::DotAccess>(caller, safe, member);
+                break;
+            }
+            case TokenType::LPAREN: {
+                advance();
+                std::vector<std::shared_ptr<ast::expr::Argument>> args;
+                auto end = match(TokenType::RPAREN);
+                if (!end) {
+                    args = argument_list();
+                    end = expect(TokenType::RPAREN);
                 }
-                case TokenType::LPAREN: {
-                    advance();
-                    std::vector<std::shared_ptr<ast::expr::Argument>> args;
-                    auto end = match(TokenType::RPAREN);
-                    if (!end) {
-                        args = argument_list();
-                        end = expect(TokenType::RPAREN);
-                    }
-                    caller = std::make_shared<ast::expr::Call>(end, caller, safe, args);
-                    break;
-                }
-                case TokenType::LBRACKET: {
-                    advance();
-                    caller = rule_or<ast::Expression, ast::expr::Index, ast::expr::Reify>(
-                            [&] {
-                                const auto slices = slice_list();
-                                const auto end = expect(TokenType::RBRACKET);
-                                return std::make_shared<ast::expr::Index>(end, caller, safe, slices);
-                            },
-                            [&] {
-                                const auto type_args = type_list();
-                                const auto end = expect(TokenType::RBRACKET);
-                                return std::make_shared<ast::expr::Reify>(end, caller, safe, type_args);
-                            });
-                    break;
-                }
-                default:
-                    return caller;
+                caller = std::make_shared<ast::expr::Call>(end, caller, safe, args);
+                break;
+            }
+            case TokenType::LBRACKET: {
+                advance();
+                caller = rule_or<ast::Expression, ast::expr::Index, ast::expr::Reify>(
+                        [&] {
+                            const auto slices = slice_list();
+                            const auto end = expect(TokenType::RBRACKET);
+                            return std::make_shared<ast::expr::Index>(end, caller, safe, slices);
+                        },
+                        [&] {
+                            const auto type_args = type_list();
+                            const auto end = expect(TokenType::RBRACKET);
+                            return std::make_shared<ast::expr::Reify>(end, caller, safe, type_args);
+                        });
+                break;
+            }
+            default:
+                return caller;
             }
         }
     }
@@ -894,38 +894,38 @@ namespace spade
 
     std::shared_ptr<ast::Expression> Parser::primary() {
         switch (peek()->get_type()) {
-            case TokenType::TRUE:
-            case TokenType::FALSE:
-            case TokenType::NULL_:
-            case TokenType::INTEGER:
-            case TokenType::FLOAT:
-            case TokenType::STRING:
-            case TokenType::IDENTIFIER:
-            case TokenType::INIT:
-                return std::make_shared<ast::expr::Constant>(advance());
+        case TokenType::TRUE:
+        case TokenType::FALSE:
+        case TokenType::NULL_:
+        case TokenType::INTEGER:
+        case TokenType::FLOAT:
+        case TokenType::STRING:
+        case TokenType::IDENTIFIER:
+        case TokenType::INIT:
+            return std::make_shared<ast::expr::Constant>(advance());
 
-            case TokenType::SUPER: {
-                std::shared_ptr<Token> end;
-                std::shared_ptr<Token> start = end = advance();
-                if (match(TokenType::LBRACKET)) {
-                    const auto ref = reference();
-                    end = expect(TokenType::RBRACKET);
-                    return std::make_shared<ast::expr::Super>(start, end, ref);
-                }
-                return std::make_shared<ast::expr::Super>(start, end, null);
+        case TokenType::SUPER: {
+            std::shared_ptr<Token> end;
+            std::shared_ptr<Token> start = end = advance();
+            if (match(TokenType::LBRACKET)) {
+                const auto ref = reference();
+                end = expect(TokenType::RBRACKET);
+                return std::make_shared<ast::expr::Super>(start, end, ref);
             }
-            case TokenType::SELF:
-                return std::make_shared<ast::expr::Self>(advance());
-            case TokenType::LPAREN: {
-                advance();
-                const auto expr = expression();
-                expect(TokenType::RPAREN);
-                return expr;
-            }
-            default:
-                throw error(std::format("expected {}", make_expected_string(TokenType::TRUE, TokenType::FALSE, TokenType::NULL_, TokenType::INTEGER,
-                                                                            TokenType::FLOAT, TokenType::STRING, TokenType::IDENTIFIER,
-                                                                            TokenType::SUPER, TokenType::SELF, TokenType::LPAREN)));
+            return std::make_shared<ast::expr::Super>(start, end, null);
+        }
+        case TokenType::SELF:
+            return std::make_shared<ast::expr::Self>(advance());
+        case TokenType::LPAREN: {
+            advance();
+            const auto expr = expression();
+            expect(TokenType::RPAREN);
+            return expr;
+        }
+        default:
+            throw error(std::format("expected {}", make_expected_string(TokenType::TRUE, TokenType::FALSE, TokenType::NULL_, TokenType::INTEGER,
+                                                                        TokenType::FLOAT, TokenType::STRING, TokenType::IDENTIFIER, TokenType::SUPER,
+                                                                        TokenType::SELF, TokenType::LPAREN)));
         }
     }
 
@@ -962,49 +962,49 @@ namespace spade
 
     std::shared_ptr<ast::Type> Parser::primary_type() {
         switch (peek()->get_type()) {
-            case TokenType::IDENTIFIER: {
-                const auto ref = reference();
-                if (match(TokenType::LBRACKET)) {
-                    const auto list = type_list();
-                    const auto end = expect(TokenType::RBRACKET);
-                    return std::make_shared<ast::type::Reference>(end, ref, list);
-                }
-                return std::make_shared<ast::type::Reference>(ref);
+        case TokenType::IDENTIFIER: {
+            const auto ref = reference();
+            if (match(TokenType::LBRACKET)) {
+                const auto list = type_list();
+                const auto end = expect(TokenType::RBRACKET);
+                return std::make_shared<ast::type::Reference>(end, ref, list);
             }
-            case TokenType::TYPE:
-                return std::make_shared<ast::type::TypeLiteral>(advance());
-            case TokenType::LPAREN: {
-                const auto start = advance();
-                return rule_or<ast::Type, ast::type::Function, ast::Type>(
-                        [&] {
-                            std::vector<std::shared_ptr<ast::Type>> params;
-                            if (!match(TokenType::RPAREN)) {
-                                params = type_list();
-                                expect(TokenType::RPAREN);
-                            }
-                            expect(TokenType::ARROW);
-                            const auto ret_type = type();
-                            return std::make_shared<ast::type::Function>(start, params, ret_type);
-                        },
-                        [&] {
-                            const auto grouped = type();
+            return std::make_shared<ast::type::Reference>(ref);
+        }
+        case TokenType::TYPE:
+            return std::make_shared<ast::type::TypeLiteral>(advance());
+        case TokenType::LPAREN: {
+            const auto start = advance();
+            return rule_or<ast::Type, ast::type::Function, ast::Type>(
+                    [&] {
+                        std::vector<std::shared_ptr<ast::Type>> params;
+                        if (!match(TokenType::RPAREN)) {
+                            params = type_list();
                             expect(TokenType::RPAREN);
-                            return grouped;
-                        });
+                        }
+                        expect(TokenType::ARROW);
+                        const auto ret_type = type();
+                        return std::make_shared<ast::type::Function>(start, params, ret_type);
+                    },
+                    [&] {
+                        const auto grouped = type();
+                        expect(TokenType::RPAREN);
+                        return grouped;
+                    });
+        }
+        case TokenType::OBJECT: {
+            const auto start = advance();
+            std::vector<std::shared_ptr<ast::type::TypeBuilderMember>> members;
+            if (match(TokenType::LBRACE)) {
+                if (peek()->get_type() != TokenType::RBRACE)
+                    members = type_builder_member_list();
+                expect(TokenType::RBRACE);
             }
-            case TokenType::OBJECT: {
-                const auto start = advance();
-                std::vector<std::shared_ptr<ast::type::TypeBuilderMember>> members;
-                if (match(TokenType::LBRACE)) {
-                    if (peek()->get_type() != TokenType::RBRACE)
-                        members = type_builder_member_list();
-                    expect(TokenType::RBRACE);
-                }
-                return std::make_shared<ast::type::TypeBuilder>(start, current(), members);
-            }
-            default:
-                throw error(std::format("expected {}",
-                                        make_expected_string(TokenType::IDENTIFIER, TokenType::TYPE, TokenType::LPAREN, TokenType::OBJECT)));
+            return std::make_shared<ast::type::TypeBuilder>(start, current(), members);
+        }
+        default:
+            throw error(
+                    std::format("expected {}", make_expected_string(TokenType::IDENTIFIER, TokenType::TYPE, TokenType::LPAREN, TokenType::OBJECT)));
         }
     }
 

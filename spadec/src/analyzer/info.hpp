@@ -65,6 +65,11 @@ namespace spade
         FunctionType &operator=(FunctionType &&);
         ~FunctionType();
 
+        bool is_variadic() const;
+        bool is_default() const;
+        size_t min_param_count() const;
+        size_t param_count() const;
+
         TypeInfo &return_type() {
             return *m_ret_type;
         }
@@ -107,6 +112,20 @@ namespace spade
 
         string to_string(bool decorated = true) const;
     };
+
+    bool operator==(const FunctionType &fn_type, scope::Function *function);
+
+    inline bool operator!=(const FunctionType &fn_type, scope::Function *function) {
+        return !(fn_type == function);
+    }
+
+    inline bool operator==(scope::Function *function, const FunctionType &fn_type) {
+        return fn_type == function;
+    }
+
+    inline bool operator!=(scope::Function *function, const FunctionType &fn_type) {
+        return fn_type != function;
+    }
 
     class TypeInfo {
       public:
@@ -168,10 +187,10 @@ namespace spade
             if (tag != other.tag)
                 return false;
             switch (tag) {
-                case Kind::BASIC:
-                    return basic().weak_equals(other.basic());
-                case Kind::FUNCTION:
-                    return function().weak_equals(other.function());
+            case Kind::BASIC:
+                return basic().weak_equals(other.basic());
+            case Kind::FUNCTION:
+                return function().weak_equals(other.function());
             }
         }
 
@@ -179,10 +198,10 @@ namespace spade
             if (tag != other.tag)
                 return false;
             switch (tag) {
-                case Kind::BASIC:
-                    return basic() == other.basic();
-                case Kind::FUNCTION:
-                    return function() == other.function();
+            case Kind::BASIC:
+                return basic() == other.basic();
+            case Kind::FUNCTION:
+                return function() == other.function();
             }
         }
 
@@ -354,7 +373,7 @@ namespace spade
         bool b_kwd_only = false;
         string name;
         TypeInfo type_info;
-        ast::decl::Param *node = null;
+        ast::AstNode *node = null;
 
         void reset() {
             b_const = false;
@@ -366,6 +385,16 @@ namespace spade
         bool operator==(const ParamInfo &other) const;
 
         string to_string(bool decorated = true) const;
+    };
+
+    struct ParamsInfo {
+        vector<ParamInfo> pos_only;
+        vector<ParamInfo> pos_kwd;
+        vector<ParamInfo> kwd_only;
+
+        void reset() {
+            pos_only = pos_kwd = kwd_only = {};
+        }
     };
 
     string params_string(const std::vector<ParamInfo> &pos_only_params, const std::vector<ParamInfo> &pos_kwd_params,

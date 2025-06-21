@@ -194,32 +194,32 @@ namespace spade::scope
         ModifierMixin(const std::vector<std::shared_ptr<Token>> &mod_toks) {
             for (const auto &mod_tok: mod_toks) {
                 switch (mod_tok->get_type()) {
-                    case TokenType::ABSTRACT:
-                        modifiers[0] = true;    // abstract
-                        break;
-                    case TokenType::FINAL:
-                        modifiers[1] = true;    // final
-                        break;
-                    case TokenType::STATIC:
-                        modifiers[2] = true;    // static
-                        break;
-                    case TokenType::OVERRIDE:
-                        modifiers[3] = true;    // override
-                        break;
-                    case TokenType::PRIVATE:
-                        modifiers[4] = true;    // private
-                        break;
-                    case TokenType::INTERNAL:
-                        modifiers[5] = true;    // internal
-                        break;
-                    case TokenType::PROTECTED:
-                        modifiers[7] = true;    // protected
-                        break;
-                    case TokenType::PUBLIC:
-                        modifiers[8] = true;    // public
-                        break;
-                    default:
-                        break;
+                case TokenType::ABSTRACT:
+                    modifiers[0] = true;    // abstract
+                    break;
+                case TokenType::FINAL:
+                    modifiers[1] = true;    // final
+                    break;
+                case TokenType::STATIC:
+                    modifiers[2] = true;    // static
+                    break;
+                case TokenType::OVERRIDE:
+                    modifiers[3] = true;    // override
+                    break;
+                case TokenType::PRIVATE:
+                    modifiers[4] = true;    // private
+                    break;
+                case TokenType::INTERNAL:
+                    modifiers[5] = true;    // internal
+                    break;
+                case TokenType::PROTECTED:
+                    modifiers[7] = true;    // protected
+                    break;
+                case TokenType::PUBLIC:
+                    modifiers[8] = true;    // public
+                    break;
+                default:
+                    break;
                 }
             }
             if (!modifiers[4] && !modifiers[5] && !modifiers[7] && !modifiers[8])
@@ -373,16 +373,16 @@ namespace spade::scope
             if (!node)
                 return "class " + path.to_string();
             switch (get_compound_node()->get_token()->get_type()) {
-                case TokenType::CLASS:
-                    return "class " + path.to_string();
-                case TokenType::INTERFACE:
-                    return "interface " + path.to_string();
-                case TokenType::ENUM:
-                    return "enum " + path.to_string();
-                case TokenType::ANNOTATION:
-                    return "annotation " + path.to_string();
-                default:
-                    throw Unreachable();    // surely some parser error
+            case TokenType::CLASS:
+                return "class " + path.to_string();
+            case TokenType::INTERFACE:
+                return "interface " + path.to_string();
+            case TokenType::ENUM:
+                return "enum " + path.to_string();
+            case TokenType::ANNOTATION:
+                return "annotation " + path.to_string();
+            default:
+                throw Unreachable();    // surely some parser error
             }
         }
     };
@@ -514,6 +514,12 @@ namespace spade::scope
         string to_string(bool decorated = true) const override;
     };
 
+    bool operator==(const Function &fun1, const Function &fun2);
+
+    inline bool operator!=(const Function &fun1, const Function &fun2) {
+        return !(fun1 == fun2);
+    }
+
     class FunctionSet final : public Scope {
         bool redecl_check = false;
 
@@ -597,16 +603,16 @@ namespace spade::scope
             if (!decorated)
                 return path.to_string();
             switch (get_variable_node()->get_token()->get_type()) {
-                case TokenType::VAR:
-                    if (get_enclosing_compound())
-                        return "field " + path.to_string();
-                    return "var " + path.to_string();
-                case TokenType::CONST:
-                    if (get_enclosing_compound())
-                        return "const field " + path.to_string();
-                    return "const " + path.to_string();
-                default:
-                    throw Unreachable();
+            case TokenType::VAR:
+                if (get_enclosing_compound())
+                    return "field " + path.to_string();
+                return "var " + path.to_string();
+            case TokenType::CONST:
+                if (get_enclosing_compound())
+                    return "const field " + path.to_string();
+                return "const " + path.to_string();
+            default:
+                throw Unreachable();
             }
         }
     };
