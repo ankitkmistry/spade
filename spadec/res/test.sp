@@ -77,14 +77,26 @@ fun lambda() {
 	fn4() as float
 	fn5()
 	fn6()
+
+	# var a : A
+	# a?.f()
 	# var fn = fn1 as int
 	# fn1(1)
+}
+
+class Kacha {
+	fun get_aam() {}
+	fun get_mango() {}
+	fun get_amro() {}
 }
 
 fun main() { 
 	var text = "hello, world"
 	text = text[::-1] # "dlrow ,olleh"
 
+	var kacha: Kacha
+	# kacha.get_amo() # show a beautiful error message
+	
 	var str_buf: lib.StringBuilder? = lib.StringBuilder("west ")
 	print(do_count(), do_count(), do_count(), sep: ", ")
 	var char = str_buf?[1]

@@ -155,6 +155,10 @@ namespace spade::scope
             return imports.contains(name);
         }
 
+        const std::unordered_map<string, std::shared_ptr<scope::Scope>> &get_imports() const {
+            return imports;
+        }
+
         void new_open_import(std::shared_ptr<scope::Scope> node) {
             open_imports.push_back(node);
         }

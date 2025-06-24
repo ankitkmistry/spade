@@ -2,6 +2,7 @@
 #include <iostream>
 #include <mutex>
 #include <boost/functional/hash.hpp>
+#include <set>
 
 #include "analyzer.hpp"
 #include "info.hpp"
@@ -70,9 +71,61 @@ namespace spade
         basic_mode = false;
     }
 
+    // Optimized Levenshtein distance function (O(min(m, n)) space)
+    static int levenshtein(const std::string &s1, const std::string &s2) {
+        const size_t m = s1.size(), n = s2.size();
+        if (m == 0)
+            return n;
+        if (n == 0)
+            return m;
+        // Always use the smaller string for the row
+        if (m < n)
+            return levenshtein(s2, s1);
+
+        std::vector<int> prev(n + 1), curr(n + 1);
+        for (size_t j = 0; j <= n; ++j) prev[j] = j;
+        for (size_t i = 1; i <= m; ++i) {
+            curr[0] = i;
+            for (size_t j = 1; j <= n; ++j) {
+                if (s1[i - 1] == s2[j - 1])
+                    curr[j] = prev[j - 1];
+                else
+                    curr[j] = 1 + std::min({prev[j], curr[j - 1], prev[j - 1]});
+            }
+            std::swap(prev, curr);
+        }
+        return prev[n];
+    }
+
+    static std::set<std::string> fuzzy_search_best(const std::string &query, const std::unordered_set<std::string> &candidates) {
+        constexpr const size_t MAX_RESULTS = 6;
+
+        int min_dist = std::numeric_limits<int>::max();
+        std::set<std::string> results;
+
+        for (const auto &candidate: candidates) {
+            if (candidate.starts_with("%"))
+                continue;
+
+            int dist = levenshtein(query, candidate);
+            if (dist < min_dist) {
+                min_dist = dist;
+                results.clear();
+                results.insert(candidate);
+            } else if (dist == min_dist)
+                results.insert(candidate);
+
+            if (results.size() >= MAX_RESULTS && dist == min_dist)
+                break;
+        }
+        return results;
+    }
+
     ExprInfo Analyzer::resolve_name(const string &name, const ast::AstNode &node) {
         const auto cur_module = get_current_module();
         const auto cur_compound = get_current_scope()->get_enclosing_compound();
+
+        std::unordered_set<string> names;
 
         ExprInfo expr_info;
         scope::Scope *result = null;
@@ -92,6 +145,8 @@ namespace spade
                 result = &*scope->get_variable(name);
                 break;
             }
+            for (const auto &[name, _]: scope->get_members()) names.insert(name);
+
             if (scope->get_type() == scope::ScopeType::FUNCTION) {
                 // Check for parameters
                 const auto function = cast<scope::Function>(scope);
@@ -103,6 +158,7 @@ namespace spade
                         expr_info.type_info() = param.type_info;
                         return expr_info;
                     }
+                    names.insert(param.name);
                 }
                 for (const auto &param: function->get_pos_kwd_params()) {
                     if (param.name == name) {
@@ -112,6 +168,7 @@ namespace spade
                         expr_info.type_info() = param.type_info;
                         return expr_info;
                     }
+                    names.insert(param.name);
                 }
                 for (const auto &param: function->get_kwd_only_params()) {
                     if (param.name == name) {
@@ -121,6 +178,7 @@ namespace spade
                         expr_info.type_info() = param.type_info;
                         return expr_info;
                     }
+                    names.insert(param.name);
                 }
             }
             if (scope->get_type() == scope::ScopeType::LAMBDA) {
@@ -134,6 +192,7 @@ namespace spade
                         expr_info.type_info() = param.type_info;
                         return expr_info;
                     }
+                    names.insert(param.name);
                 }
                 for (const auto &param: lambda->get_fn().pos_kwd_params()) {
                     if (param.name == name) {
@@ -143,6 +202,7 @@ namespace spade
                         expr_info.type_info() = param.type_info;
                         return expr_info;
                     }
+                    names.insert(param.name);
                 }
                 for (const auto &param: lambda->get_fn().kwd_only_params()) {
                     if (param.name == name) {
@@ -152,6 +212,7 @@ namespace spade
                         expr_info.type_info() = param.type_info;
                         return expr_info;
                     }
+                    names.insert(param.name);
                 }
             }
             // Check in current compound
@@ -167,6 +228,8 @@ namespace spade
                     expr_info.functions() = cur_compound->get_super_functions().at(name);
                     return expr_info;
                 }
+                for (const auto &[name, _]: cur_compound->get_super_fields()) names.insert(name);
+                for (const auto &[name, _]: cur_compound->get_super_functions()) names.insert(name);
             }
         }
 
@@ -185,17 +248,40 @@ namespace spade
                         result = &*cur_module->get_variable(name);
                         break;
                     }
+                    for (const auto &[name, _]: import->get_members()) names.insert(name);
                 }
             }
+            for (const auto &[name, _]: cur_module->get_members()) names.insert(name);
+            for (const auto &[name, _]: cur_module->get_imports()) names.insert(name);
         }
 
         // Check for spade module
         if (!result && !basic_mode && internals[Analyzer::Internal::SPADE]->has_variable(name)) {
             result = &*internals[Analyzer::Internal::SPADE]->get_variable(name);
         }
+        if (!basic_mode)
+            for (const auto &[name, _]: internals[Analyzer::Internal::SPADE]->get_members()) names.insert(name);
+
         // Yell if the scope cannot be located
-        if (!result)
-            throw error("undefined reference", &node);
+        if (!result) {
+            const auto results = fuzzy_search_best(name, names);
+            if (results.empty())
+                throw error(std::format("undefined reference: '{}'", name), &node);
+            if (results.size() == 1)
+                throw ErrorGroup<AnalyzerError>()
+                        .error(error(std::format("undefined reference: '{}'", name), &node))
+                        .help(error(std::format("did you mean '{}'?", *results.begin())));
+            string final_str;
+            for (const auto &result: results) {
+                final_str += "'" + result + "', ";
+            }
+            final_str.pop_back();
+            final_str.pop_back();
+            throw ErrorGroup<AnalyzerError>()
+                    .error(error(std::format("undefined reference: '{}'", name), &node))
+                    .help(error(std::format("did you mean one of {}?", final_str)));
+        }
+
         // Resolve the context
         resolve_context(result, node);
         switch (result->get_type()) {
@@ -480,7 +566,6 @@ namespace spade
     }
 
     TypeInfo Analyzer::resolve_assign(const TypeInfo &type_info, const ExprInfo &expr_info, const ast::AstNode &node) {
-
         // Check type inference
         switch (expr_info.tag) {
         case ExprInfo::Kind::NORMAL:
@@ -1199,12 +1284,12 @@ namespace spade
             }
             if (caller_info.type_info().nullable() && !safe) {
                 errors.error(error(std::format("cannot access member of nullable '{}'", caller_info.to_string()), &node))
-                        .note(error("use safe dot access operator '?.'", &node));
+                        .help(error("use safe dot access operator '?.'"));
                 return expr_info;
             }
             if (!caller_info.type_info().nullable() && safe) {
                 errors.error(error(std::format("cannot use safe dot access operator on non-nullable '{}'", caller_info.to_string()), &node))
-                        .note(error("remove the safe dot access operator '?.'", &node));
+                        .help(error("use the normal dot access operator '.' instead of '?.'"));
                 return expr_info;
             }
             if (caller_info.type_info().basic().is_type_literal()) {
@@ -1227,7 +1312,22 @@ namespace spade
                         }
                     }
                 if (!member_scope) {
+                    std::unordered_set<string> names;
+                    for (const auto &[name, _]: caller_info.type_info().basic().type->get_members()) names.insert(name);
+                    const auto results = fuzzy_search_best(member_name, names);
+
                     errors.error(error(std::format("'{}' has no member named '{}'", caller_info.to_string(), member_name), &node));
+                    if (results.size() == 1)
+                        errors.help(error(std::format("did you mean '{}'?", *results.begin())));
+                    else {
+                        string final_str;
+                        for (const auto &result: results) {
+                            final_str += "'" + result + "', ";
+                        }
+                        final_str.pop_back();
+                        final_str.pop_back();
+                        errors.help(error(std::format("did you mean one of {}?", final_str)));
+                    }
                     return expr_info;
                 }
                 resolve_context(member_scope, node);
@@ -1249,7 +1349,7 @@ namespace spade
                     break;
                 case scope::ScopeType::ENUMERATOR:
                     errors.error(error("cannot access enumerator from an object (you should use the type)", &node))
-                            .note(error(std::format("use {}.{}", caller_info.type_info().basic().type->to_string(false), member_name), &node));
+                            .help(error(std::format("use {}.{}", caller_info.type_info().basic().type->to_string(false), member_name)));
                     return expr_info;
                 case scope::ScopeType::FOLDER_MODULE:
                 case scope::ScopeType::MODULE:
@@ -1267,12 +1367,12 @@ namespace spade
             }
             if (caller_info.type_info().nullable() && !safe) {
                 errors.error(error(std::format("cannot access member of nullable '{}'", caller_info.to_string()), &node))
-                        .note(error("use safe dot access operator '?.'", &node));
+                        .help(error("use safe dot access operator '?.'"));
                 return expr_info;
             }
             if (!caller_info.type_info().nullable() && safe) {
                 errors.error(error(std::format("cannot use safe dot access operator on non-nullable '{}'", caller_info.to_string()), &node))
-                        .note(error("remove the safe dot access operator '?.'", &node));
+                        .help(error("use the normal dot access operator '.' instead of '?.'"));
                 return expr_info;
             }
             if (caller_info.type_info().basic().is_type_literal()) {

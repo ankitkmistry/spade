@@ -1068,7 +1068,7 @@ lt_le_ge_gt_common:
 
                 const auto scope = std::make_shared<scope::Lambda>(&node);
                 scope->set_fn(fun);
-                get_current_scope()->new_variable(std::format("lambda#{}", get_current_scope()->get_members().size()), null, scope);
+                get_current_scope()->new_variable(std::format("%lambda{}", get_current_scope()->get_members().size()), null, scope);
                 cur_scope = &*scope;
                 /**/ node.get_definition()->accept(this);
                 end_scope();
