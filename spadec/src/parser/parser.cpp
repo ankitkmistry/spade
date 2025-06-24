@@ -5,8 +5,8 @@
 
 namespace spade
 {
-    void Parser::fill_tokens_buffer(int n) {
-        for (int i = 0; i < n; ++i) {
+    void Parser::fill_tokens_buffer(size_t n) {
+        for (size_t i = 0; i < n; ++i) {
             const auto token = lexer->next_token();
             if (token->get_type() == TokenType::END_OF_FILE && !tokens.empty() && tokens.back()->get_type() == TokenType::END_OF_FILE)
                 break;    // Already EOF occured
@@ -25,7 +25,7 @@ namespace spade
         return tokens[index - 1];
     }
 
-    std::shared_ptr<Token> Parser::peek(int i) {
+    std::shared_ptr<Token> Parser::peek(size_t i) {
         const auto idx = index + i;
         if (idx >= tokens.size()) {
             fill_tokens_buffer(FILL_CONSTANT);
@@ -76,7 +76,7 @@ namespace spade
         }
         const auto ref = reference();
         // Add all the tokens in reference to elements
-        for (const auto tok: ref->get_path()) elements.push_back(tok->get_text());
+        for (const auto &tok: ref->get_path()) elements.push_back(tok->get_text());
         // Check for alias or opened import
         std::shared_ptr<Token> alias;
         if (match(TokenType::AS))
@@ -543,10 +543,11 @@ namespace spade
             return std::make_shared<ast::expr::Assignment>(assignees, op1, op2, exprs);
         }
         default:
-            throw error(std::format("expected {}", make_expected_string(TokenType::PLUS, TokenType::DASH, TokenType::STAR, TokenType::SLASH,
-                                                                        TokenType::PERCENT, TokenType::STAR_STAR, TokenType::LSHIFT,
-                                                                        TokenType::RSHIFT, TokenType::URSHIFT, TokenType::AMPERSAND, TokenType::PIPE,
-                                                                        TokenType::CARET, TokenType::ELVIS, TokenType::EQUAL)));
+            throw error(
+                    std::format("expected one of {}",
+                                make_expected_string(TokenType::PLUS, TokenType::DASH, TokenType::STAR, TokenType::SLASH, TokenType::PERCENT,
+                                                     TokenType::STAR_STAR, TokenType::LSHIFT, TokenType::RSHIFT, TokenType::URSHIFT,
+                                                     TokenType::AMPERSAND, TokenType::PIPE, TokenType::CARET, TokenType::ELVIS, TokenType::EQUAL)));
         }
     }
 
@@ -750,8 +751,10 @@ namespace spade
             exprs.push_back(cast());
         }
         std::shared_ptr<ast::Expression> expr = exprs.back();
-        for (int i = static_cast<int>(ops.size()) - 1; i >= 0; i--) {
+        for (size_t i = ops.size() - 1; i >= 0; i--) {
             expr = std::make_shared<ast::expr::Binary>(exprs[i], ops[i], expr);
+            if (i == 0)
+                break;
         }
         return expr;
     }
@@ -916,14 +919,13 @@ namespace spade
             return std::make_shared<ast::expr::Constant>(advance());
 
         case TokenType::SUPER: {
-            std::shared_ptr<Token> end;
-            std::shared_ptr<Token> start = end = advance();
+            std::shared_ptr<Token> start = advance();
             if (match(TokenType::LBRACKET)) {
                 const auto ref = reference();
-                end = expect(TokenType::RBRACKET);
-                return std::make_shared<ast::expr::Super>(start, end, ref);
+                expect(TokenType::RBRACKET);
+                return std::make_shared<ast::expr::Super>(start, current(), ref);
             }
-            return std::make_shared<ast::expr::Super>(start, end, null);
+            return std::make_shared<ast::expr::Super>(start, current(), null);
         }
         case TokenType::SELF:
             return std::make_shared<ast::expr::Self>(advance());
@@ -935,33 +937,13 @@ namespace spade
         }
         default:
             throw error(std::format("expected {}", make_expected_string(TokenType::TRUE, TokenType::FALSE, TokenType::NULL_, TokenType::INTEGER,
-                                                                        TokenType::FLOAT, TokenType::STRING, TokenType::IDENTIFIER, TokenType::SUPER,
-                                                                        TokenType::SELF, TokenType::LPAREN)));
+                                                                        TokenType::FLOAT, TokenType::STRING, TokenType::IDENTIFIER, TokenType::INIT,
+                                                                        TokenType::SUPER, TokenType::SELF, TokenType::LPAREN)));
         }
     }
 
     std::shared_ptr<ast::Type> Parser::type() {
-        return union_type();
-    }
-
-    std::shared_ptr<ast::Type> Parser::union_type() {
-        auto left = intersection_type();
-        while (match(TokenType::PIPE)) {
-            const auto op = current();
-            const auto right = intersection_type();
-            left = std::make_shared<ast::type::BinaryOp>(left, op, right);
-        }
-        return left;
-    }
-
-    std::shared_ptr<ast::Type> Parser::intersection_type() {
-        auto left = nullable_type();
-        while (match(TokenType::AMPERSAND)) {
-            const auto op = current();
-            const auto right = nullable_type();
-            left = std::make_shared<ast::type::BinaryOp>(left, op, right);
-        }
-        return left;
+        return nullable_type();
     }
 
     std::shared_ptr<ast::Type> Parser::nullable_type() {

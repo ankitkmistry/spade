@@ -46,7 +46,7 @@ namespace spade::ast
     void Printer::visit(Reference &node) {
         write_repr(cast<AstNode>(&node));
         ss << "Reference '";
-        int i = 0;
+        size_t i = 0;
         for (const auto &elm: node.get_path()) {
             ss << elm->get_text();
             if (i < node.get_path().size() - 1)
@@ -107,14 +107,6 @@ namespace spade::ast
     void Printer::visit(type::TypeLiteral &type) {
         write_repr(cast<AstNode>(&type));
         ss << "type::TypeLiteral";
-    }
-
-    void Printer::visit(type::BinaryOp &type) {
-        write_repr(cast<AstNode>(&type));
-        ss << "type::BinaryOp";
-        print(type.get_op(), "op");
-        print(type.get_left(), "left");
-        print(type.get_right(), "right");
     }
 
     void Printer::visit(type::Nullable &type) {

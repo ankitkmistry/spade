@@ -608,7 +608,6 @@ namespace spade
 
         std::vector<string> remaining_elms;
         fs::path mod_path;
-        bool found = false;
         for (auto path: prior_paths) {
             remaining_elms = elements;
             std::ranges::reverse(remaining_elms);

@@ -13,7 +13,7 @@ namespace spade
 
     std::string join(const std::vector<std::string> &list, const std::string &delimiter) {
         std::string text;
-        for (int i = 0; i < list.size(); ++i) {
+        for (size_t i = 0; i < list.size(); ++i) {
             text += list[i];
             if (i < list.size() - 1)
                 text += delimiter;

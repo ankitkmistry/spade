@@ -90,6 +90,7 @@ namespace spade
         node.get_caller()->accept(this);
         auto caller_info = _res_expr_info;
         resolve_indexer(caller_info, true, node);
+
         string member_name = node.get_member()->get_text();
         _res_expr_info = get_member(caller_info, member_name, node.get_safe() != null, node);
     }
@@ -238,8 +239,10 @@ namespace spade
         ArgumentInfo arg_info;
         arg_info.b_kwd = node.get_name() != null;
         arg_info.name = arg_info.b_kwd ? node.get_name()->get_text() : "";
+
         node.get_expr()->accept(this);
         resolve_indexer(_res_expr_info, true, node);
+
         arg_info.expr_info = _res_expr_info;
         arg_info.node = &node;
 
@@ -314,8 +317,10 @@ namespace spade
             ArgumentInfo arg_info;
             arg_info.b_kwd = false;
             arg_info.name = "";
+
             node.get_from()->accept(this);
             resolve_indexer(_res_expr_info, true, node);
+
             arg_info.expr_info = _res_expr_info;
             arg_info.node = &node;
 
@@ -870,6 +875,7 @@ namespace spade
         for (const auto &cur_expr: node.get_exprs()) {
             cur_expr->accept(this);
             resolve_indexer(_res_expr_info, true, node);
+
             auto right_expr_info = _res_expr_info;
             if (prev_expr_opt) {
                 auto left_expr_info = *prev_expr_opt;
@@ -979,11 +985,15 @@ lt_le_ge_gt_common:
     void Analyzer::visit(ast::expr::Ternary &node) {
         node.get_condition()->accept(this);
         node.get_on_true()->accept(this);
+
         auto expr_info1 = _res_expr_info;
         resolve_indexer(expr_info1, true, node);
+
         node.get_on_false()->accept(this);
+
         auto expr_info2 = _res_expr_info;
         resolve_indexer(expr_info2, true, node);
+
         if (expr_info1.tag != expr_info2.tag)
             throw error("cannot infer type of the expression", &node);
         _res_expr_info.reset();
@@ -1101,6 +1111,7 @@ lt_le_ge_gt_common:
         ExprInfo last_expr_info;
         for (size_t i = 0; i < node.get_assignees().size(); i++) {
             auto expr_node = node.get_exprs()[i];
+
             expr_node->accept(this);
             auto right_expr_info = _res_expr_info;
             resolve_indexer(right_expr_info, true, node);
@@ -1202,11 +1213,12 @@ lt_le_ge_gt_common:
                         find_user_defined_aug_op(POW);
                     break;
                 case TokenType::STAR:
-                    if (is_number_type(left_expr_info.type_info()) && (is_number_type(right_expr_info.type_info()) ||
-                                                                       (left_expr_info.type_info().nullable() && right_expr_info.is_null())) ||
-                        is_string_type(left_expr_info.type_info()) && right_expr_info.type_info().basic().type == &*internals[Internal::SPADE_INT]) {
+                    if (is_number_type(left_expr_info.type_info()) && is_number_type(right_expr_info.type_info()))
                         last_expr_info = left_expr_info;
-                    } else
+                    else if (is_string_type(left_expr_info.type_info()) &&
+                             right_expr_info.type_info().basic().type == &*internals[Internal::SPADE_INT])
+                        last_expr_info = left_expr_info;
+                    else
                         find_user_defined_aug_op(MUL);
                     break;
                 case TokenType::SLASH:

@@ -32,8 +32,9 @@ namespace spade
     FunctionType::~FunctionType() = default;
 
     bool FunctionType::is_variadic() const {
-        return !pos_only_params().empty() && pos_only_params().back().b_variadic || !pos_kwd_params().empty() && pos_kwd_params().back().b_variadic ||
-               !kwd_only_params().empty() && kwd_only_params().back().b_variadic;
+        return (!pos_only_params().empty() && pos_only_params().back().b_variadic) ||
+               (!pos_kwd_params().empty() && pos_kwd_params().back().b_variadic) ||
+               (!kwd_only_params().empty() && kwd_only_params().back().b_variadic);
     }
 
     bool FunctionType::is_default() const {

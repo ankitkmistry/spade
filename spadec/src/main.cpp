@@ -24,7 +24,8 @@ void compile() {
     using namespace spade;
     CompilerOptions compiler_options{
             //
-            .basic_module_path = fs::path(R"(D:\Programming\Projects\spade\spadec\res\basic.sp)")    //
+            .basic_module_path = fs::path(R"(D:\Programming\Projects\spade\spadec\res\basic.sp)"),    //
+            .import_search_dirs = {}                                                                  //
     };
     fs::path file_path;
     ErrorPrinter error_printer;

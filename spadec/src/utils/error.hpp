@@ -81,7 +81,7 @@ namespace spade
                             node ? node->get_col_end() : -1) {}
     };
 
-    enum class ErrorType { ERROR, WARNING, NOTE };
+    enum class ErrorType { ERROR, WARNING, NOTE, HELP };
 
     template<typename T>
         requires std::derived_from<T, CompilerError>
@@ -109,6 +109,11 @@ namespace spade
 
         ErrorGroup<T> &note(const T &err) {
             errors.emplace_back(ErrorType::NOTE, err);
+            return *this;
+        }
+
+        ErrorGroup<T> &help(const T &err) {
+            errors.emplace_back(ErrorType::HELP, err);
             return *this;
         }
 

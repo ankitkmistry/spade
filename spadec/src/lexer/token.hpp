@@ -198,7 +198,7 @@ namespace spade
         }
 
         int get_col_end() const {
-            if (auto pos = text.find_last_of('\n'); pos != string::npos) {
+            if (const auto pos = text.find_last_of('\n'); pos != string::npos) {
                 return text.size() - pos - (type == TokenType::END_OF_FILE ? 0 : 1);
             }
             return col + text.size() - (type == TokenType::END_OF_FILE ? 0 : 1);

@@ -37,7 +37,7 @@ namespace spade::scope
         std::unordered_map<string, Member> members;
 
       public:
-        Scope(ScopeType type, ast::AstNode *node, const SymbolPath &path = {}) : type(type), node(node), path(path) {}
+        Scope(ScopeType type, ast::AstNode *node, const SymbolPath &path = {}) : type(type), path(path), node(node) {}
 
         virtual ~Scope() = default;
 
@@ -467,8 +467,8 @@ namespace spade::scope
         }
 
         bool is_variadic() const {
-            return !pos_only_params.empty() && pos_only_params.back().b_variadic || !pos_kwd_params.empty() && pos_kwd_params.back().b_variadic ||
-                   !kwd_only_params.empty() && kwd_only_params.back().b_variadic;
+            return (!pos_only_params.empty() && pos_only_params.back().b_variadic) || (!pos_kwd_params.empty() && pos_kwd_params.back().b_variadic) ||
+                   (!kwd_only_params.empty() && kwd_only_params.back().b_variadic);
         }
 
         bool is_default() const {

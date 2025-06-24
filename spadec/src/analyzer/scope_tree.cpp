@@ -230,8 +230,6 @@ namespace spade
 
     void ScopeTreeBuilder::visit(ast::type::TypeLiteral &node) {}
 
-    void ScopeTreeBuilder::visit(ast::type::BinaryOp &node) {}
-
     void ScopeTreeBuilder::visit(ast::type::Nullable &node) {}
 
     void ScopeTreeBuilder::visit(ast::type::TypeBuilder &node) {}

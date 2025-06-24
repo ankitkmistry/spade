@@ -94,9 +94,7 @@ primary ::= 'true' | 'false' | 'null'
 
 
 // Type expressions
-type                ::= union_type;
-union_type          ::= intersection_type ('|' intersection_type)*;
-intersection_type   ::= nullable_type ('&' nullable_type)*;
+type                ::= nullable_type;
 nullable_type       ::= primary_type '?'?;
 primary_type        ::= reference ('[' type_list? ']')?                # reference_type
                       | 'type'                                         # type_literal

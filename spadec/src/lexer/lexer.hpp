@@ -15,8 +15,6 @@ namespace spade
         int line = 1;
         int col = 1;
 
-        std::stack<std::shared_ptr<Token>> token_buffer;
-
         int current() const;
         int peek() const;
         int advance();
@@ -24,14 +22,18 @@ namespace spade
         bool is_at_end() const;
         int length() const;
 
+
         std::shared_ptr<Token> get_token(TokenType type);
+        std::shared_ptr<Token> get_token(TokenType type, const string &text);
+
         LexerError make_error(const string &msg) const;
+
         void complete_float_part(const std::function<bool(int)> &validator, char exp1, char exp2);
+        string handle_escape();
 
       public:
         explicit Lexer(const fs::path &file_path, const string &data) : file_path(file_path), data(data) {}
 
         std::shared_ptr<Token> next_token();
-        void pushback_token(const std::shared_ptr<Token> &token);
     };
 }    // namespace spade

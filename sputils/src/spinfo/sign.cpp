@@ -8,7 +8,7 @@ const Sign Sign::EMPTY = Sign("");
 
 class SignParser {
     string text;
-    int32_t i = 0;
+    size_t i = 0;
 
   public:
     explicit SignParser(const string &text) : text(text + "\033") {}
@@ -145,7 +145,7 @@ class SignParser {
     char peek() const {
         if (i >= text.size())
             throw SignatureError(text);
-        int j = i;
+        size_t j = i;
         for (; j < text.size() && isspace(text[j]); ++j);
         return text[j];
     }
@@ -172,16 +172,16 @@ class SignParser {
 
     static constexpr bool is_special_char(char c) {
         switch (c) {
-            case '$':
-            case '#':
-            case '!':
-            case '@':
-            case '%':
-            case '&':
-            case '_':
-                return true;
-            default:
-                return false;
+        case '$':
+        case '#':
+        case '!':
+        case '@':
+        case '%':
+        case '&':
+        case '_':
+            return true;
+        default:
+            return false;
         }
     }
 
@@ -216,9 +216,48 @@ Sign::Sign(const vector<SignElement> &elements) : elements(elements) {}
 
 string SignParam::to_string() const {
     switch (kind) {
-        case Kind::CLASS:
-            return name.to_string();
-        case Kind::CALLBACK: {
+    case Kind::CLASS:
+        return name.to_string();
+    case Kind::CALLBACK: {
+        string param_str;
+        for (const auto &param: params) {
+            param_str += param.to_string() + ", ";
+        }
+        if (!param_str.empty()) {
+            param_str.pop_back();
+            param_str.pop_back();
+        }
+        return name.to_string() + param_str;
+    }
+    default:
+        throw Unreachable();
+    }
+}
+
+string SignElement::to_string() const {
+    string str;
+    switch (kind) {
+    case Sign::Kind::EMPTY:
+    case Sign::Kind::MODULE:
+        str = name;
+        break;
+    case Sign::Kind::CLASS:
+        str = name;
+        if (!type_params.empty()) {
+            str.append("[");
+            str.append(join(type_params, ", "));
+            str.append("]");
+        }
+        break;
+    case Sign::Kind::METHOD:
+        str = name;
+        if (!type_params.empty()) {
+            str.append("[");
+            str.append(join(type_params, ", "));
+            str.append("]");
+        }
+        str.append("(");
+        if (!params.empty()) {
             string param_str;
             for (const auto &param: params) {
                 param_str += param.to_string() + ", ";
@@ -226,76 +265,37 @@ string SignParam::to_string() const {
             if (!param_str.empty()) {
                 param_str.pop_back();
                 param_str.pop_back();
+                str.append(param_str);
             }
-            return name.to_string() + param_str;
         }
-        default:
-            throw Unreachable();
-    }
-}
-
-string SignElement::to_string() const {
-    string str;
-    switch (kind) {
-        case Sign::Kind::EMPTY:
-        case Sign::Kind::MODULE:
-            str = name;
-            break;
-        case Sign::Kind::CLASS:
-            str = name;
-            if (!type_params.empty()) {
-                str.append("[");
-                str.append(join(type_params, ", "));
-                str.append("]");
-            }
-            break;
-        case Sign::Kind::METHOD:
-            str = name;
-            if (!type_params.empty()) {
-                str.append("[");
-                str.append(join(type_params, ", "));
-                str.append("]");
-            }
-            str.append("(");
-            if (!params.empty()) {
-                string param_str;
-                for (const auto &param: params) {
-                    param_str += param.to_string() + ", ";
-                }
-                if (!param_str.empty()) {
-                    param_str.pop_back();
-                    param_str.pop_back();
-                    str.append(param_str);
-                }
-            }
-            str.append(")");
-            break;
-        case Sign::Kind::TYPE_PARAM:
-            str.append("[");
-            str.append(name);
-            str.append("]");
-            break;
+        str.append(")");
+        break;
+    case Sign::Kind::TYPE_PARAM:
+        str.append("[");
+        str.append(name);
+        str.append("]");
+        break;
     }
     return str;
 }
 
 string Sign::to_string() const {
     string str;
-    for (int i = 0; i < elements.size(); ++i) {
+    for (size_t i = 0; i < elements.size(); ++i) {
         const auto element = elements[i];
         if (i > 0) {
             switch (element.get_kind()) {
-                case Kind::EMPTY:
-                    break;
-                case Kind::MODULE:
-                    str.append("::");
-                    break;
-                case Kind::CLASS:
-                case Kind::METHOD:
-                    str.append(".");
-                    break;
-                case Kind::TYPE_PARAM:
-                    break;
+            case Kind::EMPTY:
+                break;
+            case Kind::MODULE:
+                str.append("::");
+                break;
+            case Kind::CLASS:
+            case Kind::METHOD:
+                str.append(".");
+                break;
+            case Kind::TYPE_PARAM:
+                break;
             }
         }
         str.append(element.to_string());

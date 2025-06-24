@@ -52,7 +52,6 @@ namespace spade::ast
         class TypeBuilderMember;
         class TypeBuilder;
         class Nullable;
-        class BinaryOp;
         class TypeLiteral;
         class Function;
         class Reference;
@@ -90,7 +89,6 @@ namespace spade::ast
         virtual void visit(type::Reference &node) = 0;
         virtual void visit(type::Function &node) = 0;
         virtual void visit(type::TypeLiteral &node) = 0;
-        virtual void visit(type::BinaryOp &node) = 0;
         virtual void visit(type::Nullable &node) = 0;
         virtual void visit(type::TypeBuilder &node) = 0;
         virtual void visit(type::TypeBuilderMember &node) = 0;
@@ -266,32 +264,6 @@ namespace spade::ast
         class TypeLiteral final : public Type {
           public:
             TypeLiteral(const std::shared_ptr<Token> &token) : Type(token, token) {}
-
-            void accept(VisitorBase *visitor) override {
-                visitor->visit(*this);
-            }
-        };
-
-        class BinaryOp final : public Type {
-            std::shared_ptr<Type> left;
-            std::shared_ptr<Token> op;
-            std::shared_ptr<Type> right;
-
-          public:
-            BinaryOp(const std::shared_ptr<Type> &left, const std::shared_ptr<Token> &op, const std::shared_ptr<Type> &right)
-                : Type(left, right), left(left), op(op), right(right) {}
-
-            const std::shared_ptr<Type> &get_left() const {
-                return left;
-            }
-
-            const std::shared_ptr<Token> &get_op() const {
-                return op;
-            }
-
-            const std::shared_ptr<Type> &get_right() const {
-                return right;
-            }
 
             void accept(VisitorBase *visitor) override {
                 visitor->visit(*this);
@@ -1362,7 +1334,7 @@ namespace spade::ast
         template<typename T1, typename T2>
             requires HasLineInfo<T1> && HasLineInfo<T2>
         Import(T1 start, T2 end, const std::vector<string> &elements, const std::shared_ptr<Token> &name, const std::shared_ptr<Token> &alias)
-            : AstNode(start, end), elements(elements), name(name), alias(alias) {}
+            : AstNode(start, end), name(name), alias(alias), elements(elements) {}
 
         const std::shared_ptr<Token> &get_name() const {
             return name;

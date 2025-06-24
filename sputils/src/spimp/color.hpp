@@ -163,16 +163,16 @@ namespace color
         static void set_cell(size_t x, size_t y, wchar_t value, Style style);
     };
 
-    constexpr inline Color from_rgb(uint8_t red, uint8_t green, uint8_t blue) {
+    constexpr inline Color from_rgb(const uint8_t red, const uint8_t green, const uint8_t blue) {
         return Color{red, green, blue};
     }
 
-    constexpr inline Color from_hex(uint32_t hex_code) {
+    constexpr inline Color from_hex(const uint32_t hex_code) {
         return Color{static_cast<uint8_t>((hex_code >> 16) & 0xff), static_cast<uint8_t>((hex_code >> 8) & 0xff),
                      static_cast<uint8_t>(hex_code & 0xff)};
     }
 
-    inline Color from_hsb(int hue, int saturation, int brightness) {
+    inline Color from_hsb(const int hue, const int saturation, const int brightness) {
         // Refer to https://en.wikipedia.org/wiki/HSL_and_HSV#HSV_to_RGB_alternative
         int h = hue % 360;
         double s = saturation / 100.;
@@ -186,15 +186,15 @@ namespace color
         return Color{static_cast<uint8_t>(f(5)), static_cast<uint8_t>(f(3)), static_cast<uint8_t>(f(1))};
     }
 
-    inline std::string fg(Color color) {
+    inline std::string fg(const Color color) {
         return std::format("\x1b[38;2;{:d};{:d};{:d}m", color.red, color.green, color.blue);
     }
 
-    inline std::string bg(Color color) {
+    inline std::string bg(const Color color) {
         return std::format("\x1b[48;2;{:d};{:d};{:d}m", color.red, color.green, color.blue);
     }
 
-    inline std::string attr(int attributes) {
+    inline std::string attr(const int attributes) {
         std::string res;
         if (attributes & RESET)
             res += "\x1b[0m";

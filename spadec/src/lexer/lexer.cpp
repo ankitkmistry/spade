@@ -1,5 +1,6 @@
 #include "lexer.hpp"
 #include "utils/error.hpp"
+#include <cctype>
 
 namespace spade
 {
@@ -44,6 +45,13 @@ namespace spade
         return token;
     }
 
+    std::shared_ptr<Token> Lexer::get_token(TokenType type, const string &text) {
+        auto token = make_token(type, text, line, col);
+        col += end - start;
+        start = end;
+        return token;
+    }
+
     LexerError Lexer::make_error(const string &msg) const {
         return {msg, file_path, line, col};
     }
@@ -63,6 +71,44 @@ namespace spade
     static bool is_hex_digit(int c) {
         return ('0' <= c && c <= '9') || ('a' <= c && c <= 'f') || ('A' <= c && c <= 'F');
     }
+
+    static constexpr int hex_value(const char c) {
+        switch (tolower(c)) {
+        case '0':
+            return 0;
+        case '1':
+            return 1;
+        case '2':
+            return 2;
+        case '3':
+            return 3;
+        case '4':
+            return 4;
+        case '5':
+            return 5;
+        case '6':
+            return 6;
+        case '7':
+            return 7;
+        case '8':
+            return 8;
+        case '9':
+            return 9;
+        case 'a':
+            return 10;
+        case 'b':
+            return 11;
+        case 'c':
+            return 12;
+        case 'd':
+            return 13;
+        case 'e':
+            return 14;
+        case 'f':
+            return 15;
+        }
+        return -1;
+    };
 
     void Lexer::complete_float_part(const std::function<bool(int)> &validator, char exp1, char exp2) {
         int c;
@@ -86,12 +132,97 @@ namespace spade
         }
     }
 
-    std::shared_ptr<Token> Lexer::next_token() {
-        if (!token_buffer.empty()) {
-            auto token = token_buffer.top();
-            token_buffer.pop();
-            return token;
+    string Lexer::handle_escape() {
+        if (peek() != '\\')
+            return "";
+        advance();    // consume back-slash
+
+        string str;
+        char c;
+        switch (c = advance()) {
+        case '\'':
+            str += '\'';
+            break;
+        case '"':
+            str += '"';
+            break;
+        case '\\':
+            str += '\\';
+            break;
+        case 'a':
+            str += '\a';
+            break;
+        case 'b':
+            str += '\b';
+            break;
+        case 'f':
+            str += '\f';
+            break;
+        case 'n':
+            str += '\n';
+            break;
+        case 'r':
+            str += '\r';
+            break;
+        case 't':
+            str += '\t';
+            break;
+        case 'v':
+            str += '\v';
+            break;
+        case 'u': {
+            if (!is_hex_digit(peek()))
+                throw make_error("expected hex digit");
+            uint32_t code_point = hex_value(advance());
+
+            if (!is_hex_digit(peek()))
+                throw make_error("expected hex digit");
+            code_point <<= 4;
+            code_point |= hex_value(advance());
+
+            if (!is_hex_digit(peek()))
+                throw make_error("expected hex digit");
+            code_point <<= 4;
+            code_point |= hex_value(advance());
+
+            if (!is_hex_digit(peek()))
+                throw make_error("expected hex digit");
+            code_point <<= 4;
+            code_point |= hex_value(advance());
+
+            str += static_cast<char>((code_point >> 24) & 0xff);
+            str += static_cast<char>((code_point >> 16) & 0xff);
+            str += static_cast<char>((code_point >> 8) & 0xff);
+            str += static_cast<char>((code_point >> 0) & 0xff);
+            break;
         }
+        case EOF:
+            throw make_error("expected escape sequence");
+        default: {
+            // Octal escaping
+            // For example: '\033' -> escape, '\0' -> null, '\12' -> line feed
+            if (is_octal_digit(c)) {
+                char num = c - '0';
+                if (is_octal_digit(peek())) {
+                    c = advance();
+                    num <<= 3;
+                    num |= c - '0';
+                    if (is_octal_digit(peek())) {
+                        c = advance();
+                        num <<= 3;
+                        num |= c - '0';
+                    }
+                }
+                str += num;
+            } else
+                throw make_error(std::format("unknown escape sequence: '\\{}'", c));
+            break;
+        }
+        }
+        return str;
+    }
+
+    std::shared_ptr<Token> Lexer::next_token() {
         while (!is_at_end()) {
             start = end;
             switch (int c = advance()) {
@@ -109,7 +240,7 @@ namespace spade
                 return get_token(TokenType::RBRACKET);
             case '<':
                 if (match('<'))
-                    return get_token(TokenType::LT);
+                    return get_token(TokenType::LSHIFT);
                 if (match('='))
                     return get_token(TokenType::LE);
                 return get_token(TokenType::LT);
@@ -179,28 +310,30 @@ namespace spade
             case ':':
                 return get_token(TokenType::COLON);
             // String
-            case '"':
+            case '"': {
+                string str;
                 while (true) {
                     if (peek() == EOF)
                         throw make_error("expected '\"'");
-                    if (match('\\'))
-                        advance();
+                    str += handle_escape();
                     if (match('"'))
                         break;
-                    advance();
+                    str += advance();
                 }
-                return get_token(TokenType::STRING);
-            case '\'':
+                return get_token(TokenType::STRING, str);
+            }
+            case '\'': {
+                string str;
                 while (true) {
                     if (peek() == EOF)
                         throw make_error("expected '''");
-                    if (match('\\'))
-                        advance();
+                    str += handle_escape();
                     if (match('\''))
                         break;
-                    advance();
+                    str += advance();
                 }
-                return get_token(TokenType::STRING);
+                return get_token(TokenType::STRING, str);
+            }
             // Whitespace
             case '#':
                 while (peek() != '\n') {
@@ -217,9 +350,9 @@ namespace spade
                 col++;
                 break;
             case '\n':
+                start = end;
                 line++;
                 col = 1;
-                start = end;
                 break;
             default: {
                 if (std::isalpha(c) || c == '_') {
@@ -267,9 +400,5 @@ namespace spade
             }
         }
         return get_token(TokenType::END_OF_FILE);
-    }
-
-    void Lexer::pushback_token(const std::shared_ptr<Token> &token) {
-        token_buffer.push(token);
     }
 }    // namespace spade

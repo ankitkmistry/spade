@@ -73,13 +73,13 @@ namespace spade
             scope::Scope *scope;
             if (basic_mode) {
                 switch (kind) {
-                    case Internal::SPADE:
-                        scope = get_current_scope()->get_enclosing_module();
-                        break;
-                    default:
-                        scope = get_current_scope()->get_enclosing_module();
-                        scope = &*scope->get_variable(INTERNAL_NAMES[static_cast<int>(kind)]);
-                        break;
+                case Internal::SPADE:
+                    scope = get_current_scope()->get_enclosing_module();
+                    break;
+                default:
+                    scope = get_current_scope()->get_enclosing_module();
+                    scope = &*scope->get_variable(INTERNAL_NAMES[static_cast<int>(kind)]);
+                    break;
                 }
             } else
                 scope = &*internals[kind];
@@ -292,7 +292,7 @@ namespace spade
 
       public:
         explicit Analyzer(const std::shared_ptr<scope::Module> &module, ErrorPrinter printer, const CompilerOptions &compiler_options)
-            : module_scopes(), printer(printer), compiler_options(compiler_options) {
+            : module_scopes(), compiler_options(compiler_options), printer(printer) {
             module_scopes[module->get_module_node()->get_file_path()] = module;
         }
 
@@ -310,7 +310,6 @@ namespace spade
         void visit(ast::type::Reference &node);
         void visit(ast::type::Function &node);
         void visit(ast::type::TypeLiteral &node);
-        void visit(ast::type::BinaryOp &node);
         void visit(ast::type::Nullable &node);
         void visit(ast::type::TypeBuilder &node);
         void visit(ast::type::TypeBuilderMember &node);

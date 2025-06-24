@@ -49,7 +49,6 @@ namespace spade
         void visit(ast::type::Reference &node) override;
         void visit(ast::type::Function &node) override;
         void visit(ast::type::TypeLiteral &node) override;
-        void visit(ast::type::BinaryOp &node) override;
         void visit(ast::type::Nullable &node) override;
         void visit(ast::type::TypeBuilder &node) override;
         void visit(ast::type::TypeBuilderMember &node) override;

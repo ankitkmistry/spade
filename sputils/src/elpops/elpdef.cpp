@@ -32,18 +32,18 @@ namespace spade
         if (tag != rhs.tag)
             return false;
         switch (tag) {
-            case 0x00:
-            case 0x01:
-            case 0x02:
-                return true;
-            case 0x03:
-            case 0x04:
-            case 0x05:
-            case 0x06:
-            case 0x07:
-                return value == rhs.value;
-            default:
-                throw Unreachable();
+        case 0x00:
+        case 0x01:
+        case 0x02:
+            return true;
+        case 0x03:
+        case 0x04:
+        case 0x05:
+        case 0x06:
+        case 0x07:
+            return value == rhs.value;
+        default:
+            throw Unreachable();
         }
     }
 
@@ -52,7 +52,7 @@ namespace spade
     }
 
     CpInfo CpInfo::from_bool(bool b) {
-        return CpInfo{.tag = static_cast<uint8_t>(b ? 0x01 : 0x02)};
+        return CpInfo{.tag = static_cast<uint8_t>(b ? 0x01 : 0x02), .value = {}};
     }
 
     CpInfo CpInfo::from_char(uint32_t c) {

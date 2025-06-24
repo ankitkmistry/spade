@@ -18,7 +18,7 @@ namespace spade
         class FunctionSet;
     }    // namespace scope
 
-    struct TypeInfo;
+    class TypeInfo;
 
     struct BasicType {
         /// scope of the type
@@ -163,7 +163,7 @@ namespace spade
         const BasicType &basic() const {
             if (const auto value = std::get_if<BasicType>(&variant))
                 return *value;
-            return std::get<BasicType>(variant);    // TODO: Fix undefined behaviour by error reporting
+            throw std::bad_variant_access();
         }
 
         FunctionType &function() {
@@ -175,7 +175,7 @@ namespace spade
         const FunctionType &function() const {
             if (const auto value = std::get_if<FunctionType>(&variant))
                 return *value;
-            return std::get<FunctionType>(variant);    // TODO: Fix undefined behaviour by error reporting
+            throw std::bad_variant_access();
         }
 
         void reset() {
@@ -326,7 +326,7 @@ namespace spade
         const TypeInfo &type_info() const {
             if (const auto value = std::get_if<TypeInfo>(&variant))
                 return *value;
-            return std::get<TypeInfo>(variant);    // TODO: Fix undefined behaviour by error reporting
+            throw std::bad_variant_access();
         }
 
         scope::Module *&module() {
@@ -338,7 +338,7 @@ namespace spade
         const scope::Module *const &module() const {
             if (const auto value = std::get_if<scope::Module *>(&variant))
                 return *value;
-            return std::get<scope::Module *>(variant);    // TODO: Fix undefined behaviour by error reporting
+            throw std::bad_variant_access();
         }
 
         FunctionInfo &functions() {
@@ -350,7 +350,7 @@ namespace spade
         const FunctionInfo &functions() const {
             if (const auto value = std::get_if<FunctionInfo>(&variant))
                 return *value;
-            return std::get<FunctionInfo>(variant);    // TODO: Fix undefined behaviour by error reporting
+            throw std::bad_variant_access();
         }
 
         void reset() {

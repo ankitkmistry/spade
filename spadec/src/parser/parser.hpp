@@ -12,12 +12,12 @@ namespace spade
         fs::path file_path;
         Lexer *lexer;
         std::vector<std::shared_ptr<Token>> tokens;
-        int index = 0;
+        size_t index = 0;
 
-        void fill_tokens_buffer(int n);
+        void fill_tokens_buffer(size_t n);
 
         std::shared_ptr<Token> current();
-        std::shared_ptr<Token> peek(int i = 0);
+        std::shared_ptr<Token> peek(size_t i = 0);
         std::shared_ptr<Token> advance();
 
         std::shared_ptr<Token> match(const string &text) {
@@ -31,7 +31,7 @@ namespace spade
         static string make_expected_string(Ts... types) {
             std::array<TokenType, sizeof...(types)> list{types...};
             string result;
-            for (int i = 0; i < list.size(); ++i) {
+            for (size_t i = 0; i < list.size(); ++i) {
                 result += TokenInfo::get_repr(list[i]);
                 if (i < list.size() - 1)
                     result += ", ";
@@ -58,7 +58,7 @@ namespace spade
                 if (peek()->get_type() == t)
                     return advance();
             }
-            throw error(std::format("expected {}", make_expected_string(types...)));
+            throw error(std::format("expected one of {}", make_expected_string(types...)));
         }
 
         ParserError error(const string &msg, const std::shared_ptr<Token> &token);
@@ -96,17 +96,6 @@ namespace spade
                 return null;
             }
         }
-
-        // template<typename R, typename C1, typename C2>
-        // std::shared_ptr<R> rule_or(std::shared_ptr<C1> (Parser::*rule1)(), std::shared_ptr<C2> (Parser::*rule2)()) {
-        //     int tok_idx = index;
-        //     try {
-        //         return spade::cast<R>(this->*rule1());
-        //     } catch (const ParserError &) {
-        //         index = tok_idx;
-        //         return spade::cast<R>(this->*rule2());
-        //     }
-        // }
 
         template<typename T>
         std::shared_ptr<T> rule_or(std::shared_ptr<T> (Parser::*rule1)(), std::shared_ptr<T> (Parser::*rule2)()) {
@@ -252,12 +241,8 @@ namespace spade
         std::shared_ptr<ast::Expression> primary();
 
         // Type expressions
-        /// type ::= union_type
+        /// type ::= nullable_type
         std::shared_ptr<ast::Type> type();
-        /// union_type ::= intersection_type ('|' intersection_type)*
-        std::shared_ptr<ast::Type> union_type();
-        /// intersection_type ::= nullable_type ('&' nullable_type)*
-        std::shared_ptr<ast::Type> intersection_type();
         /// nullable_type ::= primary_type '?'?
         std::shared_ptr<ast::Type> nullable_type();
         /// primary_type ::= reference ('[' type_list? ']')?                # reference_type

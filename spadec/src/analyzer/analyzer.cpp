@@ -1611,7 +1611,7 @@ namespace spade
         std::vector<ParamInfo> params;
         for (const auto &param_type: node.get_param_types()) {
             param_type->accept(this);
-            params.emplace_back(ParamInfo{.type_info = _res_type_info, .node = &*param_type});
+            params.emplace_back(ParamInfo{.name = "", .type_info = _res_type_info, .node = &*param_type});
         }
 
         node.get_return_type()->accept(this);
@@ -1623,11 +1623,6 @@ namespace spade
     }
 
     void Analyzer::visit(ast::type::TypeLiteral &node) {
-        _res_type_info.reset();
-    }
-
-    void Analyzer::visit(ast::type::BinaryOp &node) {
-        // TODO: implement this
         _res_type_info.reset();
     }
 
