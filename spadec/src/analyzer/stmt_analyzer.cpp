@@ -101,12 +101,16 @@ namespace spade
 
     void Analyzer::visit(ast::stmt::Return &node) {
         const auto ret_type = get_current_function()->get_ret_type();
-        
+
         if (ret_type.tag == TypeInfo::Kind::BASIC && ret_type.basic().type == &*get_internal(Internal::SPADE_VOID)) {
             if (node.get_expression())
                 throw error("void function cannot return a value", node.get_expression());
-        } else if (auto expression = node.get_expression()) {
+        } else if (const auto &expression = node.get_expression()) {
             expression->accept(this);
+            if (const auto scope = _res_expr_info.value_info.scope)
+                scope->increase_usage();
+            resolve_indexer(_res_expr_info, true, node);
+            
             resolve_assign(ret_type, _res_expr_info, node);
         } else
             throw error("return statement must have an expression", &node);
@@ -119,7 +123,32 @@ namespace spade
 
     void Analyzer::visit(ast::stmt::Expr &node) {
         node.get_expression()->accept(this);
+        if (const auto scope = _res_expr_info.value_info.scope)
+            scope->increase_usage();
         resolve_indexer(_res_expr_info, true, node);
+
+        if (!is<ast::expr::Assignment>(node.get_expression())) {
+            switch (_res_expr_info.tag) {
+            case ExprInfo::Kind::NORMAL:
+            case ExprInfo::Kind::STATIC:
+                switch (_res_expr_info.type_info().tag) {
+                case TypeInfo::Kind::BASIC:
+                    if (_res_expr_info.type_info().basic().type != get_internal(Internal::SPADE_VOID))
+                        warning("value of the expression is unused", &node);
+                    break;
+                case TypeInfo::Kind::FUNCTION:
+                    warning("value of the expression is unused", &node);
+                    break;
+                }
+                break;
+            case ExprInfo::Kind::MODULE:
+                warning("value of the expression is unused", &node);
+                break;
+            case ExprInfo::Kind::FUNCTION_SET:
+                warning("value of the expression is unused", &node);
+                break;
+            }
+        }
     }
 
     void Analyzer::visit(ast::stmt::Declaration &node) {

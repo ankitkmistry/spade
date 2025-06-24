@@ -26,6 +26,9 @@ namespace spade
 
         _res_param_info.reset();
         _res_param_info = param_info;
+
+        // Diagnostic specific
+        param_info.type_info.increase_usage();
     }
 
     void Analyzer::visit(ast::decl::Params &node) {
@@ -140,9 +143,25 @@ namespace spade
                 check_ret_type_bool(GE);
                 check_ret_type_bool(GT);
 #undef check_ret_type_bool
+
+                if (!fun_set->is_redecl_check()) {
+                    fun_set->set_redecl_check(true);
+                    auto old_cur_scope = get_current_scope();    // save the context
+                    end_scope();                                 // pop the function
+                    end_scope();                                 // pop the function set
+                    // Collect all other defintions
+                    for (const auto &[member_name, member]: fun_set->get_members()) {
+                        const auto &[_, member_scope] = member;
+                        if (scope != member_scope)
+                            member_scope->get_node()->accept(this);
+                    }
+                    check_fun_set(fun_set);
+                    cur_scope = old_cur_scope;    // restore context
+                }
+
                 // Check for abstract, final and override functions
                 // This code provides the semantics for the `abstract`, `final` and `override` keywords
-                if (auto compound = get_current_scope()->get_enclosing_compound(); compound) {
+                if (auto compound = get_current_scope()->get_enclosing_compound()) {
                     if (scope->is_abstract() && !compound->is_abstract())
                         throw error("abstract function cannot be declared in non-abstract class", &node);
                     if (!scope->is_abstract() && compound->get_super_functions().contains(node.get_name()->get_text())) {
@@ -152,6 +171,9 @@ namespace spade
                         for (const auto &[super_fun_path, super_fun]: super_fun_info.get_functions()) {
                             if (check_fun_exactly_same(&*scope, super_fun)) {
                                 if (super_fun->is_abstract()) {
+                                    // Diagnostic specific
+                                    super_fun->increase_usage();
+
                                     to_be_removed.insert(super_fun_path);
                                     continue;
                                 }
@@ -166,6 +188,9 @@ namespace spade
                                     errors.error(error("function overrides another function but is not marked as override", scope))
                                             .note(error("declared here", super_fun));
                                     continue;
+                                } else {
+                                    // Diagnostic specific
+                                    super_fun->increase_usage();
                                 }
                             } else
                                 // also check if there is any conflict with the super function
@@ -184,22 +209,7 @@ namespace spade
                 function_scopes.push_back(scope);
             }
 
-            if (!fun_set->is_redecl_check()) {
-                fun_set->set_redecl_check(true);
-                auto old_cur_scope = get_current_scope();    // save the context
-                end_scope();                                 // pop the function
-                end_scope();                                 // pop the function set
-                // Collect all other defintions
-                for (const auto &[member_name, member]: fun_set->get_members()) {
-                    const auto &[_, member_scope] = member;
-                    if (scope != member_scope)
-                        member_scope->get_node()->accept(this);
-                }
-                check_fun_set(fun_set);
-                cur_scope = old_cur_scope;    // restore context
-            }
-
-            auto definition = node.get_definition();
+            const auto &definition = node.get_definition();
 
             if (scope->get_enclosing_function() != null) {
                 if (definition == null)
@@ -252,8 +262,9 @@ namespace spade
 
     void Analyzer::visit(ast::decl::Variable &node) {
         std::shared_ptr<scope::Variable> scope;
-        if (get_current_scope()->get_type() == scope::ScopeType::FUNCTION || get_current_scope()->get_enclosing_function()) {
+        if (get_current_function()) {
             scope = declare_variable(node);
+            scope->set_path(node.get_name()->get_text());
         } else
             scope = find_scope<scope::Variable>(node.get_name()->get_text());
 
@@ -261,6 +272,11 @@ namespace spade
             scope->set_eval(scope::Variable::Eval::PROGRESS);
             // resolve_assign automatically sets eval to DONE
             resolve_assign(node.get_type(), node.get_expr(), node);
+
+            // Diagnostic specific
+            scope->get_type_info().increase_usage();
+            if (node.get_expr())
+                scope->set_assigned(true);
         }
         end_scope();
     }
@@ -274,13 +290,16 @@ namespace spade
         TypeInfo parent_type_info = _res_expr_info.type_info();
         if (!node.get_type_args().empty()) {
             parent_type_info.basic().type_args.reserve(node.get_type_args().size());
-            for (auto type_arg: node.get_type_args()) {
+            for (const auto &type_arg: node.get_type_args()) {
                 type_arg->accept(this);
                 parent_type_info.basic().type_args.push_back(_res_type_info);
             }
         }
         _res_type_info.reset();
         _res_type_info = parent_type_info;
+
+        // Diagnostic specific
+        _res_type_info.increase_usage();
     }
 
     void Analyzer::visit(ast::decl::Enumerator &node) {
@@ -354,7 +373,7 @@ namespace spade
                 }
                 case scope::ScopeType::VARIABLE: {
                     // Check important side effect of inheritance rules
-                    if (auto var_scope = cast<scope::Variable>(member_scope); !var_scope->is_static())
+                    if (const auto &var_scope = cast<scope::Variable>(member_scope); !var_scope->is_static())
                         super_fields[member_name] = var_scope;
                     break;
                 }
@@ -664,12 +683,12 @@ namespace spade
         }
 
         if (open_import) {
-            module->new_open_import(result);
+            module->new_open_import(result, node);
         } else {
             string name = node.get_alias() ? node.get_alias()->get_text()                               //
                                            : (elements.back() == "*" ? elements[elements.size() - 2]    //
                                                                      : elements.back());
-            module->new_import(name, result);
+            module->new_import(name, result, node);
         }
     }
 

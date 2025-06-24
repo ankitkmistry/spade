@@ -3,7 +3,7 @@
 
 namespace spade::scope
 {
-    bool Scope::new_variable(const string &name, const std::shared_ptr<Token> &name_tok, std::shared_ptr<Scope> value) {
+    bool Scope::new_variable(const string &name, const std::shared_ptr<Token> &name_tok, const std::shared_ptr<Scope> &value) {
         if (members.contains(name))
             return false;
         members[name] = {name_tok, value};

@@ -141,11 +141,14 @@ namespace spade
         string file_path = color::fg(color::from_hex(0x4e8ed3)) + path.generic_string();
         if (err.has_no_location()) {
             std::cout << std::format("{}: {}\n", error_type_str, err_str);
-            std::cout << std::format("in file: {}{}\n", file_path, color::attr(color::RESET));
+            if (type != ErrorType::HELP)
+                std::cout << std::format("in file: {}{}\n", file_path, color::attr(color::RESET));
         } else {
             std::cout << std::format("{}: {}\n", error_type_str, err_str);
             std::cout << std::format("in file: {}:{}:{}{}\n", file_path, err.get_line_start(), err.get_col_start(), color::attr(color::RESET));
             print_code(path, err, info);
         }
+
+        std::cout << std::flush;
     }
 }    // namespace spade

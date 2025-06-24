@@ -15,7 +15,7 @@ compound_decl   ::= ('class' | 'enum' | 'interface' | 'annotation') IDENTIFIER
                     (if context_generics "where" constraint_list)?
                     ('{' enumerator_list? member_decl* '}')?;
 member_decl     ::= variable_decl | function_decl | init_decl | compound_decl;
-init_decl       ::= 'init' '(' params ')' ('=' statement | block);
+init_decl       ::= 'init' '(' params ')' block;
 variable_decl   ::= ('var' | 'const') IDENTIFIER (':' type)? ('=' expression)?;
 function_decl   ::= 'fun' IDENTIFIER
                     ('[' type_param_list ']' set context_generics on)?

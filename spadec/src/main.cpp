@@ -9,6 +9,7 @@
 #include <cpptrace/from_current.hpp>
 #include <cpptrace/formatting.hpp>
 
+#include "spimp/log.hpp"
 #include "utils/error.hpp"
 #include "utils/error_printer.hpp"
 #include "utils/graph.hpp"
@@ -31,6 +32,10 @@ void compile() {
     ErrorPrinter error_printer;
     try {
         file_path = R"(D:\Programming\Projects\spade\spadec\res\test.sp)";
+
+        std::ofstream log_out(file_path.string() + ".log");
+        LOGGER.set_file(log_out);
+
         std::shared_ptr<scope::Module> module;
         {
             std::ifstream in(file_path);

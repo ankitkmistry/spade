@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <iostream>
+#include <memory>
 #include <mutex>
 #include <boost/functional/hash.hpp>
 #include <set>
@@ -240,15 +241,21 @@ namespace spade
                 result = &*cur_module->get_variable(name);
             else if (cur_module->has_import(name)) {
                 // Check module imports
-                result = &*cur_module->get_import(name);
+                if (auto opt = cur_module->get_import(name)) {
+                    auto &import = **opt;
+                    result = import.scope;
+                    if (result)
+                        import.b_used = true;
+                }
             } else {
                 // Check module open imports
-                for (auto import: cur_module->get_open_imports()) {
-                    if (import->has_variable(name)) {
+                for (auto &import: cur_module->get_open_imports()) {
+                    if (import.scope->has_variable(name)) {
                         result = &*cur_module->get_variable(name);
+                        import.b_used = true;
                         break;
                     }
-                    for (const auto &[name, _]: import->get_members()) names.insert(name);
+                    for (const auto &[name, _]: import.scope->get_members()) names.insert(name);
                 }
             }
             for (const auto &[name, _]: cur_module->get_members()) names.insert(name);
@@ -316,6 +323,7 @@ namespace spade
             throw Unreachable();
         }
         expr_info.value_info.b_lvalue = true;
+        expr_info.value_info.scope = result;
         return expr_info;
     }
 
@@ -471,7 +479,11 @@ namespace spade
         }
         if (from == to)
             return;
+        // any value is convertible to string by to_string() function
         if (to == get_internal(Internal::SPADE_STRING))
+            return;
+        // any value is convertible to void, though it is not the direct ancestor of all objects
+        if (to == get_internal(Internal::SPADE_VOID))
             return;
 
         {
@@ -654,7 +666,8 @@ namespace spade
         }
     }
 
-    TypeInfo Analyzer::resolve_assign(std::shared_ptr<ast::Type> type, std::shared_ptr<ast::Expression> expr, const ast::AstNode &node) {
+    TypeInfo Analyzer::resolve_assign(const std::shared_ptr<ast::Type> &type, const std::shared_ptr<ast::Expression> &expr,
+                                      const ast::AstNode &node) {
         TypeInfo type_info;
         if (type && expr) {
             type->accept(this);
@@ -920,6 +933,7 @@ namespace spade
 
         resolve_context(candidate, node);
 
+        candidate->increase_usage();
         LOGGER.log_debug(std::format("resolved call candidate: {}", candidate->to_string()));
 
         ExprInfo expr_info;
@@ -1357,6 +1371,7 @@ namespace spade
                 case scope::ScopeType::BLOCK:
                     throw Unreachable();    // surely some parser error
                 }
+                expr_info.value_info.scope = &*member_scope;
             }
             break;
         }
@@ -1429,6 +1444,7 @@ namespace spade
                 case scope::ScopeType::BLOCK:
                     throw Unreachable();    // surely some parser error
                 }
+                expr_info.value_info.scope = &*member_scope;
             }
             break;
         }
@@ -1474,6 +1490,7 @@ namespace spade
             case scope::ScopeType::ENUMERATOR:
                 throw Unreachable();    // surely some parser error
             }
+            expr_info.value_info.scope = &*member_scope;
             break;
         }
         case ExprInfo::Kind::FUNCTION_SET: {
@@ -1597,19 +1614,114 @@ namespace spade
         return module;
     }
 
+    void Analyzer::check_usages(const std::shared_ptr<scope::Scope> &scope) {
+        string name;
+        {
+            const string str = scope->get_path().get_name();
+            name = str.substr(0, str.find_first_of('('));
+        }
+
+        if (name[0] != '_') {
+            switch (scope->get_type()) {
+            case scope::ScopeType::FOLDER_MODULE:
+            case scope::ScopeType::MODULE:
+            case scope::ScopeType::LAMBDA:
+            case scope::ScopeType::BLOCK:
+            case scope::ScopeType::FUNCTION_SET:
+                break;
+            case scope::ScopeType::COMPOUND:
+                if (!cast<scope::Compound>(scope)->is_public())
+                    if (scope->get_usage_count() == 0) {
+                        warning(std::format("'{}' was never used", scope->to_string()), scope);
+                        help(std::format("rename '{0:}' to '_{0:}' if you mean to keep it", name));
+                        help(std::format("remove '{:}' as it is never used", name));
+                        help(std::format("declare '{}' as 'public'", scope->to_string()));
+                    }
+                break;
+            case scope::ScopeType::FUNCTION:
+                if (!cast<scope::Function>(scope)->is_public())
+                    if (scope->get_usage_count() == 0) {
+                        warning(std::format("'{}' was never used", scope->to_string()), scope);
+                        help(std::format("rename '{0:}' to '_{0:}' if you mean to keep it", name));
+                        help(std::format("remove '{:}' as it is never used", name));
+                        help(std::format("declare '{}' as 'public'", scope->to_string()));
+                    }
+                break;
+            case scope::ScopeType::ENUMERATOR:
+                if (!scope->get_enclosing_compound()->is_public())
+                    if (scope->get_usage_count() == 0) {
+                        warning(std::format("'{}' was never used", scope->to_string()), scope);
+                        help(std::format("rename '{0:}' to '_{0:}' if you mean to keep it", name));
+                        help(std::format("remove '{:}' as it is never used", name));
+                        help(std::format("declare '{}' as 'public'", scope->get_enclosing_compound()->to_string()));
+                    }
+                break;
+            case scope::ScopeType::VARIABLE: {
+                const auto var = cast<scope::Variable>(scope);
+                const auto MONTAGUE = [&](bool show_publicity) {
+                    if (var->is_const()) {
+                        if (var->get_usage_count() == 0) {
+                            warning("constant was never accessed", var);
+                            help(std::format("rename '{0:}' to '_{0:}' if you mean to keep it", name));
+                            help(std::format("remove '{:}' as it is never used", name));
+                            if (show_publicity)
+                                help(std::format("declare '{}' as 'public'", var->to_string()));
+                        }
+                    } else {
+                        if (var->get_usage_count() == 0 && !var->is_assigned()) {
+                            warning("variable was never accessed or assigned", var);
+                            help(std::format("rename '{0:}' to '_{0:}' if you mean to keep it", name));
+                            help(std::format("remove '{:}' as it is never used", name));
+                            if (show_publicity)
+                                help(std::format("declare '{}' as 'public'", var->to_string()));
+                        } else if (var->get_usage_count() == 0) {
+                            warning("variable was never accessed", var);
+                            help(std::format("rename '{0:}' to '_{0:}' if you mean to keep it", name));
+                            help(std::format("remove '{:}' as it is never used", name));
+                            if (show_publicity)
+                                help(std::format("declare '{}' as 'public'", var->to_string()));
+                        } else if (!var->is_assigned()) {
+                            warning("variable was never assigned", var);
+                            if (show_publicity)
+                                help(std::format("declare '{}' as 'public'", var->to_string()));
+                        }
+                    }
+                };
+
+                if (!var->get_enclosing_function()) {
+                    if (!var->is_public())
+                        MONTAGUE(true);
+                } else
+                    MONTAGUE(false);
+                break;
+            }
+            }
+        }
+
+        // Perform a DFS on the scope tree
+        for (const auto &[_1, member]: scope->get_members()) {
+            const auto &[_2, member_scope] = member;
+            check_usages(member_scope);
+        }
+    }
+
     void Analyzer::analyze() {
         // Load the basic module
         load_internal_modules();
-
+        
         mode = Mode::DECLARATION;
-
+        
         // Resolve all import declarations
         auto module = cast<scope::Module>(module_scopes.begin()->second);
         cur_scope = &*module;
         for (const auto &import: module->get_module_node()->get_imports()) import->accept(this);
-
+        
+        LOGGER.log_debug("============================================================");
+        LOGGER.log_debug("                COMPILER SEMANTIC ANALYSIS");
+        LOGGER.log_debug("============================================================");
+        
         // Visit all declarations
-        for (auto [_, module_scope]: module_scopes) {
+        for (const auto &[_, module_scope]: module_scopes) {
             if (const auto node = module_scope->get_node()) {
                 cur_scope = null;
                 node->accept(this);
@@ -1623,15 +1735,44 @@ namespace spade
             function->get_node()->accept(this);
         }
 
-        // Print scope tree
-        // {
-        //     ast::Printer printer(internals[Internal::SPADE]->get_node());
-        //     std::cout << printer;
-        // }
-        // for (auto [_, module]: module_scopes) {
-        //     ast::Printer printer(module->get_node());
-        //     std::cout << printer;
-        // }
+        // Check for usage diagnostics
+        for (const auto &[_, module_scope]: module_scopes) {
+            auto old_cur_scope = get_current_scope();
+            cur_scope = &*module_scope;
+
+            if (auto module = std::dynamic_pointer_cast<scope::Module>(module_scope)) {
+                for (const auto &[_, import]: module->get_imports()) {
+                    if (!import.b_used) {
+                        warning("unused import", import.node);
+                        help("remove the import declaration");
+                    }
+                }
+                for (const auto &import: module->get_open_imports()) {
+                    if (!import.b_used) {
+                        warning("unused import", import.node);
+                        help("remove the import declaration");
+                    }
+                }
+            }
+            check_usages(module_scope);
+
+            cur_scope = old_cur_scope;
+        }
+
+        // Print ast to log
+        {
+            std::stringstream ss;
+            ast::Printer printer(internals[Internal::SPADE]->get_node());
+            ss << printer;
+            for (const auto &[_, module]: module_scopes) {
+                ast::Printer printer(module->get_node());
+                ss << printer;
+            }
+            LOGGER.log_debug("============================================================");
+            LOGGER.log_debug("                    COMPILER AST OUTPUT");
+            LOGGER.log_debug("============================================================");
+            LOGGER.log_debug(ss.str());
+        }
     }
 
     void Analyzer::visit(ast::Reference &node) {

@@ -4,18 +4,18 @@ import mod.bar
 # var b = c
 # var c = a
 
-class Bax {
+# class Bax {
 	# var a = b
 	# var b = c
 	# var c = a	
-}
+# }
 
-class A {
+# class A {
 	# static var a = B.b
-}
+# }
 
-class B {
+# class B {
 	# static var b/*: any*/ = A.a
-}
+# }
 
 # class hello

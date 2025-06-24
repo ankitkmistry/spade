@@ -178,6 +178,8 @@ namespace spade
             throw std::bad_variant_access();
         }
 
+        void increase_usage();
+
         void reset() {
             tag = Kind::BASIC;
             variant = {};
@@ -221,12 +223,15 @@ namespace spade
         bool b_null = false;
         /// flag if value is self
         bool b_self = false;
+        /// The scope of the value referring to
+        scope::Scope *scope = null;
 
         void reset() {
             b_lvalue = false;
             b_const = false;
             b_null = false;
             b_self = false;
+            scope = null;
         }
     };
 
@@ -301,16 +306,6 @@ namespace spade
             FUNCTION_SET,
         } tag = Kind::NORMAL;
 
-        // union {
-        //     TypeInfo type_info;
-        //     scope::Module *module;
-        // };
-
-        // Placed this outside the union due to some union related runtime errors.
-        // The cause of the error is that FunctionInfo is a object which has a STL container
-        // and during construction of the object everything is initialized to zero which corrupts
-        // the state of the STL container. This is why it is necessary to put functions outside the union
-        // FunctionInfo functions;
       private:
         std::variant<TypeInfo, scope::Module *, FunctionInfo> variant;
 
@@ -429,5 +424,12 @@ namespace spade
             arg_infos.clear();
             node = null;
         }
+    };
+
+    struct ImportInfo {
+        string name;
+        bool b_used = false;
+        scope::Scope *scope = null;
+        const ast::AstNode *node = null;
     };
 }    // namespace spade

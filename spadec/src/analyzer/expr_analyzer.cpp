@@ -89,6 +89,8 @@ namespace spade
     void Analyzer::visit(ast::expr::DotAccess &node) {
         node.get_caller()->accept(this);
         auto caller_info = _res_expr_info;
+        if (const auto scope = caller_info.value_info.scope)
+            scope->increase_usage();
         resolve_indexer(caller_info, true, node);
 
         string member_name = node.get_member()->get_text();
@@ -98,6 +100,8 @@ namespace spade
     void Analyzer::visit(ast::expr::Call &node) {
         node.get_caller()->accept(this);
         auto caller_info = _res_expr_info;
+        if (const auto scope = caller_info.value_info.scope)
+            scope->increase_usage();
         resolve_indexer(caller_info, true, node);
 
         std::vector<ArgumentInfo> arg_infos;
@@ -241,6 +245,8 @@ namespace spade
         arg_info.name = arg_info.b_kwd ? node.get_name()->get_text() : "";
 
         node.get_expr()->accept(this);
+        if (const auto scope = _res_expr_info.value_info.scope)
+            scope->increase_usage();
         resolve_indexer(_res_expr_info, true, node);
 
         arg_info.expr_info = _res_expr_info;
@@ -259,6 +265,8 @@ namespace spade
     void Analyzer::visit(ast::expr::Index &node) {
         node.get_caller()->accept(this);
         auto caller_info = _res_expr_info;
+        if (const auto scope = caller_info.value_info.scope)
+            scope->increase_usage();
         resolve_indexer(caller_info, true, node);
 
         std::vector<ArgumentInfo> arg_infos;
@@ -319,6 +327,8 @@ namespace spade
             arg_info.name = "";
 
             node.get_from()->accept(this);
+            if (const auto scope = _res_expr_info.value_info.scope)
+                scope->increase_usage();
             resolve_indexer(_res_expr_info, true, node);
 
             arg_info.expr_info = _res_expr_info;
@@ -333,6 +343,8 @@ namespace spade
             if (auto ctx = node.get_from()) {
                 ctx->accept(this);
                 start_expr_info = _res_expr_info;
+                if (const auto scope = start_expr_info.value_info.scope)
+                    scope->increase_usage();
                 resolve_indexer(start_expr_info, true, node);
             } else {
                 start_expr_info.tag = ExprInfo::Kind::NORMAL;
@@ -343,6 +355,8 @@ namespace spade
             if (auto ctx = node.get_to()) {
                 ctx->accept(this);
                 end_expr_info = _res_expr_info;
+                if (const auto scope = end_expr_info.value_info.scope)
+                    scope->increase_usage();
                 resolve_indexer(end_expr_info, true, node);
             } else {
                 end_expr_info.tag = ExprInfo::Kind::NORMAL;
@@ -353,6 +367,8 @@ namespace spade
             if (auto ctx = node.get_step()) {
                 ctx->accept(this);
                 step_expr_info = _res_expr_info;
+                if (const auto scope = step_expr_info.value_info.scope)
+                    scope->increase_usage();
                 resolve_indexer(step_expr_info, true, node);
             } else {
                 step_expr_info.tag = ExprInfo::Kind::NORMAL;
@@ -411,6 +427,8 @@ namespace spade
     void Analyzer::visit(ast::expr::Unary &node) {
         node.get_expr()->accept(this);
         auto expr_info = _res_expr_info;
+        if (const auto scope = expr_info.value_info.scope)
+            scope->increase_usage();
         resolve_indexer(expr_info, true, node);
         if (expr_info.is_null())
             throw error(std::format("cannot apply unary operator '{}' on 'null'", node.get_op()->get_text()), &node);
@@ -514,6 +532,8 @@ namespace spade
     void Analyzer::visit(ast::expr::Cast &node) {
         node.get_expr()->accept(this);
         auto expr_info = _res_expr_info;
+        if (const auto scope = expr_info.value_info.scope)
+            scope->increase_usage();
         resolve_indexer(expr_info, true, node);
 
         if (expr_info.tag != ExprInfo::Kind::NORMAL)
@@ -642,10 +662,14 @@ namespace spade
 
         node.get_left()->accept(this);
         auto left_expr_info = _res_expr_info;
+        if (const auto scope = left_expr_info.value_info.scope)
+            scope->increase_usage();
         resolve_indexer(left_expr_info, true, node);
 
         node.get_right()->accept(this);
         auto right_expr_info = _res_expr_info;
+        if (const auto scope = right_expr_info.value_info.scope)
+            scope->increase_usage();
         resolve_indexer(right_expr_info, true, node);
 
         switch (left_expr_info.tag) {
@@ -874,6 +898,8 @@ namespace spade
         size_t i = 0;
         for (const auto &cur_expr: node.get_exprs()) {
             cur_expr->accept(this);
+            if (const auto scope = _res_expr_info.value_info.scope)
+                scope->increase_usage();
             resolve_indexer(_res_expr_info, true, node);
 
             auto right_expr_info = _res_expr_info;
@@ -987,11 +1013,15 @@ lt_le_ge_gt_common:
         node.get_on_true()->accept(this);
 
         auto expr_info1 = _res_expr_info;
+        if (const auto scope = expr_info1.value_info.scope)
+            scope->increase_usage();
         resolve_indexer(expr_info1, true, node);
 
         node.get_on_false()->accept(this);
 
         auto expr_info2 = _res_expr_info;
+        if (const auto scope = expr_info2.value_info.scope)
+            scope->increase_usage();
         resolve_indexer(expr_info2, true, node);
 
         if (expr_info1.tag != expr_info2.tag)
@@ -1063,14 +1093,12 @@ lt_le_ge_gt_common:
             fun.return_type() = _res_type_info;
         } else {
             // TODO: improve type inference in lambdas
-            if (node.get_expr_only()) {
-                const auto stmt = cast<ast::stmt::Expr>(node.get_definition()->get_statements()[0]);
-
+            if (const auto &expr = node.get_expr()) {
                 const auto scope = std::make_shared<scope::Lambda>(&node);
                 scope->set_fn(fun);
                 get_current_scope()->new_variable(std::format("%lambda{}", get_current_scope()->get_members().size()), null, scope);
                 cur_scope = &*scope;
-                /**/ node.get_definition()->accept(this);
+                /**/ expr->accept(this);
                 end_scope();
 
                 switch (_res_expr_info.tag) {
@@ -1095,8 +1123,10 @@ lt_le_ge_gt_common:
                 }
                 }
             } else {
+                // TODO: visit lambda body
                 fun.return_type().basic().type = get_internal<scope::Compound>(Internal::SPADE_VOID);
                 warning(std::format("cannot infer return type for lambda, defaulting to '{}'", fun.return_type().to_string()), &node);
+                help(std::format("explicitly mention return type: '-> {}'", fun.return_type().to_string()));
             }
         }
         // Return a function type
@@ -1114,6 +1144,8 @@ lt_le_ge_gt_common:
 
             expr_node->accept(this);
             auto right_expr_info = _res_expr_info;
+            if (const auto scope = right_expr_info.value_info.scope)
+                scope->increase_usage();
             resolve_indexer(right_expr_info, true, node);
 
             auto assignee_node = node.get_assignees()[i];
@@ -1130,6 +1162,8 @@ lt_le_ge_gt_common:
                 value_arg.expr_info = right_expr_info;
                 value_arg.node = &*expr_node;
                 indexer_info.arg_infos.push_back(value_arg);
+                if (const auto scope = left_expr_info.value_info.scope)
+                    scope->increase_usage();
                 resolve_indexer(left_expr_info, false, node);
 
                 assert(left_expr_info.type_info().tag == TypeInfo::Kind::BASIC);
@@ -1164,6 +1198,14 @@ lt_le_ge_gt_common:
             if (!left_expr_info.type_info().nullable() && right_expr_info.type_info().nullable())
                 throw error(std::format("cannot assign nullable '{}' to non-nullable '{}'", right_expr_info.to_string(), left_expr_info.to_string()),
                             expr_node);
+
+            if (left_expr_info.value_info.scope) {
+                if (const auto var = dynamic_cast<scope::Variable *>(left_expr_info.value_info.scope)) {
+                    var->decrease_usage();
+                    var->set_assigned(true);
+                }
+            }
+
             // Plain vanilla assignment
             if (node.get_op1()->get_type() == TokenType::EQUAL) {
                 last_expr_info.tag = ExprInfo::Kind::NORMAL;

@@ -181,7 +181,7 @@ namespace spade
     }
 
 #define DEFINITION()                                                                                                                                 \
-    (match(TokenType::EQUAL)                   ? statement()                                                                                         \
+    (match(TokenType::EQUAL) ? spade::cast<ast::Statement>(std::make_shared<ast::stmt::Block>(std::make_shared<ast::stmt::Return>(expression())))    \
      : peek()->get_type() == TokenType::LBRACE ? block()                                                                                             \
                                                : throw error(std::format("expected {}", make_expected_string(TokenType::EQUAL, TokenType::LBRACE))))
 
@@ -192,7 +192,7 @@ namespace spade
         if (peek()->get_type() != TokenType::RPAREN)
             init_params = params();
         expect(TokenType::RPAREN);
-        std::shared_ptr<ast::Statement> def = DEFINITION();
+        std::shared_ptr<ast::Statement> def = block();
         return std::make_shared<ast::decl::Function>(name, current(), name, std::vector<std::shared_ptr<ast::decl::TypeParam>>{},
                                                      std::vector<std::shared_ptr<ast::decl::Constraint>>{}, init_params, null, def);
     }
@@ -391,6 +391,7 @@ namespace spade
                 stmts.push_back(block());
                 break;
             case TokenType::VAR:
+            case TokenType::CONST:
             case TokenType::FUN:
             case TokenType::CLASS:
             case TokenType::INTERFACE:
@@ -553,8 +554,6 @@ namespace spade
 
     std::shared_ptr<ast::Expression> Parser::lambda_expr() {
         if (match(TokenType::FUN)) {
-            bool expr_only = false;
-
             const auto token = current();
 
             std::shared_ptr<ast::decl::Params> lm_params;
@@ -573,20 +572,16 @@ namespace spade
             case TokenType::COLON: {
                 advance();
                 const auto start = peek();
-                const auto expr = std::make_shared<ast::stmt::Expr>(ternary());
-                def = std::make_shared<ast::stmt::Block>(start, current(), std::vector<std::shared_ptr<ast::Statement>>{expr});
-                expr_only = true;
-                break;
+                const auto expr = ternary();
+                return std::make_shared<ast::expr::Lambda>(token, current(), lm_params, ret_type, expr);
             }
-            case TokenType::LBRACE:
-                def = block();
-                expr_only = false;
-                break;
+            case TokenType::LBRACE: {
+                const auto body = block();
+                return std::make_shared<ast::expr::Lambda>(token, current(), lm_params, ret_type, body);
+            }
             default:
                 throw error(std::format("expected {}", make_expected_string(TokenType::COLON, TokenType::LBRACE)));
             }
-
-            return std::make_shared<ast::expr::Lambda>(token, current(), expr_only, lm_params, ret_type, def);
         }
         return ternary();
     }

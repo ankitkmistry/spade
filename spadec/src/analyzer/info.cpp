@@ -64,6 +64,22 @@ namespace spade
         return m_pos_only_params.size() + m_pos_kwd_params.size() + m_kwd_only_params.size();
     }
 
+    void TypeInfo::increase_usage() {
+        switch (tag) {
+        case Kind::BASIC:
+            basic().type->increase_usage();
+            break;
+        case Kind::FUNCTION: {
+            auto &fn = function();
+            for (auto &param: fn.pos_only_params()) param.type_info.increase_usage();
+            for (auto &param: fn.pos_kwd_params()) param.type_info.increase_usage();
+            for (auto &param: fn.kwd_only_params()) param.type_info.increase_usage();
+            fn.return_type().increase_usage();
+            break;
+        }
+        }
+    }
+
     bool FunctionType::weak_equals(const FunctionType &other) const {
         return return_type() == other.return_type() && other.pos_only_params() == other.pos_only_params() &&
                other.pos_kwd_params() == other.pos_kwd_params() && other.kwd_only_params() == other.kwd_only_params();
@@ -139,7 +155,7 @@ namespace spade
     }
 
     string ParamInfo::to_string(bool decorated) const {
-        return std::format("{}{}{}{}", (b_const ? "const " : ""), (b_variadic ? "*" : ""), (b_kwd_only ? name + ":" : ""),
+        return std::format("{}{}{}{}", (b_const ? "const " : ""), (b_variadic ? "*" : ""), (b_kwd_only ? name + ": " : ""),
                            type_info.to_string(decorated));
     }
 

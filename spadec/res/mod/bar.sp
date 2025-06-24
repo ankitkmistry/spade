@@ -1,3 +1,3 @@
 import ..foo
 
-class List
+public class List

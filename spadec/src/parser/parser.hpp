@@ -127,7 +127,7 @@ namespace spade
         std::shared_ptr<ast::Declaration> compound_decl();
         /// member_decl ::= variable_decl | function_decl | init_decl | compound_decl
         std::shared_ptr<ast::Declaration> member_decl();
-        /// init_decl ::= 'init' '(' params ')' ('=' statement | block)
+        /// init_decl ::= 'init' '(' params ')' block
         std::shared_ptr<ast::Declaration> init_decl();
         /// variable_decl ::= ('var' | 'const') IDENTIFIER (':' type)? ('=' expression)?
         std::shared_ptr<ast::Declaration> variable_decl();

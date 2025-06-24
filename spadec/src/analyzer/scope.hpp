@@ -36,6 +36,9 @@ namespace spade::scope
         /// scopes that are members (can be referenced) e.g. variables, functions
         std::unordered_map<string, Member> members;
 
+        /// diagnostic: the number of this scope was accessed in the code
+        size_t usage_count = 0;
+
       public:
         Scope(ScopeType type, ast::AstNode *node, const SymbolPath &path = {}) : type(type), path(path), node(node) {}
 
@@ -93,9 +96,9 @@ namespace spade::scope
             return parent ? parent->get_decl_site(path.get_name()) : null;
         }
 
-        bool new_variable(const string &name, const std::shared_ptr<Token> &name_tok, std::shared_ptr<Scope> value);
+        bool new_variable(const string &name, const std::shared_ptr<Token> &name_tok, const std::shared_ptr<Scope> &value);
 
-        bool new_variable(const std::shared_ptr<Token> &name_tok, std::shared_ptr<Scope> value) {
+        bool new_variable(const std::shared_ptr<Token> &name_tok, const std::shared_ptr<Scope> &value) {
             return new_variable(name_tok->get_text(), name_tok, value);
         }
 
@@ -117,6 +120,19 @@ namespace spade::scope
         Compound *get_enclosing_compound() const;
         Function *get_enclosing_function() const;
 
+        void increase_usage() {
+            usage_count++;
+        }
+
+        void decrease_usage() {
+            if (usage_count > 0)
+                usage_count--;
+        }
+
+        size_t get_usage_count() const {
+            return usage_count;
+        }
+
         virtual string to_string(bool decorated = true) const = 0;
 
         void print() const;
@@ -133,8 +149,8 @@ namespace spade::scope
 
     class Module final : public Scope {
         std::shared_ptr<ast::Module> module_sptr;
-        std::unordered_map<string, std::shared_ptr<scope::Scope>> imports;
-        std::vector<std::shared_ptr<scope::Scope>> open_imports;
+        std::unordered_map<string, ImportInfo> imports;
+        std::vector<ImportInfo> open_imports;
 
       public:
         Module(ast::Module *node) : Scope(ScopeType::MODULE, node) {}
@@ -143,27 +159,41 @@ namespace spade::scope
             module_sptr = ptr;
         }
 
-        bool new_import(const string &name, std::shared_ptr<scope::Scope> node) {
-            return imports.contains(name) ? false : (imports[name] = node, true);
+        bool new_import(const string &name, std::shared_ptr<scope::Scope> scope, const ast::AstNode &node) {
+            ImportInfo info{.name = name, .b_used = false, .scope = &*scope, .node = &node};
+            return imports.contains(name) ? false : (imports[name] = info, true);
         }
 
-        std::shared_ptr<scope::Scope> get_import(const string &name) const {
-            return imports.contains(name) ? imports.at(name) : null;
+        std::optional<const ImportInfo *> get_import(const string &name) const {
+            if (auto it = imports.find(name); it != imports.end())
+                return &it->second;
+            return std::nullopt;
+        }
+
+        std::optional<ImportInfo *> get_import(const string &name) {
+            if (auto it = imports.find(name); it != imports.end())
+                return &it->second;
+            return std::nullopt;
         }
 
         bool has_import(const string &name) const {
             return imports.contains(name);
         }
 
-        const std::unordered_map<string, std::shared_ptr<scope::Scope>> &get_imports() const {
+        const std::unordered_map<string, ImportInfo> &get_imports() const {
             return imports;
         }
 
-        void new_open_import(std::shared_ptr<scope::Scope> node) {
-            open_imports.push_back(node);
+        void new_open_import(std::shared_ptr<scope::Scope> scope, const ast::AstNode &node) {
+            ImportInfo info{.name = "*", .b_used = false, .scope = &*scope, .node = &node};
+            open_imports.push_back(info);
         }
 
-        const std::vector<std::shared_ptr<scope::Scope>> &get_open_imports() const {
+        const std::vector<ImportInfo> &get_open_imports() const {
+            return open_imports;
+        }
+
+        std::vector<ImportInfo> &get_open_imports() {
             return open_imports;
         }
 
@@ -601,6 +631,8 @@ namespace spade::scope
         Eval eval = Eval::NOT_STARTED;
         /// type info of the variable
         TypeInfo type_info;
+        // flag if the variable is assigned
+        bool assigned = false;
 
       public:
         Variable(ast::decl::Variable *node)
@@ -614,6 +646,10 @@ namespace spade::scope
             return type_info;
         }
 
+        TypeInfo &get_type_info() {
+            return type_info;
+        }
+
         void set_type_info(const TypeInfo &type_info) {
             this->type_info = type_info;
         }
@@ -624,6 +660,14 @@ namespace spade::scope
 
         void set_eval(Eval eval) {
             this->eval = eval;
+        }
+
+        bool is_assigned() const {
+            return assigned;
+        }
+
+        void set_assigned(bool assigned) {
+            this->assigned = assigned;
         }
 
         ast::decl::Variable *get_variable_node() const {

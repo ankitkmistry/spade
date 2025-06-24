@@ -18,10 +18,10 @@ public class Exception : Throwable {
     private var message: string
 
     public init(message: string="") {
-        self.message = message
+        message = message
     }
 
-    public final fun get_message() -> string = self.message
+    public final fun get_message() -> string = message
 }
 
 public class AssertError : Exception {
@@ -56,9 +56,9 @@ public final class Slice {
     private var step: int?
 
     public init(/, start: int?, end: int?, step: int?){
-        self.start = start
-        self.end = end
-        self.step = step
+        start = start
+        end = end
+        step = step
     }
 
     public fun get_start() -> int? = start

@@ -648,21 +648,23 @@ namespace spade::ast
         };
 
         class Lambda : public Expression {
-            bool expr_only;
             std::shared_ptr<ast::decl::Params> params;
             std::shared_ptr<ast::Type> return_type;
             std::shared_ptr<ast::stmt::Block> definition;
+            std::shared_ptr<ast::Expression> expr;
 
           public:
             template<typename T>
                 requires HasLineInfo<T>
-            Lambda(const std::shared_ptr<Token> &token, T end, bool expr_only, const std::shared_ptr<ast::decl::Params> &params,
+            Lambda(const std::shared_ptr<Token> &token, T end, const std::shared_ptr<ast::decl::Params> &params,
                    const std::shared_ptr<ast::Type> &return_type, const std::shared_ptr<ast::stmt::Block> &definition)
-                : Expression(token, end), expr_only(expr_only), params(params), return_type(return_type), definition(definition) {}
+                : Expression(token, end), params(params), return_type(return_type), definition(definition) {}
 
-            bool get_expr_only() const {
-                return expr_only;
-            }
+            template<typename T>
+                requires HasLineInfo<T>
+            Lambda(const std::shared_ptr<Token> &token, T end, const std::shared_ptr<ast::decl::Params> &params,
+                   const std::shared_ptr<ast::Type> &return_type, const std::shared_ptr<ast::Expression> &expr)
+                : Expression(token, end), params(params), return_type(return_type), expr(expr) {}
 
             const std::shared_ptr<ast::decl::Params> &get_params() const {
                 return params;
@@ -674,6 +676,10 @@ namespace spade::ast
 
             const std::shared_ptr<ast::stmt::Block> &get_definition() const {
                 return definition;
+            }
+
+            const std::shared_ptr<ast::Expression> &get_expr() const {
+                return expr;
             }
 
             void accept(VisitorBase *visitor) override {
@@ -727,6 +733,8 @@ namespace spade::ast
             std::vector<std::shared_ptr<Statement>> statements;
 
           public:
+            Block(const std::shared_ptr<Statement> &statement) : Statement(statement, statement), statements({statement}) {}
+
             Block(const std::shared_ptr<Token> &start, const std::shared_ptr<Token> &end, const std::vector<std::shared_ptr<Statement>> &statements)
                 : Statement(start, end), statements(statements) {}
 
@@ -916,6 +924,8 @@ namespace spade::ast
 
             Return(const std::shared_ptr<Token> &token, const std::shared_ptr<Expression> &expression)
                 : Statement(token, expression), expression(expression) {}
+
+            Return(const std::shared_ptr<Expression> &expression) : Statement(expression, expression), expression(expression) {}
 
             const std::shared_ptr<Expression> &get_expression() const {
                 return expression;

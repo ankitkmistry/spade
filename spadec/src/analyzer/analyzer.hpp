@@ -74,10 +74,10 @@ namespace spade
             if (basic_mode) {
                 switch (kind) {
                 case Internal::SPADE:
-                    scope = get_current_scope()->get_enclosing_module();
+                    scope = get_current_module();
                     break;
                 default:
-                    scope = get_current_scope()->get_enclosing_module();
+                    scope = get_current_module();
                     scope = &*scope->get_variable(INTERNAL_NAMES[static_cast<int>(kind)]);
                     break;
                 }
@@ -136,7 +136,7 @@ namespace spade
          * @param node the source ast node used for error messages
          * @return the correct type info that is assigned
          */
-        TypeInfo resolve_assign(std::shared_ptr<ast::Type> type, std::shared_ptr<ast::Expression> expr, const ast::AstNode &node);
+        TypeInfo resolve_assign(const std::shared_ptr<ast::Type> &type, const std::shared_ptr<ast::Expression> &expr, const ast::AstNode &node);
 
         void check_fun_params(const std::vector<ArgumentInfo> &arg_infos, const std::vector<ParamInfo> pos_only, const std::vector<ParamInfo> pos_kwd,
                               const std::vector<ParamInfo> kwd_only, const ast::AstNode &node, ErrorGroup<AnalyzerError> &errors);
@@ -219,6 +219,9 @@ namespace spade
         ExprInfo get_member(const ExprInfo &caller_info, const string &member_name, bool safe, const ast::AstNode &node);
         ExprInfo get_member(const ExprInfo &caller_info, const string &member_name, const ast::AstNode &node);
 
+        // Analyzer diagnostics
+        void check_usages(const std::shared_ptr<scope::Scope> &scope);
+
         // Import specific
         std::shared_ptr<scope::Module> resolve_file(const fs::path &path);
         std::shared_ptr<scope::FolderModule> resolve_directory(const fs::path &path);
@@ -226,13 +229,13 @@ namespace spade
         ErrorPrinter printer;
 
         inline AnalyzerError error(const string &msg) const {
-            return AnalyzerError(msg, get_current_scope()->get_enclosing_module()->get_module_node()->get_file_path(),
+            return AnalyzerError(msg, get_current_module()->get_module_node()->get_file_path(),
                                  static_cast<ast::AstNode *>(null));
         }
 
         template<typename T>
         AnalyzerError error(const string &msg, LineInfoVector<T> node) const {
-            return AnalyzerError(msg, get_current_scope()->get_enclosing_module()->get_module_node()->get_file_path(), node);
+            return AnalyzerError(msg, get_current_module()->get_module_node()->get_file_path(), node);
         }
 
         template<typename T>
@@ -263,12 +266,16 @@ namespace spade
 
         template<ast::HasLineInfo T>
         void warning(const string &msg, T node) const {
-            printer.print(ErrorType::WARNING, error(msg, node));
+            printer.print(ErrorType::WARNING, error(msg, std::forward<T>(node)));
         }
 
         template<ast::HasLineInfo T>
         void note(const string &msg, T node) const {
             printer.print(ErrorType::NOTE, error(msg, node));
+        }
+
+        void help(const string &msg) const {
+            printer.print(ErrorType::HELP, error(msg));
         }
 
         inline std::shared_ptr<scope::Block> begin_block(ast::stmt::Block &node) {
