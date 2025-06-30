@@ -1,6 +1,3 @@
-#include <algorithm>
-#include <unordered_set>
-
 #include "analyzer.hpp"
 #include "info.hpp"
 #include "lexer/token.hpp"

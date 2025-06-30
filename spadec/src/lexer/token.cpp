@@ -1,6 +1,7 @@
 #include <unordered_map>
 
 #include "token.hpp"
+#include "utils/utils.hpp"
 
 namespace spade
 {
@@ -87,8 +88,8 @@ namespace spade
             {"_", TokenType::UNDERSCORE}
     };
 
-    string Token::to_string() const {
-        return std::format("[{:02d}:{:02d}] {} {}", line, col, TokenInfo::to_string(type), text.c_str());
+    string Token::to_string(bool escape) const {
+        return std::format("[{:02d}:{:02d}] {} {}", line, col, TokenInfo::to_string(type), escape ? escape_str(text) : text);
     }
 
     std::shared_ptr<Token> make_token(TokenType type, const string &text, int line, int col) {

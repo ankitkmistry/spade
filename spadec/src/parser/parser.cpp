@@ -1,7 +1,6 @@
 #include "parser.hpp"
 #include "lexer/token.hpp"
 #include "parser/ast.hpp"
-#include <memory>
 
 namespace spade
 {
@@ -18,7 +17,7 @@ namespace spade
         if (index == 0)
             return null;
         if (index >= tokens.size()) {
-            fill_tokens_buffer(FILL_CONSTANT);
+            fill_tokens_buffer(1);
             if (index >= tokens.size())
                 return tokens.back();    // EOF
         }
@@ -28,7 +27,7 @@ namespace spade
     std::shared_ptr<Token> Parser::peek(size_t i) {
         const auto idx = index + i;
         if (idx >= tokens.size()) {
-            fill_tokens_buffer(FILL_CONSTANT);
+            fill_tokens_buffer(i + 1);
             if (idx >= tokens.size())
                 return tokens.back();    // EOF
         }
@@ -37,7 +36,7 @@ namespace spade
 
     std::shared_ptr<Token> Parser::advance() {
         if (index >= tokens.size()) {
-            fill_tokens_buffer(FILL_CONSTANT);
+            fill_tokens_buffer(1);
             if (index >= tokens.size())
                 return tokens.back();    // EOF
         }

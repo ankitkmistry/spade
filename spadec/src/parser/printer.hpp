@@ -1,153 +1,187 @@
 #pragma once
 
-#include <sstream>
+#include <ostream>
 
 #include "ast.hpp"
-#include "utils/common.hpp"
+#include "lexer/token.hpp"
+#include "../utils/utils.hpp"
 
-namespace spade::ast
+namespace spade
 {
-    class Printer final : public VisitorBase {
-      private:
-        int level = 0;
-        std::stringstream ss;
-        AstNode *root;
-        std::function<string(int)> leading_conv = [](int level) {
-            int times = level - 1;
-            string s;
-            for (int i = 0; i < times; i++) {
-                if (i == times - 1)
-                    s += "|-";
-                else
-                    s += "| ";
+    namespace details
+    {
+        class TreeNode {
+            string text;
+            TreeNode *parent = null;
+            std::vector<TreeNode> nodes;
+
+          public:
+            explicit TreeNode(const string &text = "") : text(text) {}
+
+            TreeNode(const TreeNode &) = default;
+            TreeNode(TreeNode &&) = default;
+            TreeNode &operator=(const TreeNode &) = default;
+            TreeNode &operator=(TreeNode &&) = default;
+            ~TreeNode() = default;
+
+            TreeNode *add_child(const TreeNode &node) {
+                nodes.push_back(node);
+                nodes.back().parent = this;
+                return &nodes.back();
             }
-            return s;
+
+            TreeNode *get_parent() {
+                return parent;
+            }
+
+            const TreeNode *get_parent() const {
+                return parent;
+            }
+
+            const string &get_text() const {
+                return text;
+            }
+
+            string &get_text() {
+                return text;
+            }
+
+            const std::vector<TreeNode> get_nodes() const {
+                return nodes;
+            }
         };
+    }    // namespace details
 
-        void start_level();
-        void end_level();
+    class Printer : ast::VisitorBase {
+        details::TreeNode m_root;
+        details::TreeNode *m_node;
 
-        void write_repr(const AstNode *node);
+        void start_level() {
+            m_node = m_node->add_child(details::TreeNode());
+        }
 
-        void print(const std::shared_ptr<Token> &token, const string &name);
-        void print(AstNode *node, const string &name = "");
+        void end_level() {
+            m_node = m_node->get_parent();
+        }
 
-        void print(const std::shared_ptr<AstNode> &node, const string &name = "") {
-            print(&*node, name);
+        template<typename... Args>
+        void print(std::format_string<Args...> fmt, Args &&...args) {
+            m_node->get_text() += std::format<Args...>(fmt, std::forward<Args>(args)...);
+        }
+
+        void print(const std::shared_ptr<Token> &token, const string &name) {
+            if (!token)
+                return;
+            start_level();
+            print("{}: {}", name, token->get_type() == TokenType::STRING ? escape_str(token->to_string()) : token->to_string());
+            end_level();
+        }
+
+        void print(const std::shared_ptr<ast::AstNode> &node, const string &name) {
+            if (!node)
+                return;
+            start_level();
+            node->accept(this);
+            end_level();
         }
 
         template<typename T>
-            requires std::derived_from<T, AstNode>
-        void print(const std::vector<std::shared_ptr<T>> &vec, const string &name = "") {
+            requires std::derived_from<T, ast::AstNode>
+        void print(const std::vector<std::shared_ptr<T>> &vec, const string &name) {
             start_level();
-            ss << leading_conv(level);
-            if (!name.empty())
-                ss << name << ": ";
-            if (vec.empty())
-                ss << "[]";
-            else {
-                start_level();
-                int i = 0;
-                for (const auto &node: vec) {
+            print("{}: ", name);
+            if (vec.empty()) {
+                print("[]");
+            } else {
+                // start_level();
+                for (size_t i = 0; const auto &node: vec) {
                     print(node, std::format("[{}]", i));
                     i++;
                 }
-                end_level();
+                // end_level();
             }
             end_level();
         }
 
-        void print(const std::vector<std::shared_ptr<Token>> &vec, const string &name = "") {
+        void print(const std::vector<std::shared_ptr<Token>> &vec, const string &name) {
             start_level();
-            ss << leading_conv(level);
-            if (!name.empty())
-                ss << name << ": ";
-            if (vec.empty())
-                ss << "[]";
-            else {
-                start_level();
-                int i = 0;
-                for (const auto &token: vec) {
+            print("{}: ", name);
+            if (vec.empty()) {
+                print("[]");
+            } else {
+                // start_level();
+                for (size_t i = 0; const auto &token: vec) {
                     print(token, std::format("[{}]", i));
                     i++;
                 }
-                end_level();
+                // end_level();
             }
             end_level();
         }
 
+        void write_repr(const ast::AstNode &node) {
+            print("[{:02d}:{:02d}]->[{:02d}:{:02d}] ", node.get_line_start(), node.get_col_start(), node.get_line_end(), node.get_col_end());
+        }
+
+        // Visitor
+        void visit(ast::Reference &node) override;
+        // Type visitor
+        void visit(ast::type::Reference &node) override;
+        void visit(ast::type::Function &node) override;
+        void visit(ast::type::TypeLiteral &node) override;
+        void visit(ast::type::Nullable &node) override;
+        void visit(ast::type::TypeBuilder &node) override;
+        void visit(ast::type::TypeBuilderMember &node) override;
+        // Expression visitor
+        void visit(ast::expr::Constant &node) override;
+        void visit(ast::expr::Super &node) override;
+        void visit(ast::expr::Self &node) override;
+        void visit(ast::expr::DotAccess &node) override;
+        void visit(ast::expr::Call &node) override;
+        void visit(ast::expr::Argument &node) override;
+        void visit(ast::expr::Reify &node) override;
+        void visit(ast::expr::Index &node) override;
+        void visit(ast::expr::Slice &node) override;
+        void visit(ast::expr::Unary &node) override;
+        void visit(ast::expr::Cast &node) override;
+        void visit(ast::expr::Binary &node) override;
+        void visit(ast::expr::ChainBinary &node) override;
+        void visit(ast::expr::Ternary &node) override;
+        void visit(ast::expr::Lambda &node) override;
+        void visit(ast::expr::Assignment &node) override;
+        // Statement visitor
+        void visit(ast::stmt::Block &node) override;
+        void visit(ast::stmt::If &node) override;
+        void visit(ast::stmt::While &node) override;
+        void visit(ast::stmt::DoWhile &node) override;
+        void visit(ast::stmt::Throw &node) override;
+        void visit(ast::stmt::Catch &node) override;
+        void visit(ast::stmt::Try &node) override;
+        void visit(ast::stmt::Continue &node) override;
+        void visit(ast::stmt::Break &node) override;
+        void visit(ast::stmt::Return &node) override;
+        void visit(ast::stmt::Yield &node) override;
+        void visit(ast::stmt::Expr &node) override;
+        void visit(ast::stmt::Declaration &node) override;
+        // Declaration visitor
+        void visit(ast::decl::TypeParam &node) override;
+        void visit(ast::decl::Constraint &node) override;
+        void visit(ast::decl::Param &node) override;
+        void visit(ast::decl::Params &node) override;
+        void visit(ast::decl::Function &node) override;
+        void visit(ast::decl::Variable &node) override;
+        void visit(ast::decl::Parent &node) override;
+        void visit(ast::decl::Enumerator &node) override;
+        void visit(ast::decl::Compound &node) override;
+        // Module level visitor
+        void visit(ast::Import &node) override;
+        void visit(ast::Module &node) override;
+
       public:
-        explicit Printer(AstNode *root) : root(root) {}
-
-        string to_string() const {
-            auto &self = *const_cast<Printer *>(this);
-            self.print(self.root);
-            auto res = ss.str();
-            self.ss.str("");
-            self.ss.clear();
-            return res;
+        explicit Printer(ast::AstNode *ast) : m_root(), m_node(&m_root) {
+            ast->accept(this);
         }
 
-        AstNode *get_root() const {
-            return root;
-        }
-
-        void set_root(AstNode *root) {
-            this->root = root;
-        }
-
-      protected:
-        void visit(Reference &node) override;
-        void visit(expr::Argument &node) override;
-        void visit(expr::Slice &node) override;
-        void visit(type::TypeBuilderMember &node) override;
-        void visit(decl::Param &node) override;
-        void visit(decl::Params &node) override;
-        void visit(decl::Constraint &node) override;
-        void visit(decl::Parent &node) override;
-        void visit(decl::Enumerator &node) override;
-
-        void visit(type::Reference &type) override;
-        void visit(type::Function &type) override;
-        void visit(type::TypeLiteral &type) override;
-        void visit(type::Nullable &type) override;
-        void visit(type::TypeBuilder &node) override;
-
-        void visit(expr::Constant &expr) override;
-        void visit(expr::Super &expr) override;
-        void visit(expr::Self &expr) override;
-        void visit(expr::DotAccess &expr) override;
-        void visit(expr::Call &expr) override;
-        void visit(expr::Reify &expr) override;
-        void visit(expr::Index &expr) override;
-        void visit(expr::Unary &expr) override;
-        void visit(expr::Cast &expr) override;
-        void visit(expr::Binary &expr) override;
-        void visit(expr::ChainBinary &expr) override;
-        void visit(expr::Ternary &expr) override;
-        void visit(expr::Lambda &expr) override;
-        void visit(expr::Assignment &expr) override;
-
-        void visit(stmt::Block &stmt) override;
-        void visit(stmt::If &stmt) override;
-        void visit(stmt::While &stmt) override;
-        void visit(stmt::DoWhile &stmt) override;
-        void visit(stmt::Throw &stmt) override;
-        void visit(stmt::Catch &stmt) override;
-        void visit(stmt::Try &stmt) override;
-        void visit(stmt::Continue &stmt) override;
-        void visit(stmt::Break &stmt) override;
-        void visit(stmt::Return &stmt) override;
-        void visit(stmt::Yield &stmt) override;
-        void visit(stmt::Expr &stmt) override;
-        void visit(stmt::Declaration &node) override;
-
-        void visit(decl::Function &node) override;
-        void visit(decl::TypeParam &node) override;
-        void visit(decl::Variable &node) override;
-        void visit(decl::Compound &node) override;
-
-        void visit(Import &node) override;
-        void visit(Module &node) override;
+        void write_to(std::ostream &os) const;
     };
-}    // namespace spade::ast
+}    // namespace spade

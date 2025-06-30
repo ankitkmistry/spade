@@ -146,7 +146,7 @@ namespace spade
             return this->text != text;
         }
 
-        string to_string() const;
+        string to_string(bool escaped = false) const;
 
         TokenType get_type() const {
             return type;

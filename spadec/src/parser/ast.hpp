@@ -1,6 +1,5 @@
 #pragma once
 
-#include <concepts>
 #include "lexer/token.hpp"
 
 namespace spade::ast

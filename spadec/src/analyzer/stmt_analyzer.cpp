@@ -3,8 +3,6 @@
 #include "parser/ast.hpp"
 #include "scope.hpp"
 
-// NOTE: During statement analysis, get_current_function() is never null
-
 namespace spade
 {
     void Analyzer::visit(ast::stmt::Block &node) {

@@ -6,8 +6,6 @@
 namespace spade
 {
     class Parser final {
-        static constexpr int FILL_CONSTANT = 64;
-
       private:
         fs::path file_path;
         Lexer *lexer;
@@ -42,22 +40,20 @@ namespace spade
         template<typename... T>
             requires(std::same_as<TokenType, T> && ...)
         std::shared_ptr<Token> match(T... types) {
-            const std::vector<TokenType> ts = {types...};
-            for (auto t: ts) {
+            std::array<TokenType, sizeof...(types)> ts{types...};
+            for (const auto t: ts)
                 if (peek()->get_type() == t)
                     return advance();
-            }
             return null;
         }
 
         template<typename... T>
             requires(std::same_as<TokenType, T> && ...)
         std::shared_ptr<Token> expect(T... types) {
-            const std::vector<TokenType> ts = {types...};
-            for (auto t: ts) {
+            std::array<TokenType, sizeof...(types)> ts{types...};
+            for (const auto t: ts)
                 if (peek()->get_type() == t)
                     return advance();
-            }
             throw error(std::format("expected one of {}", make_expected_string(types...)));
         }
 
@@ -66,7 +62,7 @@ namespace spade
 
         template<typename R, typename C1, typename C2>
         std::shared_ptr<R> rule_or(std::function<std::shared_ptr<C1>()> rule1, std::function<std::shared_ptr<C2>()> rule2) {
-            int tok_idx = index;
+            size_t tok_idx = index;
             try {
                 return spade::cast<R>(rule1());
             } catch (const ParserError &) {
@@ -77,7 +73,7 @@ namespace spade
 
         template<typename T>
         std::shared_ptr<T> rule_or(std::function<std::shared_ptr<T>()> rule1, std::function<std::shared_ptr<T>()> rule2) {
-            int tok_idx = index;
+            size_t tok_idx = index;
             try {
                 return rule1();
             } catch (const ParserError &) {
@@ -88,7 +84,7 @@ namespace spade
 
         template<typename T>
         std::shared_ptr<T> rule_optional(std::shared_ptr<T> (Parser::*rule)()) {
-            int tok_idx = index;
+            size_t tok_idx = index;
             try {
                 return (this->*rule)();
             } catch (const ParserError &) {
@@ -99,7 +95,7 @@ namespace spade
 
         template<typename T>
         std::shared_ptr<T> rule_or(std::shared_ptr<T> (Parser::*rule1)(), std::shared_ptr<T> (Parser::*rule2)()) {
-            int tok_idx = index;
+            size_t tok_idx = index;
             try {
                 return (this->*rule1)();
             } catch (const ParserError &) {

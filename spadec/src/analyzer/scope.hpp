@@ -1,11 +1,9 @@
 #pragma once
 
 #include <algorithm>
-#include <bitset>
-#include <cstddef>
-#include <execution>
 #include <unordered_set>
-#include <utility>
+#include <bitset>
+#include <execution>
 
 #include "info.hpp"
 #include "lexer/token.hpp"

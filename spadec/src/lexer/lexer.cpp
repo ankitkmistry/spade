@@ -1,6 +1,5 @@
 #include "lexer.hpp"
 #include "utils/error.hpp"
-#include <cctype>
 
 namespace spade
 {

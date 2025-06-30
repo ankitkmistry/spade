@@ -1,9 +1,5 @@
-#include <algorithm>
-#include <iostream>
-#include <memory>
-#include <mutex>
-#include <boost/functional/hash.hpp>
 #include <set>
+#include <unordered_set>
 
 #include "analyzer.hpp"
 #include "info.hpp"
@@ -1775,17 +1771,24 @@ namespace spade
 
         // Print ast to log
         {
-            std::stringstream ss;
-            ast::Printer printer(internals[Internal::SPADE]->get_node());
-            ss << printer;
-            for (const auto &[_, module]: module_scopes) {
-                ast::Printer printer(module->get_node());
-                ss << printer;
+            {
+                std::stringstream ss;
+                LOGGER.log_debug("============================================================");
+                LOGGER.log_debug("                    COMPILER AST OUTPUT");
+                LOGGER.log_debug("============================================================");
+                Printer printer(internals[Internal::SPADE]->get_node());
+                printer.write_to(ss);
+                LOGGER.log_debug(ss.str());
             }
-            LOGGER.log_debug("============================================================");
-            LOGGER.log_debug("                    COMPILER AST OUTPUT");
-            LOGGER.log_debug("============================================================");
-            LOGGER.log_debug(ss.str());
+            for (const auto &[_, module]: module_scopes) {
+                std::stringstream ss;
+                LOGGER.log_debug("============================================================");
+                LOGGER.log_debug("                    COMPILER AST OUTPUT");
+                LOGGER.log_debug("============================================================");
+                Printer printer(module->get_node());
+                printer.write_to(ss);
+                LOGGER.log_debug(ss.str());
+            }
         }
     }
 
