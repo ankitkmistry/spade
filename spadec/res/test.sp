@@ -1,6 +1,7 @@
-import foo as bar
-import mod.bar as foo
+# import foo as bar
+# import mod.bar as foo
 import lib
+import io.print
 
 public enum Color {
 	RED, BLUE, GREEN, WHITE, BLACK
@@ -21,10 +22,6 @@ interface B {
 public class C : A, B {
 	public override fun f() {}
 	public fun b(a:Enum)->int = 0
-}
-
-fun print(*items:any?,/,end:string="\n", sep=" ") {
-	# Intrinsic??
 }
 
 class CounterFn {

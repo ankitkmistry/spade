@@ -268,6 +268,11 @@ namespace spade
         } else
             scope = find_scope<scope::Variable>(node.get_name()->get_text());
 
+        if (!get_current_function() && !get_current_compound()) {
+            if (scope->is_const() && !node.get_expr())
+                throw error("globals constants should be initialized when declared", &node);
+        }
+
         if (scope->get_eval() == scope::Variable::Eval::NOT_STARTED) {
             scope->set_eval(scope::Variable::Eval::PROGRESS);
             // resolve_assign automatically sets eval to DONE

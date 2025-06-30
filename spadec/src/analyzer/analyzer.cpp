@@ -34,6 +34,11 @@ namespace spade
                                                                            : get_current_scope()->get_enclosing_module();
     }
 
+    scope::Compound *Analyzer::get_current_compound() const {
+        return get_current_scope()->get_type() == scope::ScopeType::COMPOUND ? cast<scope::Compound>(get_current_scope())
+                                                                             : get_current_scope()->get_enclosing_compound();
+    }
+
     scope::Function *Analyzer::get_current_function() const {
         return get_current_scope()->get_type() == scope::ScopeType::FUNCTION ? cast<scope::Function>(get_current_scope())
                                                                              : get_current_scope()->get_enclosing_function();
@@ -939,6 +944,7 @@ namespace spade
         ExprInfo expr_info;
         expr_info.tag = ExprInfo::Kind::NORMAL;
         expr_info.type_info() = candidate->get_ret_type();
+        expr_info.value_info.scope = candidate;
         // TODO: also convey generic info
         return expr_info;
     }
@@ -1544,6 +1550,14 @@ namespace spade
         return expr_info;
     }
 
+    ExprInfo Analyzer::eval_expr(const std::shared_ptr<ast::Expression> &expr, const ast::AstNode &node) {
+        expr->accept(this);
+        if (const auto scope = _res_expr_info.value_info.scope)
+            scope->increase_usage();
+        resolve_indexer(_res_expr_info, true, node);
+        return _res_expr_info;
+    }
+
     std::shared_ptr<scope::Module> Analyzer::resolve_file(const fs::path &path) {
         auto file_path = fs::canonical(path);
         if (!basic_mode && module_scopes.contains(file_path))
@@ -1708,18 +1722,18 @@ namespace spade
     void Analyzer::analyze() {
         // Load the basic module
         load_internal_modules();
-        
+
         mode = Mode::DECLARATION;
-        
+
         // Resolve all import declarations
         auto module = cast<scope::Module>(module_scopes.begin()->second);
         cur_scope = &*module;
         for (const auto &import: module->get_module_node()->get_imports()) import->accept(this);
-        
+
         LOGGER.log_debug("============================================================");
         LOGGER.log_debug("                COMPILER SEMANTIC ANALYSIS");
         LOGGER.log_debug("============================================================");
-        
+
         // Visit all declarations
         for (const auto &[_, module_scope]: module_scopes) {
             if (const auto node = module_scope->get_node()) {

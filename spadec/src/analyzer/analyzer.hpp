@@ -65,6 +65,7 @@ namespace spade
         scope::Scope *get_parent_scope() const;
         scope::Scope *get_current_scope() const;
         scope::Module *get_current_module() const;
+        scope::Compound *get_current_compound() const;
         scope::Function *get_current_function() const;
 
         template<typename T>
@@ -219,6 +220,8 @@ namespace spade
         ExprInfo get_member(const ExprInfo &caller_info, const string &member_name, bool safe, const ast::AstNode &node);
         ExprInfo get_member(const ExprInfo &caller_info, const string &member_name, const ast::AstNode &node);
 
+        ExprInfo eval_expr(const std::shared_ptr<ast::Expression> &expr, const ast::AstNode &node);
+
         // Analyzer diagnostics
         void check_usages(const std::shared_ptr<scope::Scope> &scope);
 
@@ -229,8 +232,7 @@ namespace spade
         ErrorPrinter printer;
 
         inline AnalyzerError error(const string &msg) const {
-            return AnalyzerError(msg, get_current_module()->get_module_node()->get_file_path(),
-                                 static_cast<ast::AstNode *>(null));
+            return AnalyzerError(msg, get_current_module()->get_module_node()->get_file_path(), static_cast<ast::AstNode *>(null));
         }
 
         template<typename T>

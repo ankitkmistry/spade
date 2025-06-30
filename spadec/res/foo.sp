@@ -1,4 +1,4 @@
-import mod.bar
+# import mod.bar
 
 # var a = b
 # var b = c

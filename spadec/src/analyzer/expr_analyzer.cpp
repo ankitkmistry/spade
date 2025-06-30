@@ -87,11 +87,7 @@ namespace spade
     }
 
     void Analyzer::visit(ast::expr::DotAccess &node) {
-        node.get_caller()->accept(this);
-        auto caller_info = _res_expr_info;
-        if (const auto scope = caller_info.value_info.scope)
-            scope->increase_usage();
-        resolve_indexer(caller_info, true, node);
+        auto caller_info = eval_expr(node.get_caller(), node);
 
         string member_name = node.get_member()->get_text();
         _res_expr_info = get_member(caller_info, member_name, node.get_safe() != null, node);
@@ -99,10 +95,7 @@ namespace spade
 
     void Analyzer::visit(ast::expr::Call &node) {
         node.get_caller()->accept(this);
-        auto caller_info = _res_expr_info;
-        if (const auto scope = caller_info.value_info.scope)
-            scope->increase_usage();
-        resolve_indexer(caller_info, true, node);
+        auto caller_info = eval_expr(node.get_caller(), node);
 
         std::vector<ArgumentInfo> arg_infos;
         arg_infos.reserve(node.get_args().size());
@@ -244,12 +237,7 @@ namespace spade
         arg_info.b_kwd = node.get_name() != null;
         arg_info.name = arg_info.b_kwd ? node.get_name()->get_text() : "";
 
-        node.get_expr()->accept(this);
-        if (const auto scope = _res_expr_info.value_info.scope)
-            scope->increase_usage();
-        resolve_indexer(_res_expr_info, true, node);
-
-        arg_info.expr_info = _res_expr_info;
+        arg_info.expr_info = eval_expr(node.get_expr(), node);
         arg_info.node = &node;
 
         _res_arg_info.reset();
@@ -263,11 +251,7 @@ namespace spade
     }
 
     void Analyzer::visit(ast::expr::Index &node) {
-        node.get_caller()->accept(this);
-        auto caller_info = _res_expr_info;
-        if (const auto scope = caller_info.value_info.scope)
-            scope->increase_usage();
-        resolve_indexer(caller_info, true, node);
+        auto caller_info = eval_expr(node.get_caller(), node);
 
         std::vector<ArgumentInfo> arg_infos;
         arg_infos.reserve(node.get_slices().size());
@@ -326,12 +310,7 @@ namespace spade
             arg_info.b_kwd = false;
             arg_info.name = "";
 
-            node.get_from()->accept(this);
-            if (const auto scope = _res_expr_info.value_info.scope)
-                scope->increase_usage();
-            resolve_indexer(_res_expr_info, true, node);
-
-            arg_info.expr_info = _res_expr_info;
+            arg_info.expr_info = eval_expr(node.get_from(), node);
             arg_info.node = &node;
 
             _res_arg_info.reset();
@@ -340,36 +319,24 @@ namespace spade
         }
         case ast::expr::Slice::Kind::SLICE:
             ExprInfo start_expr_info, end_expr_info, step_expr_info;
-            if (auto ctx = node.get_from()) {
-                ctx->accept(this);
-                start_expr_info = _res_expr_info;
-                if (const auto scope = start_expr_info.value_info.scope)
-                    scope->increase_usage();
-                resolve_indexer(start_expr_info, true, node);
+            if (node.get_from()) {
+                start_expr_info = eval_expr(node.get_from(), node);
             } else {
                 start_expr_info.tag = ExprInfo::Kind::NORMAL;
                 start_expr_info.type_info().basic().type = get_internal<scope::Compound>(Internal::SPADE_INT);
                 start_expr_info.type_info().nullable() = false;
                 start_expr_info.value_info.b_null = true;
             }
-            if (auto ctx = node.get_to()) {
-                ctx->accept(this);
-                end_expr_info = _res_expr_info;
-                if (const auto scope = end_expr_info.value_info.scope)
-                    scope->increase_usage();
-                resolve_indexer(end_expr_info, true, node);
+            if (node.get_to()) {
+                end_expr_info = eval_expr(node.get_from(), node);
             } else {
                 end_expr_info.tag = ExprInfo::Kind::NORMAL;
                 end_expr_info.type_info().basic().type = get_internal<scope::Compound>(Internal::SPADE_INT);
                 end_expr_info.type_info().nullable() = false;
                 end_expr_info.value_info.b_null = true;
             }
-            if (auto ctx = node.get_step()) {
-                ctx->accept(this);
-                step_expr_info = _res_expr_info;
-                if (const auto scope = step_expr_info.value_info.scope)
-                    scope->increase_usage();
-                resolve_indexer(step_expr_info, true, node);
+            if (node.get_step()) {
+                step_expr_info = eval_expr(node.get_step(), node);
             } else {
                 step_expr_info.tag = ExprInfo::Kind::NORMAL;
                 step_expr_info.type_info().basic().type = get_internal<scope::Compound>(Internal::SPADE_INT);
@@ -425,11 +392,8 @@ namespace spade
     }
 
     void Analyzer::visit(ast::expr::Unary &node) {
-        node.get_expr()->accept(this);
-        auto expr_info = _res_expr_info;
-        if (const auto scope = expr_info.value_info.scope)
-            scope->increase_usage();
-        resolve_indexer(expr_info, true, node);
+        auto expr_info = eval_expr(node.get_expr(), node);
+
         if (expr_info.is_null())
             throw error(std::format("cannot apply unary operator '{}' on 'null'", node.get_op()->get_text()), &node);
         switch (expr_info.tag) {
@@ -530,11 +494,7 @@ namespace spade
     }
 
     void Analyzer::visit(ast::expr::Cast &node) {
-        node.get_expr()->accept(this);
-        auto expr_info = _res_expr_info;
-        if (const auto scope = expr_info.value_info.scope)
-            scope->increase_usage();
-        resolve_indexer(expr_info, true, node);
+        auto expr_info = eval_expr(node.get_expr(), node);
 
         if (expr_info.tag != ExprInfo::Kind::NORMAL)
             throw error(std::format("cannot cast '{}'", expr_info.to_string()), &node);
@@ -660,17 +620,8 @@ namespace spade
     } while (false)
         string op_str = (node.get_op1() ? node.get_op1()->get_text() : "") + (node.get_op2() ? node.get_op2()->get_text() : "");
 
-        node.get_left()->accept(this);
-        auto left_expr_info = _res_expr_info;
-        if (const auto scope = left_expr_info.value_info.scope)
-            scope->increase_usage();
-        resolve_indexer(left_expr_info, true, node);
-
-        node.get_right()->accept(this);
-        auto right_expr_info = _res_expr_info;
-        if (const auto scope = right_expr_info.value_info.scope)
-            scope->increase_usage();
-        resolve_indexer(right_expr_info, true, node);
+        auto left_expr_info = eval_expr(node.get_left(), node);
+        auto right_expr_info = eval_expr(node.get_right(), node);
 
         switch (left_expr_info.tag) {
         case ExprInfo::Kind::NORMAL: {
@@ -897,12 +848,8 @@ namespace spade
         std::optional<ExprInfo> prev_expr_opt;
         size_t i = 0;
         for (const auto &cur_expr: node.get_exprs()) {
-            cur_expr->accept(this);
-            if (const auto scope = _res_expr_info.value_info.scope)
-                scope->increase_usage();
-            resolve_indexer(_res_expr_info, true, node);
+            auto right_expr_info = eval_expr(cur_expr, node);
 
-            auto right_expr_info = _res_expr_info;
             if (prev_expr_opt) {
                 auto left_expr_info = *prev_expr_opt;
                 string op_str = node.get_ops()[i - 1]->get_text();
@@ -1009,20 +956,9 @@ lt_le_ge_gt_common:
     }
 
     void Analyzer::visit(ast::expr::Ternary &node) {
-        node.get_condition()->accept(this);
-        node.get_on_true()->accept(this);
-
-        auto expr_info1 = _res_expr_info;
-        if (const auto scope = expr_info1.value_info.scope)
-            scope->increase_usage();
-        resolve_indexer(expr_info1, true, node);
-
-        node.get_on_false()->accept(this);
-
-        auto expr_info2 = _res_expr_info;
-        if (const auto scope = expr_info2.value_info.scope)
-            scope->increase_usage();
-        resolve_indexer(expr_info2, true, node);
+        eval_expr(node.get_condition(), node);
+        auto expr_info1 = eval_expr(node.get_on_true(), node);
+        auto expr_info2 = eval_expr(node.get_on_false(), node);
 
         if (expr_info1.tag != expr_info2.tag)
             throw error("cannot infer type of the expression", &node);
@@ -1141,12 +1077,7 @@ lt_le_ge_gt_common:
         ExprInfo last_expr_info;
         for (size_t i = 0; i < node.get_assignees().size(); i++) {
             auto expr_node = node.get_exprs()[i];
-
-            expr_node->accept(this);
-            auto right_expr_info = _res_expr_info;
-            if (const auto scope = right_expr_info.value_info.scope)
-                scope->increase_usage();
-            resolve_indexer(right_expr_info, true, node);
+            auto right_expr_info = eval_expr(expr_node, node);
 
             auto assignee_node = node.get_assignees()[i];
             assignee_node->accept(this);
