@@ -359,7 +359,7 @@ namespace spade
         SymbolPath path;
         for (const auto &element: node.get_elements()) path /= element;
         print("Import from='{}'", path.to_string());
-        if (auto alias = node.get_alias()) {
+        if (const auto &alias = node.get_alias()) {
             print(" as='{}'", alias->get_text());
         }
     }
@@ -371,7 +371,7 @@ namespace spade
         print(node.get_members(), "members");
     }
 
-    void write(std::ostream &os, const details::TreeNode *node, bool entry = true) {
+    static void write(std::ostream &os, const details::TreeNode *node, bool entry = true) {
         static std::vector<bool> bool_vec;
         if (entry)
             bool_vec.clear();

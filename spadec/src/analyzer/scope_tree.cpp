@@ -32,7 +32,7 @@ namespace spade
             auto fun_scope = cast<scope::Function>(scope);
             // Find the function set in the parent scope
             std::shared_ptr<scope::FunctionSet> fun_set;
-            if (auto existing_scope = parent_scope->get_variable(name)) {
+            if (const auto existing_scope = parent_scope->get_variable(name)) {
                 if (existing_scope->get_type() == scope::ScopeType::FUNCTION_SET) {
                     fun_set = cast<scope::FunctionSet>(existing_scope);
                 } else    // Something else was defined with the same name
@@ -145,7 +145,7 @@ namespace spade
                 throw error("variables/constants cannot be 'override'", node);
         }
         // Compound declaration specific checks
-        if (auto compound = dynamic_cast<ast::decl::Compound *>(node)) {
+        if (const auto compound = dynamic_cast<ast::decl::Compound *>(node)) {
             switch (compound->get_token()->get_type()) {
             case TokenType::CLASS:
                 if (modifier_counts[TokenType::OVERRIDE] > 0)
@@ -176,7 +176,7 @@ namespace spade
             }
         }
         // Parent class/compound specific checks
-        if (auto compound = dynamic_cast<ast::decl::Compound *>(scope_stack.back()->get_node())) {
+        if (const auto compound = dynamic_cast<ast::decl::Compound *>(scope_stack.back()->get_node())) {
             switch (compound->get_token()->get_type()) {
             case TokenType::CLASS:
                 break;
@@ -195,7 +195,7 @@ namespace spade
                     throw error("'override' members are not allowed in interfaces", node);
 
                 // constants and static variables are allowed in interfaces
-                if (auto field = dynamic_cast<ast::decl::Variable *>(node)) {
+                if (const auto field = dynamic_cast<ast::decl::Variable *>(node)) {
                     if (field->get_token()->get_type() != TokenType::CONST && modifier_counts[TokenType::STATIC] == 0) {
                         throw error("fields are not allowed in interfaces (static and const fields are allowed)", node);
                     }
@@ -210,7 +210,7 @@ namespace spade
             }
         }
         // Constructor specific checks
-        if (auto fun_node = dynamic_cast<ast::decl::Function *>(node); fun_node && fun_node->get_name()->get_type() == TokenType::INIT) {
+        if (const auto fun_node = dynamic_cast<ast::decl::Function *>(node); fun_node && fun_node->get_name()->get_type() == TokenType::INIT) {
             if (modifier_counts[TokenType::ABSTRACT] > 0)
                 throw error("constructor cannot be 'abstract'", fun_node);
             if (modifier_counts[TokenType::FINAL] > 0)
@@ -315,7 +315,7 @@ namespace spade
         auto scope = begin_scope<scope::Function>(node);
         add_symbol(node.get_name()->get_text(), node.get_name(), scope);
         // make undefined interface functions implicitly abstract
-        if (auto compound = scope->get_enclosing_compound())
+        if (const auto compound = scope->get_enclosing_compound())
             if (compound->get_compound_node()->get_token()->get_type() == TokenType::INTERFACE && !node.get_definition())
                 scope->set_abstract(true);
         end_scope();
@@ -329,7 +329,7 @@ namespace spade
         auto scope = begin_scope<scope::Variable>(node);
         add_symbol(node.get_name()->get_text(), node.get_name(), scope);
         // make interface constants implicitly static
-        if (auto compound = scope->get_enclosing_compound())
+        if (const auto compound = scope->get_enclosing_compound())
             if (compound->get_compound_node()->get_token()->get_type() == TokenType::INTERFACE && scope->is_const())
                 scope->set_static(true);
         end_scope();

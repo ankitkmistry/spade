@@ -43,6 +43,14 @@ namespace spade::scope
         return parent->get_enclosing_function();
     }
 
+    Block *Scope::get_enclosing_block() const {
+        if (parent == null)
+            return null;
+        if (parent->type == ScopeType::BLOCK)
+            return cast<Block>(parent);
+        return parent->get_enclosing_block();
+    }
+
     void Scope::print() const {
         std::cout << to_string() << std::endl;
         for (const auto &[_, member]: members) {

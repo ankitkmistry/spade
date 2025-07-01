@@ -793,10 +793,11 @@ namespace spade
         auto caller = primary();
         std::shared_ptr<Token> safe;
         while (true) {
+            size_t parse_point = index;
             safe = match(TokenType::HOOK) ? current() : null;
             switch (peek()->get_type()) {
             case TokenType::DOT: {
-                expect(TokenType::DOT);
+                advance();
                 const auto member = expect(TokenType::IDENTIFIER, TokenType::INIT);
                 caller = std::make_shared<ast::expr::DotAccess>(caller, safe, member);
                 break;
@@ -828,6 +829,7 @@ namespace spade
                 break;
             }
             default:
+                index = parse_point;
                 return caller;
             }
         }

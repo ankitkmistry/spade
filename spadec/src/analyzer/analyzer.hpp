@@ -67,6 +67,7 @@ namespace spade
         scope::Module *get_current_module() const;
         scope::Compound *get_current_compound() const;
         scope::Function *get_current_function() const;
+        scope::Block *get_current_block() const;
 
         template<typename T>
             requires std::derived_from<T, scope::Scope>
@@ -357,6 +358,8 @@ namespace spade
 
       private:
         bool is_loop = false;
+        std::optional<CFNode> last_cf_node;
+        CFNode end_cf_node;
 
       public:
         // Statement visitor

@@ -4,17 +4,22 @@
 #include <unordered_set>
 #include <bitset>
 #include <execution>
+#include <vector>
+
+#include <boost/functional/hash.hpp>
 
 #include "info.hpp"
 #include "lexer/token.hpp"
 #include "parser/ast.hpp"
 #include "symbol_path.hpp"
+#include "utils/graph.hpp"
 
 namespace spade::scope
 {
     class Module;
     class Compound;
     class Function;
+    class Block;
 
     enum class ScopeType { FOLDER_MODULE, MODULE, COMPOUND, LAMBDA, FUNCTION, FUNCTION_SET, BLOCK, VARIABLE, ENUMERATOR };
 
@@ -117,6 +122,7 @@ namespace spade::scope
         Module *get_enclosing_module() const;
         Compound *get_enclosing_compound() const;
         Function *get_enclosing_function() const;
+        Block *get_enclosing_block() const;
 
         void increase_usage() {
             usage_count++;
@@ -163,7 +169,7 @@ namespace spade::scope
         }
 
         std::optional<const ImportInfo *> get_import(const string &name) const {
-            if (auto it = imports.find(name); it != imports.end())
+            if (const auto it = imports.find(name); it != imports.end())
                 return &it->second;
             return std::nullopt;
         }
@@ -445,7 +451,92 @@ namespace spade::scope
             return type.to_string(decorated);
         }
     };
+}    // namespace spade::scope
 
+namespace spade
+{
+    class CFNode {
+      public:
+        enum Kind {
+            EXPR,
+            STMT,
+            START,
+            END,
+        };
+
+      private:
+        Kind kind = Kind::EXPR;
+        std::variant<const ast::Expression *, const ast::Statement *, scope::Function *> variant = static_cast<const ast::Expression *>(null);
+        scope::Block *block = null;
+
+      public:
+        CFNode(Kind kind, scope::Function *fun) : kind(kind), variant(fun), block(null) {}
+
+        CFNode(const ast::Expression &expr, scope::Block *block) : kind(Kind::EXPR), variant(&expr), block(block) {}
+
+        CFNode(const ast::Statement &stmt, scope::Block *block) : kind(Kind::STMT), variant(&stmt), block(block) {}
+
+        CFNode() = default;
+        CFNode(const CFNode &) = default;
+        CFNode(CFNode &&) = default;
+        CFNode &operator=(const CFNode &) = default;
+        CFNode &operator=(CFNode &&) = default;
+        ~CFNode() = default;
+
+        bool operator==(const CFNode &other) const {
+            return kind == other.kind && variant == other.variant && block == other.block;
+        }
+
+        bool operator!=(const CFNode &other) const {
+            return !(other == *this);
+        }
+
+        Kind get_kind() const {
+            return kind;
+        }
+
+        const ast::Expression *get_expr() const {
+            return kind == Kind::EXPR ? std::get<const ast::Expression *>(variant) : null;
+        }
+
+        const ast::Statement *get_stmt() const {
+            return kind == Kind::STMT ? std::get<const ast::Statement *>(variant) : null;
+        }
+
+        scope::Function *get_function() const {
+            return kind == Kind::START || kind == Kind::END ? std::get<scope::Function *>(variant) : null;
+        }
+
+        scope::Block *get_block() const {
+            return block;
+        }
+    };
+}    // namespace spade
+
+template<>
+struct std::hash<spade::CFNode> {
+    size_t operator()(const spade::CFNode &node) const {
+        size_t seed = 0;
+        boost::hash_combine(seed, node.get_kind());
+        switch (node.get_kind()) {
+        case spade::CFNode::EXPR:
+            boost::hash_combine(seed, node.get_expr());
+            break;
+        case spade::CFNode::STMT:
+            boost::hash_combine(seed, node.get_stmt());
+            break;
+        case spade::CFNode::START:
+        case spade::CFNode::END:
+            boost::hash_combine(seed, node.get_function());
+            break;
+        }
+        boost::hash_combine(seed, node.get_block());
+        return seed;
+    }
+};
+
+namespace spade::scope
+{
     class Function final : public Scope, public ModifierMixin {
       public:
         enum class ProtoEval { NOT_STARTED, PROGRESS, DONE };
@@ -458,9 +549,19 @@ namespace spade::scope
         std::vector<ParamInfo> kwd_only_params;
         TypeInfo ret_type;
 
+        DirectedGraph<CFNode> cf_graph;
+
       public:
         Function(ast::decl::Function *node)
             : Scope(ScopeType::FUNCTION, node), ModifierMixin(node ? node->get_modifiers() : std::vector<std::shared_ptr<Token>>()) {}
+
+        const DirectedGraph<CFNode> &cfg() const {
+            return cf_graph;
+        }
+
+        DirectedGraph<CFNode> &cfg() {
+            return cf_graph;
+        }
 
         ast::decl::Function *get_function_node() const {
             return cast<ast::decl::Function>(node);
@@ -608,8 +709,14 @@ namespace spade::scope
     };
 
     class Block final : public Scope {
+        std::vector<StmtInfo> infos;
+
       public:
         Block(ast::stmt::Block *node) : Scope(ScopeType::BLOCK, node) {}
+
+        void add_info(const StmtInfo &info) {
+            infos.push_back(info);
+        }
 
         ast::stmt::Block *get_block_node() const {
             return cast<ast::stmt::Block>(node);

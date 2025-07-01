@@ -14,13 +14,52 @@ namespace spade
     }
 
     void Analyzer::visit(ast::stmt::If &node) {
+        // cond:  | if <expr> {    ------+-------+
+        //        |     <stmts...> <-----+       |
+        //        | } else {     <---------------+
+        //        |     <stmts...>
+        //        | }
+
+        // Control flow specific
+        CFNode cf_cond(*node.get_condition(), get_current_block());
+        auto &cfg = get_current_function()->cfg();
+        cfg.insert_vertex(cf_cond);
+        if (last_cf_node)
+            cfg.insert_edge(*last_cf_node, cf_cond);
+        else
+            throw error("unreachable code", &node);
+        last_cf_node = cf_cond;
+
+        // Evaluate the expression
         eval_expr(node.get_condition(), node);
+        // Visit the body
         node.get_body()->accept(this);
-        if (auto body = node.get_else_body())
+
+        // Set the last cf node as the condition of the branch
+        last_cf_node = cf_cond;
+        // Visit the else body if present
+        if (const auto &body = node.get_else_body())
             body->accept(this);
     }
 
     void Analyzer::visit(ast::stmt::While &node) {
+        // loop_start:    | while <expr> {   <-------+-------+
+        //                |     <stmts...>           |       |
+        //                |     <<END>>      --------+       |
+        //                | } else {    <--------------------+
+        //                |     <stmts...>
+        //                | }
+
+        // Control flow specific
+        CFNode cf_loop_start(*node.get_condition(), get_current_block());
+        auto &cfg = get_current_function()->cfg();
+        cfg.insert_vertex(cf_loop_start);
+        if (last_cf_node)
+            cfg.insert_edge(*last_cf_node, cf_loop_start);
+        else
+            throw error("unreachable code", &node);
+        last_cf_node = cf_loop_start;
+
         eval_expr(node.get_condition(), node);
 
         bool old_is_loop_val = is_loop;
@@ -28,22 +67,80 @@ namespace spade
         node.get_body()->accept(this);
         is_loop = old_is_loop_val;
 
-        if (auto body = node.get_else_body())
+        {    // Add the control flow
+            if (last_cf_node)
+                cfg.insert_edge(*last_cf_node, cf_loop_start);
+            else
+                throw error("loop is redundant", &node);
+            last_cf_node = cf_loop_start;
+        }
+
+        if (const auto &body = node.get_else_body())
             body->accept(this);
     }
 
     void Analyzer::visit(ast::stmt::DoWhile &node) {
+        // loop_start:    | do {     <-----------+
+        //                |     <stmts...>       |
+        // cond:          | } while <expr> ------+----------+
+        //                | else {                          |
+        //                |     <stmts...>       <----------+
+        //                | }
+
+        // Control flow specific
+        CFNode cf_loop_start(node, get_current_block());
+        auto &cfg = get_current_function()->cfg();
+        {    // Add the control flow
+            cfg.insert_vertex(cf_loop_start);
+
+            if (last_cf_node)
+                cfg.insert_edge(*last_cf_node, cf_loop_start);
+            else
+                throw error("unreachable code", &node);
+
+            last_cf_node = cf_loop_start;
+        }
+
         bool old_is_loop_val = is_loop;
         is_loop = true;
         node.get_body()->accept(this);
         is_loop = old_is_loop_val;
 
+        {    // Add the control flow
+            CFNode cf_cond(*node.get_condition(), get_current_block());
+            cfg.insert_vertex(cf_cond);
+
+            if (last_cf_node)
+                cfg.insert_edge(*last_cf_node, cf_cond);
+            else
+                throw error("loop is redundant", &node);
+            cfg.insert_edge(cf_cond, cf_loop_start);
+
+            last_cf_node = cf_cond;
+        }
+
         eval_expr(node.get_condition(), node);
-        if (auto body = node.get_else_body())
+
+        if (const auto &body = node.get_else_body())
             body->accept(this);
     }
 
     void Analyzer::visit(ast::stmt::Throw &node) {
+        {    // Add the control flow
+            CFNode cf_node(node, get_current_block());
+            auto &cfg = get_current_function()->cfg();
+            cfg.insert_vertex(cf_node);
+
+            if (last_cf_node)
+                cfg.insert_edge(*last_cf_node, cf_node);
+            else
+                throw error("unreachable code", &node);
+
+            cfg.insert_edge(cf_node, end_cf_node);
+
+            last_cf_node = std::nullopt;
+        }
+
         auto expr_info = eval_expr(node.get_expression(), node);
         switch (expr_info.tag) {
         case ExprInfo::Kind::NORMAL:
@@ -62,6 +159,8 @@ namespace spade
             throw error("cannot throw a function", &node);
         }
     }
+
+    // TODO: implement control flow for try/catch, break/continue
 
     void Analyzer::visit(ast::stmt::Catch &node) {
         for (const auto &ref: node.get_references()) {
@@ -83,7 +182,7 @@ namespace spade
         for (const auto &catch_stmt: node.get_catches()) {
             catch_stmt->accept(this);
         }
-        if (auto finally = node.get_finally())
+        if (const auto &finally = node.get_finally())
             finally->accept(this);
     }
 
@@ -98,6 +197,21 @@ namespace spade
     }
 
     void Analyzer::visit(ast::stmt::Return &node) {
+        {    // Add the control flow
+            CFNode cf_node(node, get_current_block());
+            auto &cfg = get_current_function()->cfg();
+            cfg.insert_vertex(cf_node);
+
+            if (last_cf_node)
+                cfg.insert_edge(*last_cf_node, cf_node);
+            else
+                throw error("unreachable code", &node);
+
+            cfg.insert_edge(cf_node, end_cf_node);
+
+            last_cf_node = std::nullopt;
+        }
+
         const auto ret_type = get_current_function()->get_ret_type();
 
         if (ret_type.tag == TypeInfo::Kind::BASIC && ret_type.basic().type == &*get_internal(Internal::SPADE_VOID)) {
@@ -111,14 +225,42 @@ namespace spade
     }
 
     void Analyzer::visit(ast::stmt::Yield &node) {
+        {    // Add the control flow
+            CFNode cf_node(node, get_current_block());
+            auto &cfg = get_current_function()->cfg();
+            cfg.insert_vertex(cf_node);
+
+            if (last_cf_node)
+                cfg.insert_edge(*last_cf_node, cf_node);
+            else
+                throw error("unreachable code", &node);
+
+            cfg.insert_edge(cf_node, end_cf_node);
+
+            last_cf_node = std::nullopt;
+        }
+
         // TODO: Improve yield statement
         eval_expr(node.get_expression(), node);
     }
 
     void Analyzer::visit(ast::stmt::Expr &node) {
+        {    // Add the control flow
+            CFNode cf_node(*node.get_expression(), get_current_block());
+            auto &cfg = get_current_function()->cfg();
+            cfg.insert_vertex(cf_node);
+
+            if (last_cf_node)
+                cfg.insert_edge(*last_cf_node, cf_node);
+            else
+                throw error("unreachable code", &node);
+
+            last_cf_node = cf_node;
+        }
+
         auto expr_info = eval_expr(node.get_expression(), node);
 
-        // Diagnostic
+        // Diagnostic specific
         if (const auto compound = get_current_compound())
             if (const auto scope = expr_info.value_info.scope)
                 if (scope->get_type() == scope::ScopeType::FUNCTION) {
@@ -129,6 +271,7 @@ namespace spade
                         // init(1, 2)   # self ctor call
                         return;
                 }
+
         if (!is<ast::expr::Assignment>(node.get_expression())) {
             switch (expr_info.tag) {
             case ExprInfo::Kind::NORMAL:

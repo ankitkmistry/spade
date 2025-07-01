@@ -62,44 +62,44 @@ namespace spade
 
         template<typename R, typename C1, typename C2>
         std::shared_ptr<R> rule_or(std::function<std::shared_ptr<C1>()> rule1, std::function<std::shared_ptr<C2>()> rule2) {
-            size_t tok_idx = index;
+            size_t parse_point = index;
             try {
                 return spade::cast<R>(rule1());
             } catch (const ParserError &) {
-                index = tok_idx;
+                index = parse_point;
                 return spade::cast<R>(rule2());
             }
         }
 
         template<typename T>
         std::shared_ptr<T> rule_or(std::function<std::shared_ptr<T>()> rule1, std::function<std::shared_ptr<T>()> rule2) {
-            size_t tok_idx = index;
+            size_t parse_point = index;
             try {
                 return rule1();
             } catch (const ParserError &) {
-                index = tok_idx;
+                index = parse_point;
                 return rule2();
             }
         }
 
         template<typename T>
         std::shared_ptr<T> rule_optional(std::shared_ptr<T> (Parser::*rule)()) {
-            size_t tok_idx = index;
+            size_t parse_point = index;
             try {
                 return (this->*rule)();
             } catch (const ParserError &) {
-                index = tok_idx;
+                index = parse_point;
                 return null;
             }
         }
 
         template<typename T>
         std::shared_ptr<T> rule_or(std::shared_ptr<T> (Parser::*rule1)(), std::shared_ptr<T> (Parser::*rule2)()) {
-            size_t tok_idx = index;
+            size_t parse_point = index;
             try {
                 return (this->*rule1)();
             } catch (const ParserError &) {
-                index = tok_idx;
+                index = parse_point;
                 return (this->*rule2)();
             }
         }

@@ -10,38 +10,41 @@
 template<class T, class Equal = std::equal_to<T>>
     requires std::is_copy_constructible_v<T> && std::is_copy_assignable_v<T> && std::is_destructible_v<T>
 class BasicEdge {
-    T m_origin;
-    T m_destination;
+    using EdgeType = std::remove_cvref_t<T>;
+
+    EdgeType m_origin;
+    EdgeType m_destination;
 
   public:
-    BasicEdge() = default /* delete */;
+    BasicEdge() = default;
+    BasicEdge(const BasicEdge<EdgeType, Equal> &) = default;
+    BasicEdge &operator=(const BasicEdge<EdgeType, Equal> &) = default;
+    ~BasicEdge() = default;
 
     template<class U, class V>
     BasicEdge(const U &origin, const V &destination) : m_origin(origin), m_destination(destination) {}
 
-    ~BasicEdge() = default;
-
-    std::pair<T, T> endpoints() const {
+    std::pair<EdgeType, EdgeType> endpoints() const {
         return {m_origin, m_destination};
     }
 
-    std::pair<T &, T &> endpoints() {
+    std::pair<EdgeType &, EdgeType &> endpoints() {
         return {m_origin, m_destination};
     }
 
-    const T &opposite(const T &v) const {
+    const EdgeType &opposite(const EdgeType &v) const {
         return Equal{}(m_origin, v) ? m_destination : m_origin;
     }
 
-    T &opposite(const T &v) {
+    EdgeType &opposite(const EdgeType &v) {
         return Equal{}(m_origin, v) ? m_destination : m_origin;
     }
 
-    const T &origin() const {
+    const EdgeType &origin() const {
         return m_origin;
     }
 
-    const T &destination() const {
+    const EdgeType &destination() const {
         return m_destination;
     }
 };
@@ -59,8 +62,8 @@ concept IsEdge = requires(const EdgeType &edge) {
 };
 
 template<class T, class Equal = std::equal_to<T>, class EdgeType = BasicEdge<T, Equal>, class Hasher = std::hash<T>>
-    requires std::is_default_constructible_v<T> && std::is_copy_constructible_v<T> && std::is_copy_assignable_v<T> &&
-             std::is_destructible_v<T> && IsEdge<EdgeType, T>
+    requires std::is_default_constructible_v<T> && std::is_copy_constructible_v<T> && std::is_copy_assignable_v<T> && std::is_destructible_v<T> &&
+             IsEdge<EdgeType, T>
 class DirectedGraph {
     class EdgeIterator {
       public:
@@ -122,8 +125,7 @@ class DirectedGraph {
         VertexIterator(const VertexIterator &other) = default;
         VertexIterator &operator=(const VertexIterator &other) = default;
 
-        VertexIterator(const typename std::unordered_map<T, std::unordered_map<T, EdgeType, Hasher, Equal>, Hasher,
-                                                         Equal>::const_iterator &begin)
+        VertexIterator(const typename std::unordered_map<T, std::unordered_map<T, EdgeType, Hasher, Equal>, Hasher, Equal>::const_iterator &begin)
             : it(begin) {}
 
         iterator &operator++() {
@@ -196,6 +198,10 @@ class DirectedGraph {
         return Iterable<VertexIterator>(VertexIterator(outgoing.begin()), VertexIterator(outgoing.end()));
     }
 
+    bool is_empty() const {
+        return incoming.empty();    // or outgoing.empty() both are equivalent
+    }
+
     constexpr bool is_directed() const {
         return true;
     }
@@ -216,21 +222,21 @@ class DirectedGraph {
 
     bool contains(const T &vertex_from, const T &vertex_to) const {
         if (outgoing.contains(vertex_from))
-            if (auto m = outgoing[vertex_from]; m.contains(vertex_to))
+            if (const auto &m = outgoing[vertex_from]; m.contains(vertex_to))
                 return true;
         return false;
     }
 
     std::optional<EdgeType> get_edge(const T &vertex_from, const T &vertex_to) const {
         if (outgoing.contains(vertex_from))
-            if (auto m = outgoing[vertex_from]; m.contains(vertex_to))
+            if (auto &m = outgoing[vertex_from]; m.contains(vertex_to))
                 return m[vertex_to];
         return std::nullopt;
     }
 
     std::optional<EdgeType &> get_edge(const T &vertex_from, const T &vertex_to) {
         if (outgoing.contains(vertex_from))
-            if (auto m = outgoing[vertex_from]; m.contains(vertex_to))
+            if (auto &m = outgoing[vertex_from]; m.contains(vertex_to))
                 return m[vertex_to];
         return std::nullopt;
     }
@@ -249,14 +255,14 @@ class DirectedGraph {
 
     template<class... Args>
     void emplace_vertex(Args... args) {
-        T vertex{args...};
+        T vertex{std::forward<Args>(args)...};
         outgoing[vertex] = {};
         incoming[vertex] = {};
     }
 
     template<typename... Args>
     EdgeType insert_edge(const T &vertex_from, const T &vertex_to, Args... args) {
-        EdgeType edge(vertex_from, vertex_to, args...);
+        EdgeType edge(vertex_from, vertex_to, std::forward<Args>(args)...);
         outgoing[vertex_from][vertex_to] = edge;
         incoming[vertex_to][vertex_from] = edge;
         return edge;
@@ -274,7 +280,7 @@ class DirectedGraph {
 
     void remove_edge(const T &vertex_from, const T &vertex_to) {
         if (outgoing.contains(vertex_from))
-            if (auto m = outgoing[vertex_from]; m.contains(vertex_to)) {
+            if (auto &m = outgoing[vertex_from]; m.contains(vertex_to)) {
                 m.erase(vertex_to);
                 incoming[vertex_to].erase(vertex_from);
             }
@@ -282,7 +288,7 @@ class DirectedGraph {
 
     void remove_edge(const EdgeType &edge) {
         if (outgoing.contains(edge.origin()))
-            if (auto m = outgoing[edge.origin()]; m.contains(edge.destination())) {
+            if (auto &m = outgoing[edge.origin()]; m.contains(edge.destination())) {
                 m.erase(edge.destination());
                 incoming[edge.destination()].erase(edge.origin());
             }

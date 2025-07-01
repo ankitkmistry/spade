@@ -13,9 +13,11 @@ namespace spade
         class Scope;
         class Compound;
         class Module;
+        class Variable;
         class Init;
         class Function;
         class FunctionSet;
+        class Block;
     }    // namespace scope
 
     class TypeInfo;
@@ -430,6 +432,16 @@ namespace spade
         string name;
         bool b_used = false;
         scope::Scope *scope = null;
+        const ast::AstNode *node = null;
+    };
+
+    struct StmtInfo {
+        enum class Kind {
+            VAR_USED,
+            VAR_ASSIGNED,
+        } kind;
+
+        const scope::Variable *var = null;
         const ast::AstNode *node = null;
     };
 }    // namespace spade

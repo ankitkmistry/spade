@@ -19,7 +19,7 @@
 #include "analyzer/analyzer.hpp"
 #include "utils/options.hpp"
 
-constexpr const bool ENABLE_BACKTRACE_FILTER = false;
+#define ENABLE_BACKTRACE_FILTER (false)
 
 void compile() {
     using namespace spade;
@@ -85,18 +85,6 @@ void graph_test() {
     }
 }
 
-void opcode_test() {
-    using namespace spade;
-    std::cout << "num opcodes: " << OpcodeInfo::OPCODE_COUNT << "\n";
-    std::cout << std::format("{}          {}   {}\n", "opcode", "p_cnt", "take");
-    std::cout << "-------------------------------\n";
-    for (const auto &opcode: OpcodeInfo::all_opcodes()) {
-        assert(opcode == OpcodeInfo::from_string(OpcodeInfo::to_string(opcode)));
-        std::cout << std::format("{:15} ({})\t{}\n", OpcodeInfo::to_string(opcode), OpcodeInfo::params_count(opcode),
-                                 OpcodeInfo::take_from_const_pool(opcode));
-    }
-}
-
 int main(int argc, char *argv[]) {
     namespace fs = std::filesystem;
     cpptrace::experimental::set_cache_mode(cpptrace::cache_mode::prioritize_memory);
@@ -114,26 +102,26 @@ int main(int argc, char *argv[]) {
         return 0;
     }
     CPPTRACE_CATCH(const std::exception &err) {
-        auto formatter = cpptrace::formatter{}
-                                 .colors(cpptrace::formatter::color_mode::automatic)
-                                 .addresses(cpptrace::formatter::address_mode::object)
-                                 .snippets(false)
-                                 //  .filtered_frame_placeholders(false)
-                                 .filter([](const cpptrace::stacktrace_frame &frame) -> bool {
-                                     if (!ENABLE_BACKTRACE_FILTER)
-                                         return true;
-                                     auto file_path = fs::absolute(fs::path(frame.filename));
-                                     fs::path src_path;
-                                     if (file_path.has_parent_path()) {
-                                         if ((src_path = file_path.parent_path(), file_path.parent_path().stem() == "src") ||
-                                             (file_path.parent_path().has_parent_path() && (src_path = file_path.parent_path().parent_path(),
-                                                                                            file_path.parent_path().parent_path().stem() == "src")))
-                                             return src_path.has_parent_path() && src_path.parent_path().stem() == "spadec";
-                                     }
-                                     return false;
-                                 });
+        const auto formatter =
+                cpptrace::formatter()
+                        .colors(cpptrace::formatter::color_mode::automatic)
+                        .addresses(cpptrace::formatter::address_mode::object)
+                        .snippets(false)
+                        //  .filtered_frame_placeholders(false)
+                        .filter([](const cpptrace::stacktrace_frame &frame) -> bool {
+                            if (!ENABLE_BACKTRACE_FILTER)
+                                return true;
+                            auto file_path = fs::absolute(fs::path(frame.filename));
+                            fs::path src_path;
+                            if (file_path.has_parent_path()) {
+                                if ((src_path = file_path.parent_path(), file_path.parent_path().stem() == "src") ||
+                                    (file_path.parent_path().has_parent_path() &&
+                                     (src_path = file_path.parent_path().parent_path(), file_path.parent_path().parent_path().stem() == "src")))
+                                    return src_path.has_parent_path() && src_path.parent_path().stem() == "spadec";
+                            }
+                            return false;
+                        });
         std::cerr << std::format("exception occurred:\n    {}: {}\n", spade::cpp_demangle(typeid(err).name()), err.what());
-        // cpptrace::from_current_exception().print();
         formatter.print(cpptrace::from_current_exception());
         return 1;
     }

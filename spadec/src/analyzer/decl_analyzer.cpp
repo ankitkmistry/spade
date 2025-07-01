@@ -5,6 +5,7 @@
 #include "scope.hpp"
 #include "symbol_path.hpp"
 #include "utils/error.hpp"
+#include <queue>
 
 namespace spade
 {
@@ -96,7 +97,7 @@ namespace spade
     }
 
     void Analyzer::visit(ast::decl::Function &node) {
-        if (auto fun_level = get_current_scope()->get_enclosing_function();
+        if (const auto fun_level = get_current_scope()->get_enclosing_function();
             get_current_scope()->get_type() == scope::ScopeType::FUNCTION || fun_level) {
             // TODO: check for function level declarations
             return;
@@ -109,7 +110,7 @@ namespace spade
             if (scope->get_proto_eval() == scope::Function::ProtoEval::NOT_STARTED) {
                 scope->set_proto_eval(scope::Function::ProtoEval::PROGRESS);
 
-                if (auto type = node.get_return_type()) {
+                if (const auto &type = node.get_return_type()) {
                     type->accept(this);
                     scope->set_ret_type(_res_type_info);
                 } else {
@@ -158,7 +159,7 @@ namespace spade
 
                 // Check for abstract, final and override functions
                 // This code provides the semantics for the `abstract`, `final` and `override` keywords
-                if (auto compound = get_current_scope()->get_enclosing_compound()) {
+                if (const auto compound = get_current_scope()->get_enclosing_compound()) {
                     if (scope->is_abstract() && !compound->is_abstract())
                         throw error("abstract function cannot be declared in non-abstract class", &node);
                     if (!scope->is_abstract() && compound->get_super_functions().contains(node.get_name()->get_text())) {
@@ -211,7 +212,7 @@ namespace spade
             if (scope->get_enclosing_function() != null) {
                 if (definition == null)
                     throw error("function must have a definition", &node);
-            } else if (auto compound = scope->get_enclosing_compound()) {
+            } else if (const auto compound = scope->get_enclosing_compound()) {
                 switch (compound->get_compound_node()->get_token()->get_type()) {
                 case TokenType::CLASS:
                     if (scope->is_init() && definition == null)
@@ -250,8 +251,35 @@ namespace spade
         }
 
         if (mode == Mode::DEFINITION)
-            if (const auto &definition = node.get_definition())
+            if (const auto &definition = node.get_definition()) {
+                auto &cfg = scope->cfg();
+
+                CFNode start_cf_node(CFNode::Kind::START, &*scope);
+                last_cf_node = start_cf_node;
+                end_cf_node = CFNode(CFNode::Kind::END, &*scope);
+
+                cfg.insert_vertex(*last_cf_node);
+                cfg.insert_vertex(end_cf_node);
+
                 definition->accept(this);
+
+                std::unordered_set<CFNode> visited;
+                std::queue<CFNode> bfsq;    // BFS-queue
+                bfsq.push(start_cf_node);
+                do {
+                    auto &node = bfsq.front();
+                    visited.insert(node);
+                    {
+                        // Do something with node
+                    }
+                    // Add all dest nodes to the back of the q
+                    for (const auto &edge: cfg.edges(node))
+                        if (!visited.contains(edge.destination()))
+                            bfsq.push(edge.destination());
+                    // Remove the current node from the front of the q
+                    bfsq.pop();
+                } while (!bfsq.empty());
+            }
 
         end_scope();    // pop the function
         end_scope();    // pop the function set
@@ -265,15 +293,18 @@ namespace spade
         } else
             scope = find_scope<scope::Variable>(node.get_name()->get_text());
 
-        if (!get_current_function() && !get_current_compound()) {
-            if (scope->is_const() && !node.get_expr())
-                throw error("globals constants should be initialized when declared", &node);
-        }
+        if (scope->is_const() && node.get_expr() == null)
+            throw error("constants should be initialized when declared", &node);
 
         if (scope->get_eval() == scope::Variable::Eval::NOT_STARTED) {
             scope->set_eval(scope::Variable::Eval::PROGRESS);
             // resolve_assign automatically sets eval to DONE
             resolve_assign(node.get_type(), node.get_expr(), node);
+
+            if (get_current_block() && node.get_type() && !node.get_expr() && scope->get_type_info().nullable()) {
+                warning("nullable variable was not initialized, defaulting to 'null' as initial value", &node);
+                help("explicitly initialize variable with 'null'");
+            }
 
             // Diagnostic specific
             scope->get_type_info().increase_usage();
@@ -569,7 +600,7 @@ namespace spade
             switch (node.get_token()->get_type()) {
             case TokenType::CLASS:
                 if (!has_super_class)
-                    if (auto super = get_internal<scope::Compound>(Internal::SPADE_ANY); super != &*scope)
+                    if (const auto super = get_internal<scope::Compound>(Internal::SPADE_ANY); super != &*scope)
                         supers.push_back(super);
                 break;
             case TokenType::INTERFACE:

@@ -40,6 +40,11 @@ namespace spade
                                                                              : get_current_scope()->get_enclosing_function();
     }
 
+    scope::Block *Analyzer::get_current_block() const {
+        return get_current_scope()->get_type() == scope::ScopeType::BLOCK ? cast<scope::Block>(get_current_scope())
+                                                                          : get_current_scope()->get_enclosing_block();
+    }
+
     void Analyzer::load_internal_modules() {
         basic_mode = true;
         std::shared_ptr<scope::Module> basic_module = resolve_file(compiler_options.basic_module_path);
@@ -242,7 +247,7 @@ namespace spade
                 result = &*cur_module->get_variable(name);
             else if (cur_module->has_import(name)) {
                 // Check module imports
-                if (auto opt = cur_module->get_import(name)) {
+                if (const auto opt = cur_module->get_import(name)) {
                     auto &import = **opt;
                     result = import.scope;
                     if (result)
@@ -949,7 +954,7 @@ namespace spade
         if (indexer_info) {
             ErrorGroup<AnalyzerError> errors;
 
-            // mimic as if it was non-nullable because we check nullabilty is already checked in the indexer visitor
+            // mimic as if it was non-nullable because nullabilty is already checked in the indexer visitor
             ExprInfo caller_info;
             caller_info = indexer_info.caller_info;
             caller_info.type_info().nullable() = false;
@@ -1548,8 +1553,23 @@ namespace spade
 
     ExprInfo Analyzer::eval_expr(const std::shared_ptr<ast::Expression> &expr, const ast::AstNode &node) {
         expr->accept(this);
-        if (const auto scope = _res_expr_info.value_info.scope)
+        if (const auto scope = _res_expr_info.value_info.scope) {
             scope->increase_usage();
+
+            // Note down the variable usage and assignments
+            if (scope->get_type() == scope::ScopeType::VARIABLE) {
+                const auto var = cast<scope::Variable>(scope);
+                const auto fn = get_current_function();
+                const auto block = get_current_block();
+                if (fn && block)
+                    if (scope->get_enclosing_function() == fn && scope->get_enclosing_block() != null)
+                        block->add_info(StmtInfo{
+                                .kind = StmtInfo::Kind::VAR_USED,
+                                .var = var,
+                                .node = &node,
+                        });
+            }
+        }
         resolve_indexer(_res_expr_info, true, node);
         return _res_expr_info;
     }
@@ -1750,7 +1770,7 @@ namespace spade
             auto old_cur_scope = get_current_scope();
             cur_scope = &*module_scope;
 
-            if (auto module = std::dynamic_pointer_cast<scope::Module>(module_scope)) {
+            if (const auto module = std::dynamic_pointer_cast<scope::Module>(module_scope)) {
                 for (const auto &[_, import]: module->get_imports()) {
                     if (!import.b_used) {
                         warning("unused import", import.node);

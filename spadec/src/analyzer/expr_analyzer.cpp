@@ -48,8 +48,8 @@ namespace spade
     void Analyzer::visit(ast::expr::Super &node) {
         _res_expr_info.reset();
 
-        if (auto klass = get_current_scope()->get_enclosing_compound()) {
-            if (auto reference = node.get_reference()) {
+        if (const auto klass = get_current_scope()->get_enclosing_compound()) {
+            if (const auto &reference = node.get_reference()) {
                 reference->accept(this);
                 if (!klass->has_super(_res_type_info.basic().type))
                     throw error("invalid super class", &node);
@@ -76,7 +76,7 @@ namespace spade
     void Analyzer::visit(ast::expr::Self &node) {
         _res_expr_info.reset();
 
-        if (auto klass = get_current_scope()->get_enclosing_compound())
+        if (const auto klass = get_current_scope()->get_enclosing_compound())
             _res_expr_info.type_info().basic().type = cast<scope::Compound>(klass);
         else
             throw error("self is only allowed in class level declarations only", &node);
@@ -1093,8 +1093,23 @@ lt_le_ge_gt_common:
                 value_arg.expr_info = right_expr_info;
                 value_arg.node = &*expr_node;
                 indexer_info.arg_infos.push_back(value_arg);
-                if (const auto scope = left_expr_info.value_info.scope)
+                if (const auto scope = left_expr_info.value_info.scope) {
                     scope->increase_usage();
+
+                    // Note down the variable usage and assignments
+                    if (scope->get_type() == scope::ScopeType::VARIABLE) {
+                        const auto var = cast<scope::Variable>(scope);
+                        const auto fn = get_current_function();
+                        const auto block = get_current_block();
+                        if (fn && block)
+                            if (scope->get_enclosing_function() == fn && scope->get_enclosing_block() != null)
+                                block->add_info(StmtInfo{
+                                        .kind = StmtInfo::Kind::VAR_ASSIGNED,
+                                        .var = var,
+                                        .node = &node,
+                                });
+                    }
+                }
                 resolve_indexer(left_expr_info, false, node);
 
                 assert(left_expr_info.type_info().tag == TypeInfo::Kind::BASIC);
