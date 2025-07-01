@@ -457,8 +457,20 @@ namespace spade
         const auto token = expect(TokenType::IF);
         const auto expr = expression();
         const auto body = BODY();
-        const auto else_body = match(TokenType::ELSE) ? BODY() : null;
-        return std::make_shared<ast::stmt::If>(token, expr, body, else_body);
+        if (match(TokenType::ELSE)) {
+            if (peek()->get_type() == TokenType::IF) {
+                const auto else_body = if_stmt();
+                return std::make_shared<ast::stmt::If>(token, expr, body, else_body);
+            } else if (match(TokenType::COLON)) {
+                const auto else_body = statement();
+                return std::make_shared<ast::stmt::If>(token, expr, body, else_body);
+            } else if (peek()->get_type() == TokenType::LBRACE) {
+                const auto else_body = block();
+                return std::make_shared<ast::stmt::If>(token, expr, body, else_body);
+            } else
+                throw error(std::format("expected {}", make_expected_string(TokenType::COLON, TokenType::LBRACE, TokenType::IF)));
+        }
+        return std::make_shared<ast::stmt::If>(token, expr, body, null);
     }
 
     std::shared_ptr<ast::Statement> Parser::while_stmt() {

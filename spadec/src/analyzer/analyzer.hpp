@@ -358,7 +358,7 @@ namespace spade
 
       private:
         bool is_loop = false;
-        std::optional<CFNode> last_cf_node;
+        std::vector<CFNode> last_cf_nodes;
         CFNode end_cf_node;
 
       public:

@@ -255,30 +255,64 @@ namespace spade
                 auto &cfg = scope->cfg();
 
                 CFNode start_cf_node(CFNode::Kind::START, &*scope);
-                last_cf_node = start_cf_node;
+                last_cf_nodes = {start_cf_node};
                 end_cf_node = CFNode(CFNode::Kind::END, &*scope);
 
-                cfg.insert_vertex(*last_cf_node);
+                cfg.insert_vertex(last_cf_nodes[0]);
                 cfg.insert_vertex(end_cf_node);
 
                 definition->accept(this);
 
-                std::unordered_set<CFNode> visited;
-                std::queue<CFNode> bfsq;    // BFS-queue
-                bfsq.push(start_cf_node);
-                do {
-                    auto &node = bfsq.front();
-                    visited.insert(node);
-                    {
-                        // Do something with node
+                // Direct all last cf nodes to the end node
+                for (const auto &cf_node: last_cf_nodes) cfg.insert_edge(cf_node, end_cf_node);
+
+                if (scope->get_ret_type().tag == TypeInfo::Kind::BASIC && scope->get_ret_type().basic().type == get_internal(Internal::SPADE_VOID)) {
+                    // do nothing because this is a void function
+                } else if (scope->is_init()) {
+                    // do nothing because this is a ctor
+                    // ctor implicitly returns `self`
+                } else {
+                    // Iterate over all incoming edges to the end of the function
+                    // And check whether they all come from `return` or `throw`
+                    bool error_state = true;
+                    ErrorGroup<AnalyzerError> errors;
+                    errors.error(error("not all control paths return a value", scope));
+
+                    for (const auto &edge: cfg.edges(end_cf_node, false)) {
+                        const auto &cf_node = edge.origin();
+
+                        if (const auto stmt = cf_node.get_stmt()) {
+                            if (is<const ast::stmt::Return>(stmt) || is<const ast::stmt::Throw>(stmt) || is<const ast::stmt::Yield>(stmt)) {
+                                error_state = false;
+                                continue;
+                            } else {
+                                errors.note(error("control flow passes to the end from here", stmt));
+                            }
+                        }
+                        if (const auto expr = cf_node.get_expr()) {
+                            errors.note(error("control flow passes to the end from here", expr));
+                        }
                     }
-                    // Add all dest nodes to the back of the q
-                    for (const auto &edge: cfg.edges(node))
-                        if (!visited.contains(edge.destination()))
-                            bfsq.push(edge.destination());
-                    // Remove the current node from the front of the q
-                    bfsq.pop();
-                } while (!bfsq.empty());
+                    if (error_state)
+                        throw errors;
+                }
+
+                // std::unordered_set<CFNode> visited;
+                // std::queue<CFNode> bfsq;    // BFS-queue
+                // bfsq.push(start_cf_node);
+                // do {
+                //     auto &node = bfsq.front();
+                //     visited.insert(node);
+                //     {
+                //         // Do something with node
+                //     }
+                //     // Add all dest nodes to the back of the q
+                //     for (const auto &edge: cfg.edges(node))
+                //         if (!visited.contains(edge.destination()))
+                //             bfsq.push(edge.destination());
+                //     // Remove the current node from the front of the q
+                //     bfsq.pop();
+                // } while (!bfsq.empty());
             }
 
         end_scope();    // pop the function
@@ -308,8 +342,20 @@ namespace spade
 
             // Diagnostic specific
             scope->get_type_info().increase_usage();
-            if (node.get_expr())
+            if (node.get_expr()) {
                 scope->set_assigned(true);
+
+                // Note down the variable usage and assignments
+                const auto fn = get_current_function();
+                const auto block = get_current_block();
+                if (fn && block)
+                    if (scope->get_enclosing_function() == fn && scope->get_enclosing_block() != null)
+                        block->add_info(StmtInfo{
+                                .kind = StmtInfo::Kind::VAR_ASSIGNED,
+                                .var = &*scope,
+                                .node = &node,
+                        });
+            }
         }
         end_scope();
     }

@@ -2,6 +2,7 @@
 #include "info.hpp"
 #include "parser/ast.hpp"
 #include "scope.hpp"
+#include "spimp/utils.hpp"
 
 namespace spade
 {
@@ -14,21 +15,21 @@ namespace spade
     }
 
     void Analyzer::visit(ast::stmt::If &node) {
-        // cond:  | if <expr> {    ------+-------+
-        //        |     <stmts...> <-----+       |
-        //        | } else {     <---------------+
-        //        |     <stmts...>
-        //        | }
+        // cond:        |         if <expr> {    ------+-------+
+        //              |             <stmts...> <-----+       |
+        // body_end:    | +------ } else {     <---------------+
+        //              | |           <stmts...>  ----+
+        //              | +-----> }   <---------------+
 
         // Control flow specific
         CFNode cf_cond(*node.get_condition(), get_current_block());
         auto &cfg = get_current_function()->cfg();
         cfg.insert_vertex(cf_cond);
-        if (last_cf_node)
-            cfg.insert_edge(*last_cf_node, cf_cond);
-        else
+        if (last_cf_nodes.empty())
             throw error("unreachable code", &node);
-        last_cf_node = cf_cond;
+        else
+            for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_cond);
+        last_cf_nodes = {cf_cond};
 
         // Evaluate the expression
         eval_expr(node.get_condition(), node);
@@ -36,10 +37,15 @@ namespace spade
         node.get_body()->accept(this);
 
         // Set the last cf node as the condition of the branch
-        last_cf_node = cf_cond;
+        auto cf_body_end = last_cf_nodes;
+        last_cf_nodes = {cf_cond};
+
         // Visit the else body if present
         if (const auto &body = node.get_else_body())
             body->accept(this);
+
+        // Also direct the control flow from the end of the `if` block to the end of the `else` block
+        extend_vec(last_cf_nodes, cf_body_end);
     }
 
     void Analyzer::visit(ast::stmt::While &node) {
@@ -54,11 +60,11 @@ namespace spade
         CFNode cf_loop_start(*node.get_condition(), get_current_block());
         auto &cfg = get_current_function()->cfg();
         cfg.insert_vertex(cf_loop_start);
-        if (last_cf_node)
-            cfg.insert_edge(*last_cf_node, cf_loop_start);
-        else
+        if (last_cf_nodes.empty())
             throw error("unreachable code", &node);
-        last_cf_node = cf_loop_start;
+        else
+            for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_loop_start);
+        last_cf_nodes = {cf_loop_start};
 
         eval_expr(node.get_condition(), node);
 
@@ -68,11 +74,11 @@ namespace spade
         is_loop = old_is_loop_val;
 
         {    // Add the control flow
-            if (last_cf_node)
-                cfg.insert_edge(*last_cf_node, cf_loop_start);
-            else
+            if (last_cf_nodes.empty())
                 throw error("loop is redundant", &node);
-            last_cf_node = cf_loop_start;
+            else
+                for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_loop_start);
+            last_cf_nodes = {cf_loop_start};
         }
 
         if (const auto &body = node.get_else_body())
@@ -93,12 +99,12 @@ namespace spade
         {    // Add the control flow
             cfg.insert_vertex(cf_loop_start);
 
-            if (last_cf_node)
-                cfg.insert_edge(*last_cf_node, cf_loop_start);
-            else
+            if (last_cf_nodes.empty())
                 throw error("unreachable code", &node);
+            else
+                for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_loop_start);
 
-            last_cf_node = cf_loop_start;
+            last_cf_nodes = {cf_loop_start};
         }
 
         bool old_is_loop_val = is_loop;
@@ -110,13 +116,13 @@ namespace spade
             CFNode cf_cond(*node.get_condition(), get_current_block());
             cfg.insert_vertex(cf_cond);
 
-            if (last_cf_node)
-                cfg.insert_edge(*last_cf_node, cf_cond);
+            if (last_cf_nodes.empty())
+                throw error("unreachable code", &node);
             else
-                throw error("loop is redundant", &node);
+                for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_cond);
             cfg.insert_edge(cf_cond, cf_loop_start);
 
-            last_cf_node = cf_cond;
+            last_cf_nodes = {cf_cond};
         }
 
         eval_expr(node.get_condition(), node);
@@ -131,14 +137,14 @@ namespace spade
             auto &cfg = get_current_function()->cfg();
             cfg.insert_vertex(cf_node);
 
-            if (last_cf_node)
-                cfg.insert_edge(*last_cf_node, cf_node);
-            else
+            if (last_cf_nodes.empty())
                 throw error("unreachable code", &node);
+            else
+                for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_node);
 
             cfg.insert_edge(cf_node, end_cf_node);
 
-            last_cf_node = std::nullopt;
+            last_cf_nodes = {};
         }
 
         auto expr_info = eval_expr(node.get_expression(), node);
@@ -202,15 +208,20 @@ namespace spade
             auto &cfg = get_current_function()->cfg();
             cfg.insert_vertex(cf_node);
 
-            if (last_cf_node)
-                cfg.insert_edge(*last_cf_node, cf_node);
-            else
+            if (last_cf_nodes.empty())
                 throw error("unreachable code", &node);
+            else
+                for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_node);
 
             cfg.insert_edge(cf_node, end_cf_node);
 
-            last_cf_node = std::nullopt;
+            last_cf_nodes = {};
         }
+
+        if (get_current_function()->is_init() && node.get_expression())
+            throw ErrorGroup<AnalyzerError>()
+                    .error(error("return statement with value is not allowed in a ctor"))
+                    .help(error("remove the expression of the return statement"));
 
         const auto ret_type = get_current_function()->get_ret_type();
 
@@ -230,15 +241,18 @@ namespace spade
             auto &cfg = get_current_function()->cfg();
             cfg.insert_vertex(cf_node);
 
-            if (last_cf_node)
-                cfg.insert_edge(*last_cf_node, cf_node);
-            else
+            if (last_cf_nodes.empty())
                 throw error("unreachable code", &node);
+            else
+                for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_node);
 
             cfg.insert_edge(cf_node, end_cf_node);
 
-            last_cf_node = std::nullopt;
+            last_cf_nodes = {};
         }
+
+        if (get_current_function()->is_init())
+            throw error("yield statement is not allowed in a ctor");
 
         // TODO: Improve yield statement
         eval_expr(node.get_expression(), node);
@@ -250,12 +264,12 @@ namespace spade
             auto &cfg = get_current_function()->cfg();
             cfg.insert_vertex(cf_node);
 
-            if (last_cf_node)
-                cfg.insert_edge(*last_cf_node, cf_node);
-            else
+            if (last_cf_nodes.empty())
                 throw error("unreachable code", &node);
+            else
+                for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_node);
 
-            last_cf_node = cf_node;
+            last_cf_nodes = {cf_node};
         }
 
         auto expr_info = eval_expr(node.get_expression(), node);
@@ -297,6 +311,19 @@ namespace spade
     }
 
     void Analyzer::visit(ast::stmt::Declaration &node) {
+        {    // Add the control flow
+            CFNode cf_node(node, get_current_block());
+            auto &cfg = get_current_function()->cfg();
+            cfg.insert_vertex(cf_node);
+
+            if (last_cf_nodes.empty())
+                throw error("unreachable code", &node);
+            else
+                for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_node);
+
+            last_cf_nodes = {cf_node};
+        }
+
         auto decl = node.get_declaration();
         if (is<ast::decl::Variable>(decl)) {
             decl->accept(this);

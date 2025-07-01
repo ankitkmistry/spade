@@ -161,7 +161,7 @@ namespace spade
         //              | 'yield' expression
         //              | expression
         std::shared_ptr<ast::Statement> statement();
-        /// if_stmt ::= 'if' expression (':' statement | block) ('else' (':' statement | block))?
+        /// if_stmt ::= 'if' expression (':' statement | block) ('else' (':' statement | block | if_stmt))?
         std::shared_ptr<ast::Statement> if_stmt();
         /// while_stmt ::= 'while' expression (':' statement | block) ('else' (':' statement | block))?
         std::shared_ptr<ast::Statement> while_stmt();
