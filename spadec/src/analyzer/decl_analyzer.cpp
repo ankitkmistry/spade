@@ -5,7 +5,6 @@
 #include "scope.hpp"
 #include "symbol_path.hpp"
 #include "utils/error.hpp"
-#include <queue>
 
 namespace spade
 {
@@ -254,9 +253,10 @@ namespace spade
             if (const auto &definition = node.get_definition()) {
                 auto &cfg = scope->cfg();
 
-                CFNode start_cf_node(CFNode::Kind::START, &*scope);
+                auto start_cf_node = std::make_shared<CFNode>(CFNode::Kind::START, &*scope);
+                end_cf_node = std::make_shared<CFNode>(CFNode::Kind::END, &*scope);
+
                 last_cf_nodes = {start_cf_node};
-                end_cf_node = CFNode(CFNode::Kind::END, &*scope);
 
                 cfg.insert_vertex(last_cf_nodes[0]);
                 cfg.insert_vertex(end_cf_node);
@@ -265,6 +265,13 @@ namespace spade
 
                 // Direct all last cf nodes to the end node
                 for (const auto &cf_node: last_cf_nodes) cfg.insert_edge(cf_node, end_cf_node);
+
+                {    // Track all variables by checking their initialization and usage (by performing DFS on the CFG)
+                    ErrorGroup<AnalyzerError> errors;
+                    track_variables(cfg, start_cf_node, errors);
+                    if (errors)
+                        throw errors;
+                }
 
                 if (scope->get_ret_type().tag == TypeInfo::Kind::BASIC && scope->get_ret_type().basic().type == get_internal(Internal::SPADE_VOID)) {
                     // do nothing because this is a void function
@@ -281,7 +288,7 @@ namespace spade
                     for (const auto &edge: cfg.edges(end_cf_node, false)) {
                         const auto &cf_node = edge.origin();
 
-                        if (const auto stmt = cf_node.get_stmt()) {
+                        if (const auto stmt = cf_node->get_stmt()) {
                             if (is<const ast::stmt::Return>(stmt) || is<const ast::stmt::Throw>(stmt) || is<const ast::stmt::Yield>(stmt)) {
                                 error_state = false;
                                 continue;
@@ -289,30 +296,13 @@ namespace spade
                                 errors.note(error("control flow passes to the end from here", stmt));
                             }
                         }
-                        if (const auto expr = cf_node.get_expr()) {
+                        if (const auto expr = cf_node->get_expr()) {
                             errors.note(error("control flow passes to the end from here", expr));
                         }
                     }
                     if (error_state)
                         throw errors;
                 }
-
-                // std::unordered_set<CFNode> visited;
-                // std::queue<CFNode> bfsq;    // BFS-queue
-                // bfsq.push(start_cf_node);
-                // do {
-                //     auto &node = bfsq.front();
-                //     visited.insert(node);
-                //     {
-                //         // Do something with node
-                //     }
-                //     // Add all dest nodes to the back of the q
-                //     for (const auto &edge: cfg.edges(node))
-                //         if (!visited.contains(edge.destination()))
-                //             bfsq.push(edge.destination());
-                //     // Remove the current node from the front of the q
-                //     bfsq.pop();
-                // } while (!bfsq.empty());
             }
 
         end_scope();    // pop the function
@@ -327,18 +317,14 @@ namespace spade
         } else
             scope = find_scope<scope::Variable>(node.get_name()->get_text());
 
-        if (scope->is_const() && node.get_expr() == null)
-            throw error("constants should be initialized when declared", &node);
+        if (!get_current_function() && !get_current_compound())
+            if (scope->is_const() && node.get_expr() == null)
+                throw error("global constants should be initialized when declared", &node);
 
         if (scope->get_eval() == scope::Variable::Eval::NOT_STARTED) {
             scope->set_eval(scope::Variable::Eval::PROGRESS);
             // resolve_assign automatically sets eval to DONE
             resolve_assign(node.get_type(), node.get_expr(), node);
-
-            if (get_current_block() && node.get_type() && !node.get_expr() && scope->get_type_info().nullable()) {
-                warning("nullable variable was not initialized, defaulting to 'null' as initial value", &node);
-                help("explicitly initialize variable with 'null'");
-            }
 
             // Diagnostic specific
             scope->get_type_info().increase_usage();
@@ -350,11 +336,12 @@ namespace spade
                 const auto block = get_current_block();
                 if (fn && block)
                     if (scope->get_enclosing_function() == fn && scope->get_enclosing_block() != null)
-                        block->add_info(StmtInfo{
-                                .kind = StmtInfo::Kind::VAR_ASSIGNED,
-                                .var = &*scope,
-                                .node = &node,
-                        });
+                        if (last_cf_nodes.size() == 1)
+                            last_cf_nodes[0]->add_info(StmtInfo{
+                                    .kind = StmtInfo::Kind::VAR_ASSIGNED,
+                                    .var = &*scope,
+                                    .node = &node,
+                            });
             }
         }
         end_scope();
@@ -423,7 +410,7 @@ namespace spade
     }
 
     void Analyzer::check_compatible_supers(const std::shared_ptr<scope::Compound> &klass, const std::vector<scope::Compound *> &supers,
-                                           const std::vector<std::shared_ptr<ast::decl::Parent>> &nodes) const {
+                                           const std::vector<std::shared_ptr<ast::decl::Parent>> &nodes) {
         std::unordered_map<string, std::shared_ptr<scope::Variable>> super_fields;
         std::unordered_map<string, FunctionInfo> super_functions;
         // member_table : map[string => vector[Scope]]

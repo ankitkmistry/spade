@@ -22,13 +22,14 @@ namespace spade
         //              | +-----> }   <---------------+
 
         // Control flow specific
-        CFNode cf_cond(*node.get_condition(), get_current_block());
+        auto cf_cond = std::make_shared<CFNode>(*node.get_condition(), get_current_block());
         auto &cfg = get_current_function()->cfg();
         cfg.insert_vertex(cf_cond);
         if (last_cf_nodes.empty())
             throw error("unreachable code", &node);
         else
             for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_cond);
+
         last_cf_nodes = {cf_cond};
 
         // Evaluate the expression
@@ -57,7 +58,7 @@ namespace spade
         //                | }
 
         // Control flow specific
-        CFNode cf_loop_start(*node.get_condition(), get_current_block());
+        auto cf_loop_start = std::make_shared<CFNode>(*node.get_condition(), get_current_block());
         auto &cfg = get_current_function()->cfg();
         cfg.insert_vertex(cf_loop_start);
         if (last_cf_nodes.empty())
@@ -78,6 +79,7 @@ namespace spade
                 throw error("loop is redundant", &node);
             else
                 for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_loop_start);
+            last_cf_nodes.clear();
             last_cf_nodes = {cf_loop_start};
         }
 
@@ -94,7 +96,7 @@ namespace spade
         //                | }
 
         // Control flow specific
-        CFNode cf_loop_start(node, get_current_block());
+        auto cf_loop_start = std::make_shared<CFNode>(node, get_current_block());
         auto &cfg = get_current_function()->cfg();
         {    // Add the control flow
             cfg.insert_vertex(cf_loop_start);
@@ -104,6 +106,7 @@ namespace spade
             else
                 for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_loop_start);
 
+            last_cf_nodes.clear();
             last_cf_nodes = {cf_loop_start};
         }
 
@@ -112,8 +115,8 @@ namespace spade
         node.get_body()->accept(this);
         is_loop = old_is_loop_val;
 
+        auto cf_cond = std::make_shared<CFNode>(*node.get_condition(), get_current_block());
         {    // Add the control flow
-            CFNode cf_cond(*node.get_condition(), get_current_block());
             cfg.insert_vertex(cf_cond);
 
             if (last_cf_nodes.empty())
@@ -122,6 +125,7 @@ namespace spade
                 for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_cond);
             cfg.insert_edge(cf_cond, cf_loop_start);
 
+            last_cf_nodes.clear();
             last_cf_nodes = {cf_cond};
         }
 
@@ -132,8 +136,8 @@ namespace spade
     }
 
     void Analyzer::visit(ast::stmt::Throw &node) {
+        auto cf_node = std::make_shared<CFNode>(node, get_current_block());
         {    // Add the control flow
-            CFNode cf_node(node, get_current_block());
             auto &cfg = get_current_function()->cfg();
             cfg.insert_vertex(cf_node);
 
@@ -144,10 +148,13 @@ namespace spade
 
             cfg.insert_edge(cf_node, end_cf_node);
 
-            last_cf_nodes = {};
+            last_cf_nodes.clear();
+            last_cf_nodes = {cf_node};
         }
 
         auto expr_info = eval_expr(node.get_expression(), node);
+        last_cf_nodes.clear();
+
         switch (expr_info.tag) {
         case ExprInfo::Kind::NORMAL:
             if (expr_info.type_info().tag == TypeInfo::Kind::BASIC &&
@@ -203,8 +210,8 @@ namespace spade
     }
 
     void Analyzer::visit(ast::stmt::Return &node) {
+        auto cf_node = std::make_shared<CFNode>(node, get_current_block());
         {    // Add the control flow
-            CFNode cf_node(node, get_current_block());
             auto &cfg = get_current_function()->cfg();
             cfg.insert_vertex(cf_node);
 
@@ -215,7 +222,8 @@ namespace spade
 
             cfg.insert_edge(cf_node, end_cf_node);
 
-            last_cf_nodes = {};
+            last_cf_nodes.clear();
+            last_cf_nodes = {cf_node};    // to let eval_expr() use it
         }
 
         if (get_current_function()->is_init() && node.get_expression())
@@ -233,11 +241,14 @@ namespace spade
             resolve_assign(ret_type, expr_info, node);
         } else
             throw error("return statement must have an expression", &node);
+
+        // Control flow specific
+        last_cf_nodes.clear();
     }
 
     void Analyzer::visit(ast::stmt::Yield &node) {
+        auto cf_node = std::make_shared<CFNode>(node, get_current_block());
         {    // Add the control flow
-            CFNode cf_node(node, get_current_block());
             auto &cfg = get_current_function()->cfg();
             cfg.insert_vertex(cf_node);
 
@@ -248,7 +259,8 @@ namespace spade
 
             cfg.insert_edge(cf_node, end_cf_node);
 
-            last_cf_nodes = {};
+            last_cf_nodes.clear();
+            last_cf_nodes = {cf_node};
         }
 
         if (get_current_function()->is_init())
@@ -256,11 +268,14 @@ namespace spade
 
         // TODO: Improve yield statement
         eval_expr(node.get_expression(), node);
+
+        // Control flow specific
+        last_cf_nodes.clear();
     }
 
     void Analyzer::visit(ast::stmt::Expr &node) {
+        auto cf_node = std::make_shared<CFNode>(*node.get_expression(), get_current_block());
         {    // Add the control flow
-            CFNode cf_node(*node.get_expression(), get_current_block());
             auto &cfg = get_current_function()->cfg();
             cfg.insert_vertex(cf_node);
 
@@ -269,6 +284,7 @@ namespace spade
             else
                 for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_node);
 
+            last_cf_nodes.clear();
             last_cf_nodes = {cf_node};
         }
 
@@ -292,27 +308,32 @@ namespace spade
             case ExprInfo::Kind::STATIC:
                 switch (expr_info.type_info().tag) {
                 case TypeInfo::Kind::BASIC:
-                    if (expr_info.type_info().basic().type != get_internal(Internal::SPADE_VOID))
+                    if (expr_info.type_info().basic().type != get_internal(Internal::SPADE_VOID)) {
                         warning("value of the expression is unused", &node);
+                        end_warning();
+                    }
                     break;
                 case TypeInfo::Kind::FUNCTION:
                     warning("value of the expression is unused", &node);
+                    end_warning();
                     break;
                 }
                 break;
             case ExprInfo::Kind::MODULE:
                 warning("value of the expression is unused", &node);
+                end_warning();
                 break;
             case ExprInfo::Kind::FUNCTION_SET:
                 warning("value of the expression is unused", &node);
+                end_warning();
                 break;
             }
         }
     }
 
     void Analyzer::visit(ast::stmt::Declaration &node) {
+        auto cf_node = std::make_shared<CFNode>(node, get_current_block());
         {    // Add the control flow
-            CFNode cf_node(node, get_current_block());
             auto &cfg = get_current_function()->cfg();
             cfg.insert_vertex(cf_node);
 
@@ -321,6 +342,7 @@ namespace spade
             else
                 for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_node);
 
+            last_cf_nodes.clear();
             last_cf_nodes = {cf_node};
         }
 
@@ -330,6 +352,7 @@ namespace spade
         } else {
             // TODO: implement this
             warning("declarations other than variables and constants are not implemented yet", &node);
+            end_warning();
         }
     }
 }    // namespace spade

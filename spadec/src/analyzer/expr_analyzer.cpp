@@ -94,7 +94,6 @@ namespace spade
     }
 
     void Analyzer::visit(ast::expr::Call &node) {
-        node.get_caller()->accept(this);
         auto caller_info = eval_expr(node.get_caller(), node);
 
         std::vector<ArgumentInfo> arg_infos;
@@ -125,6 +124,7 @@ namespace spade
             case TypeInfo::Kind::BASIC:
                 if (caller_info.type_info().basic().is_type_literal()) {
                     warning("'type' causes dynamic resolution, hence expression becomes 'spade.any?'", &node);
+                    end_warning();
                     _res_expr_info.tag = ExprInfo::Kind::NORMAL;
                     _res_expr_info.type_info().basic().type = get_internal<scope::Compound>(Internal::SPADE_ANY);
                     _res_expr_info.type_info().nullable() = true;
@@ -175,6 +175,7 @@ namespace spade
 
             if (caller_info.type_info().basic().is_type_literal()) {
                 warning("'type' causes dynamic resolution, hence expression becomes 'spade.any?'", &node);
+                end_warning();
                 _res_expr_info.tag = ExprInfo::Kind::NORMAL;
                 _res_expr_info.type_info().basic().type = get_internal<scope::Compound>(Internal::SPADE_ANY);
                 _res_expr_info.type_info().nullable() = true;
@@ -407,6 +408,7 @@ namespace spade
 
             if (type_info.basic().is_type_literal()) {
                 warning("'type' causes dynamic resolution, hence expression becomes 'spade.any?'", &node);
+                end_warning();
                 _res_expr_info.tag = ExprInfo::Kind::NORMAL;
                 _res_expr_info.type_info().basic().type = get_internal<scope::Compound>(Internal::SPADE_ANY);
                 _res_expr_info.type_info().nullable() = true;
@@ -509,6 +511,7 @@ namespace spade
         if (expr_info.is_null()) {
             if (node.get_safe()) {
                 warning("expression is always 'null'", &node);
+                end_warning();
                 _res_expr_info.value_info.b_null = true;
             } else
                 throw error("cannot cast 'null'", &node);
@@ -521,6 +524,7 @@ namespace spade
         case TypeInfo::Kind::BASIC:
             if (type_cast_info.basic().is_type_literal()) {
                 warning("'type' causes dynamic resolution, hence expression becomes 'spade.any?'", &node);
+                end_warning();
                 _res_expr_info.type_info().basic().type = get_internal<scope::Compound>(Internal::SPADE_ANY);
                 _res_expr_info.type_info().nullable() = true;
             } else {
@@ -628,6 +632,7 @@ namespace spade
             auto type_info = left_expr_info.type_info();
             if (type_info.tag == TypeInfo::Kind::BASIC && type_info.basic().is_type_literal()) {
                 warning("'type' causes dynamic resolution, hence expression becomes 'spade.any?'", &node);
+                end_warning();
                 _res_expr_info.tag = ExprInfo::Kind::NORMAL;
                 _res_expr_info.type_info().basic().type = get_internal<scope::Compound>(Internal::SPADE_ANY);
                 _res_expr_info.type_info().nullable() = true;
@@ -645,6 +650,7 @@ namespace spade
             auto type_info = right_expr_info.type_info();
             if (type_info.tag == TypeInfo::Kind::BASIC && type_info.basic().is_type_literal()) {
                 warning("'type' causes dynamic resolution, hence expression becomes 'spade.any?'", &node);
+                end_warning();
                 _res_expr_info.tag = ExprInfo::Kind::NORMAL;
                 _res_expr_info.type_info().basic().type = get_internal<scope::Compound>(Internal::SPADE_ANY);
                 _res_expr_info.type_info().nullable() = true;
@@ -662,10 +668,14 @@ namespace spade
         _res_expr_info.tag = ExprInfo::Kind::NORMAL;
         switch (node.get_op1()->get_type()) {
         case TokenType::ELVIS: {
-            if (left_expr_info.is_null())
+            if (left_expr_info.is_null()) {
                 warning(std::format("left hand expression of '{}' operator is never evaluated", op_str), node.get_left());
-            if (!left_expr_info.type_info().nullable())
+                end_warning();
+            }
+            if (!left_expr_info.type_info().nullable()) {
                 warning(std::format("right hand expression of '{}' operator is never evaluated", op_str), node.get_right());
+                end_warning();
+            }
             if (left_expr_info.is_null() && right_expr_info.is_null()) {
                 _res_expr_info.type_info().basic().type = get_internal<scope::Compound>(Internal::SPADE_ANY);
             } else if (left_expr_info.is_null()) {
@@ -859,6 +869,7 @@ namespace spade
                     auto type_info = left_expr_info.type_info();
                     if (type_info.tag == TypeInfo::Kind::BASIC && type_info.basic().is_type_literal()) {
                         warning("'type' causes dynamic resolution", &node);
+                        end_warning();
                         continue;
                     }
                     break;
@@ -875,6 +886,7 @@ namespace spade
                     auto type_info = right_expr_info.type_info();
                     if (type_info.tag == TypeInfo::Kind::BASIC && type_info.basic().is_type_literal()) {
                         warning("'type' causes dynamic resolution", &node);
+                        end_warning();
                         continue;
                     }
                     break;
@@ -1062,7 +1074,8 @@ lt_le_ge_gt_common:
                 // TODO: visit lambda body
                 fun.return_type().basic().type = get_internal<scope::Compound>(Internal::SPADE_VOID);
                 warning(std::format("cannot infer return type for lambda, defaulting to '{}'", fun.return_type().to_string()), &node);
-                help(std::format("explicitly mention return type: '-> {}'", fun.return_type().to_string()));
+                help(std::format("explicitly mention return type: '-> {}'", fun.return_type().to_string(false)));
+                end_warning();
             }
         }
         // Return a function type
@@ -1083,6 +1096,26 @@ lt_le_ge_gt_common:
             assignee_node->accept(this);
             auto left_expr_info = _res_expr_info;
 
+            if (const auto scope = left_expr_info.value_info.scope) {
+                scope->increase_usage();
+
+                // Note down the variable usage and assignments
+                if (scope->get_type() == scope::ScopeType::VARIABLE) {
+                    const auto var = cast<scope::Variable>(scope);
+                    const auto fn = get_current_function();
+                    const auto block = get_current_block();
+                    if (fn && block)
+                        if (scope->get_enclosing_function() == fn && scope->get_enclosing_block() != null)
+                            if (last_cf_nodes.size() == 1)
+                                last_cf_nodes[0]->add_info(StmtInfo{
+                                        .kind = StmtInfo::Kind::VAR_ASSIGNED,
+                                        .var = var,
+                                        .node = &node,
+                                });
+                }
+            } else if (const auto param_info = _res_expr_info.value_info.param_info)
+                param_info->b_used = true;
+
             if (indexer_info) {
                 if (node.get_op1()->get_type() != TokenType::EQUAL)
                     throw error("augmented assignment on an indexer is not allowed", &node);
@@ -1093,23 +1126,7 @@ lt_le_ge_gt_common:
                 value_arg.expr_info = right_expr_info;
                 value_arg.node = &*expr_node;
                 indexer_info.arg_infos.push_back(value_arg);
-                if (const auto scope = left_expr_info.value_info.scope) {
-                    scope->increase_usage();
 
-                    // Note down the variable usage and assignments
-                    if (scope->get_type() == scope::ScopeType::VARIABLE) {
-                        const auto var = cast<scope::Variable>(scope);
-                        const auto fn = get_current_function();
-                        const auto block = get_current_block();
-                        if (fn && block)
-                            if (scope->get_enclosing_function() == fn && scope->get_enclosing_block() != null)
-                                block->add_info(StmtInfo{
-                                        .kind = StmtInfo::Kind::VAR_ASSIGNED,
-                                        .var = var,
-                                        .node = &node,
-                                });
-                    }
-                }
                 resolve_indexer(left_expr_info, false, node);
 
                 assert(left_expr_info.type_info().tag == TypeInfo::Kind::BASIC);
@@ -1184,8 +1201,10 @@ lt_le_ge_gt_common:
     } while (false)
                 switch (node.get_op1()->get_type()) {
                 case TokenType::ELVIS:
-                    if (!left_expr_info.type_info().nullable())
+                    if (!left_expr_info.type_info().nullable()) {
                         warning(std::format("right hand expression of '{}' operator is never evaluated", op_str), expr_node);
+                        end_warning();
+                    }
                     if (left_expr_info.type_info().basic().type != right_expr_info.type_info().basic().type) {
                         throw error("cannot infer type of the expression", &node);
                     } else

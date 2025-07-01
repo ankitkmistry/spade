@@ -227,6 +227,8 @@ namespace spade
         bool b_self = false;
         /// The scope of the value referring to
         scope::Scope *scope = null;
+        /// The scope of the value referring to
+        ParamInfo *param_info = null;
 
         void reset() {
             b_lvalue = false;
@@ -364,19 +366,32 @@ namespace spade
     };
 
     struct ParamInfo {
+        /// flag if the param has been used
+        bool b_used = false;
+        /// flag if the param is const
         bool b_const = false;
+        /// flag if the param is variadic
         bool b_variadic = false;
+        /// flag if the param is default
         bool b_default = false;
+        /// flag if the param is keyword only
         bool b_kwd_only = false;
+        /// name of the param
         string name;
+        /// type of the param
         TypeInfo type_info;
+        /// ast node of the param
         ast::AstNode *node = null;
 
         void reset() {
+            b_used = false;
             b_const = false;
             b_variadic = false;
+            b_default = false;
+            b_kwd_only = false;
             name.clear();
             type_info.reset();
+            node = null;
         }
 
         bool operator==(const ParamInfo &other) const;
@@ -407,6 +422,7 @@ namespace spade
             b_kwd = false;
             name.clear();
             expr_info.reset();
+            node = null;
         }
 
         string to_string(bool decorated = true) const;

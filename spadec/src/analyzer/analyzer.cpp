@@ -157,31 +157,34 @@ namespace spade
             if (scope->get_type() == scope::ScopeType::FUNCTION) {
                 // Check for parameters
                 const auto function = cast<scope::Function>(scope);
-                for (const auto &param: function->get_pos_only_params()) {
+                for (auto &param: function->get_pos_only_params()) {
                     if (param.name == name) {
                         expr_info.tag = ExprInfo::Kind::NORMAL;
                         expr_info.value_info.b_const = param.b_const;
                         expr_info.value_info.b_lvalue = true;
+                        expr_info.value_info.param_info = &param;
                         expr_info.type_info() = param.type_info;
                         return expr_info;
                     }
                     names.insert(param.name);
                 }
-                for (const auto &param: function->get_pos_kwd_params()) {
+                for (auto &param: function->get_pos_kwd_params()) {
                     if (param.name == name) {
                         expr_info.tag = ExprInfo::Kind::NORMAL;
                         expr_info.value_info.b_const = param.b_const;
                         expr_info.value_info.b_lvalue = true;
+                        expr_info.value_info.param_info = &param;
                         expr_info.type_info() = param.type_info;
                         return expr_info;
                     }
                     names.insert(param.name);
                 }
-                for (const auto &param: function->get_kwd_only_params()) {
+                for (auto &param: function->get_kwd_only_params()) {
                     if (param.name == name) {
                         expr_info.tag = ExprInfo::Kind::NORMAL;
                         expr_info.value_info.b_const = param.b_const;
                         expr_info.value_info.b_lvalue = true;
+                        expr_info.value_info.param_info = &param;
                         expr_info.type_info() = param.type_info;
                         return expr_info;
                     }
@@ -272,7 +275,7 @@ namespace spade
         if (!result && !basic_mode && internals[Analyzer::Internal::SPADE]->has_variable(name)) {
             result = &*internals[Analyzer::Internal::SPADE]->get_variable(name);
         }
-        if (!basic_mode)
+        if (!result && !basic_mode)
             for (const auto &[name, _]: internals[Analyzer::Internal::SPADE]->get_members()) names.insert(name);
 
         // Yell if the scope cannot be located
@@ -348,7 +351,7 @@ namespace spade
     //
     // If no accessor is provided then the default accessor is taken to be `module private`
     void Analyzer::resolve_context(const scope::Scope *from_scope, const scope::Scope *to_scope, const ast::AstNode &node,
-                                   ErrorGroup<AnalyzerError> &errors) const {
+                                   ErrorGroup<AnalyzerError> &errors) {
         auto cur_mod = from_scope->get_enclosing_module();
         auto scope_mod = to_scope->get_enclosing_module();
 
@@ -463,14 +466,14 @@ namespace spade
         }
     }
 
-    void Analyzer::resolve_context(const scope::Scope *scope, const ast::AstNode &node) const {
+    void Analyzer::resolve_context(const scope::Scope *scope, const ast::AstNode &node) {
         ErrorGroup<AnalyzerError> errors;
         resolve_context(get_current_scope(), scope, node, errors);
         if (errors)
             throw errors;
     }
 
-    void Analyzer::resolve_context(const std::shared_ptr<scope::Scope> scope, const ast::AstNode &node) const {
+    void Analyzer::resolve_context(const std::shared_ptr<scope::Scope> scope, const ast::AstNode &node) {
         ErrorGroup<AnalyzerError> errors;
         resolve_context(get_current_scope(), &*scope, node, errors);
         if (errors)
@@ -494,9 +497,10 @@ namespace spade
 
         {
             const auto report_err = [&] {
-                if (safe)
+                if (safe) {
                     warning("expression is always 'null'", &node);
-                else
+                    end_warning();
+                } else
                     throw error(std::format("cannot cast '{}' to '{}'", from->to_string(), to->to_string()), &node);
             };
             // Hardcoded conversions supported by the compiler
@@ -1007,6 +1011,7 @@ namespace spade
             expr_info.type_info().nullable() = true;
             warning(std::format("type inference is ambiguous, defaulting to '{}'", expr_info.type_info().to_string()), &node);
             note("declared here", var_scope);
+            end_warning();
             break;
         case scope::Variable::Eval::DONE:
             expr_info.type_info() = var_scope->get_type_info();
@@ -1063,7 +1068,7 @@ namespace spade
     // - [6] optional    kwd_only_variadic
     //
     // Then, each of the items in the above list is evaluated accordingly.
-    void Analyzer::check_funs(const scope::Function *fun1, const scope::Function *fun2, ErrorGroup<AnalyzerError> &errors) const {
+    void Analyzer::check_funs(const scope::Function *fun1, const scope::Function *fun2, ErrorGroup<AnalyzerError> &errors) {
 #define AMBIGUOUS()                                                                                                                                  \
     do {                                                                                                                                             \
         errors.error(error(std::format("ambiguous declaration of '{}'", fun1->to_string()), fun1))                                                   \
@@ -1315,6 +1320,7 @@ namespace spade
             }
             if (caller_info.type_info().basic().is_type_literal()) {
                 warning("'type' causes dynamic resolution, hence expression becomes 'spade.any?'", &node);
+                end_warning();
                 expr_info.tag = ExprInfo::Kind::NORMAL;
                 expr_info.type_info().basic().type = get_internal<scope::Compound>(Internal::SPADE_ANY);
                 expr_info.type_info().nullable() = true;
@@ -1399,6 +1405,7 @@ namespace spade
             }
             if (caller_info.type_info().basic().is_type_literal()) {
                 warning("'type' causes dynamic resolution, hence expression becomes 'spade.any?'", &node);
+                end_warning();
                 expr_info.tag = ExprInfo::Kind::NORMAL;
                 expr_info.type_info().basic().type = get_internal<scope::Compound>(Internal::SPADE_ANY);
                 expr_info.type_info().nullable() = true;
@@ -1563,15 +1570,51 @@ namespace spade
                 const auto block = get_current_block();
                 if (fn && block)
                     if (scope->get_enclosing_function() == fn && scope->get_enclosing_block() != null)
-                        block->add_info(StmtInfo{
-                                .kind = StmtInfo::Kind::VAR_USED,
-                                .var = var,
-                                .node = &node,
-                        });
+                        if (last_cf_nodes.size() == 1)
+                            last_cf_nodes[0]->add_info(StmtInfo{
+                                    .kind = StmtInfo::Kind::VAR_USED,
+                                    .var = var,
+                                    .node = &node,
+                            });
             }
+        } else if (const auto param_info = _res_expr_info.value_info.param_info) {
+            param_info->b_used = true;
         }
         resolve_indexer(_res_expr_info, true, node);
         return _res_expr_info;
+    }
+
+    void Analyzer::track_variables(const DirectedGraph<std::shared_ptr<CFNode>> &cfg, const std::shared_ptr<CFNode> &node,
+                                   ErrorGroup<AnalyzerError> &errors, std::unordered_set<const scope::Variable *> state, bool entry) {
+        // Q: Why `state` is not const reference?
+        // A: To let every recursive invocation of this function have independent state. This also lets us to copy
+        //    the state to the next invocation without tampering it, so that each destination gets a fresh state to work with.
+
+        static std::unordered_set<std::shared_ptr<CFNode>> visited;
+        visited.insert(node);    // Mark as visited
+
+        // Track the variables
+        for (const auto &info: node->get_infos()) {
+            switch (info.kind) {
+            case StmtInfo::Kind::VAR_USED:
+                if (!state.contains(info.var))
+                    errors.error(error(std::format("'{}' may be uninitialized", info.var->to_string()), info.node))
+                            .note(error("declared here", info.var))
+                            .help(error(std::format("initialize '{}' before usage", info.var->to_string())));
+                break;
+            case StmtInfo::Kind::VAR_ASSIGNED:
+                state.insert(info.var);
+                break;
+            }
+        }
+
+        // Traverse the other destination nodes
+        for (const auto &edge: cfg.edges(node)) {
+            if (!visited.contains(edge.destination()))
+                track_variables(cfg, edge.destination(), errors, state, false);
+        }
+        if (entry)    // If this was first call (not recursive) then clean up the visited set
+            visited.clear();
     }
 
     std::shared_ptr<scope::Module> Analyzer::resolve_file(const fs::path &path) {
@@ -1664,26 +1707,39 @@ namespace spade
                     if (scope->get_usage_count() == 0) {
                         warning(std::format("'{}' was never used", scope->to_string()), scope);
                         help(std::format("rename '{0:}' to '_{0:}' if you mean to keep it", name));
-                        help(std::format("remove '{:}' as it is never used", name));
+                        help(std::format("remove '{}' as it is never used", name));
                         help(std::format("declare '{}' as 'public'", scope->to_string()));
+                        end_warning();
                     }
                 break;
-            case scope::ScopeType::FUNCTION:
-                if (!cast<scope::Function>(scope)->is_public())
+            case scope::ScopeType::FUNCTION: {
+                const auto fun = cast<scope::Function>(scope);
+                if (!fun->is_public())
                     if (scope->get_usage_count() == 0) {
                         warning(std::format("'{}' was never used", scope->to_string()), scope);
                         help(std::format("rename '{0:}' to '_{0:}' if you mean to keep it", name));
-                        help(std::format("remove '{:}' as it is never used", name));
+                        help(std::format("remove '{}' as it is never used", name));
                         help(std::format("declare '{}' as 'public'", scope->to_string()));
+                        end_warning();
                     }
+                for (const auto &param: fun->get_pos_only_params()) {
+                    if (!param.b_used && param.name[0] != '_') {
+                        warning(std::format("'param {}' was never used", param.name), param.node);
+                        help(std::format("rename '{0:}' to '_{0:}' if you mean to keep it", param.name));
+                        help(std::format("remove '{}' as it is never used", param.name));
+                        end_warning();
+                    }
+                }
                 break;
+            }
             case scope::ScopeType::ENUMERATOR:
                 if (!scope->get_enclosing_compound()->is_public())
                     if (scope->get_usage_count() == 0) {
                         warning(std::format("'{}' was never used", scope->to_string()), scope);
                         help(std::format("rename '{0:}' to '_{0:}' if you mean to keep it", name));
-                        help(std::format("remove '{:}' as it is never used", name));
+                        help(std::format("remove '{}' as it is never used", name));
                         help(std::format("declare '{}' as 'public'", scope->get_enclosing_compound()->to_string()));
+                        end_warning();
                     }
                 break;
             case scope::ScopeType::VARIABLE: {
@@ -1693,27 +1749,31 @@ namespace spade
                         if (var->get_usage_count() == 0) {
                             warning("constant was never accessed", var);
                             help(std::format("rename '{0:}' to '_{0:}' if you mean to keep it", name));
-                            help(std::format("remove '{:}' as it is never used", name));
+                            help(std::format("remove '{}' as it is never used", name));
                             if (show_publicity)
                                 help(std::format("declare '{}' as 'public'", var->to_string()));
+                            end_warning();
                         }
                     } else {
                         if (var->get_usage_count() == 0 && !var->is_assigned()) {
                             warning("variable was never accessed or assigned", var);
                             help(std::format("rename '{0:}' to '_{0:}' if you mean to keep it", name));
-                            help(std::format("remove '{:}' as it is never used", name));
+                            help(std::format("remove '{}' as it is never used", name));
                             if (show_publicity)
                                 help(std::format("declare '{}' as 'public'", var->to_string()));
+                            end_warning();
                         } else if (var->get_usage_count() == 0) {
                             warning("variable was never accessed", var);
                             help(std::format("rename '{0:}' to '_{0:}' if you mean to keep it", name));
-                            help(std::format("remove '{:}' as it is never used", name));
+                            help(std::format("remove '{}' as it is never used", name));
                             if (show_publicity)
                                 help(std::format("declare '{}' as 'public'", var->to_string()));
+                            end_warning();
                         } else if (!var->is_assigned()) {
                             warning("variable was never assigned", var);
                             if (show_publicity)
                                 help(std::format("declare '{}' as 'public'", var->to_string()));
+                            end_warning();
                         }
                     }
                 };
@@ -1775,12 +1835,14 @@ namespace spade
                     if (!import.b_used) {
                         warning("unused import", import.node);
                         help("remove the import declaration");
+                        end_warning();
                     }
                 }
                 for (const auto &import: module->get_open_imports()) {
                     if (!import.b_used) {
                         warning("unused import", import.node);
                         help("remove the import declaration");
+                        end_warning();
                     }
                 }
             }

@@ -5,6 +5,7 @@
 #include "parser/ast.hpp"
 #include "info.hpp"
 #include "scope.hpp"
+#include "utils/graph.hpp"
 #include "utils/options.hpp"
 
 namespace spade
@@ -105,15 +106,15 @@ namespace spade
         ExprInfo resolve_name(const string &name, const ast::AstNode &node);
 
         void resolve_context(const scope::Scope *from_scope, const scope::Scope *to_scope, const ast::AstNode &node,
-                             ErrorGroup<AnalyzerError> &errors) const;
+                             ErrorGroup<AnalyzerError> &errors);
 
         /**
          * Performs context resolution for scope in relation with the current scope
          * @param scope the requested scope
          * @param node the source ast node used for error messages
          */
-        void resolve_context(const scope::Scope *scope, const ast::AstNode &node) const;
-        void resolve_context(const std::shared_ptr<scope::Scope> scope, const ast::AstNode &node) const;
+        void resolve_context(const scope::Scope *scope, const ast::AstNode &node);
+        void resolve_context(const std::shared_ptr<scope::Scope> scope, const ast::AstNode &node);
 
         /// Performs cast checking
         void check_cast(scope::Compound *from, scope::Compound *to, const ast::AstNode &node, bool safe);
@@ -201,7 +202,7 @@ namespace spade
          * @param fun2 the second function
          * @param errors the place where errors are to be reported
          */
-        void check_funs(const scope::Function *fun1, const scope::Function *fun2, ErrorGroup<AnalyzerError> &errors) const;
+        void check_funs(const scope::Function *fun1, const scope::Function *fun2, ErrorGroup<AnalyzerError> &errors);
 
         /**
          * Checks whether all the functions in @p fun_set are well formed 
@@ -213,7 +214,7 @@ namespace spade
         static bool check_fun_exactly_same(const scope::Function *fun1, const scope::Function *fun2);
 
         void check_compatible_supers(const std::shared_ptr<scope::Compound> &klass, const std::vector<scope::Compound *> &supers,
-                                     const std::vector<std::shared_ptr<ast::decl::Parent>> &nodes) const;
+                                     const std::vector<std::shared_ptr<ast::decl::Parent>> &nodes);
 
         ExprInfo get_member(const ExprInfo &caller_info, const string &member_name, bool safe, const ast::AstNode &node,
                             ErrorGroup<AnalyzerError> &errors);
@@ -222,6 +223,9 @@ namespace spade
         ExprInfo get_member(const ExprInfo &caller_info, const string &member_name, const ast::AstNode &node);
 
         ExprInfo eval_expr(const std::shared_ptr<ast::Expression> &expr, const ast::AstNode &node);
+
+        void track_variables(const DirectedGraph<std::shared_ptr<CFNode>> &cfg, const std::shared_ptr<CFNode> &node,
+                             ErrorGroup<AnalyzerError> &errors, std::unordered_set<const scope::Variable *> state = {}, bool entry = true);
 
         // Analyzer diagnostics
         void check_usages(const std::shared_ptr<scope::Scope> &scope);
@@ -232,18 +236,35 @@ namespace spade
 
         ErrorPrinter printer;
 
-        inline AnalyzerError error(const string &msg) const {
+        bool _warning_nl = false;
+
+        inline AnalyzerError error(const string &msg) {
+            if (_warning_nl) {
+                std::cout << std::endl;
+                _warning_nl = false;
+            }
+
             return AnalyzerError(msg, get_current_module()->get_module_node()->get_file_path(), static_cast<ast::AstNode *>(null));
         }
 
         template<typename T>
-        AnalyzerError error(const string &msg, LineInfoVector<T> node) const {
+        AnalyzerError error(const string &msg, LineInfoVector<T> node) {
+            if (_warning_nl) {
+                std::cout << std::endl;
+                _warning_nl = false;
+            }
+
             return AnalyzerError(msg, get_current_module()->get_module_node()->get_file_path(), node);
         }
 
         template<typename T>
             requires ast::HasLineInfo<const T *>
-        AnalyzerError error(const string &msg, const T *node) const {
+        AnalyzerError error(const string &msg, const T *node) {
+            if (_warning_nl) {
+                std::cout << std::endl;
+                _warning_nl = false;
+            }
+
             if constexpr (std::derived_from<T, scope::Scope>) {
                 if constexpr (std::same_as<T, scope::Module>) {
                     return AnalyzerError(msg, node->get_module_node()->get_file_path(), node);
@@ -256,7 +277,12 @@ namespace spade
 
         template<typename T>
             requires ast::HasLineInfo<const std::shared_ptr<T> &>
-        AnalyzerError error(const string &msg, const std::shared_ptr<T> &node) const {
+        AnalyzerError error(const string &msg, const std::shared_ptr<T> &node) {
+            if (_warning_nl) {
+                std::cout << std::endl;
+                _warning_nl = false;
+            }
+
             if constexpr (std::derived_from<T, scope::Scope>) {
                 if constexpr (std::same_as<T, scope::Module>) {
                     return AnalyzerError(msg, node->get_module_node()->get_file_path(), node);
@@ -268,17 +294,25 @@ namespace spade
         }
 
         template<ast::HasLineInfo T>
-        void warning(const string &msg, T node) const {
+        void warning(const string &msg, T node) {
+            if (_warning_nl) {
+                std::cout << std::endl;
+                _warning_nl = false;
+            }
             printer.print(ErrorType::WARNING, error(msg, std::forward<T>(node)));
         }
 
         template<ast::HasLineInfo T>
-        void note(const string &msg, T node) const {
+        void note(const string &msg, T node) {
             printer.print(ErrorType::NOTE, error(msg, node));
         }
 
-        void help(const string &msg) const {
+        void help(const string &msg) {
             printer.print(ErrorType::HELP, error(msg));
+        }
+
+        void end_warning() {
+            _warning_nl = true;
         }
 
         inline std::shared_ptr<scope::Block> begin_block(ast::stmt::Block &node) {
@@ -358,8 +392,8 @@ namespace spade
 
       private:
         bool is_loop = false;
-        std::vector<CFNode> last_cf_nodes;
-        CFNode end_cf_node;
+        std::vector<std::shared_ptr<CFNode>> last_cf_nodes;
+        std::shared_ptr<CFNode> end_cf_node;
 
       public:
         // Statement visitor

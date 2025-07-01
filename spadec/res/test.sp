@@ -69,13 +69,26 @@ class Kacha {
 	public fun get_ammo() {}
 }
 
+public fun kacha_test() {
+	var kacha: Kacha = Kacha()
+	# kacha.get_amo() # show a beautiful error message
+	{}
+	if true {
+		kacha = Kacha()
+		kacha.get_aam()
+	} else {
+		if true {
+			kacha = Kacha()
+			kacha.get_aam()
+		} else {
+			kacha.get_amro()
+		}
+	}
+}
+
 public fun main() { 
 	var text = "hello, world"
 	text = text[::-1] # "dlrow ,olleh"
-
-	var kacha: Kacha = Kacha()
-	kacha.get_aam()
-	# kacha.get_amo() # show a beautiful error message
 
 	lambda()
 	

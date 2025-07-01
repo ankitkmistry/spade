@@ -469,6 +469,8 @@ namespace spade
         std::variant<const ast::Expression *, const ast::Statement *, scope::Function *> variant = static_cast<const ast::Expression *>(null);
         scope::Block *block = null;
 
+        std::vector<StmtInfo> infos;
+
       public:
         CFNode(Kind kind, scope::Function *fun) : kind(kind), variant(fun), block(null) {}
 
@@ -482,6 +484,10 @@ namespace spade
         CFNode &operator=(const CFNode &) = default;
         CFNode &operator=(CFNode &&) = default;
         ~CFNode() = default;
+
+        void add_info(const StmtInfo &info) {
+            infos.push_back(info);
+        }
 
         bool operator==(const CFNode &other) const {
             return kind == other.kind && variant == other.variant && block == other.block;
@@ -509,6 +515,10 @@ namespace spade
 
         scope::Block *get_block() const {
             return block;
+        }
+
+        const std::vector<StmtInfo> &get_infos() const {
+            return infos;
         }
     };
 }    // namespace spade
@@ -549,17 +559,17 @@ namespace spade::scope
         std::vector<ParamInfo> kwd_only_params;
         TypeInfo ret_type;
 
-        DirectedGraph<CFNode> cf_graph;
+        DirectedGraph<std::shared_ptr<CFNode>> cf_graph;
 
       public:
         Function(ast::decl::Function *node)
             : Scope(ScopeType::FUNCTION, node), ModifierMixin(node ? node->get_modifiers() : std::vector<std::shared_ptr<Token>>()) {}
 
-        const DirectedGraph<CFNode> &cfg() const {
+        const DirectedGraph<std::shared_ptr<CFNode>> &cfg() const {
             return cf_graph;
         }
 
-        DirectedGraph<CFNode> &cfg() {
+        DirectedGraph<std::shared_ptr<CFNode>> &cfg() {
             return cf_graph;
         }
 
@@ -643,6 +653,18 @@ namespace spade::scope
             return kwd_only_params;
         }
 
+        std::vector<ParamInfo> &get_pos_only_params() {
+            return pos_only_params;
+        }
+
+        std::vector<ParamInfo> &get_pos_kwd_params() {
+            return pos_kwd_params;
+        }
+
+        std::vector<ParamInfo> &get_kwd_only_params() {
+            return kwd_only_params;
+        }
+
         void set_pos_only_params(const std::vector<ParamInfo> &params) {
             pos_only_params = params;
         }
@@ -709,14 +731,8 @@ namespace spade::scope
     };
 
     class Block final : public Scope {
-        std::vector<StmtInfo> infos;
-
       public:
         Block(ast::stmt::Block *node) : Scope(ScopeType::BLOCK, node) {}
-
-        void add_info(const StmtInfo &info) {
-            infos.push_back(info);
-        }
 
         ast::stmt::Block *get_block_node() const {
             return cast<ast::stmt::Block>(node);
