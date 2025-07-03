@@ -5,7 +5,7 @@
 #include "scope.hpp"
 #include "utils/error.hpp"
 
-namespace spade
+namespace spadec
 {
     void Analyzer::visit(ast::expr::Constant &node) {
         _res_expr_info.reset();
@@ -1317,4 +1317,4 @@ lt_le_ge_gt_common:
         _res_expr_info = last_expr_info;
 #undef find_user_defined_aug_op
     }
-}    // namespace spade
+}    // namespace spadec

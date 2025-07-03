@@ -8,7 +8,7 @@
 #include "utils/graph.hpp"
 #include "utils/options.hpp"
 
-namespace spade
+namespace spadec
 {
     /**
      * @class Analyzer
@@ -430,7 +430,7 @@ namespace spade
         void visit(ast::Import &node);
         void visit(ast::Module &node);
     };
-}    // namespace spade
+}    // namespace spadec
 
 // Names of functions that represent overloaded operators
 

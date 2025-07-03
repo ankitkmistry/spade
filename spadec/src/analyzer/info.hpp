@@ -6,7 +6,7 @@
 #include "parser/ast.hpp"
 #include "symbol_path.hpp"
 
-namespace spade
+namespace spadec
 {
     namespace scope
     {
@@ -460,4 +460,4 @@ namespace spade
         const scope::Variable *var = null;
         const ast::AstNode *node = null;
     };
-}    // namespace spade
+}    // namespace spadec

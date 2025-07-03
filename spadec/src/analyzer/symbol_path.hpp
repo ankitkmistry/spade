@@ -4,7 +4,7 @@
 
 #include "utils/common.hpp"
 
-namespace spade
+namespace spadec
 {
     class SymbolPath final {
         std::vector<string> elements;
@@ -86,12 +86,12 @@ namespace spade
             return elements;
         }
     };
-}    // namespace spade
+}    // namespace spadec
 
 template<>
-class std::hash<spade::SymbolPath> {
+class std::hash<spadec::SymbolPath> {
   public:
-    size_t operator()(const spade::SymbolPath &path) const {
+    size_t operator()(const spadec::SymbolPath &path) const {
         size_t seed = 0;
         for (const auto &elm: path.get_elements()) {
             boost::hash_combine(seed, elm);

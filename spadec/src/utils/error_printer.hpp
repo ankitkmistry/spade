@@ -2,7 +2,7 @@
 
 #include "utils/error.hpp"
 
-namespace spade
+namespace spadec
 {
     class ErrorPrinter {
       public:
@@ -37,4 +37,4 @@ namespace spade
             }
         }
     };
-}    // namespace spade
+}    // namespace spadec

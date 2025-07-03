@@ -6,7 +6,7 @@
 #include "lexer/token.hpp"
 #include "../utils/utils.hpp"
 
-namespace spade
+namespace spadec
 {
     namespace details
     {
@@ -184,4 +184,4 @@ namespace spade
 
         void write_to(std::ostream &os) const;
     };
-}    // namespace spade
+}    // namespace spadec

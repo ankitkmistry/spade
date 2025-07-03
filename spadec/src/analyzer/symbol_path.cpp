@@ -2,7 +2,7 @@
 
 #include "symbol_path.hpp"
 
-namespace spade
+namespace spadec
 {
     SymbolPath::SymbolPath(const string &name) {
         if (name.empty())
@@ -16,4 +16,4 @@ namespace spade
         return std::accumulate(elements.begin(), elements.end(), string(),
                                [](const string &a, const string &b) { return a + (a.empty() ? "" : ".") + b; });
     }
-}    // namespace spade
+}    // namespace spadec

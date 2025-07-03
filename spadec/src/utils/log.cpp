@@ -1,6 +1,6 @@
 #include "common.hpp"
 
-namespace spade
+namespace spadec
 {
     Logger LOGGER;
 }

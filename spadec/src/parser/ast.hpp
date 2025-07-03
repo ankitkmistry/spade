@@ -2,7 +2,7 @@
 
 #include "lexer/token.hpp"
 
-namespace spade::ast
+namespace spadec::ast
 {
     class Module;
     class Import;
@@ -1397,9 +1397,9 @@ namespace spade::ast
             visitor->visit(*this);
         }
     };
-}    // namespace spade::ast
+}    // namespace spadec::ast
 
-namespace spade
+namespace spadec
 {
     template<ast::HasLineInfo T>
     class LineInfoVector {
@@ -1460,4 +1460,4 @@ namespace spade
     };
 
     static_assert(ast::HasLineInfo<LineInfoVector<ast::AstNode *>>, "spade::LineInfoVector must satisfy spade::ast::HasLineInfo concept");
-}    // namespace spade
+}    // namespace spadec

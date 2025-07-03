@@ -2,7 +2,7 @@
 #include "lexer/token.hpp"
 #include "parser/ast.hpp"
 
-namespace spade
+namespace spadec
 {
     void Parser::fill_tokens_buffer(size_t n) {
         for (size_t i = 0; i < n; ++i) {
@@ -1170,4 +1170,4 @@ namespace spade
         index = 0;
         return mod;
     }
-}    // namespace spade
+}    // namespace spadec

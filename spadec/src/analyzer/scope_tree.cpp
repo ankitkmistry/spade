@@ -2,10 +2,11 @@
 #include "lexer/token.hpp"
 #include "parser/ast.hpp"
 #include "scope.hpp"
+#include "utils/log.hpp"
 
 #define get_parent_scope() (scope_stack.at(scope_stack.size() - 2))
 
-namespace spade
+namespace spadec
 {
     SymbolPath ScopeTreeBuilder::get_current_path() const {
         auto scope_sptr = scope_stack.at(0);
@@ -431,4 +432,4 @@ namespace spade
         module->accept(this);
         return module_scope;
     }
-}    // namespace spade
+}    // namespace spadec

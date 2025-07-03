@@ -1,7 +1,7 @@
 #include "scope.hpp"
 #include "info.hpp"
 
-namespace spade::scope
+namespace spadec::scope
 {
     bool Scope::new_variable(const string &name, const std::shared_ptr<Token> &name_tok, const std::shared_ptr<Scope> &value) {
         if (members.contains(name))
@@ -85,4 +85,4 @@ namespace spade::scope
         }
         return (decorated ? (is_init() ? "ctor " : "function ") : "") + result;
     }
-}    // namespace spade::scope
+}    // namespace spadec::scope

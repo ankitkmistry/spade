@@ -4,7 +4,7 @@
 #include "scope.hpp"
 #include "spimp/utils.hpp"
 
-namespace spade
+namespace spadec
 {
     void Analyzer::visit(ast::stmt::Block &node) {
         auto scope = begin_block(node);
@@ -355,4 +355,4 @@ namespace spade
             end_warning();
         }
     }
-}    // namespace spade
+}    // namespace spadec

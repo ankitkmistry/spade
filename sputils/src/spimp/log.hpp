@@ -140,6 +140,4 @@ namespace spade
             return filter;
         }
     };
-
-    extern Logger LOGGER;
 }    // namespace spade

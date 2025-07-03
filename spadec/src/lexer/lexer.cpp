@@ -1,7 +1,7 @@
 #include "lexer.hpp"
 #include "utils/error.hpp"
 
-namespace spade
+namespace spadec
 {
     int Lexer::current() const {
         if (end - 1 >= length())
@@ -400,4 +400,4 @@ namespace spade
         }
         return get_token(TokenType::END_OF_FILE);
     }
-}    // namespace spade
+}    // namespace spadec

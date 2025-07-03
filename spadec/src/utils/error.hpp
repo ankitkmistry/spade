@@ -2,7 +2,7 @@
 
 #include "parser/ast.hpp"
 
-namespace spade
+namespace spadec
 {
     class FileOpenError : public SpadeError {
       public:
@@ -137,4 +137,4 @@ namespace spade
             return errors;
         }
     };
-}    // namespace spade
+}    // namespace spadec

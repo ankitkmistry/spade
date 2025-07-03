@@ -14,7 +14,7 @@
 #include "symbol_path.hpp"
 #include "utils/graph.hpp"
 
-namespace spade::scope
+namespace spadec::scope
 {
     class Module;
     class Compound;
@@ -451,9 +451,9 @@ namespace spade::scope
             return type.to_string(decorated);
         }
     };
-}    // namespace spade::scope
+}    // namespace spadec::scope
 
-namespace spade
+namespace spadec
 {
     class CFNode {
       public:
@@ -521,22 +521,22 @@ namespace spade
             return infos;
         }
     };
-}    // namespace spade
+}    // namespace spadec
 
 template<>
-struct std::hash<spade::CFNode> {
-    size_t operator()(const spade::CFNode &node) const {
+struct std::hash<spadec::CFNode> {
+    size_t operator()(const spadec::CFNode &node) const {
         size_t seed = 0;
         boost::hash_combine(seed, node.get_kind());
         switch (node.get_kind()) {
-        case spade::CFNode::EXPR:
+        case spadec::CFNode::EXPR:
             boost::hash_combine(seed, node.get_expr());
             break;
-        case spade::CFNode::STMT:
+        case spadec::CFNode::STMT:
             boost::hash_combine(seed, node.get_stmt());
             break;
-        case spade::CFNode::START:
-        case spade::CFNode::END:
+        case spadec::CFNode::START:
+        case spadec::CFNode::END:
             boost::hash_combine(seed, node.get_function());
             break;
         }
@@ -545,7 +545,7 @@ struct std::hash<spade::CFNode> {
     }
 };
 
-namespace spade::scope
+namespace spadec::scope
 {
     class Function final : public Scope, public ModifierMixin {
       public:
@@ -825,4 +825,4 @@ namespace spade::scope
             return decorated ? path.to_string() : "enumerator " + path.to_string();
         }
     };
-}    // namespace spade::scope
+}    // namespace spadec::scope

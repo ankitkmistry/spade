@@ -4,7 +4,7 @@
 #include "utils/common.hpp"
 #include "utils/error.hpp"
 
-namespace spade
+namespace spadec
 {
     class Lexer final {
       private:
@@ -36,4 +36,4 @@ namespace spade
 
         std::shared_ptr<Token> next_token();
     };
-}    // namespace spade
+}    // namespace spadec

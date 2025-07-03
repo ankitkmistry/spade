@@ -1,7 +1,7 @@
 #include "info.hpp"
 #include "scope.hpp"
 
-namespace spade
+namespace spadec
 {
     bool BasicType::weak_equals(const BasicType &other) const {
         return type == other.type && type_args == other.type_args;
@@ -263,4 +263,4 @@ namespace spade
         result.pop_back();
         return result;
     }
-}    // namespace spade
+}    // namespace spadec

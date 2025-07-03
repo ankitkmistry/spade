@@ -1,3 +1,4 @@
+#include <map>
 #include <set>
 #include <unordered_set>
 
@@ -12,10 +13,11 @@
 #include "scope_tree.hpp"
 #include "symbol_path.hpp"
 #include "utils/error.hpp"
+#include "utils/log.hpp"
 
 // TODO: implement generics
 
-namespace spade
+namespace spadec
 {
     scope::Scope *Analyzer::get_parent_scope() const {
         return cur_scope->get_parent();
@@ -1617,76 +1619,6 @@ namespace spade
             visited.clear();
     }
 
-    std::shared_ptr<scope::Module> Analyzer::resolve_file(const fs::path &path) {
-        auto file_path = fs::canonical(path);
-        if (!basic_mode && module_scopes.contains(file_path))
-            // Do not reload if it is already resolved
-            return cast<scope::Module>(module_scopes[file_path]);
-
-        // Process the file as usual
-        std::ifstream in(file_path);
-        if (!in)
-            return null;
-        std::stringstream buffer;
-        buffer << in.rdbuf();
-        Lexer lexer(file_path, buffer.str());
-        Parser parser(file_path, &lexer);
-        auto tree = parser.parse();
-        ScopeTreeBuilder builder(tree);
-        auto module = builder.build();
-        module->claim(tree);
-
-        if (!basic_mode)
-            module_scopes[path] = module;    // Set it resolved
-
-        // Resolve import declarations
-        const auto old_cur_scope = get_current_scope();
-        cur_scope = &*module;
-        for (const auto &import: tree->get_imports()) import->accept(this);
-        cur_scope = old_cur_scope;
-
-        return module;
-    }
-
-    std::shared_ptr<scope::FolderModule> Analyzer::resolve_directory(const fs::path &path) {
-        auto dir_path = fs::canonical(path);
-        if (module_scopes.contains(dir_path))
-            // Do not retry if it is already resolved
-            return cast<scope::FolderModule>(module_scopes[dir_path]);
-        // Process the directory by recursively traversing all spade source files
-        std::shared_ptr<scope::FolderModule> module = std::make_shared<scope::FolderModule>();
-        bool special_module = fs::exists(dir_path / "mod.sp");
-        for (const auto &entry: fs::directory_iterator(dir_path)) {
-            auto entry_path = fs::canonical(entry.path());
-            if (entry_path == dir_path || entry_path == dir_path.parent_path())
-                // Skip current and parent path entries
-                continue;
-            if (entry_path.filename().string()[0] == '.')
-                // Skip '.XXX' entries
-                continue;
-            if (!basic_mode && fs::canonical(entry_path) == fs::canonical(compiler_options.basic_module_path))
-                // Skip basic module as it is processed differently
-                continue;
-            std::shared_ptr<scope::Scope> scope;
-            if (entry.is_directory())
-                scope = resolve_directory(entry_path);
-            if (entry.is_regular_file() && entry_path.extension() == ".sp")
-                scope = resolve_file(entry_path);
-            if (!scope)
-                continue;
-            if (special_module) {
-                // Append all the inner scopes if it is a special module
-                for (const auto &[member_name, member]: scope->get_members()) {
-                    module->new_variable(member_name, member.first, member.second);
-                }
-            } else {
-                module->new_variable(entry_path.stem().string(), null, scope);
-            }
-        }
-        module_scopes[dir_path] = module;    // Set the path as resolved
-        return module;
-    }
-
     void Analyzer::check_usages(const std::shared_ptr<scope::Scope> &scope) {
         string name;
         {
@@ -1793,6 +1725,76 @@ namespace spade
             const auto &[_2, member_scope] = member;
             check_usages(member_scope);
         }
+    }
+
+    std::shared_ptr<scope::Module> Analyzer::resolve_file(const fs::path &path) {
+        auto file_path = fs::canonical(path);
+        if (!basic_mode && module_scopes.contains(file_path))
+            // Do not reload if it is already resolved
+            return cast<scope::Module>(module_scopes[file_path]);
+
+        // Process the file as usual
+        std::ifstream in(file_path);
+        if (!in)
+            return null;
+        std::stringstream buffer;
+        buffer << in.rdbuf();
+        Lexer lexer(file_path, buffer.str());
+        Parser parser(file_path, &lexer);
+        auto tree = parser.parse();
+        ScopeTreeBuilder builder(tree);
+        auto module = builder.build();
+        module->claim(tree);
+
+        if (!basic_mode)
+            module_scopes[path] = module;    // Set it resolved
+
+        // Resolve import declarations
+        const auto old_cur_scope = get_current_scope();
+        cur_scope = &*module;
+        for (const auto &import: tree->get_imports()) import->accept(this);
+        cur_scope = old_cur_scope;
+
+        return module;
+    }
+
+    std::shared_ptr<scope::FolderModule> Analyzer::resolve_directory(const fs::path &path) {
+        auto dir_path = fs::canonical(path);
+        if (module_scopes.contains(dir_path))
+            // Do not retry if it is already resolved
+            return cast<scope::FolderModule>(module_scopes[dir_path]);
+        // Process the directory by recursively traversing all spade source files
+        std::shared_ptr<scope::FolderModule> module = std::make_shared<scope::FolderModule>();
+        bool special_module = fs::exists(dir_path / "mod.sp");
+        for (const auto &entry: fs::directory_iterator(dir_path)) {
+            auto entry_path = fs::canonical(entry.path());
+            if (entry_path == dir_path || entry_path == dir_path.parent_path())
+                // Skip current and parent path entries
+                continue;
+            if (entry_path.filename().string()[0] == '.')
+                // Skip '.XXX' entries
+                continue;
+            if (!basic_mode && fs::canonical(entry_path) == fs::canonical(compiler_options.basic_module_path))
+                // Skip basic module as it is processed differently
+                continue;
+            std::shared_ptr<scope::Scope> scope;
+            if (entry.is_directory())
+                scope = resolve_directory(entry_path);
+            if (entry.is_regular_file() && entry_path.extension() == ".sp")
+                scope = resolve_file(entry_path);
+            if (!scope)
+                continue;
+            if (special_module) {
+                // Append all the inner scopes if it is a special module
+                for (const auto &[member_name, member]: scope->get_members()) {
+                    module->new_variable(member_name, member.first, member.second);
+                }
+            } else {
+                module->new_variable(entry_path.stem().string(), null, scope);
+            }
+        }
+        module_scopes[dir_path] = module;    // Set the path as resolved
+        return module;
     }
 
     void Analyzer::analyze() {
@@ -1980,4 +1982,4 @@ namespace spade
     void Analyzer::visit(ast::type::TypeBuilderMember &node) {
         // TODO: implement this
     }
-}    // namespace spade
+}    // namespace spadec

@@ -6,7 +6,7 @@
 #include "scope.hpp"
 #include "utils/error.hpp"
 
-namespace spade
+namespace spadec
 {
     class ScopeTreeBuilder final : public ast::VisitorBase {
         std::shared_ptr<ast::Module> module;
@@ -95,4 +95,4 @@ namespace spade
 
         const std::shared_ptr<scope::Module> &build();
     };
-}    // namespace spade
+}    // namespace spadec

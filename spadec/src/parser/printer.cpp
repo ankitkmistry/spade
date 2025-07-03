@@ -3,7 +3,7 @@
 #include "printer.hpp"
 #include "analyzer/symbol_path.hpp"
 
-namespace spade
+namespace spadec
 {
     void Printer::visit(ast::Reference &node) {
         write_repr(node);
@@ -402,4 +402,4 @@ namespace spade
     void Printer::write_to(std::ostream &os) const {
         write(os, &m_root);
     }
-}    // namespace spade
+}    // namespace spadec

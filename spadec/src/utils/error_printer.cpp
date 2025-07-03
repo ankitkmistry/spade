@@ -4,7 +4,7 @@
 #include "error_printer.hpp"
 #include "utils/error.hpp"
 
-namespace spade
+namespace spadec
 {
     static int num_digits(int x) {
         x = abs(x);
@@ -151,4 +151,4 @@ namespace spade
 
         std::cout << std::flush;
     }
-}    // namespace spade
+}    // namespace spadec

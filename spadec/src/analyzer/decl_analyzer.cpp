@@ -6,7 +6,7 @@
 #include "symbol_path.hpp"
 #include "utils/error.hpp"
 
-namespace spade
+namespace spadec
 {
     void Analyzer::visit(ast::decl::TypeParam &node) {}
 
@@ -474,7 +474,7 @@ namespace spade
             FunctionInfo mem_fns;
             for (const auto &member: members) {
                 FunctionInfo fn_infos(&*cast<scope::FunctionSet>(member));
-                fn_infos.remove_if([](const std::pair<const spade::SymbolPath &, const spade::scope::Function *> &fn_pair) {
+                fn_infos.remove_if([](const std::pair<const SymbolPath &, const scope::Function *> &fn_pair) {
                     return fn_pair.second->is_static() || fn_pair.second->is_init();    // static functions and constructors are never inherited
                 });
                 if (!fn_infos.empty())
@@ -768,4 +768,4 @@ namespace spade
         for (auto member: node.get_members()) member->accept(this);
         end_scope();
     }
-}    // namespace spade
+}    // namespace spadec

@@ -2,7 +2,7 @@
 
 #include "../utils/common.hpp"
 
-namespace spade
+namespace spadec
 {
     inline static string escape_str(const string &text) {
         string result;
@@ -45,4 +45,4 @@ namespace spade
         }
         return result;
     }
-}    // namespace spade
+}    // namespace spadec

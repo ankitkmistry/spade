@@ -9,9 +9,9 @@
 #include <cpptrace/from_current.hpp>
 #include <cpptrace/formatting.hpp>
 
-#include "spimp/log.hpp"
 #include "utils/error.hpp"
 #include "utils/error_printer.hpp"
+#include "utils/log.hpp"
 #include "utils/graph.hpp"
 #include "lexer/lexer.hpp"
 #include "parser/parser.hpp"
@@ -22,7 +22,7 @@
 #define ENABLE_BACKTRACE_FILTER (false)
 
 void compile() {
-    using namespace spade;
+    using namespace spadec;
     CompilerOptions compiler_options{
             //
             .basic_module_path = fs::path(R"(D:\Programming\Projects\spade\spadec\res\basic.sp)"),    //
@@ -34,7 +34,7 @@ void compile() {
         file_path = R"(D:\Programming\Projects\spade\spadec\res\test.sp)";
 
         std::ofstream log_out(file_path.string() + ".log");
-        LOGGER.set_file(log_out);
+        spadec::LOGGER.set_file(log_out);
 
         std::shared_ptr<scope::Module> module;
         {
@@ -94,7 +94,7 @@ int main(int argc, char *argv[]) {
         // std::ofstream file("output.log");
         // LOGGER.set_file(file);
         // std::ios_base::sync_with_stdio(false);
-        spade::LOGGER.set_format("[{4}] {5}");
+        spadec::LOGGER.set_format("[{4}] {5}");
         compile();
         // graph_test();
         // opcode_test();

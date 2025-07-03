@@ -3,7 +3,7 @@
 #include "ast.hpp"
 #include "lexer/lexer.hpp"
 
-namespace spade
+namespace spadec
 {
     class Parser final {
       private:
@@ -296,4 +296,4 @@ namespace spade
             return lexer;
         }
     };
-}    // namespace spade
+}    // namespace spadec

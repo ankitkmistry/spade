@@ -3,7 +3,7 @@
 #include "token.hpp"
 #include "utils/utils.hpp"
 
-namespace spade
+namespace spadec
 {
     const static std::unordered_map<string, TokenType> KEYWORDS = {
             {
@@ -99,4 +99,4 @@ namespace spade
     bool TokenInfo::get_type_if_keyword(const string &text, TokenType &type) {
         return KEYWORDS.contains(text) ? (type = KEYWORDS.at(text), true) : false;
     }
-}    // namespace spade
+}    // namespace spadec

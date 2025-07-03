@@ -2,7 +2,7 @@
 
 #include "utils/common.hpp"
 
-namespace spade
+namespace spadec
 {
     enum class TokenType {
         // Brackets
@@ -565,4 +565,4 @@ namespace spade
             }
         }
     };
-}    // namespace spade
+}    // namespace spadec
