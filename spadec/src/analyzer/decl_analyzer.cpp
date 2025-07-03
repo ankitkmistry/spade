@@ -285,18 +285,17 @@ namespace spadec
                     errors.error(error("not all control paths return a value", scope));
 
                     for (const auto &cf_node: last_cf_nodes) {
-                        if (const auto stmt = cf_node->get_stmt()) {
-                            if (!is<const ast::stmt::Return>(stmt) && !is<const ast::stmt::Throw>(stmt) && !is<const ast::stmt::Yield>(stmt)) {
-                                error_state = true;
-                                errors.note(error("control flow passes to the end from here", stmt));
-                            }
+                        if (const auto stmt = cf_node->get_stmt();
+                            stmt && !is<const ast::stmt::Return>(stmt) && !is<const ast::stmt::Throw>(stmt) && !is<const ast::stmt::Yield>(stmt)) {
+                            error_state = true;
+                            errors.note(error("control flow passes to the end from here", stmt));
                         }
                         if (const auto expr = cf_node->get_expr()) {
                             error_state = true;
                             errors.note(error("control flow passes to the end from here", expr));
                         }
                     }
-                    
+
                     if (error_state)
                         throw errors;
                 }

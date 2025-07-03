@@ -1063,15 +1063,11 @@ namespace spadec::ast
             std::shared_ptr<Expression> default_expr;
 
           public:
-            Param(int line_start, int line_end, int col_start, int col_end, const std::shared_ptr<Token> &is_const,
-                  const std::shared_ptr<Token> &variadic, const std::shared_ptr<Token> &name, const std::shared_ptr<Type> &type,
-                  const std::shared_ptr<Expression> &default_expr)
-                : Declaration(line_start, line_end, col_start, col_end),
-                  is_const(is_const),
-                  variadic(variadic),
-                  name(name),
-                  type(type),
-                  default_expr(default_expr) {}
+            template<typename T1, typename T2>
+                requires HasLineInfo<T1> && HasLineInfo<T2>
+            Param(T1 start, T2 end, const std::shared_ptr<Token> &is_const, const std::shared_ptr<Token> &variadic,
+                  const std::shared_ptr<Token> &name, const std::shared_ptr<Type> &type, const std::shared_ptr<Expression> &default_expr)
+                : Declaration(start, end), is_const(is_const), variadic(variadic), name(name), type(type), default_expr(default_expr) {}
 
             const std::shared_ptr<Token> &get_is_const() const {
                 return is_const;

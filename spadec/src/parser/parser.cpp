@@ -342,6 +342,8 @@ namespace spadec
     }
 
     std::shared_ptr<ast::decl::Param> Parser::param() {
+        const auto start = peek();
+
         const auto is_const = match(TokenType::CONST);
         const auto variadic = match(TokenType::STAR);
         const auto name = expect(TokenType::IDENTIFIER);
@@ -350,29 +352,11 @@ namespace spadec
         if (match(TokenType::COLON))
             param_type = type();
         if (match(TokenType::EQUAL))
-            expr = ternary();
-        int line_start, col_start, line_end, col_end;
-        if (is_const) {
-            line_start = is_const->get_line_start();
-            col_start = is_const->get_col_start();
-        } else if (variadic) {
-            line_start = variadic->get_line_start();
-            col_start = variadic->get_col_start();
-        } else {
-            line_start = name->get_line_start();
-            col_start = name->get_col_start();
-        }
-        if (expr) {
-            line_end = expr->get_line_end();
-            col_end = expr->get_col_end();
-        } else if (param_type) {
-            line_end = param_type->get_line_end();
-            col_end = param_type->get_col_end();
-        } else {
-            line_end = name->get_line_end();
-            col_end = name->get_col_end();
-        }
-        return std::make_shared<ast::decl::Param>(line_start, line_end, col_start, col_end, is_const, variadic, name, param_type, expr);
+            expr = lambda();
+
+        const auto end = current();
+
+        return std::make_shared<ast::decl::Param>(start, end, is_const, variadic, name, param_type, expr);
     }
 
     std::shared_ptr<ast::Statement> Parser::statements() {
@@ -527,7 +511,7 @@ namespace spadec
 #undef BODY
 
     std::shared_ptr<ast::Expression> Parser::expression() {
-        return rule_or(&Parser::assignment, &Parser::lambda_expr);
+        return rule_or(&Parser::assignment, &Parser::lambda);
     }
 
     std::shared_ptr<ast::Expression> Parser::assignment() {
@@ -567,7 +551,7 @@ namespace spadec
         }
     }
 
-    std::shared_ptr<ast::Expression> Parser::lambda_expr() {
+    std::shared_ptr<ast::Expression> Parser::lambda() {
         if (match(TokenType::FUN)) {
             const auto token = current();
 

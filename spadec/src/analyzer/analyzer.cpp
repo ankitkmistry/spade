@@ -715,7 +715,6 @@ namespace spadec
         } else {
             // type_info.reset();
             type_info.basic().type = get_internal<scope::Compound>(Internal::SPADE_ANY);
-            // TODO: check for functions
             // nullable by default
             type_info.nullable() = true;
         }
@@ -1638,7 +1637,7 @@ namespace spadec
                 if (!cast<scope::Compound>(scope)->is_public())
                     if (scope->get_usage_count() == 0) {
                         warning(std::format("'{}' was never used", scope->to_string()), scope);
-                        help(std::format("rename '{0:}' to '_{0:}' if you mean to keep it", name));
+                        help(std::format("rename '{0:}' to '_{0:}' to remove this warning", name));
                         help(std::format("remove '{}' as it is never used", name));
                         help(std::format("declare '{}' as 'public'", scope->to_string()));
                         end_warning();
@@ -1646,21 +1645,35 @@ namespace spadec
                 break;
             case scope::ScopeType::FUNCTION: {
                 const auto fun = cast<scope::Function>(scope);
-                if (!fun->is_public())
-                    if (scope->get_usage_count() == 0) {
-                        warning(std::format("'{}' was never used", scope->to_string()), scope);
-                        help(std::format("rename '{0:}' to '_{0:}' if you mean to keep it", name));
-                        help(std::format("remove '{}' as it is never used", name));
-                        help(std::format("declare '{}' as 'public'", scope->to_string()));
-                        end_warning();
-                    }
-                for (const auto &param: fun->get_pos_only_params()) {
-                    if (!param.b_used && param.name[0] != '_') {
-                        warning(std::format("'param {}' was never used", param.name), param.node);
-                        help(std::format("rename '{0:}' to '_{0:}' if you mean to keep it", param.name));
-                        help(std::format("remove '{}' as it is never used", param.name));
-                        end_warning();
-                    }
+                if (!fun->is_public() && scope->get_usage_count() == 0) {
+                    warning(std::format("'{}' was never used", scope->to_string()), scope);
+                    help(std::format("rename '{0:}' to '_{0:}' to remove this warning", name));
+                    help(std::format("remove '{}' as it is never used", name));
+                    help(std::format("declare '{}' as 'public'", scope->to_string()));
+                    end_warning();
+                }
+                if (fun->get_function_node()->get_definition()) {
+                    for (const auto &param: fun->get_pos_only_params())
+                        if (!param.b_used && param.name[0] != '_') {
+                            warning(std::format("'param {}' was never used", param.name), cast<ast::decl::Param>(param.node)->get_name());
+                            if (fun->get_usage_count() == 0)
+                                help(std::format("remove '{}' as it is never used", param.name));
+                            end_warning();
+                        }
+                    for (const auto &param: fun->get_pos_kwd_params())
+                        if (!param.b_used && param.name[0] != '_') {
+                            warning(std::format("'param {}' was never used", param.name), cast<ast::decl::Param>(param.node)->get_name());
+                            if (fun->get_usage_count() == 0)
+                                help(std::format("remove '{}' as it is never used", param.name));
+                            end_warning();
+                        }
+                    for (const auto &param: fun->get_kwd_only_params())
+                        if (!param.b_used && param.name[0] != '_') {
+                            warning(std::format("'param {}' was never used", param.name), cast<ast::decl::Param>(param.node)->get_name());
+                            if (fun->get_usage_count() == 0)
+                                help(std::format("remove '{}' as it is never used", param.name));
+                            end_warning();
+                        }
                 }
                 break;
             }
@@ -1668,7 +1681,7 @@ namespace spadec
                 if (!scope->get_enclosing_compound()->is_public())
                     if (scope->get_usage_count() == 0) {
                         warning(std::format("'{}' was never used", scope->to_string()), scope);
-                        help(std::format("rename '{0:}' to '_{0:}' if you mean to keep it", name));
+                        help(std::format("rename '{0:}' to '_{0:}' to remove this warning", name));
                         help(std::format("remove '{}' as it is never used", name));
                         help(std::format("declare '{}' as 'public'", scope->get_enclosing_compound()->to_string()));
                         end_warning();
@@ -1680,7 +1693,7 @@ namespace spadec
                     if (var->is_const()) {
                         if (var->get_usage_count() == 0) {
                             warning("constant was never accessed", var);
-                            help(std::format("rename '{0:}' to '_{0:}' if you mean to keep it", name));
+                            help(std::format("rename '{0:}' to '_{0:}' to remove this warning", name));
                             help(std::format("remove '{}' as it is never used", name));
                             if (show_publicity)
                                 help(std::format("declare '{}' as 'public'", var->to_string()));
@@ -1689,14 +1702,14 @@ namespace spadec
                     } else {
                         if (var->get_usage_count() == 0 && !var->is_assigned()) {
                             warning("variable was never accessed or assigned", var);
-                            help(std::format("rename '{0:}' to '_{0:}' if you mean to keep it", name));
+                            help(std::format("rename '{0:}' to '_{0:}' to remove this warning", name));
                             help(std::format("remove '{}' as it is never used", name));
                             if (show_publicity)
                                 help(std::format("declare '{}' as 'public'", var->to_string()));
                             end_warning();
                         } else if (var->get_usage_count() == 0) {
                             warning("variable was never accessed", var);
-                            help(std::format("rename '{0:}' to '_{0:}' if you mean to keep it", name));
+                            help(std::format("rename '{0:}' to '_{0:}' to remove this warning", name));
                             help(std::format("remove '{}' as it is never used", name));
                             if (show_publicity)
                                 help(std::format("declare '{}' as 'public'", var->to_string()));

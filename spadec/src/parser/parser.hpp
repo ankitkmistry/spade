@@ -146,7 +146,7 @@ namespace spadec
         std::shared_ptr<ast::decl::Enumerator> enumerator();
         /// params ::= param_list ((if last_token != ',' then ',') '*' ',' param_list)? ((if last_token !=',' then ',') '/' ',' param_list)?
         std::shared_ptr<ast::decl::Params> params();
-        /// param ::= 'const'? '*'? IDENTIFIER (':' type)? ('=' ternary)?
+        /// param ::= 'const'? '*'? IDENTIFIER (':' type)? ('=' lambda)?
         std::shared_ptr<ast::decl::Param> param();
 
         // Statements
@@ -174,12 +174,12 @@ namespace spadec
         std::shared_ptr<ast::Statement> catch_stmt();
 
         // Expressions
-        /// expression ::= assignment | lambda_expr
+        /// expression ::= assignment | lambda
         std::shared_ptr<ast::Expression> expression();
         /// assignment ::= assignee_list ('+' | '-' | '*' | '/' | '%' | '**' | '<<' | '>>' | '>>>' | '&' | '|' | '^' | '??') '=' expr_list
         std::shared_ptr<ast::Expression> assignment();
-        /// lambda_expr ::= 'fun' ('(' params? ')')? ('->' type)? (':' ternary | block);
-        std::shared_ptr<ast::Expression> lambda_expr();
+        /// lambda ::= 'fun' ('(' params? ')')? ('->' type)? (':' ternary | block) | ternary;
+        std::shared_ptr<ast::Expression> lambda();
         /// ternary ::= logic_or ('if' logic_or 'else' logic_or)?
         std::shared_ptr<ast::Expression> ternary();
 

@@ -21,7 +21,7 @@ interface B {
 }
 public class C : A, B {
 	public override fun f() {}
-	public fun b(a:Enum)->int = 0
+	public fun b(_a:Enum)->int = 0
 }
 
 class CounterFn {
