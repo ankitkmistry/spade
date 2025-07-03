@@ -1798,81 +1798,95 @@ namespace spadec
     }
 
     void Analyzer::analyze() {
-        // Load the basic module
-        load_internal_modules();
+        try {
+            // Load the basic module
+            load_internal_modules();
 
-        mode = Mode::DECLARATION;
+            mode = Mode::DECLARATION;
 
-        // Resolve all import declarations
-        auto module = cast<scope::Module>(module_scopes.begin()->second);
-        cur_scope = &*module;
-        for (const auto &import: module->get_module_node()->get_imports()) import->accept(this);
+            // Resolve all import declarations
+            auto module = cast<scope::Module>(module_scopes.begin()->second);
+            cur_scope = &*module;
+            for (const auto &import: module->get_module_node()->get_imports()) import->accept(this);
 
-        LOGGER.log_debug("============================================================");
-        LOGGER.log_debug("                COMPILER SEMANTIC ANALYSIS");
-        LOGGER.log_debug("============================================================");
+            LOGGER.log_debug("============================================================");
+            LOGGER.log_debug("                COMPILER SEMANTIC ANALYSIS");
+            LOGGER.log_debug("============================================================");
 
-        // Visit all declarations
-        for (const auto &[_, module_scope]: module_scopes) {
-            if (const auto node = module_scope->get_node()) {
-                cur_scope = null;
-                node->accept(this);
-            }
-        }
-
-        // Visit function definitions
-        mode = Mode::DEFINITION;
-        for (auto function: function_scopes) {
-            cur_scope = function->get_parent()->get_parent();
-            function->get_node()->accept(this);
-        }
-
-        // Check for usage diagnostics
-        for (const auto &[_, module_scope]: module_scopes) {
-            auto old_cur_scope = get_current_scope();
-            cur_scope = &*module_scope;
-
-            if (const auto module = std::dynamic_pointer_cast<scope::Module>(module_scope)) {
-                for (const auto &[_, import]: module->get_imports()) {
-                    if (!import.b_used) {
-                        warning("unused import", import.node);
-                        help("remove the import declaration");
-                        end_warning();
-                    }
-                }
-                for (const auto &import: module->get_open_imports()) {
-                    if (!import.b_used) {
-                        warning("unused import", import.node);
-                        help("remove the import declaration");
-                        end_warning();
-                    }
+            // Visit all declarations
+            for (const auto &[_, module_scope]: module_scopes) {
+                if (const auto node = module_scope->get_node()) {
+                    cur_scope = null;
+                    node->accept(this);
                 }
             }
-            check_usages(module_scope);
 
-            cur_scope = old_cur_scope;
-        }
+            // Visit function definitions
+            mode = Mode::DEFINITION;
+            for (auto function: function_scopes) {
+                cur_scope = function->get_parent()->get_parent();
+                function->get_node()->accept(this);
+            }
 
-        // Print ast to log
-        {
+            // Check for usage diagnostics
+            for (const auto &[_, module_scope]: module_scopes) {
+                auto old_cur_scope = get_current_scope();
+                cur_scope = &*module_scope;
+
+                if (const auto module = std::dynamic_pointer_cast<scope::Module>(module_scope)) {
+                    for (const auto &[_, import]: module->get_imports()) {
+                        if (!import.b_used) {
+                            warning("unused import", import.node);
+                            help("remove the import declaration");
+                            end_warning();
+                        }
+                    }
+                    for (const auto &import: module->get_open_imports()) {
+                        if (!import.b_used) {
+                            warning("unused import", import.node);
+                            help("remove the import declaration");
+                            end_warning();
+                        }
+                    }
+                }
+                check_usages(module_scope);
+
+                cur_scope = old_cur_scope;
+            }
+
+            // Print ast to log
             {
-                std::stringstream ss;
-                LOGGER.log_debug("============================================================");
-                LOGGER.log_debug("                    COMPILER AST OUTPUT");
-                LOGGER.log_debug("============================================================");
-                Printer printer(internals[Internal::SPADE]->get_node());
-                printer.write_to(ss);
-                LOGGER.log_debug(ss.str());
+                {
+                    std::stringstream ss;
+                    LOGGER.log_debug("============================================================");
+                    LOGGER.log_debug("                    COMPILER AST OUTPUT");
+                    LOGGER.log_debug("============================================================");
+                    Printer printer(internals[Internal::SPADE]->get_node());
+                    printer.write_to(ss);
+                    LOGGER.log_debug(ss.str());
+                }
+                for (const auto &[_, module]: module_scopes) {
+                    std::stringstream ss;
+                    LOGGER.log_debug("============================================================");
+                    LOGGER.log_debug("                    COMPILER AST OUTPUT");
+                    LOGGER.log_debug("============================================================");
+                    Printer printer(module->get_node());
+                    printer.write_to(ss);
+                    LOGGER.log_debug(ss.str());
+                }
             }
-            for (const auto &[_, module]: module_scopes) {
-                std::stringstream ss;
-                LOGGER.log_debug("============================================================");
-                LOGGER.log_debug("                    COMPILER AST OUTPUT");
-                LOGGER.log_debug("============================================================");
-                Printer printer(module->get_node());
-                printer.write_to(ss);
-                LOGGER.log_debug(ss.str());
+        } catch (const ErrorGroup<AnalyzerError> &err) {
+            if (_warning_nl) {
+                std::cout << std::endl;
+                _warning_nl = false;
             }
+            throw err;
+        } catch (const AnalyzerError &err) {
+            if (_warning_nl) {
+                std::cout << std::endl;
+                _warning_nl = false;
+            }
+            throw err;
         }
     }
 

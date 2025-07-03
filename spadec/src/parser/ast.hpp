@@ -774,6 +774,7 @@ namespace spadec::ast
         };
 
         class While final : public Statement {
+            std::shared_ptr<Token> token;
             std::shared_ptr<Expression> condition;
             std::shared_ptr<Statement> body;
             std::shared_ptr<Statement> else_body;
@@ -781,7 +782,11 @@ namespace spadec::ast
           public:
             While(const std::shared_ptr<Token> &token, const std::shared_ptr<Expression> &condition, const std::shared_ptr<Statement> &body,
                   const std::shared_ptr<Statement> &else_body)
-                : Statement(token, else_body ? else_body : body), condition(condition), body(body), else_body(else_body) {}
+                : Statement(token, else_body ? else_body : body), token(token), condition(condition), body(body), else_body(else_body) {}
+
+            const std::shared_ptr<Token> &get_token() const {
+                return token;
+            }
 
             const std::shared_ptr<Expression> &get_condition() const {
                 return condition;
@@ -801,6 +806,7 @@ namespace spadec::ast
         };
 
         class DoWhile final : public Statement {
+            std::shared_ptr<Token> token;
             std::shared_ptr<Statement> body;
             std::shared_ptr<Expression> condition;
             std::shared_ptr<Statement> else_body;
@@ -808,7 +814,11 @@ namespace spadec::ast
           public:
             DoWhile(const std::shared_ptr<Token> &token, const std::shared_ptr<Statement> &body, const std::shared_ptr<Expression> &condition,
                     const std::shared_ptr<Statement> &else_body)
-                : Statement(token, else_body ? else_body : body), body(body), condition(condition), else_body(else_body) {}
+                : Statement(token, else_body ? else_body : body), token(token), body(body), condition(condition), else_body(else_body) {}
+
+            const std::shared_ptr<Token> &get_token() const {
+                return token;
+            }
 
             const std::shared_ptr<Expression> &get_condition() const {
                 return condition;

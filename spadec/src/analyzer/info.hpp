@@ -460,4 +460,11 @@ namespace spadec
         const scope::Variable *var = null;
         const ast::AstNode *node = null;
     };
+
+    class CFNode;
+
+    struct LoopInfo {
+        std::vector<std::shared_ptr<CFNode>> continue_nodes;
+        std::vector<std::shared_ptr<CFNode>> break_nodes;
+    };
 }    // namespace spadec

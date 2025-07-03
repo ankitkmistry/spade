@@ -252,11 +252,10 @@ namespace spadec
         if (mode == Mode::DEFINITION)
             if (const auto &definition = node.get_definition()) {
                 auto &cfg = scope->cfg();
-
                 auto start_cf_node = std::make_shared<CFNode>(CFNode::Kind::START, &*scope);
-                end_cf_node = std::make_shared<CFNode>(CFNode::Kind::END, &*scope);
 
                 last_cf_nodes = {start_cf_node};
+                end_cf_node = std::make_shared<CFNode>(CFNode::Kind::END, &*scope);
 
                 cfg.insert_vertex(last_cf_nodes[0]);
                 cfg.insert_vertex(end_cf_node);
@@ -281,25 +280,23 @@ namespace spadec
                 } else {
                     // Iterate over all incoming edges to the end of the function
                     // And check whether they all come from `return` or `throw`
-                    bool error_state = true;
+                    bool error_state = false;
                     ErrorGroup<AnalyzerError> errors;
                     errors.error(error("not all control paths return a value", scope));
 
-                    for (const auto &edge: cfg.edges(end_cf_node, false)) {
-                        const auto &cf_node = edge.origin();
-
+                    for (const auto &cf_node: last_cf_nodes) {
                         if (const auto stmt = cf_node->get_stmt()) {
-                            if (is<const ast::stmt::Return>(stmt) || is<const ast::stmt::Throw>(stmt) || is<const ast::stmt::Yield>(stmt)) {
-                                error_state = false;
-                                continue;
-                            } else {
+                            if (!is<const ast::stmt::Return>(stmt) && !is<const ast::stmt::Throw>(stmt) && !is<const ast::stmt::Yield>(stmt)) {
+                                error_state = true;
                                 errors.note(error("control flow passes to the end from here", stmt));
                             }
                         }
                         if (const auto expr = cf_node->get_expr()) {
+                            error_state = true;
                             errors.note(error("control flow passes to the end from here", expr));
                         }
                     }
+                    
                     if (error_state)
                         throw errors;
                 }

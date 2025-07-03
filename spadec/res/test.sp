@@ -69,6 +69,17 @@ class Kacha {
 	public fun get_ammo() {}
 }
 
+public fun loop_test(cond: bool) -> int {
+    while not cond {
+        while cond {
+            if false: return 0
+            continue
+        }
+        if cond: break
+    }
+    return 0 # show a beautiful error message
+}
+
 public fun kacha_test() {
 	var kacha: Kacha = Kacha()
 	# kacha.get_amo() # show a beautiful error message
@@ -95,9 +106,9 @@ public fun main() {
 	var str_buf: lib.StringBuilder? = lib.StringBuilder("west ")
 	print(do_count(), do_count(), do_count(), sep: ", ")
 	str_buf?[0] = " "
-	while false {} # TODO: do something about line separators!!
+	{} # TODO: do something about line separators!!
 	str_buf?[1] = " "
-	while false {}
+	{}
 	(str_buf ??= lib.StringBuilder()) += lib.StringBuilder("bengal\n")
 	print(lib.StringBuilder()
 		.appendln("hello")

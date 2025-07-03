@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stack>
+
 #include "utils/error.hpp"
 #include "utils/error_printer.hpp"
 #include "parser/ast.hpp"
@@ -249,22 +251,12 @@ namespace spadec
 
         template<typename T>
         AnalyzerError error(const string &msg, LineInfoVector<T> node) {
-            if (_warning_nl) {
-                std::cout << std::endl;
-                _warning_nl = false;
-            }
-
             return AnalyzerError(msg, get_current_module()->get_module_node()->get_file_path(), node);
         }
 
         template<typename T>
             requires ast::HasLineInfo<const T *>
         AnalyzerError error(const string &msg, const T *node) {
-            if (_warning_nl) {
-                std::cout << std::endl;
-                _warning_nl = false;
-            }
-
             if constexpr (std::derived_from<T, scope::Scope>) {
                 if constexpr (std::same_as<T, scope::Module>) {
                     return AnalyzerError(msg, node->get_module_node()->get_file_path(), node);
@@ -278,11 +270,6 @@ namespace spadec
         template<typename T>
             requires ast::HasLineInfo<const std::shared_ptr<T> &>
         AnalyzerError error(const string &msg, const std::shared_ptr<T> &node) {
-            if (_warning_nl) {
-                std::cout << std::endl;
-                _warning_nl = false;
-            }
-
             if constexpr (std::derived_from<T, scope::Scope>) {
                 if constexpr (std::same_as<T, scope::Module>) {
                     return AnalyzerError(msg, node->get_module_node()->get_file_path(), node);
@@ -391,7 +378,8 @@ namespace spadec
         void visit(ast::expr::Assignment &node);
 
       private:
-        bool is_loop = false;
+        std::stack<LoopInfo> loop_stack;
+
         std::vector<std::shared_ptr<CFNode>> last_cf_nodes;
         std::shared_ptr<CFNode> end_cf_node;
 

@@ -22,14 +22,14 @@ namespace spadec
         //              | +-----> }   <---------------+
 
         // Control flow specific
-        auto cf_cond = std::make_shared<CFNode>(*node.get_condition(), get_current_block());
         auto &cfg = get_current_function()->cfg();
+        auto cf_cond = std::make_shared<CFNode>(*node.get_condition(), get_current_block());
         cfg.insert_vertex(cf_cond);
+
         if (last_cf_nodes.empty())
             throw error("unreachable code", &node);
         else
             for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_cond);
-
         last_cf_nodes = {cf_cond};
 
         // Evaluate the expression
@@ -50,41 +50,48 @@ namespace spadec
     }
 
     void Analyzer::visit(ast::stmt::While &node) {
-        // loop_start:    | while <expr> {   <-------+-------+
-        //                |     <stmts...>           |       |
-        //                |     <<END>>      --------+       |
-        //                | } else {    <--------------------+
-        //                |     <stmts...>
-        //                | }
+        // cond:    | while <expr> {   <-------+-------+
+        //          |     <stmts...>           |       |
+        //          |     <<END>>      --------+       |
+        //          | } else {    <--------------------+
+        //          |     <stmts...>
+        //          | }
 
         // Control flow specific
-        auto cf_loop_start = std::make_shared<CFNode>(*node.get_condition(), get_current_block());
         auto &cfg = get_current_function()->cfg();
-        cfg.insert_vertex(cf_loop_start);
+        auto cf_cond = std::make_shared<CFNode>(*node.get_condition(), get_current_block());
+        cfg.insert_vertex(cf_cond);
+
         if (last_cf_nodes.empty())
             throw error("unreachable code", &node);
         else
-            for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_loop_start);
-        last_cf_nodes = {cf_loop_start};
+            for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_cond);
+        last_cf_nodes = {cf_cond};
 
         eval_expr(node.get_condition(), node);
 
-        bool old_is_loop_val = is_loop;
-        is_loop = true;
+        loop_stack.emplace();
+
         node.get_body()->accept(this);
-        is_loop = old_is_loop_val;
+
+        auto loop_info = loop_stack.top();
+        loop_stack.pop();
 
         {    // Add the control flow
-            if (last_cf_nodes.empty())
-                throw error("loop is redundant", &node);
-            else
-                for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_loop_start);
-            last_cf_nodes.clear();
-            last_cf_nodes = {cf_loop_start};
+            if (last_cf_nodes.empty() && loop_info.continue_nodes.empty())
+                throw error("loop is redundant", node.get_token());
+            if (!last_cf_nodes.empty())
+                for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_cond);
+            if (!loop_info.continue_nodes.empty())
+                for (const auto &continue_node: loop_info.continue_nodes) cfg.insert_edge(continue_node, cf_cond);
+
+            last_cf_nodes = {cf_cond};
         }
 
         if (const auto &body = node.get_else_body())
             body->accept(this);
+
+        extend_vec(last_cf_nodes, loop_info.break_nodes);
     }
 
     void Analyzer::visit(ast::stmt::DoWhile &node) {
@@ -96,36 +103,39 @@ namespace spadec
         //                | }
 
         // Control flow specific
-        auto cf_loop_start = std::make_shared<CFNode>(node, get_current_block());
         auto &cfg = get_current_function()->cfg();
-        {    // Add the control flow
-            cfg.insert_vertex(cf_loop_start);
+        auto cf_loop_start = std::make_shared<CFNode>(node, get_current_block());
+        auto cf_cond = std::make_shared<CFNode>(*node.get_condition(), get_current_block());
+        cfg.insert_vertex(cf_loop_start);
+        cfg.insert_vertex(cf_cond);
 
+
+        {    // Add the control flow
             if (last_cf_nodes.empty())
                 throw error("unreachable code", &node);
             else
                 for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_loop_start);
 
-            last_cf_nodes.clear();
             last_cf_nodes = {cf_loop_start};
         }
 
-        bool old_is_loop_val = is_loop;
-        is_loop = true;
+        loop_stack.emplace();
+
         node.get_body()->accept(this);
-        is_loop = old_is_loop_val;
 
-        auto cf_cond = std::make_shared<CFNode>(*node.get_condition(), get_current_block());
+        auto loop_info = loop_stack.top();
+        loop_stack.pop();
+
         {    // Add the control flow
-            cfg.insert_vertex(cf_cond);
-
-            if (last_cf_nodes.empty())
-                throw error("unreachable code", &node);
-            else
+            if (last_cf_nodes.empty() && loop_info.continue_nodes.empty())
+                throw error("loop is redundant", node.get_token());
+            if (!last_cf_nodes.empty())
                 for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_cond);
+            if (!loop_info.continue_nodes.empty())
+                for (const auto &continue_node: loop_info.continue_nodes) cfg.insert_edge(continue_node, cf_cond);
+
             cfg.insert_edge(cf_cond, cf_loop_start);
 
-            last_cf_nodes.clear();
             last_cf_nodes = {cf_cond};
         }
 
@@ -133,6 +143,8 @@ namespace spadec
 
         if (const auto &body = node.get_else_body())
             body->accept(this);
+
+        extend_vec(last_cf_nodes, loop_info.break_nodes);
     }
 
     void Analyzer::visit(ast::stmt::Throw &node) {
@@ -148,7 +160,6 @@ namespace spadec
 
             cfg.insert_edge(cf_node, end_cf_node);
 
-            last_cf_nodes.clear();
             last_cf_nodes = {cf_node};
         }
 
@@ -173,7 +184,7 @@ namespace spadec
         }
     }
 
-    // TODO: implement control flow for try/catch, break/continue
+    // TODO: implement control flow for try/catch
 
     void Analyzer::visit(ast::stmt::Catch &node) {
         for (const auto &ref: node.get_references()) {
@@ -200,13 +211,42 @@ namespace spadec
     }
 
     void Analyzer::visit(ast::stmt::Continue &node) {
-        if (!is_loop)
+        // Add the control flow
+        auto &cfg = get_current_function()->cfg();
+        auto cf_node = std::make_shared<CFNode>(node, get_current_block());
+        cfg.insert_vertex(cf_node);
+
+        if (last_cf_nodes.empty())
+            throw error("unreachable code", &node);
+        else
+            for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_node);
+
+        if (loop_stack.empty())
             throw error("continue statement is not inside a loop", &node);
+        else
+            loop_stack.top().continue_nodes.push_back(cf_node);
+
+        last_cf_nodes.clear();
     }
 
     void Analyzer::visit(ast::stmt::Break &node) {
-        if (!is_loop)
-            throw error("break statement is not inside a loop", &node);
+        {    // Add the control flow
+            auto cf_node = std::make_shared<CFNode>(node, get_current_block());
+            auto &cfg = get_current_function()->cfg();
+            cfg.insert_vertex(cf_node);
+
+            if (last_cf_nodes.empty())
+                throw error("unreachable code", &node);
+            else
+                for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_node);
+
+            if (loop_stack.empty())
+                throw error("break statement is not inside a loop", &node);
+            else
+                loop_stack.top().break_nodes.push_back(cf_node);
+
+            last_cf_nodes.clear();
+        }
     }
 
     void Analyzer::visit(ast::stmt::Return &node) {
@@ -222,7 +262,6 @@ namespace spadec
 
             cfg.insert_edge(cf_node, end_cf_node);
 
-            last_cf_nodes.clear();
             last_cf_nodes = {cf_node};    // to let eval_expr() use it
         }
 
@@ -259,7 +298,6 @@ namespace spadec
 
             cfg.insert_edge(cf_node, end_cf_node);
 
-            last_cf_nodes.clear();
             last_cf_nodes = {cf_node};
         }
 
@@ -284,7 +322,6 @@ namespace spadec
             else
                 for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_node);
 
-            last_cf_nodes.clear();
             last_cf_nodes = {cf_node};
         }
 
@@ -342,7 +379,6 @@ namespace spadec
             else
                 for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_node);
 
-            last_cf_nodes.clear();
             last_cf_nodes = {cf_node};
         }
 
