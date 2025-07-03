@@ -62,21 +62,21 @@ namespace spadec
                     if (lineno == line_start && lineno == line_end) {
                         for (size_t col = 1; col <= line.size(); ++col)
                             if (col_start <= col && col <= col_end)
-                                std::cout << (isspace(line[col - 1]) ? string(1, line[col - 1]) : info.underline_char);
+                                std::cout << (isspace(line[col - 1]) && line[col - 1] != ' ' ? string(1, line[col - 1]) : info.underline_char);
                             else
-                                std::cout << (isspace(line[col - 1]) ? line[col - 1] : ' ');
+                                std::cout << (isspace(line[col - 1]) && line[col - 1] != ' ' ? line[col - 1] : ' ');
                     } else if (lineno == line_start) {
                         for (size_t col = 1; col <= line.size(); ++col)
                             if (col_start <= col)
-                                std::cout << (isspace(line[col - 1]) ? string(1, line[col - 1]) : info.underline_char);
+                                std::cout << (isspace(line[col - 1]) && line[col - 1] != ' ' ? string(1, line[col - 1]) : info.underline_char);
                             else
-                                std::cout << (isspace(line[col - 1]) ? line[col - 1] : ' ');
+                                std::cout << (isspace(line[col - 1]) && line[col - 1] != ' ' ? line[col - 1] : ' ');
                     } else if (lineno == line_end) {
                         for (size_t col = 1; col <= line.size(); ++col)
                             if (col <= col_end)
-                                std::cout << (isspace(line[col - 1]) ? string(1, line[col - 1]) : info.underline_char);
+                                std::cout << (isspace(line[col - 1]) && line[col - 1] != ' ' ? string(1, line[col - 1]) : info.underline_char);
                             else
-                                std::cout << (isspace(line[col - 1]) ? line[col - 1] : ' ');
+                                std::cout << (isspace(line[col - 1]) && line[col - 1] != ' ' ? line[col - 1] : ' ');
                     } else {
                         for (size_t col = 1; col <= line.size(); ++col) {
                             std::cout << (isspace(line[col - 1]) ? string(1, line[col - 1]) : info.underline_char);

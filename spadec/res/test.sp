@@ -79,10 +79,10 @@ public fun try_test() -> int {
     } catch Exception {
         do_count() as void
         return 1
-    } finally {
+    } /* finally {
         # do_count() as void # show a beautiful error message
         #   return 1
-    }
+    } */
 }
 
 public fun loop_test(cond: bool) -> int {
