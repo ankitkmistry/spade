@@ -1,8 +1,6 @@
 #include <cassert>
 #include <clocale>
-#include <filesystem>
 #include <format>
-#include <ios>
 #include <iostream>
 #include <fstream>
 #include <cpptrace/utils.hpp>
@@ -24,9 +22,9 @@
 void compile() {
     using namespace spadec;
     CompilerOptions compiler_options{
-            //
-            .basic_module_path = fs::path(R"(D:\Programming\Projects\spade\spadec\res\basic.sp)"),    //
-            .import_search_dirs = {}                                                                  //
+            .basic_module_path = fs::path(R"(D:\Programming\Projects\spade\spadec\res\basic.sp)"),
+            .import_search_dirs = {},
+            .w_error = false,
     };
     fs::path file_path;
     ErrorPrinter error_printer;

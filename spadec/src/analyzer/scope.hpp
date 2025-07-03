@@ -467,16 +467,15 @@ namespace spadec
       private:
         Kind kind = Kind::EXPR;
         std::variant<const ast::Expression *, const ast::Statement *, scope::Function *> variant = static_cast<const ast::Expression *>(null);
-        scope::Block *block = null;
 
         std::vector<StmtInfo> infos;
 
       public:
-        CFNode(Kind kind, scope::Function *fun) : kind(kind), variant(fun), block(null) {}
+        CFNode(Kind kind, scope::Function *fun) : kind(kind), variant(fun) {}
 
-        CFNode(const ast::Expression &expr, scope::Block *block) : kind(Kind::EXPR), variant(&expr), block(block) {}
+        CFNode(const ast::Expression &expr) : kind(Kind::EXPR), variant(&expr) {}
 
-        CFNode(const ast::Statement &stmt, scope::Block *block) : kind(Kind::STMT), variant(&stmt), block(block) {}
+        CFNode(const ast::Statement &stmt) : kind(Kind::STMT), variant(&stmt) {}
 
         CFNode() = default;
         CFNode(const CFNode &) = default;
@@ -490,7 +489,7 @@ namespace spadec
         }
 
         bool operator==(const CFNode &other) const {
-            return kind == other.kind && variant == other.variant && block == other.block;
+            return kind == other.kind && variant == other.variant;
         }
 
         bool operator!=(const CFNode &other) const {
@@ -511,10 +510,6 @@ namespace spadec
 
         scope::Function *get_function() const {
             return kind == Kind::START || kind == Kind::END ? std::get<scope::Function *>(variant) : null;
-        }
-
-        scope::Block *get_block() const {
-            return block;
         }
 
         const std::vector<StmtInfo> &get_infos() const {
@@ -540,7 +535,6 @@ struct std::hash<spadec::CFNode> {
             boost::hash_combine(seed, node.get_function());
             break;
         }
-        boost::hash_combine(seed, node.get_block());
         return seed;
     }
 };

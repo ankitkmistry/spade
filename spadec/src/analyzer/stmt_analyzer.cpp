@@ -23,7 +23,7 @@ namespace spadec
 
         // Control flow specific
         auto &cfg = get_current_function()->cfg();
-        auto cf_cond = std::make_shared<CFNode>(*node.get_condition(), get_current_block());
+        auto cf_cond = std::make_shared<CFNode>(*node.get_condition());
         cfg.insert_vertex(cf_cond);
 
         if (last_cf_nodes.empty())
@@ -59,7 +59,7 @@ namespace spadec
 
         // Control flow specific
         auto &cfg = get_current_function()->cfg();
-        auto cf_cond = std::make_shared<CFNode>(*node.get_condition(), get_current_block());
+        auto cf_cond = std::make_shared<CFNode>(*node.get_condition());
         cfg.insert_vertex(cf_cond);
 
         if (last_cf_nodes.empty())
@@ -104,8 +104,8 @@ namespace spadec
 
         // Control flow specific
         auto &cfg = get_current_function()->cfg();
-        auto cf_loop_start = std::make_shared<CFNode>(node, get_current_block());
-        auto cf_cond = std::make_shared<CFNode>(*node.get_condition(), get_current_block());
+        auto cf_loop_start = std::make_shared<CFNode>(node);
+        auto cf_cond = std::make_shared<CFNode>(*node.get_condition());
         cfg.insert_vertex(cf_loop_start);
         cfg.insert_vertex(cf_cond);
 
@@ -148,7 +148,7 @@ namespace spadec
     }
 
     void Analyzer::visit(ast::stmt::Throw &node) {
-        auto cf_node = std::make_shared<CFNode>(node, get_current_block());
+        auto cf_node = std::make_shared<CFNode>(node);
         {    // Add the control flow
             auto &cfg = get_current_function()->cfg();
             cfg.insert_vertex(cf_node);
@@ -184,8 +184,6 @@ namespace spadec
         }
     }
 
-    // TODO: implement control flow for try/catch
-
     void Analyzer::visit(ast::stmt::Catch &node) {
         for (const auto &ref: node.get_references()) {
             ref->accept(this);
@@ -197,23 +195,68 @@ namespace spadec
             else
                 throw error(std::format("reference must be a subtype of '{}'", get_internal(Internal::SPADE_THROWABLE)->to_string()), ref);
         }
-        declare_variable(*node.get_symbol());
+        if (node.get_symbol())
+            declare_variable(*node.get_symbol());
+
+        // Add the control flow
+        auto &cfg = get_current_function()->cfg();
+        auto cf_node = std::make_shared<CFNode>(node);
+        cfg.insert_vertex(cf_node);
+
+        if (last_cf_nodes.empty())
+            throw error("unreachable code", &node);
+        else
+            for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_node);
+        last_cf_nodes = {cf_node};
+
         node.get_body()->accept(this);
     }
 
     void Analyzer::visit(ast::stmt::Try &node) {
+        //  cf_node:      | +------ try {
+        //  end_nodes:    | |          <stmts...>    --------+
+        //                | +-----> } catch ... {            |
+        //  end_nodes:    | |          <stmts...>    --------+
+        //                | +-----> } catch ... {            |
+        //  end_nodes:    |            <stmts...>    --------+
+        //                |         } finally {      <-------+
+        //                |            <stmts...>
+        //                |         }
+
+        // Add the control flow
+        auto &cfg = get_current_function()->cfg();
+        auto cf_node = std::make_shared<CFNode>(node);
+        cfg.insert_vertex(cf_node);
+
+        if (last_cf_nodes.empty())
+            throw error("unreachable code", &node);
+        else
+            for (const auto &last_cf_node: last_cf_nodes) cfg.insert_edge(last_cf_node, cf_node);
+        last_cf_nodes = {cf_node};
+
         node.get_body()->accept(this);
+
+        auto end_nodes = last_cf_nodes;
         for (const auto &catch_stmt: node.get_catches()) {
+            last_cf_nodes = {cf_node};
             catch_stmt->accept(this);
+            extend_vec(end_nodes, last_cf_nodes);
         }
-        if (const auto &finally = node.get_finally())
+
+        last_cf_nodes = end_nodes;
+        if (const auto &finally = node.get_finally()) {
+            if (last_cf_nodes.empty()) {
+                warning("'finally' block is redundant", node.get_finally_token());
+                end_warning();
+            }
             finally->accept(this);
+        }
     }
 
     void Analyzer::visit(ast::stmt::Continue &node) {
         // Add the control flow
         auto &cfg = get_current_function()->cfg();
-        auto cf_node = std::make_shared<CFNode>(node, get_current_block());
+        auto cf_node = std::make_shared<CFNode>(node);
         cfg.insert_vertex(cf_node);
 
         if (last_cf_nodes.empty())
@@ -231,7 +274,7 @@ namespace spadec
 
     void Analyzer::visit(ast::stmt::Break &node) {
         {    // Add the control flow
-            auto cf_node = std::make_shared<CFNode>(node, get_current_block());
+            auto cf_node = std::make_shared<CFNode>(node);
             auto &cfg = get_current_function()->cfg();
             cfg.insert_vertex(cf_node);
 
@@ -250,7 +293,7 @@ namespace spadec
     }
 
     void Analyzer::visit(ast::stmt::Return &node) {
-        auto cf_node = std::make_shared<CFNode>(node, get_current_block());
+        auto cf_node = std::make_shared<CFNode>(node);
         {    // Add the control flow
             auto &cfg = get_current_function()->cfg();
             cfg.insert_vertex(cf_node);
@@ -286,7 +329,7 @@ namespace spadec
     }
 
     void Analyzer::visit(ast::stmt::Yield &node) {
-        auto cf_node = std::make_shared<CFNode>(node, get_current_block());
+        auto cf_node = std::make_shared<CFNode>(node);
         {    // Add the control flow
             auto &cfg = get_current_function()->cfg();
             cfg.insert_vertex(cf_node);
@@ -312,7 +355,7 @@ namespace spadec
     }
 
     void Analyzer::visit(ast::stmt::Expr &node) {
-        auto cf_node = std::make_shared<CFNode>(*node.get_expression(), get_current_block());
+        auto cf_node = std::make_shared<CFNode>(*node.get_expression());
         {    // Add the control flow
             auto &cfg = get_current_function()->cfg();
             cfg.insert_vertex(cf_node);
@@ -369,7 +412,7 @@ namespace spadec
     }
 
     void Analyzer::visit(ast::stmt::Declaration &node) {
-        auto cf_node = std::make_shared<CFNode>(node, get_current_block());
+        auto cf_node = std::make_shared<CFNode>(node);
         {    // Add the control flow
             auto &cfg = get_current_function()->cfg();
             cfg.insert_vertex(cf_node);

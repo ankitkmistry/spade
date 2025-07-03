@@ -16,10 +16,10 @@ namespace spadec
      * @class Analyzer
      * @brief The Analyzer class is responsible for analyzing the abstract syntax tree (AST) of the program.
      * 
-     * This class performs various tasks such as name resolution, type checking, context resolution, and
-     * function call analysis. It also provides mechanisms for handling scopes, resolving assignments, 
-     * and checking for ambiguities in function definitions. The Analyzer class is a visitor for different 
-     * AST nodes and processes them accordingly.
+     * This class performs various tasks such as name resolution, type checking, context resolution,
+     * function call resolution and control flow analysis. It also provides mechanisms for 
+     * handling scopes, resolving assignments and checking for ambiguities in function definitions. 
+     * The Analyzer class is a visitor for different AST nodes and processes them accordingly.
      * 
      * @note This class is final and cannot be inherited.
      */
@@ -286,7 +286,7 @@ namespace spadec
                 std::cout << std::endl;
                 _warning_nl = false;
             }
-            printer.print(ErrorType::WARNING, error(msg, std::forward<T>(node)));
+            printer.print(compiler_options.w_error ? ErrorType::ERROR : ErrorType::WARNING, error(msg, std::forward<T>(node)));
         }
 
         template<ast::HasLineInfo T>

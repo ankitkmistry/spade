@@ -493,18 +493,22 @@ namespace spadec
     std::shared_ptr<ast::Statement> Parser::try_stmt() {
         const auto token = expect(TokenType::TRY);
         const auto body = BODY();
-        std::shared_ptr<ast::Statement> finally;
         std::vector<std::shared_ptr<ast::Statement>> catches;
-        if (match(TokenType::FINALLY))
+        std::shared_ptr<Token> finally_token;
+        std::shared_ptr<ast::Statement> finally;
+        if (match(TokenType::FINALLY)) {
+            finally_token = current();
             finally = BODY();
-        else {
+        } else {
             do {
                 catches.push_back(catch_stmt());
             } while (peek()->get_type() == TokenType::CATCH);
-            if (match(TokenType::FINALLY))
+            if (match(TokenType::FINALLY)) {
+                finally_token = current();
                 finally = BODY();
+            }
         }
-        return std::make_shared<ast::stmt::Try>(token, body, catches, finally);
+        return std::make_shared<ast::stmt::Try>(token, body, catches, finally_token, finally);
     }
 
     std::shared_ptr<ast::Statement> Parser::catch_stmt() {

@@ -883,12 +883,17 @@ namespace spadec::ast
         class Try final : public Statement {
             std::shared_ptr<Statement> body;
             std::vector<std::shared_ptr<Statement>> catches;
+            std::shared_ptr<Token> finally_token;
             std::shared_ptr<Statement> finally;
 
           public:
             Try(const std::shared_ptr<Token> &token, const std::shared_ptr<Statement> &body, const std::vector<std::shared_ptr<Statement>> &catches,
-                const std::shared_ptr<Statement> &finally)
-                : Statement(token, finally ? finally : catches.back()), body(body), catches(catches), finally(finally) {}
+                const std::shared_ptr<Token> &finally_token, const std::shared_ptr<Statement> &finally)
+                : Statement(token, finally ? finally : catches.back()),
+                  body(body),
+                  catches(catches),
+                  finally_token(finally_token),
+                  finally(finally) {}
 
             const std::shared_ptr<Statement> &get_body() const {
                 return body;
@@ -896,6 +901,10 @@ namespace spadec::ast
 
             const std::vector<std::shared_ptr<Statement>> &get_catches() const {
                 return catches;
+            }
+
+            const std::shared_ptr<Token> &get_finally_token() const {
+                return finally_token;
             }
 
             const std::shared_ptr<Statement> &get_finally() const {

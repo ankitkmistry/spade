@@ -69,6 +69,22 @@ class Kacha {
 	public fun get_ammo() {}
 }
 
+public fun try_test() -> int {
+    try {
+        do_count() as void
+        return 0
+    } catch Exception {
+        do_count() as void
+        return 1
+    } catch Exception {
+        do_count() as void
+        return 1
+    } finally {
+        # do_count() as void # show a beautiful error message
+        #   return 1
+    }
+}
+
 public fun loop_test(cond: bool) -> int {
     while not cond {
         while cond {
