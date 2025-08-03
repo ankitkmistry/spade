@@ -319,8 +319,8 @@ namespace spadec
 
         if (scope->get_eval() == scope::Variable::Eval::NOT_STARTED) {
             scope->set_eval(scope::Variable::Eval::PROGRESS);
-            // resolve_assign automatically sets eval to DONE
-            resolve_assign(node.get_type(), node.get_expr(), node);
+            scope->set_type_info(resolve_assign(node.get_type(), node.get_expr(), node));
+            scope->set_eval(scope::Variable::Eval::DONE);
 
             // Diagnostic specific
             scope->get_type_info().increase_usage();
@@ -333,8 +333,8 @@ namespace spadec
                 if (fn && block)
                     if (scope->get_enclosing_function() == fn && scope->get_enclosing_block() != null)
                         if (last_cf_nodes.size() == 1)
-                            last_cf_nodes[0]->add_info(StmtInfo{
-                                    .kind = StmtInfo::Kind::VAR_ASSIGNED,
+                            last_cf_nodes[0]->add_info(CFInfo{
+                                    .kind = CFInfo::Kind::VAR_ASSIGNED,
                                     .var = &*scope,
                                     .node = &node,
                             });

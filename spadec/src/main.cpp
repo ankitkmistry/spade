@@ -6,10 +6,10 @@
 #include <cpptrace/utils.hpp>
 #include <cpptrace/from_current.hpp>
 #include <cpptrace/formatting.hpp>
+#include <spdlog/sinks/basic_file_sink.h>
 
 #include "utils/error.hpp"
 #include "utils/error_printer.hpp"
-#include "utils/log.hpp"
 #include "utils/graph.hpp"
 #include "lexer/lexer.hpp"
 #include "parser/parser.hpp"
@@ -20,6 +20,8 @@
 #define ENABLE_BACKTRACE_FILTER (false)
 
 void compile() {
+    // change log pattern
+
     using namespace spadec;
     CompilerOptions compiler_options{
             .basic_module_path = fs::path(R"(D:\Programming\Projects\spade\spadec\res\basic.sp)"),
@@ -31,8 +33,13 @@ void compile() {
     try {
         file_path = R"(D:\Programming\Projects\spade\spadec\res\test.sp)";
 
+        // Setup the log file
         std::ofstream log_out(file_path.string() + ".log");
-        spadec::LOGGER.set_file(log_out);
+        auto logger = spdlog::basic_logger_mt("spadec", file_path.string() + ".log");
+        // logger->set_pattern("[%g:%#] [thread %t] [%l] %v");
+        logger->set_pattern("[thread %t] [%l] %v");
+        spdlog::set_default_logger(logger);
+        spdlog::set_level(spdlog::level::debug);
 
         std::shared_ptr<scope::Module> module;
         {
@@ -89,10 +96,6 @@ int main(int argc, char *argv[]) {
     CPPTRACE_TRY {
         std::setlocale(LC_CTYPE, ".UTF-8");
         color::Console::init();
-        // std::ofstream file("output.log");
-        // LOGGER.set_file(file);
-        // std::ios_base::sync_with_stdio(false);
-        spadec::LOGGER.set_format("[{4}] {5}");
         compile();
         // graph_test();
         // opcode_test();

@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include "scope.hpp"
 #include "info.hpp"
 

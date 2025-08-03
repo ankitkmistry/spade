@@ -1,3 +1,4 @@
+#include <iostream>
 #include <map>
 #include <set>
 #include <unordered_set>
@@ -13,7 +14,6 @@
 #include "scope_tree.hpp"
 #include "symbol_path.hpp"
 #include "utils/error.hpp"
-#include "utils/log.hpp"
 
 // TODO: implement generics
 
@@ -484,8 +484,8 @@ namespace spadec
 
     void Analyzer::check_cast(scope::Compound *from, scope::Compound *to, const ast::AstNode &node, bool safe) {
         if (from == null || to == null) {
-            LOGGER.log_warn("check_cast: one of the scope::Compound is null, casting cannot be done");
-            LOGGER.log_debug(std::format("check_cast: from = {}, to = {}", (from ? "non-null" : "null"), (to ? "non-null" : "null")));
+            SPDLOG_WARN("check_cast: one of the scope::Compound is null, casting cannot be done");
+            SPDLOG_DEBUG(std::format("check_cast: from = {}, to = {}", (from ? "non-null" : "null"), (to ? "non-null" : "null")));
             return;
         }
         if (from == to)
@@ -690,18 +690,17 @@ namespace spadec
                 scope->set_eval(scope::Variable::Eval::DONE);    // mimic as if type resolution is completed
             }
 
-            expr->accept(this);
-            auto expr_info = _res_expr_info;
+            auto expr_info = eval_expr(expr, node);
             type_info = resolve_assign(type_info, expr_info, node);
         } else if (type) {
             type->accept(this);
             type_info = _res_type_info;
         } else if (expr) {
-            expr->accept(this);
-            resolve_indexer(_res_expr_info, true, node);
-            switch (_res_expr_info.tag) {
+            const ExprInfo expr_info = eval_expr(expr, node);
+
+            switch (expr_info.tag) {
             case ExprInfo::Kind::NORMAL:
-                type_info = _res_expr_info.type_info();
+                type_info = expr_info.type_info();
                 break;
             case ExprInfo::Kind::STATIC:
                 type_info.reset();    // `type` literal
@@ -717,11 +716,6 @@ namespace spadec
             type_info.basic().type = get_internal<scope::Compound>(Internal::SPADE_ANY);
             // nullable by default
             type_info.nullable() = true;
-        }
-        // Assigning to a variable, so set the type info
-        if (const auto scope = dynamic_cast<scope::Variable *>(get_current_scope())) {
-            scope->set_type_info(type_info);
-            scope->set_eval(scope::Variable::Eval::DONE);
         }
         return type_info;
     }
@@ -945,7 +939,7 @@ namespace spadec
         resolve_context(candidate, node);
 
         candidate->increase_usage();
-        LOGGER.log_debug(std::format("resolved call candidate: {}", candidate->to_string()));
+        SPDLOG_DEBUG(std::format("resolved call candidate: {}", candidate->to_string()));
 
         ExprInfo expr_info;
         expr_info.tag = ExprInfo::Kind::NORMAL;
@@ -1010,10 +1004,15 @@ namespace spadec
             }
             expr_info.type_info().basic().type = get_internal<scope::Compound>(Internal::SPADE_ANY);
             expr_info.type_info().nullable() = true;
-            warning(std::format("type inference is ambiguous, defaulting to '{}'", expr_info.type_info().to_string()), &node);
-            note("declared here", var_scope);
-            end_warning();
-            break;
+
+            throw ErrorGroup<AnalyzerError>()
+                    .error(error("type inference is ambiguous", &node))    //
+                    .note(error("declared here", var_scope));
+
+            // warning(std::format("type inference is ambiguous, defaulting to '{}'", expr_info.type_info().to_string()), &node);
+            // note("declared here", var_scope);
+            // end_warning();
+            // break;
         case scope::Variable::Eval::DONE:
             expr_info.type_info() = var_scope->get_type_info();
             break;
@@ -1569,14 +1568,18 @@ namespace spadec
                 const auto var = cast<scope::Variable>(scope);
                 const auto fn = get_current_function();
                 const auto block = get_current_block();
-                if (fn && block)
-                    if (scope->get_enclosing_function() == fn && scope->get_enclosing_block() != null)
+                if (fn && block) {
+                    if ((scope->get_enclosing_function() == fn && scope->get_enclosing_block() != null)    // for local variables
+                        || (fn->is_init() && fn->get_enclosing_compound() == scope->get_enclosing_compound() &&
+                            var->get_variable_node()->get_expr() == null)    // (ctor only) for class fields that are not immediately initialized
+                    )
                         if (last_cf_nodes.size() == 1)
-                            last_cf_nodes[0]->add_info(StmtInfo{
-                                    .kind = StmtInfo::Kind::VAR_USED,
+                            last_cf_nodes[0]->add_info(CFInfo{
+                                    .kind = CFInfo::Kind::VAR_USED,
                                     .var = var,
                                     .node = &node,
                             });
+                }
             }
         } else if (const auto param_info = _res_expr_info.value_info.param_info) {
             param_info->b_used = true;
@@ -1596,14 +1599,15 @@ namespace spadec
 
         // Track the variables
         for (const auto &info: node->get_infos()) {
+            // TODO: warning: enumeration values 'REFERENCED_SELF' and 'USED_SELF' not handled in switch
             switch (info.kind) {
-            case StmtInfo::Kind::VAR_USED:
+            case CFInfo::Kind::VAR_USED:
                 if (!state.contains(info.var))
                     errors.error(error(std::format("'{}' may be uninitialized", info.var->to_string()), info.node))
                             .note(error("declared here", info.var))
                             .help(error(std::format("initialize '{}' before usage", info.var->to_string())));
                 break;
-            case StmtInfo::Kind::VAR_ASSIGNED:
+            case CFInfo::Kind::VAR_ASSIGNED:
                 state.insert(info.var);
                 break;
             }
@@ -1822,9 +1826,9 @@ namespace spadec
             cur_scope = &*module;
             for (const auto &import: module->get_module_node()->get_imports()) import->accept(this);
 
-            LOGGER.log_debug("============================================================");
-            LOGGER.log_debug("                COMPILER SEMANTIC ANALYSIS");
-            LOGGER.log_debug("============================================================");
+            SPDLOG_DEBUG("============================================================");
+            SPDLOG_DEBUG("                COMPILER SEMANTIC ANALYSIS");
+            SPDLOG_DEBUG("============================================================");
 
             // Visit all declarations
             for (const auto &[_, module_scope]: module_scopes) {
@@ -1871,21 +1875,25 @@ namespace spadec
             {
                 {
                     std::stringstream ss;
-                    LOGGER.log_debug("============================================================");
-                    LOGGER.log_debug("                    COMPILER AST OUTPUT");
-                    LOGGER.log_debug("============================================================");
+                    SPDLOG_DEBUG("============================================================");
+                    SPDLOG_DEBUG("                    COMPILER AST OUTPUT");
+                    SPDLOG_DEBUG("============================================================");
                     Printer printer(internals[Internal::SPADE]->get_node());
                     printer.write_to(ss);
-                    LOGGER.log_debug(ss.str());
+                    for (string line; std::getline(ss, line);) {
+                        SPDLOG_DEBUG("{}", line);
+                    }
                 }
                 for (const auto &[_, module]: module_scopes) {
                     std::stringstream ss;
-                    LOGGER.log_debug("============================================================");
-                    LOGGER.log_debug("                    COMPILER AST OUTPUT");
-                    LOGGER.log_debug("============================================================");
+                    SPDLOG_DEBUG("============================================================");
+                    SPDLOG_DEBUG("                    COMPILER AST OUTPUT");
+                    SPDLOG_DEBUG("============================================================");
                     Printer printer(module->get_node());
                     printer.write_to(ss);
-                    LOGGER.log_debug(ss.str());
+                    for (string line; std::getline(ss, line);) {
+                        SPDLOG_DEBUG("{}", line);
+                    }
                 }
             }
         } catch (const ErrorGroup<AnalyzerError> &err) {

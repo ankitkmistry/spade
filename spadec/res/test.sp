@@ -37,7 +37,7 @@ class CounterFn {
 
 const do_count = CounterFn()
 
-fun lambda() {
+/* fun lambda() {
 	const fn1 = fun (i: int) { return i + 1 }
 	const fn2 = fun (x: int, y: int): x + y
 	const fn3 = fun (): 124124
@@ -59,10 +59,15 @@ fun lambda() {
 
 	# var fn = fn1 as int
 	# fn1(1)
-}
+} */
 
 class Kacha {
-	init() {}
+	# var a: int
+
+	init() {
+		# var b = Kacha()
+        # var c = b.a
+	}
 	public fun get_aam() {}
 	public fun get_mango() {}
 	public fun get_amro() {}
@@ -117,7 +122,7 @@ public fun main() {
 	var text = "hello, world"
 	text = text[::-1] # "dlrow ,olleh"
 
-	lambda()
+	# lambda()
 	
 	var str_buf: lib.StringBuilder? = lib.StringBuilder("west ")
 	print(do_count(), do_count(), do_count(), sep: ", ")

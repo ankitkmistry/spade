@@ -39,6 +39,19 @@ namespace spadec
         case TokenType::INIT:
         case TokenType::IDENTIFIER:
             _res_expr_info = resolve_name(node.get_token()->get_text(), node);
+
+            // Implicit self referencing
+            if (_res_expr_info.value_info.scope && _res_expr_info.value_info.scope->get_type() == scope::ScopeType::VARIABLE) {
+                const auto var = cast<scope::Variable>(_res_expr_info.value_info.scope);
+                if (get_current_compound() == var->get_parent()) {
+                    if (last_cf_nodes.size() == 1)
+                        last_cf_nodes[0]->add_info(CFInfo{
+                                .kind = CFInfo::Kind::REFERENCED_SELF,
+                                .var = null,
+                                .node = &node,
+                        });
+                }
+            }
             break;
         default:
             throw Unreachable();    // surely some parser error
@@ -80,6 +93,13 @@ namespace spadec
             _res_expr_info.type_info().basic().type = cast<scope::Compound>(klass);
         else
             throw error("self is only allowed in class level declarations only", &node);
+
+        if (last_cf_nodes.size() == 1)
+            last_cf_nodes[0]->add_info(CFInfo{
+                    .kind = CFInfo::Kind::REFERENCED_SELF,
+                    .var = null,
+                    .node = &node,
+            });
 
         _res_expr_info.value_info.b_lvalue = true;
         _res_expr_info.value_info.b_const = true;
@@ -1089,10 +1109,10 @@ lt_le_ge_gt_common:
 
         ExprInfo last_expr_info;
         for (size_t i = 0; i < node.get_assignees().size(); i++) {
-            auto expr_node = node.get_exprs()[i];
-            auto right_expr_info = eval_expr(expr_node, node);
+            const auto expr_node = node.get_exprs()[i];
+            const auto right_expr_info = eval_expr(expr_node, node);
 
-            auto assignee_node = node.get_assignees()[i];
+            const auto assignee_node = node.get_assignees()[i];
             assignee_node->accept(this);
             auto left_expr_info = _res_expr_info;
 
@@ -1105,10 +1125,13 @@ lt_le_ge_gt_common:
                     const auto fn = get_current_function();
                     const auto block = get_current_block();
                     if (fn && block)
-                        if (scope->get_enclosing_function() == fn && scope->get_enclosing_block() != null)
+                        if ((scope->get_enclosing_function() == fn && scope->get_enclosing_block() != null)    // for local variables
+                            || (fn->is_init() && fn->get_enclosing_compound() == scope->get_parent() &&
+                                var->get_variable_node()->get_expr() == null)    // (ctor only) for class fields that are not immediately initialized
+                        )
                             if (last_cf_nodes.size() == 1)
-                                last_cf_nodes[0]->add_info(StmtInfo{
-                                        .kind = StmtInfo::Kind::VAR_ASSIGNED,
+                                last_cf_nodes[0]->add_info(CFInfo{
+                                        .kind = CFInfo::Kind::VAR_ASSIGNED,
                                         .var = var,
                                         .node = &node,
                                 });

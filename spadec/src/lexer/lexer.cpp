@@ -284,7 +284,11 @@ namespace spadec
                             }
                         }
                         advance();
-                        col++;
+                        if (current() == '\n') {
+                            line++;
+                            col = 1;
+                        } else
+                            col++;
                     }
                 } else
                     return get_token(TokenType::SLASH);

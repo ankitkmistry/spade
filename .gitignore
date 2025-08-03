@@ -432,6 +432,9 @@ FodyWeavers.xsd
 # JetBrains Rider
 *.sln.iml
 
+# JetBrains CLion
+.idea
+
 thirdparty
 
 out

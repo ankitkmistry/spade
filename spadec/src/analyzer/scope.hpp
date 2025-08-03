@@ -468,7 +468,7 @@ namespace spadec
         Kind kind = Kind::EXPR;
         std::variant<const ast::Expression *, const ast::Statement *, scope::Function *> variant = static_cast<const ast::Expression *>(null);
 
-        std::vector<StmtInfo> infos;
+        std::vector<CFInfo> infos;
 
       public:
         CFNode(Kind kind, scope::Function *fun) : kind(kind), variant(fun) {}
@@ -484,7 +484,7 @@ namespace spadec
         CFNode &operator=(CFNode &&) = default;
         ~CFNode() = default;
 
-        void add_info(const StmtInfo &info) {
+        void add_info(const CFInfo &info) {
             infos.push_back(info);
         }
 
@@ -512,7 +512,7 @@ namespace spadec
             return kind == Kind::START || kind == Kind::END ? std::get<scope::Function *>(variant) : null;
         }
 
-        const std::vector<StmtInfo> &get_infos() const {
+        const std::vector<CFInfo> &get_infos() const {
             return infos;
         }
     };

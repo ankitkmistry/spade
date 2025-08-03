@@ -4,7 +4,6 @@
 
 #include "spimp/common.hpp"
 #include "spimp/error.hpp"
-#include "spimp/log.hpp"
 #include "spimp/utils.hpp"
 #include "spimp/color.hpp"
 

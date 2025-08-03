@@ -1,5 +1,7 @@
 #pragma once
 
+#include <iostream>
+
 #include "utils/error.hpp"
 
 namespace spadec

@@ -42,6 +42,9 @@ FetchContent_Declare (
 )
 FetchContent_MakeAvailable (argparse)
 
+# Set up spdlog
+find_package(spdlog REQUIRED CONFIG)
+
 # Target: sputils
 # It is the central utility library used by all other targets
 file (GLOB_RECURSE SPUTILS_SRCS sputils/src/*.cpp)
@@ -63,7 +66,7 @@ file (GLOB_RECURSE SPADEC_INCLUDES spadec/src/*.hpp)
 add_executable (spadec ${SPADEC_SRCS} ${SPADEC_INCLUDES})
 target_include_directories (spadec PRIVATE spadec/src)
 target_include_directories (spadec PUBLIC sputils/src)
-target_link_libraries (spadec PUBLIC sputils PRIVATE cpptrace::cpptrace)
+target_link_libraries (spadec PUBLIC sputils PRIVATE cpptrace::cpptrace spdlog::spdlog)
 
 # Target: spasm
 # It is the assembler of the Spade language bytecode

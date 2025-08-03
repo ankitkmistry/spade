@@ -451,10 +451,12 @@ namespace spadec
         const ast::AstNode *node = null;
     };
 
-    struct StmtInfo {
+    struct CFInfo {
         enum class Kind {
             VAR_USED,
             VAR_ASSIGNED,
+            REFERENCED_SELF,
+            USED_SELF,
         } kind;
 
         const scope::Variable *var = null;
