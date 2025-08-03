@@ -52,7 +52,7 @@ namespace spadec
             fun_scope->set_path(fun_sym_path);                               // set the symbol path of the function
             fun_scope->get_function_node()->set_qualified_name(fun_name);    // set the qualified name of the function
             fun_set->new_variable(fun_name, decl_site, fun_scope);           // add the function to the set
-            SPDLOG_DEBUG(std::format("added symbol '{}'", fun_sym_path.to_string()));
+            SPDLOG_DEBUG("added symbol '{}'", fun_sym_path.to_string());
         } else {
             if (parent_scope->has_variable(name)) {
                 throw ErrorGroup<AnalyzerError>()
@@ -62,7 +62,7 @@ namespace spadec
                 parent_scope->new_variable(name, decl_site, scope);
                 scope->set_path(symbol_path);
             }
-            SPDLOG_DEBUG(std::format("added symbol '{}'", symbol_path.to_string()));
+            SPDLOG_DEBUG("added symbol '{}'", symbol_path.to_string());
         }
     }
 

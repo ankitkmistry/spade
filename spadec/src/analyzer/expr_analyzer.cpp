@@ -4,6 +4,7 @@
 #include "parser/ast.hpp"
 #include "scope.hpp"
 #include "utils/error.hpp"
+#include <cassert>
 
 namespace spadec
 {
@@ -108,6 +109,12 @@ namespace spadec
 
     void Analyzer::visit(ast::expr::DotAccess &node) {
         auto caller_info = eval_expr(node.get_caller(), node);
+        if (caller_info.value_info.b_self) {
+            if (last_cf_nodes.size() == 1) {
+                assert(last_cf_nodes.back()->get_infos().back().kind == CFInfo::Kind::USED_SELF);
+                last_cf_nodes.back()->get_infos().pop_back();    // Remove the USED_SELF and let it be used by VAR_ASSIGNED or VAR_USED
+            }
+        }
 
         string member_name = node.get_member()->get_text();
         _res_expr_info = get_member(caller_info, member_name, node.get_safe() != null, node);
@@ -1124,17 +1131,27 @@ lt_le_ge_gt_common:
                     const auto var = cast<scope::Variable>(scope);
                     const auto fn = get_current_function();
                     const auto block = get_current_block();
-                    if (fn && block)
-                        if ((scope->get_enclosing_function() == fn && scope->get_enclosing_block() != null)    // for local variables
-                            || (fn->is_init() && fn->get_enclosing_compound() == scope->get_parent() &&
-                                var->get_variable_node()->get_expr() == null)    // (ctor only) for class fields that are not immediately initialized
-                        )
+                    if (fn && block) {
+                        // for local variables
+                        if (scope->get_enclosing_function() == fn && scope->get_enclosing_block() != null) {
                             if (last_cf_nodes.size() == 1)
                                 last_cf_nodes[0]->add_info(CFInfo{
                                         .kind = CFInfo::Kind::VAR_ASSIGNED,
                                         .var = var,
                                         .node = &node,
                                 });
+                        }
+                        // (ctor only) for class fields (referenced by `self`) that are not immediately initialized
+                        if (fn->is_init() && fn->get_enclosing_compound() == scope->get_enclosing_compound() &&
+                            var->get_variable_node()->get_expr() == null && last_cf_nodes.size() == 1 && !last_cf_nodes[0]->get_infos().empty() &&
+                            last_cf_nodes[0]->get_infos().back().kind == CFInfo::Kind::REFERENCED_SELF) {
+                            last_cf_nodes[0]->add_info(CFInfo{
+                                    .kind = CFInfo::Kind::VAR_ASSIGNED,
+                                    .var = var,
+                                    .node = &node,
+                            });
+                        }
+                    }
                 }
             } else if (const auto param_info = _res_expr_info.value_info.param_info)
                 param_info->b_used = true;

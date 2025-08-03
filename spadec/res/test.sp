@@ -62,11 +62,13 @@ const do_count = CounterFn()
 } */
 
 class Kacha {
-	# var a: int
+	var a: int
 
 	init() {
-		# var b = Kacha()
-        # var c = b.a
+		self.a = 11 		# Comment this and get a beautiful error msg
+		var b = Kacha()
+        var c = a
+		a = c + b.a
 	}
 	public fun get_aam() {}
 	public fun get_mango() {}

@@ -515,6 +515,10 @@ namespace spadec
         const std::vector<CFInfo> &get_infos() const {
             return infos;
         }
+
+        std::vector<CFInfo> &get_infos() {
+            return infos;
+        }
     };
 }    // namespace spadec
 

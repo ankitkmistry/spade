@@ -485,7 +485,7 @@ namespace spadec
     void Analyzer::check_cast(scope::Compound *from, scope::Compound *to, const ast::AstNode &node, bool safe) {
         if (from == null || to == null) {
             SPDLOG_WARN("check_cast: one of the scope::Compound is null, casting cannot be done");
-            SPDLOG_DEBUG(std::format("check_cast: from = {}, to = {}", (from ? "non-null" : "null"), (to ? "non-null" : "null")));
+            SPDLOG_DEBUG("check_cast: from = {}, to = {}", (from ? "non-null" : "null"), (to ? "non-null" : "null"));
             return;
         }
         if (from == to)
@@ -939,7 +939,7 @@ namespace spadec
         resolve_context(candidate, node);
 
         candidate->increase_usage();
-        SPDLOG_DEBUG(std::format("resolved call candidate: {}", candidate->to_string()));
+        SPDLOG_DEBUG("resolved call candidate: {}", candidate->to_string());
 
         ExprInfo expr_info;
         expr_info.tag = ExprInfo::Kind::NORMAL;
@@ -1351,8 +1351,10 @@ namespace spadec
                         for (const auto &result: results) {
                             final_str += "'" + result + "', ";
                         }
-                        final_str.pop_back();
-                        final_str.pop_back();
+                        if (!final_str.empty()) {
+                            final_str.pop_back();
+                            final_str.pop_back();
+                        }
                         errors.help(error(std::format("did you mean one of {}?", final_str)));
                     }
                     return expr_info;
@@ -1560,7 +1562,14 @@ namespace spadec
 
     ExprInfo Analyzer::eval_expr(const std::shared_ptr<ast::Expression> &expr, const ast::AstNode &node) {
         expr->accept(this);
-        if (const auto scope = _res_expr_info.value_info.scope) {
+        if (_res_expr_info.value_info.b_self) {
+            if (last_cf_nodes.size() == 1)
+                last_cf_nodes[0]->add_info(CFInfo{
+                        .kind = CFInfo::Kind::USED_SELF,
+                        .var = null,
+                        .node = &node,
+                });
+        } else if (const auto scope = _res_expr_info.value_info.scope) {
             scope->increase_usage();
 
             // Note down the variable usage and assignments
@@ -1569,16 +1578,24 @@ namespace spadec
                 const auto fn = get_current_function();
                 const auto block = get_current_block();
                 if (fn && block) {
-                    if ((scope->get_enclosing_function() == fn && scope->get_enclosing_block() != null)    // for local variables
-                        || (fn->is_init() && fn->get_enclosing_compound() == scope->get_enclosing_compound() &&
-                            var->get_variable_node()->get_expr() == null)    // (ctor only) for class fields that are not immediately initialized
-                    )
+                    // for local variables
+                    if (scope->get_enclosing_function() == fn && scope->get_enclosing_block() != null)
                         if (last_cf_nodes.size() == 1)
                             last_cf_nodes[0]->add_info(CFInfo{
                                     .kind = CFInfo::Kind::VAR_USED,
                                     .var = var,
                                     .node = &node,
                             });
+                    // (ctor only) for class fields (referenced by `self`) that are not immediately initialized
+                    if (fn->is_init() && fn->get_enclosing_compound() == scope->get_enclosing_compound() &&
+                        var->get_variable_node()->get_expr() == null && last_cf_nodes.size() == 1 && !last_cf_nodes[0]->get_infos().empty() &&
+                        last_cf_nodes[0]->get_infos().back().kind == CFInfo::Kind::REFERENCED_SELF) {
+                        last_cf_nodes[0]->add_info(CFInfo{
+                                .kind = CFInfo::Kind::VAR_USED,
+                                .var = var,
+                                .node = &node,
+                        });
+                    }
                 }
             }
         } else if (const auto param_info = _res_expr_info.value_info.param_info) {
@@ -1598,17 +1615,31 @@ namespace spadec
         visited.insert(node);    // Mark as visited
 
         // Track the variables
+        bool self_ref = false;
         for (const auto &info: node->get_infos()) {
-            // TODO: warning: enumeration values 'REFERENCED_SELF' and 'USED_SELF' not handled in switch
             switch (info.kind) {
             case CFInfo::Kind::VAR_USED:
-                if (!state.contains(info.var))
-                    errors.error(error(std::format("'{}' may be uninitialized", info.var->to_string()), info.node))
-                            .note(error("declared here", info.var))
-                            .help(error(std::format("initialize '{}' before usage", info.var->to_string())));
+                if (!state.contains(info.var)) {
+                    if (self_ref)
+                        errors.error(error(std::format("'{}' may be uninitialized", info.var->to_string()), info.node))
+                                .note(error("declared here", info.var))
+                                .help(error(std::format("initialize '{}' before usage (`self.{} = ...`)", info.var->to_string(),
+                                                        info.var->get_path().get_name())));
+                    else
+                        errors.error(error(std::format("'{}' may be uninitialized", info.var->to_string()), info.node))
+                                .note(error("declared here", info.var))
+                                .help(error(std::format("initialize '{}' before usage", info.var->to_string())));
+                }
                 break;
             case CFInfo::Kind::VAR_ASSIGNED:
                 state.insert(info.var);
+                self_ref = false;
+                break;
+            case CFInfo::Kind::REFERENCED_SELF:
+                self_ref = true;
+                break;
+            case CFInfo::Kind::USED_SELF:
+                self_ref = false;
                 break;
             }
         }
