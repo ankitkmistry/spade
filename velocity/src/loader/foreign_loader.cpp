@@ -1,5 +1,4 @@
 #include <ranges>
-#include <string>
 
 #include "foreign_loader.hpp"
 
@@ -77,7 +76,7 @@ void Library::unload() {
     dlclose(module);
 }
 
-Library *ForeignLoader::load_simple_library(string path) {
+Library *ForeignLoader::load_simple_library(const string &path) {
     // TODO: Add advanced lookup
     void *module = dlopen(path.c_str(), RTLD_LAZY);
     if (module == null) {

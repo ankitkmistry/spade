@@ -2,6 +2,7 @@
 
 #include <variant>
 
+#include "spimp/error.hpp"
 #include "utils/common.hpp"
 #include "parser/ast.hpp"
 #include "symbol_path.hpp"
@@ -196,6 +197,7 @@ namespace spadec
             case Kind::FUNCTION:
                 return function().weak_equals(other.function());
             }
+            throw Unreachable();
         }
 
         bool operator==(const TypeInfo &other) const {
@@ -207,6 +209,7 @@ namespace spadec
             case Kind::FUNCTION:
                 return function() == other.function();
             }
+            throw Unreachable();
         }
 
         bool operator!=(const TypeInfo &other) const {

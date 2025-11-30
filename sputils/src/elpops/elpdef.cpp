@@ -1,6 +1,8 @@
 #include "elpdef.hpp"
 #include "spimp/error.hpp"
 #include "spimp/utils.hpp"
+
+#include <algorithm>
 #include <limits>
 
 namespace spade
@@ -8,7 +10,7 @@ namespace spade
     _UTF8::_UTF8(const string &str) : len(str.size() & std::numeric_limits<uint16_t>::max()), bytes(str.begin(), str.end()) {}
 
     bool _UTF8::operator==(const _UTF8 &rhs) const {
-        return len == rhs.len && std::memcmp(bytes.data(), rhs.bytes.data(), len) == 0;
+        return len == rhs.len && std::equal(bytes.begin(), bytes.end(), rhs.bytes.begin());
     }
 
     bool _UTF8::operator!=(const _UTF8 &rhs) const {

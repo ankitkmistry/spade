@@ -1082,6 +1082,7 @@ lt_le_ge_gt_common:
                     break;
                 case ExprInfo::Kind::STATIC:
                     fun.return_type().basic() = {};
+                    break;
                 case ExprInfo::Kind::MODULE:
                     throw error("cannot return a module", &node);
                 case ExprInfo::Kind::FUNCTION_SET: {

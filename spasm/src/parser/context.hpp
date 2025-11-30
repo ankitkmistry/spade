@@ -11,11 +11,6 @@
 namespace spasm
 {
     struct ValueContext {
-        // int64_t int_val;
-        // double float_val;
-        // string str_val;
-        // char chr_value;
-        // vector<ValueContext> arr_val;
         std::variant<int64_t, double, string, char, vector<ValueContext>> value;
 
         ValueContext() = default;

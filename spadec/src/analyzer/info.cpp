@@ -1,5 +1,6 @@
 #include "info.hpp"
 #include "scope.hpp"
+#include "spimp/error.hpp"
 
 namespace spadec
 {
@@ -138,6 +139,7 @@ namespace spadec
         case Kind::FUNCTION:
             return function().to_string(decorated);
         }
+        throw Unreachable();
     }
 
     string ExprInfo::to_string(bool decorated) const {

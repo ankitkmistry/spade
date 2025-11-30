@@ -112,6 +112,8 @@ namespace spade
          * @return the reified type
          */
         Type *get_reified(Obj **args, uint8 count) const {
+            // TODO: Think of something else
+            // Potential UB here, breaking of strict aliasing rules
             return get_reified(*reinterpret_cast<Type ***>(&args), count);
         }
 

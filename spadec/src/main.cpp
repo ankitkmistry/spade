@@ -24,14 +24,14 @@ void compile() {
 
     using namespace spadec;
     CompilerOptions compiler_options{
-            .basic_module_path = fs::path(R"(D:\Programming\Projects\spade\spadec\res\basic.sp)"),
+            .basic_module_path = fs::path("./spadec/res/basic.sp"),
             .import_search_dirs = {},
             .w_error = false,
     };
     fs::path file_path;
     ErrorPrinter error_printer;
     try {
-        file_path = R"(D:\Programming\Projects\spade\spadec\res\test.sp)";
+        file_path = "./spadec/res/test.sp";
 
         // Setup the log file
         std::ofstream log_out(file_path.string() + ".log");
@@ -59,9 +59,9 @@ void compile() {
             Analyzer analyzer(module, error_printer, compiler_options);
             analyzer.analyze();
         }
-    } catch (const ErrorGroup<ImportError> err_grp) {
+    } catch (const ErrorGroup<ImportError> &err_grp) {
         error_printer.print(err_grp);
-    } catch (const ErrorGroup<AnalyzerError> err_grp) {
+    } catch (const ErrorGroup<AnalyzerError> &err_grp) {
         error_printer.print(err_grp);
     } catch (const CompilerError &err) {
         error_printer.print(ErrorType::ERROR, err);

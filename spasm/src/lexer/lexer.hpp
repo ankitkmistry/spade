@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <functional>
 
 #include "../utils/common.hpp"
 #include "../utils/error.hpp"

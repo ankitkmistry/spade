@@ -10,9 +10,9 @@ namespace spade
 {
     static void clear_console() {
 #if defined(OS_WINDOWS)
-        system("cls");
+        (void) system("cls");
 #elif defined(OS_LINUX) || defined(OS_MAC)
-        system("clear");
+        (void) system("clear");
 #endif
     }
 

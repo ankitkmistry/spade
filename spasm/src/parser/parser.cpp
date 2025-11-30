@@ -1,8 +1,10 @@
 #include <cassert>
+#include <charconv>
 #include <concepts>
 #include <cstdint>
 #include <limits>
 #include <stdexcept>
+#include <system_error>
 #include <unordered_map>
 #include <utility>
 #include <variant>
@@ -55,19 +57,26 @@ namespace spasm
     }
 
     int64_t Parser::str2int(const std::shared_ptr<Token> &token) {
-        const auto &str = token->get_text();
-        try {
-            if constexpr (std::same_as<int64_t, long long>)
-                return static_cast<int64_t>(std::stoll(str));
-            else if constexpr (std::same_as<int64_t, long>)
-                return static_cast<int64_t>(std::stol(str));
-            else
-                return static_cast<int64_t>(std::stoi(str));
-        } catch (const std::out_of_range &) {
-            throw error("number is out of range", token);
-        } catch (const std::invalid_argument &) {
-            throw error("number is invalid", token);
+        string str = token->get_text();
+        int base = 10;
+
+        if (str.size() >= 2 && str.starts_with("0x")) {
+            str = str.substr(2);
+            base = 16;
+        } else if (str.size() > 1 && str[0] == '0') {
+            str = str.substr(1);
+            base = 8;
         }
+
+        int64_t value = 0;
+        auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), value, base);
+        if (ec == std::errc())
+            return value;
+        else if (ec == std::errc::invalid_argument)
+            throw error("number is invalid", token);
+        else if (ec == std::errc::result_out_of_range)
+            throw error("number is out of range", token);
+        throw Unreachable();
     }
 
     std::shared_ptr<Token> Parser::current() {

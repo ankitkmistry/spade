@@ -8,9 +8,9 @@ public enum Color {
 }
 
 # You cannot do this
-# class A : B {}
-# class B : C {}
-# class C : A {}
+# class Class_A : Class_B {}
+# class Class_B : Class_C {}
+# class Class_C : Class_A {}
 
 abstract class A {
 	public fun f(){}
@@ -37,29 +37,29 @@ class CounterFn {
 
 const do_count = CounterFn()
 
-/* fun lambda() {
-	const fn1 = fun (i: int) { return i + 1 }
-	const fn2 = fun (x: int, y: int): x + y
-	const fn3 = fun (): 124124
-	const fn4 = fun : 124124
-	const fn5 = fun -> int: 124124
-	const fn6 = fun { 124124 }
-
-	fn1(1)
-	fn2(35, 34) as void
-	fn3() as void
-	fn4() as float as void
-	fn5() as void
-	fn6()
-
-	# fn()
-
-	# var a : A
-	# a?.f()
-
-	# var fn = fn1 as int
-	# fn1(1)
-} */
+# fun lambda() {
+# 	const fn1 = fun (i: int) { return i + 1 }
+# 	const fn2 = fun (x: int, y: int): x + y
+# 	const fn3 = fun (): 124124
+# 	const fn4 = fun : 124124
+# 	const fn5 = fun -> int: 124124
+# 	const fn6 = fun { 124124 }
+# 
+# 	fn1(1)
+# 	fn2(35, 34) as void
+# 	fn3() as void
+# 	fn4() as float as void
+# 	fn5() as void
+# 	fn6()
+# 
+# 	# fn()
+# 
+# 	# var a : A
+# 	# a?.f()
+# 
+# 	# var fn = fn1 as int
+# 	# fn1(1)
+# }
 
 class Kacha {
 	var a: int

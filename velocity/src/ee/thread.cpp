@@ -6,7 +6,7 @@
 
 namespace spade
 {
-    Thread::Thread(SpadeVM *vm, const std::function<void(Thread *)> &fun, const std::function<void()> &pre_fun) : state(vm), thread() {
+    Thread::Thread(SpadeVM *vm, const std::function<void(Thread *)> &fun, const std::function<void()> &pre_fun) : thread(), state(vm) {
         // The mutex to check if the current thread was registered
         std::mutex clr_mutex;
         // The cond var that notifies if the thread has got clearance to start

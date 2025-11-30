@@ -9,7 +9,7 @@ namespace spasm
       private:
         fs::path file_path;
         vector<std::shared_ptr<Token>> tokens;
-        int index = 0;
+        size_t index = 0;
 
         Sign current_sign;
         Sign entry_point;
@@ -33,12 +33,10 @@ namespace spasm
         template<typename... Ts>
             requires(std::same_as<TokenType, Ts> && ...)
         static string make_expected_string(Ts... types) {
-            std::array<TokenType, sizeof...(types)> list{types...};
-            string result;
-            for (int i = 0; i < list.size(); ++i) {
-                result += TokenInfo::get_repr(list[i]);
-                if (i < list.size() - 1)
-                    result += ", ";
+            string result = ((TokenInfo::get_repr(types) + ", ") + ...);
+            if constexpr (sizeof...(types) > 0) {
+                result.pop_back();
+                result.pop_back();
             }
             return result;
         }
@@ -46,11 +44,9 @@ namespace spasm
         template<typename... T>
             requires(std::same_as<TokenType, T> && ...)
         std::shared_ptr<Token> match(T... types) {
-            const vector<TokenType> ts = {types...};
-            for (auto t: ts) {
-                if (peek()->get_type() == t)
-                    return advance();
-            }
+            const auto tok = peek();
+            if (((tok->get_type() == types) || ...))
+                return advance();
             return null;
         }
 
@@ -62,6 +58,10 @@ namespace spasm
                 if (peek()->get_type() == t)
                     return advance();
             }
+
+            const auto tok = peek();
+            if (((tok->get_type() == types) || ...))
+                return advance();
             throw error(std::format("expected {}", make_expected_string(types...)));
         }
 

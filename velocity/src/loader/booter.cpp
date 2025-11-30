@@ -55,7 +55,7 @@ namespace spade
         const auto ctx = load_elp(elp);
 
         vector<ObjModule *> modules;
-        for (const auto import: ctx.imports) {
+        for (const auto &import: ctx.imports) {
             auto imported_mods = _load(resolve_path(path, import)).second;
             modules.insert(modules.end(), imported_mods.begin(), imported_mods.end());
             extend_vec(modules, imported_mods);

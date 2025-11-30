@@ -10,7 +10,7 @@
 template<class T, class Equal = std::equal_to<T>>
     requires std::is_copy_constructible_v<T> && std::is_copy_assignable_v<T> && std::is_destructible_v<T>
 class BasicEdge {
-    using EdgeType = std::remove_cvref_t<T>;
+    using EdgeType = T;
 
     EdgeType m_origin;
     EdgeType m_destination;

@@ -1,4 +1,5 @@
 #include "error_printer.hpp"
+#include <iostream>
 
 namespace spasm
 {

@@ -747,7 +747,7 @@ namespace spadec
         if (exprs.size() == 1)
             return exprs.back();
         std::shared_ptr<ast::Expression> expr = exprs.back();
-        for (size_t i = ops.size() - 1; i >= 0; i--) {
+        for (size_t i = ops.size() - 1; ; i--) {
             expr = std::make_shared<ast::expr::Binary>(exprs[i], ops[i], expr);
             if (i == 0)
                 break;

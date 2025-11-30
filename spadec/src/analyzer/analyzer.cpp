@@ -12,6 +12,7 @@
 #include "parser/printer.hpp"
 #include "scope.hpp"
 #include "scope_tree.hpp"
+#include "spimp/error.hpp"
 #include "symbol_path.hpp"
 #include "utils/error.hpp"
 
@@ -637,6 +638,7 @@ namespace spadec
                             &node);
                 return type_info;
             }
+            break;
         case ExprInfo::Kind::STATIC:
             if (type_info.tag != TypeInfo::Kind::BASIC)
                 throw error(std::format("cannot assign value of type '{}' to type '{}'", expr_info.type_info().to_string(), type_info.to_string()),
@@ -676,6 +678,7 @@ namespace spadec
             }
             return type_info;
         }
+        throw Unreachable();
     }
 
     TypeInfo Analyzer::resolve_assign(const std::shared_ptr<ast::Type> &type, const std::shared_ptr<ast::Expression> &expr,

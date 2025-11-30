@@ -7,7 +7,7 @@
 #include "objects/typeparam.hpp"
 #include "objects/inbuilt_types.hpp"
 
-#include "jit/jit.hpp"
+// #include "jit/jit.hpp"
 
 namespace spade
 {
@@ -70,7 +70,7 @@ namespace spade
         try {
             // Load the basic types and module
             load_basic();
-            // Load the file and get the entry point
+            // Load the file and ge the entry point
             const auto entry = loader.load(filename);
             // Complain if there is no entry point
             if (entry == null)
@@ -81,7 +81,7 @@ namespace spade
             else if (const auto args_count = entry->get_frame_template().get_args().count(); args_count == 1) {
                 // Convert vector<string> to ObjArray
                 auto array = halloc_mgr<ObjArray>(manager, args.size());
-                for (int i = 0; i < args.size(); ++i) array->set(i, halloc_mgr<ObjString>(manager, args[i]));
+                for (size_t i = 0; i < args.size(); ++i) array->set(i, halloc_mgr<ObjString>(manager, args[i]));
                 entry->call(vector<Obj *>{array});
             } else
                 throw runtime_error("entry point must have zero or one argument (basic.array): " + entry->get_sign().to_string());
@@ -133,7 +133,7 @@ namespace spade
             else
                 return null;
         }
-        for (int i = 1; i < elements.size(); ++i) {
+        for (size_t i = 1; i < elements.size(); ++i) {
             try {
                 obj = obj->get_member(elements[i].to_string());
             } catch (const IllegalAccessError &) {
@@ -156,7 +156,7 @@ namespace spade
             obj = it->second;
         else
             throw IllegalAccessError(std::format("cannot find symbol: {}", sign));
-        for (int i = 1; i < elements.size(); ++i)
+        for (size_t i = 1; i < elements.size(); ++i)
             if (i == elements.size() - 1) {
                 obj->get_member_slots()[elements.back().to_string()].set_value(val);
             } else
@@ -201,6 +201,9 @@ namespace spade
     }
 
     bool SpadeVM::check_cast(const Type *type1, const Type *type2) {
+        (void) type1;
+        (void) type2;
+
         // TODO implement this
         return false;
     }
