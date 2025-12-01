@@ -154,12 +154,12 @@ namespace spadec
         std::shared_ptr<ast::Statement> statements();
         /// block ::= '{' (block | declaration | statement)* '}'
         std::shared_ptr<ast::stmt::Block> block();
-        /// statement ::= if_stmt | while_stmt | do_while_stmt | try_stmt
+        /// statement ::= (if_stmt | while_stmt | do_while_stmt | try_stmt
         ///             | 'continue' | 'break'
         //              | 'throw' expression
         //              | 'return' expression?
         //              | 'yield' expression
-        //              | expression
+        //              | expression)? ';'
         std::shared_ptr<ast::Statement> statement();
         /// if_stmt ::= 'if' expression (':' statement | block) ('else' (':' statement | block | if_stmt))?
         std::shared_ptr<ast::Statement> if_stmt();

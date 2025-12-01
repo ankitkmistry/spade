@@ -35,12 +35,12 @@ param       ::= 'const'? '*'? IDENTIFIER (':' type)? ('=' lambda)?
 // Statements
 statements      ::= block | statement;
 block           ::= '{' (block | declaration | statement)* '}';
-statement       ::= if_stmt | while_stmt | do_while_stmt | try_stmt
+statement       ::= (if_stmt | while_stmt | do_while_stmt | try_stmt
                   | 'continue' | 'break'
                   | 'throw' expression
                   | 'return' expression?
                   | 'yield' expression
-                  | expression;
+                  | expression)? ';';
 if_stmt         ::= 'if' expression (':' statement | block) ('else' (':' statement | block | if_stmt))?;
 while_stmt      ::= 'while' expression (':' statement | block) ('else' (':' statement | block))?;
 do_while_stmt   ::= 'do' block 'while' expression ('else' (':' statement | block))?;

@@ -65,18 +65,18 @@ namespace spadec
 
         internals[Internal::SPADE] = basic_module;
 
-        internals[Internal::SPADE_ANY] = basic_module->get_variable(INTERNAL_NAMES[static_cast<int>(Internal::SPADE_ANY)]);
-        internals[Internal::SPADE_ENUM] = basic_module->get_variable(INTERNAL_NAMES[static_cast<int>(Internal::SPADE_ENUM)]);
-        internals[Internal::SPADE_ANNOTATION] = basic_module->get_variable(INTERNAL_NAMES[static_cast<int>(Internal::SPADE_ANNOTATION)]);
-        internals[Internal::SPADE_THROWABLE] = basic_module->get_variable(INTERNAL_NAMES[static_cast<int>(Internal::SPADE_THROWABLE)]);
+        internals[Internal::SPADE_ANY] = basic_module->get_variable(get_internal_name(Internal::SPADE_ANY));
+        internals[Internal::SPADE_ENUM] = basic_module->get_variable(get_internal_name(Internal::SPADE_ENUM));
+        internals[Internal::SPADE_ANNOTATION] = basic_module->get_variable(get_internal_name(Internal::SPADE_ANNOTATION));
+        internals[Internal::SPADE_THROWABLE] = basic_module->get_variable(get_internal_name(Internal::SPADE_THROWABLE));
 
-        internals[Internal::SPADE_INT] = basic_module->get_variable(INTERNAL_NAMES[static_cast<int>(Internal::SPADE_INT)]);
-        internals[Internal::SPADE_FLOAT] = basic_module->get_variable(INTERNAL_NAMES[static_cast<int>(Internal::SPADE_FLOAT)]);
-        internals[Internal::SPADE_BOOL] = basic_module->get_variable(INTERNAL_NAMES[static_cast<int>(Internal::SPADE_BOOL)]);
-        internals[Internal::SPADE_STRING] = basic_module->get_variable(INTERNAL_NAMES[static_cast<int>(Internal::SPADE_STRING)]);
-        internals[Internal::SPADE_VOID] = basic_module->get_variable(INTERNAL_NAMES[static_cast<int>(Internal::SPADE_VOID)]);
+        internals[Internal::SPADE_INT] = basic_module->get_variable(get_internal_name(Internal::SPADE_INT));
+        internals[Internal::SPADE_FLOAT] = basic_module->get_variable(get_internal_name(Internal::SPADE_FLOAT));
+        internals[Internal::SPADE_BOOL] = basic_module->get_variable(get_internal_name(Internal::SPADE_BOOL));
+        internals[Internal::SPADE_STRING] = basic_module->get_variable(get_internal_name(Internal::SPADE_STRING));
+        internals[Internal::SPADE_VOID] = basic_module->get_variable(get_internal_name(Internal::SPADE_VOID));
 
-        internals[Internal::SPADE_SLICE] = basic_module->get_variable(INTERNAL_NAMES[static_cast<int>(Internal::SPADE_SLICE)]);
+        internals[Internal::SPADE_SLICE] = basic_module->get_variable(get_internal_name(Internal::SPADE_SLICE));
 
         basic_mode = false;
     }
@@ -933,7 +933,7 @@ namespace spadec
                 err_grp.error(error(std::format("ambiguous call to '{}'", funs.to_string()), &node));
                 for (const auto &fun: candidates)
                     err_grp.note(error(std::format("possible candidate declared here: '{}'", fun->to_string()), fun->get_node()))
-                            .note(error("this error should not have occurred, please raise a github issue"));
+                           .note(error("this error should not have occurred, please raise a github issue"));
                 throw err_grp;
             }
             candidate = candidates[0];
@@ -1884,7 +1884,7 @@ namespace spadec
                 auto old_cur_scope = get_current_scope();
                 cur_scope = &*module_scope;
 
-                if (const auto module = std::dynamic_pointer_cast<scope::Module>(module_scope)) {
+                if (const auto module = cast<scope::Module>(module_scope)) {
                     for (const auto &[_, import]: module->get_imports()) {
                         if (!import.b_used) {
                             warning("unused import", import.node);

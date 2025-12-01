@@ -312,6 +312,8 @@ namespace spadec
                 return get_token(TokenType::EQUAL);
             case ':':
                 return get_token(TokenType::COLON);
+            case ';':
+                return get_token(TokenType::SEMI_COLON);
             // String
             case '"': {
                 string str;

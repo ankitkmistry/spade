@@ -87,7 +87,7 @@ namespace spade
 
         /**
          * Reifies this type and returns the reified type.
-         * The returned type may be newly reified or previously reified
+        * The returned type may be newly reified or previously reified
          * so as to maintain type uniqueness. The type to be reified not always
          * has to be a generic type. The objects in the array @p args
          * must be positioned according to the type params present in the signature

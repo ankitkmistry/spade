@@ -40,6 +40,7 @@ namespace spadec
         COMMA,
         EQUAL,
         COLON,
+        SEMI_COLON,
 
         // Keywords
         // Heading

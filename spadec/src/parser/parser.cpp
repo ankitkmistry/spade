@@ -1,6 +1,7 @@
 #include "parser.hpp"
 #include "lexer/token.hpp"
 #include "parser/ast.hpp"
+#include <memory>
 
 namespace spadec
 {
@@ -392,44 +393,63 @@ namespace spadec
     }
 
     std::shared_ptr<ast::Statement> Parser::statement() {
+        std::shared_ptr<ast::Statement> result;
+
         switch (peek()->get_type()) {
         case TokenType::IF:
-            return if_stmt();
+            result = if_stmt();
+            break;
         case TokenType::WHILE:
-            return while_stmt();
+            result = while_stmt();
+            break;
         case TokenType::DO:
-            return do_while_stmt();
+            result = do_while_stmt();
+            break;
         case TokenType::TRY:
-            return try_stmt();
+            result = try_stmt();
+            break;
         case TokenType::CONTINUE:
-            return std::make_shared<ast::stmt::Continue>(advance());
+            result = std::make_shared<ast::stmt::Continue>(advance());
+            break;
         case TokenType::BREAK:
-            return std::make_shared<ast::stmt::Break>(advance());
+            result = std::make_shared<ast::stmt::Break>(advance());
+            break;
         case TokenType::THROW: {
             const auto token = advance();
             const auto expr = expression();
-            return std::make_shared<ast::stmt::Throw>(token, expr);
+            result = std::make_shared<ast::stmt::Throw>(token, expr);
+            break;
         }
         case TokenType::RETURN: {
             const auto token = advance();
             const auto expr = rule_optional(&Parser::expression);
-            return expr ? std::make_shared<ast::stmt::Return>(token, expr) : std::make_shared<ast::stmt::Return>(token);
+            result = expr ? std::make_shared<ast::stmt::Return>(token, expr) : std::make_shared<ast::stmt::Return>(token);
+            break;
         }
         case TokenType::YIELD: {
             const auto token = advance();
             const auto expr = expression();
-            return std::make_shared<ast::stmt::Yield>(token, expr);
+            result = std::make_shared<ast::stmt::Yield>(token, expr);
+            break;
+        }
+        case TokenType::SEMI_COLON: {
+            const auto token = advance();
+            return std::make_shared<ast::stmt::Block>(token, token, std::vector<std::shared_ptr<ast::Statement>>{});
         }
         default: {
             int tok_idx = index;
             try {
-                return std::make_shared<ast::stmt::Expr>(expression());
+                result = std::make_shared<ast::stmt::Expr>(expression());
+                break;
             } catch (const ParserError &) {
                 index = tok_idx;
                 throw error("expected a statement or expression");
             }
         }
         }
+
+        expect(TokenType::SEMI_COLON);
+        return result;
     }
 
 #define BODY()                                                                                                                                       \

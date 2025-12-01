@@ -39,19 +39,32 @@ namespace spadec
             SPADE_SLICE,
         };
 
-        const inline static string INTERNAL_NAMES[]{
-                /* [SPADE] = */ "spade",
-                /* [SPADE_ANY] = */ "any",
-                /* [SPADE_ENUM] = */ "Enum",
-                /* [SPADE_ANNOTATION] = */ "Annotation",
-                /* [SPADE_THROWABLE] = */ "Throwable",
-                /* [SPADE_INT] = */ "int",
-                /* [SPADE_FLOAT] = */ "float",
-                /* [SPADE_BOOL] = */ "bool",
-                /* [SPADE_STRING] = */ "string",
-                /* [SPADE_VOID] = */ "void",
-                /* [SPADE_SLICE] = */ "Slice",
-        };
+        string get_internal_name(Internal internal) {
+            switch (internal) {
+            case Internal::SPADE:
+                return "spade";
+            case Internal::SPADE_ANY:
+                return "any";
+            case Internal::SPADE_ENUM:
+                return "Enum";
+            case Internal::SPADE_ANNOTATION:
+                return "Annotation";
+            case Internal::SPADE_THROWABLE:
+                return "Throwable";
+            case Internal::SPADE_INT:
+                return "int";
+            case Internal::SPADE_FLOAT:
+                return "float";
+            case Internal::SPADE_BOOL:
+                return "bool";
+            case Internal::SPADE_STRING:
+                return "string";
+            case Internal::SPADE_VOID:
+                return "void";
+            case Internal::SPADE_SLICE:
+                return "Slice";
+            }
+        }
 
         std::unordered_map<Internal, std::shared_ptr<scope::Scope>> internals;
 
