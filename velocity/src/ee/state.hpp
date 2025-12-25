@@ -10,13 +10,13 @@ namespace spade
 
     class VMState {
       private:
-        size_t stack_depth;
+        ptrdiff_t stack_depth;
         SpadeVM *vm;
         Frame *call_stack = null;
         Frame *fp = null;
 
       public:
-        VMState(SpadeVM *vm, size_t stack_depth = FRAMES_MAX);
+        VMState(SpadeVM *vm, ptrdiff_t stack_depth = FRAMES_MAX);
         VMState(const VMState &other);
         VMState(VMState &&other);
         VMState &operator=(const VMState &other);

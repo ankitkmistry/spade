@@ -39,7 +39,7 @@ namespace spade
         out << separator;
         // Append the header
         out << '|';
-        for (int i = 0; i < maxes.size(); ++i) {
+        for (size_t i = 0; i < maxes.size(); ++i) {
             out << std::format(" {: <{}} ", keys[i], maxes[i]) << '|';
         }
         out << '\n';

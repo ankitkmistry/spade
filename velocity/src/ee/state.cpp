@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cstring>
 
 #include "state.hpp"
@@ -6,14 +7,15 @@
 
 namespace spade
 {
-    VMState::VMState(SpadeVM *vm, size_t stack_depth) : stack_depth(stack_depth), vm(vm) {
+    VMState::VMState(SpadeVM *vm, ptrdiff_t stack_depth) : stack_depth(stack_depth), vm(vm) {
         call_stack = new Frame[stack_depth];
         fp = call_stack;
     }
 
     VMState::VMState(const VMState &other) : stack_depth(other.stack_depth), vm(other.vm) {
         call_stack = new Frame[stack_depth];
-        std::memcpy(call_stack, other.call_stack, stack_depth * sizeof(Frame));
+        // std::memcpy(call_stack, other.call_stack, stack_depth * sizeof(Frame));
+        std::copy_n(other.call_stack, stack_depth, call_stack);
         fp = call_stack + (other.fp - other.call_stack);
     }
 
@@ -29,7 +31,8 @@ namespace spade
 
         delete[] call_stack;
         call_stack = new Frame[stack_depth];
-        std::memcpy(call_stack, other.call_stack, stack_depth * sizeof(Frame));
+        // std::memcpy(call_stack, other.call_stack, stack_depth * sizeof(Frame));
+        std::copy_n(other.call_stack, stack_depth, call_stack);
         fp = call_stack + (other.fp - other.call_stack);
         return *this;
     }

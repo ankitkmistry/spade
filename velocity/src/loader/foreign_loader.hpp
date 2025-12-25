@@ -39,7 +39,7 @@ class Library {
         return name;
     }
 
-    const HMODULE get_module() const {
+    HMODULE get_module() const {
         return module;
     }
 

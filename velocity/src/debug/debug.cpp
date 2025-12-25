@@ -58,7 +58,7 @@ namespace spade
     void DebugOp::print_stack(Obj **const stack, uint32 count) {
         vector<const Obj *> items;
         items.reserve(count);
-        for (int i = 0; i < count; ++i) items.push_back(stack[i]);
+        for (size_t i = 0; i < count; ++i) items.push_back(stack[i]);
         std::cout << "Stack: [" << list_to_string(items) << "]\n";
     }
 
@@ -204,7 +204,7 @@ namespace spade
         auto max = std::to_string(pool.size() - 1).length();
         std::cout << "Constant Pool\n";
         std::cout << "-------------\n";
-        for (int i = 0; i < pool.size(); ++i) {
+        for (size_t i = 0; i < pool.size(); ++i) {
             const auto obj = pool.at(i);
             string type_str;
             if (obj->get_type()) {

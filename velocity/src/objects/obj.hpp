@@ -282,6 +282,11 @@ namespace spade
         explicit Obj();
 
         /**
+         * Virtual destructor for Obj
+         */
+        virtual ~Obj() = default;
+
+        /**
          * @return the tag of the object
          */
         ObjTag get_tag() const {

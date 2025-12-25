@@ -96,7 +96,7 @@ namespace spadec
                     break;
                 default:
                     scope = get_current_module();
-                    scope = &*scope->get_variable(INTERNAL_NAMES[static_cast<int>(kind)]);
+                    scope = &*scope->get_variable(get_internal_name(kind));
                     break;
                 }
             } else
