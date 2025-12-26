@@ -96,6 +96,22 @@ add_definitions (${LLVM_DEFINITIONS_LIST})
 llvm_map_components_to_libnames (LLVM_LIBS core support orcjit native)
 target_link_libraries (velocity PUBLIC sputils PRIVATE ${LLVM_LIBS})
 
+# Target: swan
+# It is the new implementation of the Spade Virtual Machine (VM) for Spade.
+file (GLOB_RECURSE SWAN_SRCS swan/src/*.cpp)
+file (GLOB_RECURSE SWAN_INCLUDES swan/src/*.hpp)
+
+add_executable (swan ${SWAN_SRCS} ${SWAN_INCLUDES})
+
+# Reference: https://llvm.org/docs/CMake.html
+target_include_directories (swan PUBLIC swan/src PUBLIC sputils/src PRIVATE ${LLVM_INCLUDE_DIRS})
+separate_arguments (LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
+add_definitions (${LLVM_DEFINITIONS_LIST})
+
+# Find the libraries that correspond to the LLVM components
+llvm_map_components_to_libnames (LLVM_LIBS core support orcjit native)
+target_link_libraries (swan PUBLIC sputils PRIVATE ${LLVM_LIBS})
+
 if (MSVC)
     # warning level 4
     # target_compile_options (sputils PRIVATE /W4)
