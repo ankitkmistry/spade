@@ -1,7 +1,7 @@
 ﻿# CMakeList.txt : CMake project for spade, include source and define
 # project specific logic here.
 #
-cmake_minimum_required (VERSION 3.15...3.31)
+cmake_minimum_required (VERSION 3.19)
 
 # Project description and versioning.
 project (spade
@@ -23,29 +23,14 @@ set (LLVM_DIR thirdparty/llvm/lib/cmake/llvm)
 find_package (LLVM REQUIRED CONFIG)
 
 # Set up boost
-set (BOOST_ROOT "D:\\Programming\\Libraries\\boost_1_87_0")
 set (Boost_USE_STATIC_LIBS ON)
 set (Boost_USE_STATIC_RUNTIME OFF)
 
-# Set up cpptrace
-include (FetchContent)
-FetchContent_Declare (
-    cpptrace
-    GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
-    GIT_TAG v0.8.3 # <HASH or TAG>
-)
-FetchContent_MakeAvailable (cpptrace)
-
-# Set up argparse
-include (FetchContent)
-FetchContent_Declare (
-    argparse
-    GIT_REPOSITORY https://github.com/p-ranav/argparse.git
-)
-FetchContent_MakeAvailable (argparse)
-
-# Set up spdlog
+find_package(cpptrace REQUIRED CONFIG)
+find_package(argparse REQUIRED CONFIG)
 find_package(spdlog REQUIRED CONFIG)
+find_package(libffi REQUIRED CONFIG)
+find_package(Boost REQUIRED COMPONENTS core predef container_hash)
 
 # Target: sputils
 # It is the central utility library used by all other targets
@@ -55,8 +40,6 @@ file (GLOB_RECURSE SPUTILS_INCLUDES sputils/src/*.hpp)
 add_library (sputils STATIC ${SPUTILS_SRCS} ${SPUTILS_INCLUDES})
 
 target_include_directories (sputils PUBLIC sputils/src)
-
-find_package (Boost 1.74.0 REQUIRED)
 target_include_directories (sputils PUBLIC ${Boost_INCLUDE_DIRS})
 target_link_libraries (sputils ${Boost_LIBRARIES})
 
@@ -78,7 +61,7 @@ file (GLOB_RECURSE SPASM_INCLUDES spasm/src/*.hpp)
 add_executable (spasm ${SPASM_SRCS} ${SPASM_INCLUDES})
 target_include_directories (spasm PRIVATE spasm/src)
 target_include_directories (spasm PUBLIC sputils/src)
-target_link_libraries (spasm PUBLIC sputils PRIVATE argparse)
+target_link_libraries (spasm PUBLIC sputils PRIVATE argparse::argparse)
 
 # Target: velocity
 # It is the implementation of the Spade Virtual Machine (VM) for Spade.
@@ -131,19 +114,10 @@ if (MSVC)
     target_compile_definitions (velocity PRIVATE _ITERATOR_DEBUG_LEVEL=0)
 else ()
     # additional warnings
-    target_compile_options (sputils PRIVATE -Wall -Wextra -Wno-unused-parameter)
-    target_compile_options (spadec PRIVATE -Wall -Wextra -Wno-unused-parameter)
+    target_compile_options (sputils PRIVATE -Wall -Wextra)
+    target_compile_options (spadec PRIVATE -Wall -Wextra)
     target_compile_options (spasm PRIVATE -Wall -Wextra)
     target_compile_options (velocity PRIVATE -Wall -Wextra)
-endif ()
-
-if (WIN32)
-    add_custom_command (
-        TARGET spadec POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        $<TARGET_FILE:cpptrace::cpptrace>
-        $<TARGET_FILE_DIR:spadec>
-    )
 endif ()
 
 if (APPLE)

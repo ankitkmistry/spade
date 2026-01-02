@@ -30,7 +30,7 @@
 
 #define null (nullptr)
 
-namespace swan
+namespace spade
 {
     namespace fs = std::filesystem;
 
@@ -248,4 +248,27 @@ namespace swan
             return !has_value() ? std::move(error()) : static_cast<void>(std::forward<U>(default_error));
         }
     };
-}    // namespace swan
+
+    enum class ErrorKind {
+        NATIVE_LIBRARY,
+    };
+
+    class SwanError final {
+        ErrorKind kind;
+        string message;
+
+      public:
+        SwanError() = default;
+
+        SwanError(ErrorKind kind, const string &message) : kind(kind), message(message) {}
+
+        SwanError(const SwanError &other) = default;
+        SwanError(SwanError &&other) = default;
+        SwanError &operator=(const SwanError &other) = default;
+        SwanError &operator=(SwanError &&other) = default;
+        ~SwanError() = default;
+    };
+
+    template<typename T>
+    using SwanResult = Result<T, SwanError>;
+}    // namespace spade

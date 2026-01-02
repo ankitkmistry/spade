@@ -98,9 +98,9 @@ namespace spade
         if (end < 0)
             end += list.size();
         if (start < 0 || end < 0)
-            throw std::runtime_error("slice(3): index out of bounds");
+            throw std::runtime_error("slice(): index out of bounds");
         if (static_cast<size_t>(start) >= list.size() || static_cast<size_t>(end) > list.size())
-            throw std::runtime_error("slice(3): index out of bounds");
+            throw std::runtime_error("slice(): index out of bounds");
         if (start > end)
             std::swap(start, end);
         std::vector<T> result;

@@ -5,7 +5,6 @@ namespace spade
 {
     ObjModule::ObjModule(const Sign &sign) : Obj(null), sign(sign) {
         this->tag = ObjTag::MODULE;
-        this->member_slots = member_slots;
     }
 
     Obj *ObjModule::copy() const {
