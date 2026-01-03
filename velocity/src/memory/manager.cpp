@@ -6,7 +6,7 @@ namespace spade
 {
     MemoryManager *MemoryManager::current() {
         if (const auto thread = Thread::current())
-            return thread->get_state()->get_vm()->get_memory_manager();
+            return thread->get_vm()->get_vm()->get_memory_manager();
         return null;
     }
 }    // namespace spade

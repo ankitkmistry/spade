@@ -105,7 +105,6 @@ namespace spade
         field.kind = read_byte();
         field.access_flags = read_short();
         field.name = read_short();
-        field.type = read_short();
         field.meta = read_meta_info();
         return field;
     }
@@ -129,7 +128,6 @@ namespace spade
         }
 
         method.locals_count = read_short();
-        method.closure_start = read_short();
         method.locals = vector<LocalInfo>(method.locals_count);
         for (int i = 0; i < method.locals_count; i++) {
             method.locals[i] = read_local_info();
@@ -201,7 +199,6 @@ namespace spade
     LocalInfo ElpReader::read_local_info() {
         LocalInfo local;
         local.kind = read_short();
-        local.type = read_short();
         local.meta = read_meta_info();
         return local;
     }
@@ -209,7 +206,6 @@ namespace spade
     ArgInfo ElpReader::read_arg_info() {
         ArgInfo arg;
         arg.kind = read_short();
-        arg.type = read_short();
         arg.meta = read_meta_info();
         return arg;
     }
@@ -225,7 +221,6 @@ namespace spade
         global.kind = read_short();
         global.access_flags = read_short();
         global.name = read_short();
-        global.type = read_short();
         global.meta = read_meta_info();
         return global;
     }

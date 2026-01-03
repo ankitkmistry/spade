@@ -21,7 +21,7 @@ namespace spade
 
     ObjModule *ObjModule::current() {
         if (const auto thread = Thread::current()) {
-            const auto state = thread->get_state();
+            const auto state = thread->get_vm();
             if (const auto frame = state->get_frame(); frame > state->get_call_stack())
                 return frame->get_module();
         }

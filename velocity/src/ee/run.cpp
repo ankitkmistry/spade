@@ -11,7 +11,7 @@
 namespace spade
 {
     Obj *SpadeVM::run(Thread *thread) {
-        const auto state = thread->get_state();
+        const auto state = thread->get_vm();
         const auto top_frame = state->get_frame();
         while (thread->is_running()) {
             const auto opcode = static_cast<Opcode>(state->read_byte());

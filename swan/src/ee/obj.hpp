@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../utils/common.hpp"
-#include "memory/manager.hpp"
+#include "../memory/manager.hpp"
 #include "spinfo/sign.hpp"
 
 #include <functional>
@@ -193,7 +193,7 @@ namespace spade
         // Obj
         OBJECT,
         // ObjPointer
-        POINTER,
+        CAPTURE,
 
         // ObjModule
         MODULE,
@@ -201,8 +201,8 @@ namespace spade
         METHOD,
         // Type
         TYPE,
-        // TypeParam
-        TYPE_PARAM,
+        // // TypeParam
+        // TYPE_PARAM,
     };
 
     enum class Ordering {
@@ -354,46 +354,13 @@ namespace spade
     class ObjInt;
     class ObjFloat;
     class ObjModule;
-    class ObjMethod;
     class TypeParam;
+    class ObjMethod;
     class ObjPointer;
-
-    template<typename ObjType>
-    bool is(Obj *obj) {
-        using T = std::remove_cv_t<ObjType>;
-        if constexpr (std::same_as<T, ObjNull>)
-            return obj != null && obj->get_tag() == ObjTag::NULL_OBJ;
-        else if constexpr (std::same_as<T, ObjBool>)
-            return obj != null && obj->get_tag() == ObjTag::BOOL;
-        else if constexpr (std::same_as<T, ObjChar>)
-            return obj != null && obj->get_tag() == ObjTag::CHAR;
-        else if constexpr (std::same_as<T, ObjString>)
-            return obj != null && obj->get_tag() == ObjTag::STRING;
-        else if constexpr (std::same_as<T, ObjInt>)
-            return obj != null && obj->get_tag() == ObjTag::INT;
-        else if constexpr (std::same_as<T, ObjFloat>)
-            return obj != null && obj->get_tag() == ObjTag::FLOAT;
-        else if constexpr (std::same_as<T, ObjArray>)
-            return obj != null && obj->get_tag() == ObjTag::ARRAY;
-        else if constexpr (std::same_as<T, Obj>)
-            return obj != null;
-        else if constexpr (std::same_as<T, ObjModule>)
-            return obj != null && obj->get_tag() == ObjTag::MODULE;
-        else if constexpr (std::same_as<T, ObjMethod>)
-            return obj != null && obj->get_tag() == ObjTag::METHOD;
-        else if constexpr (std::same_as<T, Type>)
-            return obj != null && obj->get_tag() == ObjTag::TYPE;
-        else if constexpr (std::same_as<T, TypeParam>)
-            return obj != null && obj->get_tag() == ObjTag::TYPE_PARAM;
-        else if constexpr (std::same_as<T, ObjPointer>)
-            return obj != null && obj->get_tag() == ObjTag::POINTER;
-        else
-            return obj != null && dynamic_cast<T *>(obj) != null;
-    }
 
     class ObjNull final : public Obj {
       public:
-        ObjNull(ObjModule *module = null);
+        ObjNull();
 
         bool truth() const override {
             return false;
@@ -433,6 +400,10 @@ namespace spade
 
         Ordering compare(const Obj *other) const override;
         ObjBool *operator!() const;
+
+        bool value() const {
+            return b;
+        }
     };
 
     class ObjChar final : public Obj {
@@ -456,6 +427,10 @@ namespace spade
         }
 
         Ordering compare(const Obj *other) const override;
+
+        char value() const {
+            return c;
+        }
     };
 
     class ObjString final : public Obj {
@@ -463,7 +438,7 @@ namespace spade
         string str;
 
       public:
-        ObjString(string str);
+        ObjString(const string &str);
         ObjString(const uint8_t *bytes, uint16_t len);
 
         bool truth() const override {
@@ -480,6 +455,10 @@ namespace spade
         }
 
         Ordering compare(const Obj *other) const override;
+
+        string value() const {
+            return str;
+        }
     };
 
     class ObjArray final : public Obj {
@@ -661,7 +640,7 @@ namespace spade
 
     class Type : public Obj {
       public:
-        enum class Kind {
+        enum class Kind : uint8_t {
             /// Represents a class
             CLASS,
             /// Represents an interface
@@ -670,8 +649,8 @@ namespace spade
             ENUM,
             /// Represents an annotation
             ANNOTATION,
-            /// Represents an type param
-            TYPE_PARAM,
+            // /// Represents an type param
+            // TYPE_PARAM,
             /// Represents an unresolved type
             UNRESOLVED
         };
@@ -679,14 +658,15 @@ namespace spade
       protected:
         Kind kind;
         Sign sign;
-        Table<TypeParam *> type_params;
-        Table<Type *> supers;
+        Table<Type *> type_params;
+        vector<Sign> supers;
+
+        Type(ObjTag tag, Kind kind, Sign sign) : Obj(tag), kind(kind), sign(sign), type_params(), supers() {}
 
       public:
-        Type(Kind kind, Sign sign, const Table<TypeParam *> &type_params, const Table<Type *> &supers, const Table<MemberSlot> &member_slots)
-            : Obj(ObjTag::TYPE), kind(kind), sign(sign), type_params(type_params), supers(supers) {
-            this->member_slots = member_slots;
-        }
+        Type(Kind kind, Sign sign, const Table<Type *> &type_params, const vector<Sign> &supers);
+
+        Type(Sign sign) : Type(Kind::CLASS, sign, {}, {}) {}
 
         Obj *copy() const override {
             return (Obj *) this;
@@ -716,29 +696,52 @@ namespace spade
             this->sign = sign;
         }
 
-        virtual const Table<TypeParam *> &get_type_params() const {
+        virtual const Table<Type *> &get_type_params() const {
             return type_params;
         }
 
-        virtual const Table<Type *> &get_supers() const {
+        virtual const vector<Sign> &get_supers() const {
             return supers;
         }
 
-        virtual Table<Type *> &get_supers() {
+        virtual vector<Sign> &get_supers() {
             return supers;
         }
 
-        virtual void set_supers(const Table<Type *> &supers) {
+        virtual void set_supers(const vector<Sign> &supers) {
             this->supers = supers;
         }
 
-        virtual Table<TypeParam *> &get_type_params() {
+        virtual Table<Type *> &get_type_params() {
             return type_params;
         }
 
-        virtual void set_type_params(const Table<TypeParam *> &type_params) {
+        virtual void set_type_params(const Table<Type *> &type_params) {
             this->type_params = type_params;
         }
+    };
+
+    class ObjPointer : public Obj {
+      private:
+        Obj *value;
+
+      public:
+        ObjPointer(Obj *value = null);
+
+        Obj *get() const {
+            return value;
+        }
+
+        void set(Obj *value) {
+            this->value = value;
+        }
+
+        Obj *copy() const override {
+            return (Obj *) this;
+        }
+
+        bool truth() const override;
+        string to_string() const override;
     };
 }    // namespace spade
 

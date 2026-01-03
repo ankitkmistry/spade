@@ -1,7 +1,5 @@
 #pragma once
 
-#include "../utils/common.hpp"
-
 namespace spade
 {
     class SpadeVM;

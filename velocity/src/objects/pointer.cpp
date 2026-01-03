@@ -4,7 +4,7 @@
 namespace spade
 {
     ObjPointer::ObjPointer(Obj *value) : Obj(null), value(value) {
-        this->tag = ObjTag::POINTER;
+        this->tag = ObjTag::CAPTURE;
     }
 
     bool ObjPointer::truth() const {

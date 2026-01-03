@@ -210,7 +210,7 @@ namespace spade
 
     SpadeVM *SpadeVM::current() {
         if (const auto thread = Thread::current())
-            return thread->get_state()->get_vm();
+            return thread->get_vm()->get_vm();
         return null;
     }
 }    // namespace spade

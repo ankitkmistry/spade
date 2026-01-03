@@ -96,8 +96,6 @@ namespace spade
         uint16_t access_flags = 0;
         /// [string] Name of the global
         cpidx name;
-        /// [sign] Type signature of the global
-        cpidx type;
         /// Meta information of the global
         MetaInfo meta;
     };
@@ -112,8 +110,6 @@ namespace spade
         /// 0x00 : VAR
         /// 0x01 : CONST
         uint16_t kind = 0;
-        /// [sign] Type signature of the arg
-        cpidx type;
         /// Meta information of the arg
         MetaInfo meta;
     };
@@ -123,8 +119,6 @@ namespace spade
         /// 0x00 : VAR
         /// 0x01 : CONST
         uint16_t kind = 0;
-        /// [sign] Type signature of the local
-        cpidx type;
         /// Meta information of the local
         MetaInfo meta;
     };
@@ -197,8 +191,6 @@ namespace spade
 
         /// Count of locals in the method
         uint16_t locals_count = 0;
-        /// Starting index for closures in locals list
-        uint16_t closure_start = 0;
         /// List of locals
         vector<LocalInfo> locals;
 
@@ -235,8 +227,6 @@ namespace spade
         uint16_t access_flags = 0;
         /// [string] Name of the field
         cpidx name;
-        /// [sign] Type signature of the field
-        cpidx type;
         /// Meta information of the field
         MetaInfo meta;
     };

@@ -32,7 +32,7 @@ namespace spade
         }
 
       public:
-        Verifier(const ElpInfo &elp, const string path) : elp(elp), path(path) {}
+        Verifier(const ElpInfo &elp, const string &path) : elp(elp), path(path) {}
 
         /**
          * This function verifies the bytecode for basic standards.

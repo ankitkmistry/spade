@@ -31,7 +31,7 @@ namespace spade::basic
     void BasicCollector::mark_thread(Thread *thread) {
         // mark the value of the thread
         mark(thread->get_value());
-        auto state = thread->get_state();
+        auto state = thread->get_vm();
         for (auto frame = state->get_call_stack(); frame <= state->get_frame(); frame++) {
             // mark every frameTemplate
             mark_frame(frame);

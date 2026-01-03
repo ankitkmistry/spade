@@ -1,9 +1,7 @@
 #pragma once
 
-#include <thread>
-
-#include "utils/common.hpp"
-#include "state.hpp"
+#include "obj.hpp"
+#include <shared_mutex>
 
 namespace spade
 {
@@ -13,6 +11,7 @@ namespace spade
      * Representation of a vm thread
      */
     class Thread {
+        inline static std::shared_mutex threads_mtx;
         inline static std::unordered_map<std::thread::id, Thread *> threads;
 
       public:
@@ -32,7 +31,7 @@ namespace spade
         /// Program representation
         Obj *value = null;
         /// The vm state stored in the thread
-        VMState state;
+        SpadeVM *vm;
         /// Status of the thread
         Status status = NOT_STARTED;
         /// Exit code of the thread
@@ -66,17 +65,17 @@ namespace spade
         }
 
         /**
-         * @return The vm state
+         * @return The vm instance
          */
-        const VMState *get_vm() const {
-            return &state;
+        const SpadeVM *get_vm() const {
+            return vm;
         }
 
         /**
-         * @return The vm state
+         * @return The vm instance
          */
-        VMState *get_vm() {
-            return &state;
+        SpadeVM *get_vm() {
+            return vm;
         }
 
         /**

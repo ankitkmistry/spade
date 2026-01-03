@@ -7413,6 +7413,6 @@ namespace spade
                 break;
         }
 
-        thread->get_state()->push(result);
+        thread->get_vm()->push(result);
     }
 }    // namespace spade

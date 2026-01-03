@@ -94,7 +94,6 @@ namespace spade
         write(info.kind);
         write(info.access_flags);
         write(info.name);
-        write(info.type);
         write(info.meta);
     }
 
@@ -114,7 +113,6 @@ namespace spade
         }
 
         write(info.locals_count);
-        write(info.closure_start);
         for (int i = 0; i < info.locals_count; ++i) {
             write(info.locals[i]);
         }
@@ -169,13 +167,11 @@ namespace spade
 
     void ElpWriter::write(const LocalInfo &info) {
         write(info.kind);
-        write(info.type);
         write(info.meta);
     }
 
     void ElpWriter::write(const ArgInfo &info) {
         write(info.kind);
-        write(info.type);
         write(info.meta);
     }
 
@@ -187,7 +183,6 @@ namespace spade
         write(info.kind);
         write(info.access_flags);
         write(info.name);
-        write(info.type);
         write(info.meta);
     }
 

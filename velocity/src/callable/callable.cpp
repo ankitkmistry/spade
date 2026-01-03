@@ -6,7 +6,7 @@ namespace spade
     Obj *ObjCallable::invoke(const vector<Obj *> &args) {
         Thread *thread = Thread::current();
         call(args);
-        return thread->get_state()->get_vm()->run(thread);
+        return thread->get_vm()->get_vm()->run(thread);
     }
 
     void ObjCallable::validate_call_site() {
