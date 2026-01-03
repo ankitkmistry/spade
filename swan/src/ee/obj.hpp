@@ -356,7 +356,7 @@ namespace spade
     class ObjModule;
     class TypeParam;
     class ObjMethod;
-    class ObjPointer;
+    class ObjCapture;
 
     class ObjNull final : public Obj {
       public:
@@ -649,8 +649,6 @@ namespace spade
             ENUM,
             /// Represents an annotation
             ANNOTATION,
-            // /// Represents an type param
-            // TYPE_PARAM,
             /// Represents an unresolved type
             UNRESOLVED
         };
@@ -721,12 +719,12 @@ namespace spade
         }
     };
 
-    class ObjPointer : public Obj {
+    class ObjCapture : public Obj {
       private:
         Obj *value;
 
       public:
-        ObjPointer(Obj *value = null);
+        ObjCapture(Obj *value = null);
 
         Obj *get() const {
             return value;

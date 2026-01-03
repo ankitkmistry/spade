@@ -28,7 +28,6 @@ namespace spade
         if (field.kind > 0x01)
             throw corrupt();
         check_range(field.name, cp_count);
-        check_range(field.type, cp_count);
     }
 
     void Verifier::check_method(const MethodInfo &method, const uint16 cp_count) {
@@ -55,13 +54,11 @@ namespace spade
     void Verifier::check_arg(const ArgInfo &arg, const uint16 cp_count) {
         if (arg.kind > 0x01)
             throw corrupt();
-        check_range(arg.type, cp_count);
     }
 
     void Verifier::check_local(const LocalInfo &local, const uint16 cp_count) {
         if (local.kind > 0x01)
             throw corrupt();
-        check_range(local.type, cp_count);
     }
 
     void Verifier::check_exception(const ExceptionTableInfo &exception, const uint16 cp_count) {
@@ -79,7 +76,6 @@ namespace spade
         if (global.kind > 0x01)
             throw corrupt();
         check_range(global.name, cp_count);
-        check_range(global.type, cp_count);
     }
 
     void Verifier::check_range(const uint32 i, const uint32 count) {

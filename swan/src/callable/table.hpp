@@ -27,7 +27,7 @@ namespace spade
          * @param i index of the argument
          * @return ObjPointer* the pointer obj
          */
-        ObjPointer *ramp_up(uint8_t i);
+        ObjCapture *ramp_up(uint8_t i);
 
         /**
          * @return The value of the argument at index i

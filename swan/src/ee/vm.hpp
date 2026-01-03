@@ -1,12 +1,13 @@
 #pragma once
 
+#include "ee/debugger.hpp"
 #include "loader/loader.hpp"
 #include "obj.hpp"
 #include "thread.hpp"
 #include "../utils/errors.hpp"
+#include <format>
 #include <set>
 #include <shared_mutex>
-#include <unordered_set>
 
 namespace spade
 {
@@ -14,21 +15,14 @@ namespace spade
      * Represents VM settings
      */
     struct Settings {
-        string VERSION = "1.0";
-        string LANG_NAME = "spade";
-        string VM_NAME = "velocity";
-        string INFO_STRING = VERSION + " " + LANG_NAME + " " + VM_NAME;
+        string VERSION = "0.0.0";
+        string LANG_NAME = "Spade";
+        string VM_NAME = "Swan";
+        string INFO_STRING = std::format("{} {} {}", LANG_NAME, VM_NAME, VERSION);
 
-        std::unordered_set<string> inbuilt_types = {
-                "basic.bool",      // boolean type
-                "basic.int",       // int type
-                "basic.float",     // float type
-                "basic.char",      // char type
-                "basic.string",    // string type
-                "basic.array",     // array type
-        };
+        size_t max_call_stack_depth = 1024;
 
-        string lib_path;
+        fs::path lib_path;
         vector<fs::path> mod_path;
     };
 
@@ -49,7 +43,9 @@ namespace spade
         Table<Table<string>> metadata;
         std::shared_mutex metadata_mtx;
         /// The exit code of the vm (-1 represents unfinished state)
-        int exit_code = -1;
+        int exit_code;
+        /// The vm debugger
+        std::unique_ptr<Debugger> debugger;
         /// The output stream
         std::stringstream out;
 
@@ -62,7 +58,7 @@ namespace spade
         Frame *fp = null;
 
       public:
-        explicit SpadeVM(MemoryManager *manager, const Settings &settings = {});
+        explicit SpadeVM(MemoryManager *manager, std::unique_ptr<Debugger> debugger = null, const Settings &settings = {});
 
         /**
          * This function registers the action which will be executed

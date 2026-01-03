@@ -386,13 +386,13 @@ namespace spade
         return obj;
     }
 
-    ObjPointer::ObjPointer(Obj *value) : Obj(ObjTag::CAPTURE), value(value) {}
+    ObjCapture::ObjCapture(Obj *value) : Obj(ObjTag::CAPTURE), value(value) {}
 
-    bool ObjPointer::truth() const {
+    bool ObjCapture::truth() const {
         return value && value->get_tag() != ObjTag::NULL_OBJ;
     }
 
-    string ObjPointer::to_string() const {
+    string ObjCapture::to_string() const {
         return value ? std::format("<pointer to {}>", value->to_string()) : "<pointer to null>";
     }
 }    // namespace spade

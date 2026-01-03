@@ -32,13 +32,13 @@ namespace spade
         return *this;
     }
 
-    ObjPointer *VariableTable::ramp_up(uint8_t i) {
+    ObjCapture *VariableTable::ramp_up(uint8_t i) {
         if (i >= values.size())
             throw IndexError("variable", i);
         auto &value = values[i];
-        if (is<ObjPointer>(value))
-            return cast<ObjPointer>(value);
-        const auto pointer = halloc_mgr<ObjPointer>(value->get_info().manager, value);
+        if (is<ObjCapture>(value))
+            return cast<ObjCapture>(value);
+        const auto pointer = halloc_mgr<ObjCapture>(value->get_info().manager, value);
         value = pointer;
         return pointer;
     }
@@ -49,7 +49,7 @@ namespace spade
 
         const auto value = values[i];
         // Don't return the pointer, instead get the dereferenced value
-        return is<ObjPointer>(value) ? cast<ObjPointer>(value)->get() : value;
+        return is<ObjCapture>(value) ? cast<ObjCapture>(value)->get() : value;
     }
 
     void VariableTable::set(uint8_t i, Obj *val) {
@@ -58,8 +58,8 @@ namespace spade
 
         auto &value = values[i];
         // Don't set the value if it is a pointer, instead change the value it is pointing at
-        if (is<ObjPointer>(value))
-            cast<ObjPointer>(value)->set(val);
+        if (is<ObjCapture>(value))
+            cast<ObjCapture>(value)->set(val);
         else
             value = val;
     }

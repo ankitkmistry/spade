@@ -336,7 +336,7 @@ namespace spade
         return string(value.bytes.begin(), value.bytes.end());
     }
 
-g   Table<string> Booter::read_meta(const MetaInfo &meta) {
+    Table<string> Booter::read_meta(const MetaInfo &meta) {
         Table<string> table;
         for (int i = 0; i < meta.len; ++i) {
             auto entry = meta.table[i];

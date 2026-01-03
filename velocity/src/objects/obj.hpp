@@ -198,7 +198,7 @@ namespace spade
         // Obj
         OBJECT,
         // ObjPointer
-        CAPTURE,
+        POINTER,
 
         // ObjModule
         MODULE,
@@ -452,7 +452,7 @@ namespace spade
         else if constexpr (std::same_as<T, TypeParam>)
             return obj != null && obj->get_tag() == ObjTag::TYPE_PARAM;
         else if constexpr (std::same_as<T, ObjPointer>)
-            return obj != null && obj->get_tag() == ObjTag::CAPTURE;
+            return obj != null && obj->get_tag() == ObjTag::POINTER;
         else
             return obj != null && dynamic_cast<T *>(obj) != null;
     }

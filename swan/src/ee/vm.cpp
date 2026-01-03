@@ -3,6 +3,7 @@
 #include "../memory/memory.hpp"
 #include "loader/loader.hpp"
 #include "spimp/utils.hpp"
+#include <cstdlib>
 #include <functional>
 #include <iostream>
 #include <memory>
@@ -11,7 +12,7 @@
 
 namespace spade
 {
-    SpadeVM::SpadeVM(MemoryManager *manager, const Settings &settings)
+    SpadeVM::SpadeVM(MemoryManager *manager, std::unique_ptr<Debugger> debugger, const Settings &settings)
         : modules(),
           threads(),
           loader(this),
@@ -22,7 +23,8 @@ namespace spade
           metadata_mtx(),
           exit_code(1),
           out(),
-          stack_depth(FRAMES_MAX),
+          debugger(std::move(debugger)),
+          stack_depth(settings.max_call_stack_depth),
           call_stack(std::make_unique<Frame[]>(stack_depth)),
           fp(&call_stack[0]) {
         manager->set_vm(this);
@@ -145,6 +147,21 @@ namespace spade
         }
     }
 
+    void SpadeVM::push_frame(Frame frame) {
+        if (fp - &call_stack[0] >= stack_depth)
+            throw StackOverflowError();
+        *fp++ = std::move(frame);
+    }
+
+    bool SpadeVM::pop_frame() {
+        if (fp > &call_stack[0]) {
+            // std::destroy_at(fp - 1);
+            fp--;
+            return true;
+        }
+        return false;
+    }
+
     SpadeVM *SpadeVM::current() {
         if (const auto thread = Thread::current())
             return thread->get_vm();
@@ -192,6 +209,8 @@ namespace spade
     void SpadeVM::vm_main(const string &filename, const vector<string> &args, Thread *thread) {
         thread->set_status(Thread::RUNNING);
         try {
+            if (debugger)
+                debugger->init(this);
             // Load the basic types and module
             load_basic();
             // Load the file and ge the entry point
@@ -216,13 +235,15 @@ namespace spade
                 throw runtime_error("entry point must have zero or one argument (basic.array): " + entry->get_sign().to_string());
             // Enter execution loop
             run(thread);
+            // Mark the thread as terminated
+            thread->set_status(Thread::Status::TERMINATED);
             // Try to compile to native
             // jit_test(entry);
 
         } catch (const SpadeError &error) {
             std::cout << "VM Error: " << error.what() << std::endl;
             exit_code = 1;
-            return;
+            std::exit(exit_code);
         }
 
         // Remove this thread after execution
@@ -230,7 +251,9 @@ namespace spade
         // If it is empty then cleanup
         if (threads.empty()) {
             for (const auto &action: on_exit_list) action();
-            exit_code = 0;
+            exit_code = thread->get_exit_code();
+            if (debugger)
+                debugger->cleanup(this);
         }
     }
 

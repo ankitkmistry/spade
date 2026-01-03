@@ -6,8 +6,6 @@
 #include <unordered_map>
 #include <variant>
 
-#define FRAMES_MAX 1024
-
 #if defined _WIN32
 #    define OS_WINDOWS
 #    pragma warning(disable : 4996)
