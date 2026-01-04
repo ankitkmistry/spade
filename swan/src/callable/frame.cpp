@@ -1,6 +1,6 @@
 #include "frame.hpp"
 #include "method.hpp"
-#include "../ee/vm.hpp"
+#include "ee/vm.hpp"
 #include <cstring>
 #include <memory>
 

@@ -1,11 +1,10 @@
 #pragma once
 
-#include "ee/debugger.hpp"
+#include "debugger.hpp"
 #include "loader/loader.hpp"
 #include "obj.hpp"
 #include "thread.hpp"
-#include "../utils/errors.hpp"
-#include <format>
+#include "utils/errors.hpp"
 #include <set>
 #include <shared_mutex>
 

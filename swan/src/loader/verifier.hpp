@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../utils/common.hpp"
+#include "utils/common.hpp"
 #include "elpops/elpdef.hpp"
 #include "spimp/error.hpp"
 

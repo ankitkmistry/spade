@@ -1,6 +1,6 @@
 #include "vm.hpp"
-#include "../utils/errors.hpp"
-#include "../memory/memory.hpp"
+#include "utils/errors.hpp"
+#include "memory/memory.hpp"
 #include "loader/loader.hpp"
 #include "spimp/utils.hpp"
 #include <cstdlib>

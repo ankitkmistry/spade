@@ -1,12 +1,16 @@
-#include "../utils/common.hpp"
+#include "utils/common.hpp"
 #include <cassert>
 
 #ifdef OS_WINDOWS
 #    include <windows.h>
 #endif
 
+#ifdef OS_LINUX
+#    include <dlfcn.h>
+#endif
+
 #include "external.hpp"
-#include "../utils/errors.hpp"
+#include "utils/errors.hpp"
 
 namespace spade
 {
@@ -93,8 +97,6 @@ namespace spade
         }
     }
 
-    // TODO: implement external loader for linux
-
     void *Library::get_symbol(const string &name) {
         if (!is_valid())
             return null;
@@ -105,8 +107,15 @@ namespace spade
         if (symbol == null) {
             const auto code = GetLastError();
             const auto msg = get_last_error();
-            throw NativeLibraryError(path, std::format("{} ({:#0x})", msg, code));
+            throw NativeLibraryError(path, name, std::format("{} ({:#0x})", msg, code));
         }
+        return symbol;
+#endif
+
+#ifdef OS_LINUX
+        void *symbol = dlsym(handle, name.c_str());
+        if (symbol == null)
+            throw NativeLibraryError(path, name, string(dlerror()));
         return symbol;
 #endif
     }
@@ -124,12 +133,20 @@ namespace spade
         }
         handle = null;
 #endif
+
+#ifdef OS_LINUX
+        if (dlclose(handle) != 0)
+            throw NativeLibraryError(path, string(dlerror()));
+#endif
     }
 
     Library ExternalLoader::load_library(fs::path path) {
         // TODO: Add advanced lookup
         path = fs::canonical(path);
         const auto path_str = path.string();
+
+        if (const auto it = libraries.find(path_str); it != libraries.end())
+            return it->second;
 
 #ifdef OS_WINDOWS
         const HMODULE module = LoadLibraryA(path_str.c_str());
@@ -140,6 +157,16 @@ namespace spade
         }
 
         Library library(path_str, module);
+        libraries.emplace(path_str, library);
+        return library;
+#endif
+
+#ifdef OS_LINUX
+        const auto lib = dlopen(path_str.c_str(), RTLD_LAZY);
+        if (lib == null)
+            throw NativeLibraryError(path, string(dlerror()));
+
+        Library library(path_str, lib);
         libraries.emplace(path_str, library);
         return library;
 #endif

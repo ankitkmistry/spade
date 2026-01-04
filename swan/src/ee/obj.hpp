@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../utils/common.hpp"
-#include "../memory/manager.hpp"
+#include "utils/common.hpp"
+#include "memory/manager.hpp"
 #include "spinfo/sign.hpp"
 
 #include <functional>

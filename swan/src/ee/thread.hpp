@@ -2,6 +2,7 @@
 
 #include "callable/frame.hpp"
 #include "obj.hpp"
+#include <thread>
 #include <shared_mutex>
 
 namespace spade

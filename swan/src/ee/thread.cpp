@@ -1,6 +1,7 @@
 #include "thread.hpp"
-#include "../utils/errors.hpp"
+#include "utils/errors.hpp"
 #include "vm.hpp"
+#include <condition_variable>
 #include <shared_mutex>
 
 namespace spade

@@ -1,10 +1,10 @@
 #include "loader.hpp"
-#include "../ee/vm.hpp"
+#include "ee/vm.hpp"
 #include "callable/table.hpp"
 #include "ee/obj.hpp"
 #include "elpops/elpdef.hpp"
 #include "elpops/reader.hpp"
-#include "../memory/memory.hpp"
+#include "memory/memory.hpp"
 #include "spimp/utils.hpp"
 #include "verifier.hpp"
 #include <cstddef>

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../callable/method.hpp"
+#include "callable/method.hpp"
 #include "elpops/elpdef.hpp"
 
 namespace spade

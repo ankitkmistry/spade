@@ -2,8 +2,8 @@
 #include "callable.hpp"
 #include "ee/thread.hpp"
 #include "frame.hpp"
-#include "../ee/obj.hpp"
-#include "../memory/memory.hpp"
+#include "ee/obj.hpp"
+#include "memory/memory.hpp"
 #include "utils/errors.hpp"
 
 namespace spade

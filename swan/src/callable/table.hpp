@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../ee/obj.hpp"
+#include "ee/obj.hpp"
 #include "spimp/utils.hpp"
 
 namespace spade

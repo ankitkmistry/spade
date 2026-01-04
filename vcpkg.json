@@ -1,11 +1,11 @@
 {
   "dependencies": [
     "argparse",
+    "boost-container-hash",
     "boost-core",
     "boost-predef",
     "cpptrace",
     "libffi",
-    "spdlog",
-    "boost-container-hash"
+    "spdlog"
   ]
 }
