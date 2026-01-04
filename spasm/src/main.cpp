@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
     if (program.get("-o").empty())
         output_path = file_path.parent_path() / (file_path.stem().string() + ".elp");
     else
-        output_path = program.get("-o") + ".elp";
+        output_path = program.get("-o");
 #endif
 
 #ifndef ENABLE_CMD_LINE

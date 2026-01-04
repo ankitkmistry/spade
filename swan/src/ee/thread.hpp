@@ -1,11 +1,149 @@
 #pragma once
 
+#include "callable/frame.hpp"
 #include "obj.hpp"
 #include <shared_mutex>
 
 namespace spade
 {
     class SpadeVM;
+
+    class ThreadState {
+        /// Maximum call stack depth
+        ptrdiff_t stack_depth;
+        /// Call stack
+        std::unique_ptr<Frame[]> call_stack;
+        /// Frame pointer to the next frame of the current active frame
+        Frame *fp = null;
+
+      public:
+        ThreadState(size_t max_call_stack_depth);
+
+        ThreadState() = delete;
+        ThreadState(const ThreadState &) = delete;
+        ThreadState(ThreadState &&) = default;
+        ThreadState &operator=(const ThreadState &) = delete;
+        ThreadState &operator=(ThreadState &&) = default;
+        ~ThreadState() = default;
+
+        // State operations
+        // Frame operations
+        /**
+         * Pushes a call frame on top of the call stack
+         * @param frame the frame to be pushed
+         */
+        void push_frame(Frame frame);
+
+        /**
+         * Pops the active call frame and reloads the state
+         * @return true if a frame was popped
+         */
+        bool pop_frame();
+
+        // Stack operations
+        /**
+         * Pushes val on top of the operand stack
+         * @param val value to be pushed
+         */
+        void push(Obj *val) const {
+            get_frame()->push(val);
+        }
+
+        /**
+         * Pops the operand stack
+         * @return the popped value
+         */
+        Obj *pop() const {
+            return get_frame()->pop();
+        }
+
+        /**
+         * @return the value on top of the operand stack
+         */
+        Obj *peek() const {
+            return get_frame()->peek();
+        }
+
+        // Constant pool operations
+        /**
+         * Loads the constant from the constant pool at index
+         * @param index
+         * @return the loaded value
+         */
+        Obj *load_const(uint16_t index) const {
+            return get_frame()->get_const_pool()[index]->copy();
+        }
+
+        // Code operations
+        /**
+         * Advances ip by 1 byte and returns the byte read
+         * @return the byte
+         */
+        uint8_t read_byte() {
+            return *get_frame()->ip++;
+        }
+
+        /**
+         * Advances ip by 2 bytes and returns the bytes read
+         * @return the short
+         */
+        uint16_t read_short() {
+            const auto frame = get_frame();
+            frame->ip += 2;
+            return (frame->ip[-2] << 8) | frame->ip[-1];
+        }
+
+        /**
+         * Adjusts the ip by offset
+         * @param offset offset to be adjusted
+         */
+        void adjust(ptrdiff_t offset) {
+            get_frame()->ip += offset;
+        }
+
+        /**
+         * @return The call stack
+         */
+        const Frame *get_call_stack() const {
+            return &call_stack[0];
+        }
+
+        /**
+         * @return The call stack
+         */
+        Frame *get_call_stack() {
+            return &call_stack[0];
+        }
+
+        /**
+         * @return The active frame
+         */
+        Frame *get_frame() const {
+            return fp - 1;
+        }
+
+        /**
+         * @return The size of the call stack
+         */
+        uint16_t get_call_stack_size() const {
+            return fp - &call_stack[0];
+        }
+
+        /**
+         * @return The program counter
+         */
+        uint32_t get_pc() const {
+            return get_frame()->ip - &get_frame()->code[0];
+        }
+
+        /**
+         * Sets the program counter
+         * @param pc the program counter value
+         */
+        void set_pc(uint32_t pc) {
+            get_frame()->ip = &get_frame()->code[0] + pc;
+        }
+    };
 
     /**
      * Representation of a vm thread
@@ -32,6 +170,8 @@ namespace spade
         Obj *value = null;
         /// The vm state stored in the thread
         SpadeVM *vm;
+        /// The current state of the thread;
+        ThreadState state;
         /// Status of the thread
         Status status = NOT_STARTED;
         /// Exit code of the thread
@@ -76,6 +216,20 @@ namespace spade
          */
         SpadeVM *get_vm() {
             return vm;
+        }
+
+        /**
+         * @return The thread state
+         */
+        const ThreadState &get_state() const {
+            return state;
+        }
+
+        /**
+         * @return The thread state
+         */
+        ThreadState &get_state() {
+            return state;
         }
 
         /**

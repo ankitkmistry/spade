@@ -9,6 +9,7 @@
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
+#include <spdlog/spdlog.h>
 
 namespace spade
 {
@@ -23,19 +24,19 @@ namespace spade
           metadata_mtx(),
           exit_code(1),
           out(),
-          debugger(std::move(debugger)),
-          stack_depth(settings.max_call_stack_depth),
-          call_stack(std::make_unique<Frame[]>(stack_depth)),
-          fp(&call_stack[0]) {
-        manager->set_vm(this);
+          debugger(std::move(debugger)) {
+        if (manager)
+            manager->set_vm(this);
     }
 
     void SpadeVM::on_exit(const std::function<void()> &fun) {
+        spdlog::info("SpadeVM: registered exit hook");
         on_exit_list.push_back(fun);
     }
 
     void SpadeVM::start(const string &filename, const vector<string> &args, bool block) {
         Thread thread(this, std::bind(&SpadeVM::vm_main, this, filename, args, std::placeholders::_1), [&] {
+            spdlog::info("SpadeVM: Thread registered in the vm");
             // Insert thread into vm threads before the thread starts
             threads.insert(&thread);
         });
@@ -147,21 +148,6 @@ namespace spade
         }
     }
 
-    void SpadeVM::push_frame(Frame frame) {
-        if (fp - &call_stack[0] >= stack_depth)
-            throw StackOverflowError();
-        *fp++ = std::move(frame);
-    }
-
-    bool SpadeVM::pop_frame() {
-        if (fp > &call_stack[0]) {
-            // std::destroy_at(fp - 1);
-            fp--;
-            return true;
-        }
-        return false;
-    }
-
     SpadeVM *SpadeVM::current() {
         if (const auto thread = Thread::current())
             return thread->get_vm();
@@ -204,13 +190,18 @@ namespace spade
         module->set_member("array[T]", type_array);
 
         modules["basic"] = module;
+
+        spdlog::info("SpadeVM: Loaded basic module");
     }
 
     void SpadeVM::vm_main(const string &filename, const vector<string> &args, Thread *thread) {
         thread->set_status(Thread::RUNNING);
+        spdlog::info("SpadeVM: Thread set to running");
         try {
-            if (debugger)
+            if (debugger) {
                 debugger->init(this);
+                spdlog::info("SpadeVM: Debugger initialized");
+            }
             // Load the basic types and module
             load_basic();
             // Load the file and ge the entry point
@@ -218,7 +209,9 @@ namespace spade
             const auto entry = result.entry;
             // Initialize the modules
             for (const auto init: result.inits) {
-                init->invoke({});
+                init->call({});
+                run(thread);
+                spdlog::info("SpadeVM: Called module initializer: {}", init->get_sign().to_string());
             }
             // Complain if there is no entry point
             if (entry == null)
@@ -234,26 +227,31 @@ namespace spade
             } else
                 throw runtime_error("entry point must have zero or one argument (basic.array): " + entry->get_sign().to_string());
             // Enter execution loop
+            spdlog::info("SpadeVM: Calling entry point: {}", entry->get_sign().to_string());
             run(thread);
             // Mark the thread as terminated
             thread->set_status(Thread::Status::TERMINATED);
+            spdlog::info("SpadeVM: Thread set to terminated");
             // Try to compile to native
             // jit_test(entry);
 
         } catch (const SpadeError &error) {
-            std::cout << "VM Error: " << error.what() << std::endl;
+            std::cerr << "VM Error: " << error.what() << std::endl;
             exit_code = 1;
             std::exit(exit_code);
         }
 
         // Remove this thread after execution
         threads.erase(thread);
+        spdlog::info("SpadeVM: Thread unregistered in the vm");
         // If it is empty then cleanup
         if (threads.empty()) {
+            spdlog::info("SpadeVM: Cleaning up");
             for (const auto &action: on_exit_list) action();
             exit_code = thread->get_exit_code();
             if (debugger)
                 debugger->cleanup(this);
+            spdlog::info("SpadeVM: Exit");
         }
     }
 

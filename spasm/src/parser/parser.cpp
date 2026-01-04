@@ -162,18 +162,18 @@ namespace spasm
         bool end = false;
         while (!end) {
             switch (peek()->get_type()) {
-                case TokenType::METHOD:
-                    methods.push_back(parse_method());
-                    break;
-                case TokenType::CLASS:
-                    classes.push_back(parse_class());
-                    break;
-                case TokenType::MODULE:
-                    modules.push_back(parse_module());
-                    break;
-                default:
-                    end = true;
-                    break;
+            case TokenType::METHOD:
+                methods.push_back(parse_method());
+                break;
+            case TokenType::CLASS:
+                classes.push_back(parse_class());
+                break;
+            case TokenType::MODULE:
+                modules.push_back(parse_module());
+                break;
+            default:
+                end = true;
+                break;
             }
         }
         expect(TokenType::END);
@@ -239,7 +239,6 @@ namespace spasm
         } else
             throw error("expected '@var', '@const'", property);
         global.name = get_current_module()->get_constant(name);
-        global.type = get_current_module()->get_constant(type);
         return global;
     }
 
@@ -298,15 +297,15 @@ namespace spasm
             if (peek()->get_type() == TokenType::END_OF_FILE)
                 throw error(std::format("expected {}", make_expected_string(TokenType::END)));
             switch (peek()->get_type()) {
-                case TokenType::FIELD:
-                    advance();
-                    fields.push_back(parse_field());
-                    break;
-                case TokenType::METHOD:
-                    methods.push_back(parse_method());
-                    break;
-                default:
-                    break;
+            case TokenType::FIELD:
+                advance();
+                fields.push_back(parse_field());
+                break;
+            case TokenType::METHOD:
+                methods.push_back(parse_method());
+                break;
+            default:
+                break;
             }
         }
 
@@ -355,7 +354,6 @@ namespace spasm
         } else
             throw error("expected '@var', '@const'", property);
         field.name = get_current_module()->get_constant(name);
-        field.type = get_current_module()->get_constant(type);
         return field;
     }
 
@@ -384,13 +382,7 @@ namespace spasm
         };
         while (match(TokenType::PROPERTY)) {
             const auto property_name = current()->get_text();
-            if (property_name == "@closure_start") {
-                static constinit auto max = std::numeric_limits<decltype(std::declval<MethodInfo>().closure_start)>::max();
-                auto value = str2int(expect(TokenType::INTEGER));
-                if (value >= max || value < 0)
-                    throw error(std::format("'{}' cannot be >= {} or < 0", property_name, max), current());
-                properties[property_name] = value;
-            } else if (property_name == "@stack_max") {
+            if (property_name == "@stack_max") {
                 static constinit auto max = std::numeric_limits<decltype(std::declval<MethodInfo>().stack_max)>::max();
                 auto value = str2int(expect(TokenType::INTEGER));
                 if (value >= max)
@@ -407,7 +399,6 @@ namespace spasm
         if (context_stack[context_stack.size() - 2]->get_kind() == ContextType::CLASS) {
             LocalInfo self;
             self.kind = 0;
-            self.type = get_current_module()->get_constant(current_sign.get_parent().to_string());
             self.meta = MetaInfo({
                     {"name", "self"}
             });
@@ -419,54 +410,54 @@ namespace spasm
             if (peek()->get_type() == TokenType::END_OF_FILE)
                 throw error(std::format("expected {}", make_expected_string(TokenType::END)));
             switch (peek()->get_type()) {
-                case TokenType::ARG:
-                    advance();
-                    args.push_back(parse_arg());
-                    break;
-                case TokenType::LOCAL:
-                    advance();
-                    locals.push_back(parse_local());
-                    break;
-                case TokenType::EXCEPTION:
-                    advance();
-                    exceptions.push_back(parse_exception());
-                    break;
-                case TokenType::MATCH: {
-                    advance();
-                    const auto name = parse_name();
-                    const auto name_tok = current();
-                    parse_term();
-                    const auto match_ctx = std::make_shared<MatchContext>();
-                    if (!ctx->add_match(name, match_ctx))
-                        throw error(std::format("redefinition of match '{}'", name), name_tok);
-                    while (peek()->get_type() != TokenType::END) {
-                        if (peek()->get_type() == TokenType::END_OF_FILE)
-                            throw error(std::format("expected {}", make_expected_string(TokenType::END)));
-                        if (match(TokenType::UNDERSCORE)) {
-                            if (match_ctx->get_default_label())
-                                throw ErrorGroup<ParserError>()
-                                        .error(error("redefinition of default case", current()))
-                                        .note(error("already declared here", match_ctx->get_default_label()));
-                            expect(TokenType::ARROW);
-                            match_ctx->set_default_label(expect(TokenType::LABEL));
-                        } else {
-                            const auto tok = peek();
-                            const auto value = parse_value();
-                            expect(TokenType::ARROW);
-                            const auto label = expect(TokenType::LABEL);
-                            if (!match_ctx->add_case(get_current_module()->get_constant(value), label))
-                                throw error("redefinition of case", tok);
-                        }
-                        parse_term();
+            case TokenType::ARG:
+                advance();
+                args.push_back(parse_arg());
+                break;
+            case TokenType::LOCAL:
+                advance();
+                locals.push_back(parse_local());
+                break;
+            case TokenType::EXCEPTION:
+                advance();
+                exceptions.push_back(parse_exception());
+                break;
+            case TokenType::MATCH: {
+                advance();
+                const auto name = parse_name();
+                const auto name_tok = current();
+                parse_term();
+                const auto match_ctx = std::make_shared<MatchContext>();
+                if (!ctx->add_match(name, match_ctx))
+                    throw error(std::format("redefinition of match '{}'", name), name_tok);
+                while (peek()->get_type() != TokenType::END) {
+                    if (peek()->get_type() == TokenType::END_OF_FILE)
+                        throw error(std::format("expected {}", make_expected_string(TokenType::END)));
+                    if (match(TokenType::UNDERSCORE)) {
+                        if (match_ctx->get_default_label())
+                            throw ErrorGroup<ParserError>()
+                                    .error(error("redefinition of default case", current()))
+                                    .note(error("already declared here", match_ctx->get_default_label()));
+                        expect(TokenType::ARROW);
+                        match_ctx->set_default_label(expect(TokenType::LABEL));
+                    } else {
+                        const auto tok = peek();
+                        const auto value = parse_value();
+                        expect(TokenType::ARROW);
+                        const auto label = expect(TokenType::LABEL);
+                        if (!match_ctx->add_case(get_current_module()->get_constant(value), label))
+                            throw error("redefinition of case", tok);
                     }
-                    if (!match_ctx->get_default_label())
-                        throw error("match must have a default label", name_tok);
-                    expect(TokenType::END);
                     parse_term();
-                    break;
                 }
-                default:
-                    goto outside;
+                if (!match_ctx->get_default_label())
+                    throw error("match must have a default label", name_tok);
+                expect(TokenType::END);
+                parse_term();
+                break;
+            }
+            default:
+                goto outside;
             }
         }
 outside:
@@ -475,17 +466,17 @@ outside:
             if (peek()->get_type() == TokenType::END_OF_FILE)
                 throw error(std::format("expected {}", make_expected_string(TokenType::END)));
             switch (peek()->get_type()) {
-                case TokenType::ARG:
-                    args.push_back(parse_arg());
-                    break;
-                case TokenType::LOCAL:
-                    locals.push_back(parse_local());
-                    break;
-                case TokenType::EXCEPTION:
-                    exceptions.push_back(parse_exception());
-                    break;
-                default:
-                    parse_line();
+            case TokenType::ARG:
+                args.push_back(parse_arg());
+                break;
+            case TokenType::LOCAL:
+                locals.push_back(parse_local());
+                break;
+            case TokenType::EXCEPTION:
+                exceptions.push_back(parse_exception());
+                break;
+            default:
+                parse_line();
             }
         }
 
@@ -526,14 +517,6 @@ outside:
             errors.error(error(std::format("locals_count cannot be >= {}", max), start));
         else {
             method.locals_count = locals.size() & max;
-            using T = decltype(method.closure_start);
-            auto property_value = std::get<int64_t>(properties["@closure_start"].value);
-            if (property_value < 0)
-                method.closure_start = method.locals_count;
-            else if (property_value > method.locals_count)
-                throw error(std::format("@closure_start cannot be > locals_count (locals_count={})", method.locals_count), start);
-            else
-                method.closure_start = static_cast<T>(property_value & std::numeric_limits<T>::max());
             method.locals = locals;
         }
         if (const auto max = std::numeric_limits<decltype(method.exception_table_count)>::max(); exceptions.size() >= max)
@@ -633,7 +616,6 @@ outside:
             arg.kind = 1;
         } else
             throw error("expected '@var', '@const'", property);
-        arg.type = get_current_module()->get_constant(type);
         arg.meta = MetaInfo({
                 {"name", name}
         });
@@ -659,7 +641,6 @@ outside:
             local.kind = 1;
         } else
             throw error("expected '@var', '@const'", property);
-        local.type = get_current_module()->get_constant(type);
         local.meta = MetaInfo({
                 {"name", name}
         });
@@ -707,57 +688,57 @@ outside:
 
         const auto emit_value = [&](std::unsigned_integral auto const value) {
             switch (OpcodeInfo::params_count(opcode)) {
-                case 0:
-                    break;
-                case 1: {
-                    if (value >= uint8_max) {
-                        ErrorGroup<ParserError> errors;
-                        errors.error(error(
-                                std::format("opcode '{}' cannot accept a value more than {} (value={})", opcode_token->get_text(), uint8_max, value),
-                                opcode_token));
-                        if (opcode != OpcodeInfo::alternate(opcode))
-                            errors.note(error(std::format("use '{}' instead", OpcodeInfo::to_string(OpcodeInfo::alternate(opcode))), opcode_token));
-                        throw errors;
-                    }
-                    ctx->emit(value & uint8_max);
-                    break;
+            case 0:
+                break;
+            case 1: {
+                if (value >= uint8_max) {
+                    ErrorGroup<ParserError> errors;
+                    errors.error(error(
+                            std::format("opcode '{}' cannot accept a value more than {} (value={})", opcode_token->get_text(), uint8_max, value),
+                            opcode_token));
+                    if (opcode != OpcodeInfo::alternate(opcode))
+                        errors.note(error(std::format("use '{}' instead", OpcodeInfo::to_string(OpcodeInfo::alternate(opcode))), opcode_token));
+                    throw errors;
                 }
-                case 2:
-                    if (value >= uint16_max) {
-                        ErrorGroup<ParserError> errors;
-                        errors.error(error(
-                                std::format("opcode '{}' cannot accept a value more than {} (value={})", opcode_token->get_text(), uint16_max, value),
-                                opcode_token));
-                        if (opcode != OpcodeInfo::alternate(opcode))
-                            errors.note(error(std::format("use '{}' instead", OpcodeInfo::to_string(OpcodeInfo::alternate(opcode))), opcode_token));
-                        throw errors;
-                    }
-                    if constexpr (std::same_as<decltype(value), const uint8_t>) {
-                        ctx->emit(0);
-                        ctx->emit(value);
-                    } else {
-                        ctx->emit((value >> 8) & uint8_max);
-                        ctx->emit(value & uint8_max);
-                    }
-                    break;
-                default:
-                    if (value >= uint16_max) {
-                        ErrorGroup<ParserError> errors;
-                        errors.error(error(
-                                std::format("opcode '{}' cannot accept a value more than {} (value={})", opcode_token->get_text(), uint16_max, value),
-                                opcode_token));
-                        if (opcode != OpcodeInfo::alternate(opcode))
-                            errors.note(error(std::format("use '{}' instead", OpcodeInfo::to_string(OpcodeInfo::alternate(opcode))), opcode_token));
-                        throw errors;
-                    }
-                    if constexpr (std::same_as<decltype(value), const uint8_t>) {
-                        ctx->emit(0);
-                        ctx->emit(value);
-                    } else {
-                        ctx->emit((value >> 8) & uint8_max);
-                        ctx->emit(value & uint8_max);
-                    }
-                    break;
+                ctx->emit(value & uint8_max);
+                break;
+            }
+            case 2:
+                if (value >= uint16_max) {
+                    ErrorGroup<ParserError> errors;
+                    errors.error(error(
+                            std::format("opcode '{}' cannot accept a value more than {} (value={})", opcode_token->get_text(), uint16_max, value),
+                            opcode_token));
+                    if (opcode != OpcodeInfo::alternate(opcode))
+                        errors.note(error(std::format("use '{}' instead", OpcodeInfo::to_string(OpcodeInfo::alternate(opcode))), opcode_token));
+                    throw errors;
+                }
+                if constexpr (std::same_as<decltype(value), const uint8_t>) {
+                    ctx->emit(0);
+                    ctx->emit(value);
+                } else {
+                    ctx->emit((value >> 8) & uint8_max);
+                    ctx->emit(value & uint8_max);
+                }
+                break;
+            default:
+                if (value >= uint16_max) {
+                    ErrorGroup<ParserError> errors;
+                    errors.error(error(
+                            std::format("opcode '{}' cannot accept a value more than {} (value={})", opcode_token->get_text(), uint16_max, value),
+                            opcode_token));
+                    if (opcode != OpcodeInfo::alternate(opcode))
+                        errors.note(error(std::format("use '{}' instead", OpcodeInfo::to_string(OpcodeInfo::alternate(opcode))), opcode_token));
+                    throw errors;
+                }
+                if constexpr (std::same_as<decltype(value), const uint8_t>) {
+                    ctx->emit(0);
+                    ctx->emit(value);
+                } else {
+                    ctx->emit((value >> 8) & uint8_max);
+                    ctx->emit(value & uint8_max);
+                }
+                break;
             }
         };
 
@@ -767,226 +748,226 @@ outside:
         }
 
         switch (opcode) {
-            case Opcode::CONST:
-            case Opcode::CONSTL:
-                emit_value(module->get_constant(parse_value()));
-                break;
-            case Opcode::NPOP:
-            case Opcode::NDUP:
-                emit_value(static_cast<uint64_t>(str2int(expect(TokenType::INTEGER))));
-                break;
-            case Opcode::GLOAD:
-            case Opcode::GFLOAD:
-            case Opcode::GSTORE:
-            case Opcode::GFSTORE:
-            case Opcode::PGSTORE:
-            case Opcode::PGFSTORE:
-            case Opcode::GINVOKE:
-            case Opcode::GFINVOKE:
-                emit_value(module->get_constant(parse_signature().to_string()));
-                break;
-            case Opcode::LLOAD:
-            case Opcode::LFLOAD:
-            case Opcode::LSTORE:
-            case Opcode::LFSTORE:
-            case Opcode::PLSTORE:
-            case Opcode::PLFSTORE:
-            case Opcode::LINVOKE:
-            case Opcode::LFINVOKE: {
+        case Opcode::CONST:
+        case Opcode::CONSTL:
+            emit_value(module->get_constant(parse_value()));
+            break;
+        case Opcode::NPOP:
+        case Opcode::NDUP:
+            emit_value(static_cast<uint64_t>(str2int(expect(TokenType::INTEGER))));
+            break;
+        case Opcode::GLOAD:
+        case Opcode::GFLOAD:
+        case Opcode::GSTORE:
+        case Opcode::GFSTORE:
+        case Opcode::PGSTORE:
+        case Opcode::PGFSTORE:
+        case Opcode::GINVOKE:
+        case Opcode::GFINVOKE:
+            emit_value(module->get_constant(parse_signature().to_string()));
+            break;
+        case Opcode::LLOAD:
+        case Opcode::LFLOAD:
+        case Opcode::LSTORE:
+        case Opcode::LFSTORE:
+        case Opcode::PLSTORE:
+        case Opcode::PLFSTORE:
+        case Opcode::LINVOKE:
+        case Opcode::LFINVOKE: {
+            if (match(TokenType::INTEGER)) {
+                const auto value = str2int(current());
+                if (value >= uint16_max)
+                    throw error(std::format("value cannot be greater than {}", uint16_max), current());
+                emit_value(static_cast<uint16_t>(value & uint16_max));
+            } else {
+                const auto name = parse_name();
+                if (const auto idx = ctx->get_local(name)) {
+                    emit_value(*idx);
+                } else
+                    throw error("undefined local", current());
+            }
+            break;
+        }
+        case Opcode::ALOAD:
+        case Opcode::ASTORE:
+        case Opcode::PASTORE:
+        case Opcode::AINVOKE: {
+            if (match(TokenType::INTEGER)) {
+                const auto value = str2int(current());
+                if (value >= uint8_max)
+                    throw error(std::format("value cannot be greater than {}", uint8_max), current());
+                emit_value(static_cast<uint8_t>(value & uint8_max));
+            } else {
+                const auto name = parse_name();
+                if (const auto idx = ctx->get_arg(name)) {
+                    emit_value(*idx);
+                } else
+                    throw error("undefined arg", current());
+            }
+            break;
+        }
+        case Opcode::TLOAD:
+        case Opcode::TFLOAD:
+        case Opcode::TSTORE:
+        case Opcode::TFSTORE:
+        case Opcode::PTSTORE:
+        case Opcode::PTFSTORE: {
+            const auto tok = peek();
+            const auto sign = parse_signature();
+            if (!ctx->has_type_param(sign) && !klass->has_type_param(sign))
+                throw error("undefined type arg", tok);
+            emit_value(module->get_constant(sign.to_string()));
+            break;
+        }
+        case Opcode::MLOAD:
+        case Opcode::MFLOAD:
+        case Opcode::MSTORE:
+        case Opcode::MFSTORE:
+        case Opcode::PMSTORE:
+        case Opcode::PMFSTORE:
+            emit_value(module->get_constant(parse_signature().to_string()));
+            break;
+        case Opcode::SPLOAD:
+        case Opcode::SPFLOAD:
+            emit_value(module->get_constant(parse_signature().to_string()));
+            break;
+        case Opcode::ARRBUILD:
+        case Opcode::ARRFBUILD:
+            emit_value(static_cast<uint64_t>(str2int(expect(TokenType::INTEGER))));
+            break;
+        case Opcode::INVOKE:
+            emit_value(static_cast<uint64_t>(str2int(expect(TokenType::INTEGER))));
+            break;
+        case Opcode::VINVOKE:
+        case Opcode::VFINVOKE:
+        case Opcode::SPINVOKE:
+        case Opcode::SPFINVOKE:
+            emit_value(module->get_constant(parse_signature().to_string()));
+            break;
+        case Opcode::JMP:
+        case Opcode::JT:
+        case Opcode::JF:
+        case Opcode::JLT:
+        case Opcode::JLE:
+        case Opcode::JEQ:
+        case Opcode::JNE:
+        case Opcode::JGE:
+        case Opcode::JGT: {
+            const auto label = expect(TokenType::LABEL);
+            const auto jmp_val = ctx->patch_jump_to(label);
+            ctx->emit((jmp_val >> 8) & uint8_max);
+            ctx->emit(jmp_val & uint8_max);
+            break;
+        }
+        case Opcode::MTPERF:
+        case Opcode::MTFPERF: {
+            const auto name = parse_name();
+            if (const auto idx = ctx->get_match(name))
+                emit_value(*idx);
+            else
+                throw error("undefined match", current());
+            break;
+        }
+        case Opcode::CLOSURELOAD: {
+            parse_term();
+            size_t capture_count_loc = ctx->get_code().size();
+            ctx->emit(0);
+
+            size_t capture_count = 0;
+            while (!match(TokenType::END)) {
+                if (peek()->get_type() == TokenType::END_OF_FILE)
+                    expect(TokenType::END);
+
                 if (match(TokenType::INTEGER)) {
                     const auto value = str2int(current());
                     if (value >= uint16_max)
                         throw error(std::format("value cannot be greater than {}", uint16_max), current());
                     emit_value(static_cast<uint16_t>(value & uint16_max));
-                } else {
-                    const auto name = parse_name();
-                    if (const auto idx = ctx->get_local(name)) {
-                        emit_value(*idx);
-                    } else
-                        throw error("undefined local", current());
                 }
-                break;
-            }
-            case Opcode::ALOAD:
-            case Opcode::ASTORE:
-            case Opcode::PASTORE:
-            case Opcode::AINVOKE: {
-                if (match(TokenType::INTEGER)) {
-                    const auto value = str2int(current());
-                    if (value >= uint8_max)
-                        throw error(std::format("value cannot be greater than {}", uint8_max), current());
-                    emit_value(static_cast<uint8_t>(value & uint8_max));
-                } else {
-                    const auto name = parse_name();
-                    if (const auto idx = ctx->get_arg(name)) {
-                        emit_value(*idx);
-                    } else
-                        throw error("undefined arg", current());
-                }
-                break;
-            }
-            case Opcode::TLOAD:
-            case Opcode::TFLOAD:
-            case Opcode::TSTORE:
-            case Opcode::TFSTORE:
-            case Opcode::PTSTORE:
-            case Opcode::PTFSTORE: {
-                const auto tok = peek();
-                const auto sign = parse_signature();
-                if (!ctx->has_type_param(sign) && !klass->has_type_param(sign))
-                    throw error("undefined type arg", tok);
-                emit_value(module->get_constant(sign.to_string()));
-                break;
-            }
-            case Opcode::MLOAD:
-            case Opcode::MFLOAD:
-            case Opcode::MSTORE:
-            case Opcode::MFSTORE:
-            case Opcode::PMSTORE:
-            case Opcode::PMFSTORE:
-                emit_value(module->get_constant(parse_signature().to_string()));
-                break;
-            case Opcode::SPLOAD:
-            case Opcode::SPFLOAD:
-                emit_value(module->get_constant(parse_signature().to_string()));
-                break;
-            case Opcode::ARRBUILD:
-            case Opcode::ARRFBUILD:
-                emit_value(static_cast<uint64_t>(str2int(expect(TokenType::INTEGER))));
-                break;
-            case Opcode::INVOKE:
-                emit_value(static_cast<uint64_t>(str2int(expect(TokenType::INTEGER))));
-                break;
-            case Opcode::VINVOKE:
-            case Opcode::VFINVOKE:
-            case Opcode::SPINVOKE:
-            case Opcode::SPFINVOKE:
-                emit_value(module->get_constant(parse_signature().to_string()));
-                break;
-            case Opcode::JMP:
-            case Opcode::JT:
-            case Opcode::JF:
-            case Opcode::JLT:
-            case Opcode::JLE:
-            case Opcode::JEQ:
-            case Opcode::JNE:
-            case Opcode::JGE:
-            case Opcode::JGT: {
-                const auto label = expect(TokenType::LABEL);
-                const auto jmp_val = ctx->patch_jump_to(label);
-                ctx->emit((jmp_val >> 8) & uint8_max);
-                ctx->emit(jmp_val & uint8_max);
-                break;
-            }
-            case Opcode::MTPERF:
-            case Opcode::MTFPERF: {
-                const auto name = parse_name();
-                if (const auto idx = ctx->get_match(name))
-                    emit_value(*idx);
-                else
-                    throw error("undefined match", current());
-                break;
-            }
-            case Opcode::CLOSURELOAD: {
-                parse_term();
-                size_t capture_count_loc = ctx->get_code().size();
-                ctx->emit(0);
 
-                size_t capture_count = 0;
-                while (!match(TokenType::END)) {
-                    if (peek()->get_type() == TokenType::END_OF_FILE)
-                        expect(TokenType::END);
-
+                expect(TokenType::ARROW);
+                if (match(TokenType::LOCAL)) {
+                    ctx->emit(1);
                     if (match(TokenType::INTEGER)) {
                         const auto value = str2int(current());
                         if (value >= uint16_max)
                             throw error(std::format("value cannot be greater than {}", uint16_max), current());
                         emit_value(static_cast<uint16_t>(value & uint16_max));
-                    }
-
-                    expect(TokenType::ARROW);
-                    if (match(TokenType::LOCAL)) {
-                        ctx->emit(1);
-                        if (match(TokenType::INTEGER)) {
-                            const auto value = str2int(current());
-                            if (value >= uint16_max)
-                                throw error(std::format("value cannot be greater than {}", uint16_max), current());
-                            emit_value(static_cast<uint16_t>(value & uint16_max));
-                        } else {
-                            const auto name = parse_name();
-                            if (const auto idx = ctx->get_local(name)) {
-                                emit_value(*idx);
-                            } else
-                                throw error("undefined local", current());
-                        }
-                    } else if (match(TokenType::ARG)) {
-                        ctx->emit(0);
-                        if (match(TokenType::INTEGER)) {
-                            const auto value = str2int(current());
-                            if (value >= uint8_max)
-                                throw error(std::format("value cannot be greater than {}", uint8_max), current());
-                            emit_value(static_cast<uint8_t>(value & uint8_max));
-                        } else {
-                            const auto name = parse_name();
-                            if (const auto idx = ctx->get_arg(name)) {
-                                emit_value(*idx);
-                            } else
-                                throw error("undefined arg", current());
-                        }
                     } else {
                         const auto name = parse_name();
-                        const auto arg_idx = ctx->get_arg(name);
-                        const auto local_idx = ctx->get_local(name);
-
-                        if (arg_idx && local_idx) {
-                            throw error("cannot resolve name, specify 'local' or 'arg'", current());
-                        } else if (arg_idx) {
-                            ctx->emit(0);
-                            emit_value(*arg_idx);
-                        } else if (local_idx) {
-                            ctx->emit(1);
-                            emit_value(*local_idx);
+                        if (const auto idx = ctx->get_local(name)) {
+                            emit_value(*idx);
                         } else
-                            throw error("undefined arg or local", current());
+                            throw error("undefined local", current());
                     }
-                    capture_count++;
-                    parse_term();
+                } else if (match(TokenType::ARG)) {
+                    ctx->emit(0);
+                    if (match(TokenType::INTEGER)) {
+                        const auto value = str2int(current());
+                        if (value >= uint8_max)
+                            throw error(std::format("value cannot be greater than {}", uint8_max), current());
+                        emit_value(static_cast<uint8_t>(value & uint8_max));
+                    } else {
+                        const auto name = parse_name();
+                        if (const auto idx = ctx->get_arg(name)) {
+                            emit_value(*idx);
+                        } else
+                            throw error("undefined arg", current());
+                    }
+                } else {
+                    const auto name = parse_name();
+                    const auto arg_idx = ctx->get_arg(name);
+                    const auto local_idx = ctx->get_local(name);
+
+                    if (arg_idx && local_idx) {
+                        throw error("cannot resolve name, specify 'local' or 'arg'", current());
+                    } else if (arg_idx) {
+                        ctx->emit(0);
+                        emit_value(*arg_idx);
+                    } else if (local_idx) {
+                        ctx->emit(1);
+                        emit_value(*local_idx);
+                    } else
+                        throw error("undefined arg or local", current());
                 }
-                ctx->get_code()[capture_count_loc] = capture_count;
-                break;
+                capture_count++;
+                parse_term();
             }
-            case Opcode::REIFIEDLOAD:
-                emit_value(static_cast<uint64_t>(str2int(expect(TokenType::INTEGER))));
-                break;
-            default:
-                break;
+            ctx->get_code()[capture_count_loc] = capture_count;
+            break;
+        }
+        case Opcode::REIFIEDLOAD:
+            emit_value(static_cast<uint64_t>(str2int(expect(TokenType::INTEGER))));
+            break;
+        default:
+            break;
         }
         parse_term();
     }
 
     ValueContext Parser::parse_value() {
         switch (peek()->get_type()) {
-            case TokenType::INTEGER:
-                return str2int(advance());
-            case TokenType::FLOAT:
-                try {
-                    return std::stod(advance()->get_text());
-                } catch (const std::out_of_range &) {
-                    throw error("number is out of range", current());
-                } catch (const std::invalid_argument &) {
-                    throw error("number is invalid", current());
-                }
-            case TokenType::STRING:
-                return destringify(advance()->get_text());
-            case TokenType::CSTRING:
-                return advance()->get_text()[1];
-            case TokenType::LBRACKET:
-                return parse_array();
-            case TokenType::IDENTIFIER:
-                return parse_signature().to_string();
-            default:
-                throw error(std::format("expected {}, array, signature",
-                                        make_expected_string(TokenType::INTEGER, TokenType::FLOAT, TokenType::STRING, TokenType::CSTRING)));
+        case TokenType::INTEGER:
+            return str2int(advance());
+        case TokenType::FLOAT:
+            try {
+                return std::stod(advance()->get_text());
+            } catch (const std::out_of_range &) {
+                throw error("number is out of range", current());
+            } catch (const std::invalid_argument &) {
+                throw error("number is invalid", current());
+            }
+        case TokenType::STRING:
+            return destringify(advance()->get_text());
+        case TokenType::CSTRING:
+            return advance()->get_text()[1];
+        case TokenType::LBRACKET:
+            return parse_array();
+        case TokenType::IDENTIFIER:
+            return parse_signature().to_string();
+        default:
+            throw error(std::format("expected {}, array, signature",
+                                    make_expected_string(TokenType::INTEGER, TokenType::FLOAT, TokenType::STRING, TokenType::CSTRING)));
         }
     }
 
@@ -1002,12 +983,12 @@ outside:
 
     string Parser::parse_name() {
         switch (peek()->get_type()) {
-            case TokenType::IDENTIFIER:
-                return advance()->get_text();
-            case TokenType::STRING:
-                return destringify(advance()->get_text());
-            default:
-                throw error(std::format("expected {}", make_expected_string(TokenType::IDENTIFIER, TokenType::STRING)));
+        case TokenType::IDENTIFIER:
+            return advance()->get_text();
+        case TokenType::STRING:
+            return destringify(advance()->get_text());
+        default:
+            throw error(std::format("expected {}", make_expected_string(TokenType::IDENTIFIER, TokenType::STRING)));
         }
     }
 

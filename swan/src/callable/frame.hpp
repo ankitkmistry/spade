@@ -8,8 +8,6 @@ namespace spade
     class ObjMethod;
 
     class Frame {
-        friend class VMState;
-
         friend class FrameTemplate;
 
       private:
@@ -45,23 +43,31 @@ namespace spade
          * Pushes onto the stack
          * @param val the value to be pushed
          */
-        void push(Obj *val);
+        void push(Obj *val) {
+            *sp++ = val;
+        }
 
         /**
          * Pops the stack
          * @return the popped value
          */
-        Obj *pop();
+        Obj *pop() {
+            return *--sp;
+        }
 
         /**
          * @return The value of the last item of the stack
          */
-        Obj *peek();
+        Obj *peek() const {
+            return sp[-1];
+        }
 
         /**
          * @return The constant pool
          */
-        const vector<Obj *> &get_const_pool() const;
+        const vector<Obj *> &get_const_pool() const {
+            return module->get_constant_pool();
+        }
 
         /**
          * @return The arguments table
@@ -142,17 +148,23 @@ namespace spade
         /**
          * @return The number of items on the stack
          */
-        uint32_t get_stack_count() const;
+        uint32_t get_stack_count() const {
+            return sp - &stack[0];
+        }
 
         /**
          * @return The maximum capacity of the stack
          */
-        uint32_t get_max_stack_count() const;
+        uint32_t get_max_stack_count() const {
+            return stack_max;
+        }
 
         /**
          * @return The size of the bytecode
          */
-        uint32_t get_code_count() const;
+        uint32_t get_code_count() const {
+            return code_count;
+        }
     };
 
     class FrameTemplate {
@@ -164,7 +176,6 @@ namespace spade
         ExceptionTable exceptions;
         LineNumberTable lines;
         vector<MatchTable> matches;
-        ObjMethod *method;
 
       public:
         FrameTemplate(const vector<uint8_t> &code, uint32_t stack_max, const VariableTable &args, const VariableTable &locals,
@@ -176,8 +187,7 @@ namespace spade
               locals(locals),
               exceptions(exceptions),
               lines(lines),
-              matches(matches),
-              method(method) {
+              matches(matches) {
             this->code = std::make_unique<uint8_t[]>(code_count);
             std::memcpy(&this->code[0], code.data(), code_count);
         }
@@ -191,8 +201,7 @@ namespace spade
               locals(other.locals),
               exceptions(other.exceptions),
               lines(other.lines),
-              matches(other.matches),
-              method(other.method) {
+              matches(other.matches) {
             code = std::make_unique<uint8_t[]>(code_count);
             std::memcpy(&code[0], &other.code[0], code_count);
         }
@@ -213,7 +222,6 @@ namespace spade
                 exceptions = other.exceptions;
                 lines = other.lines;
                 matches = other.matches;
-                method = other.method;
             }
             return *this;
         }
@@ -224,7 +232,7 @@ namespace spade
         // Destructor
         ~FrameTemplate() = default;
 
-        Frame initialize();
+        Frame initialize(ObjMethod*method);
         FrameTemplate *copy();
 
         uint32_t get_code_count() const {
@@ -277,14 +285,6 @@ namespace spade
 
         vector<MatchTable> &get_matches() {
             return matches;
-        }
-
-        ObjMethod *get_method() const {
-            return method;
-        }
-
-        void set_method(ObjMethod *method_) {
-            method = method_;
         }
     };
 }    // namespace spade

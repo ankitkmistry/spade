@@ -8,6 +8,7 @@
 #include "spimp/utils.hpp"
 #include "verifier.hpp"
 #include <cstddef>
+#include <spdlog/spdlog.h>
 
 namespace spade
 {
@@ -17,9 +18,11 @@ namespace spade
         // Read the file
         ElpReader reader(resolve_path("", path));
         ElpInfo elp_info = reader.read();
+        spdlog::info("Loader: Read file '{}'", reader.get_path());
         // Verify the file
         Verifier verifier(elp_info, path.generic_string());
         verifier.verify();
+        spdlog::info("Loader: Verified file '{}'", reader.get_path());
         // Load the file
         std::vector<fs::path> imports;
         string entry = load_elp(elp_info, path, imports);
@@ -27,8 +30,10 @@ namespace spade
         for (size_t i = 0; i < imports.size(); i++) {
             ElpReader reader(imports[i]);
             ElpInfo elp_info = reader.read();
+            spdlog::info("Loader: Read import file '{}'", reader.get_path());
             Verifier verifier(elp_info, path.generic_string());
             verifier.verify();
+            spdlog::info("Loader: Verified file '{}'", reader.get_path());
             load_elp(elp_info, path, imports);
         }
         // Find the module inits
@@ -129,12 +134,13 @@ namespace spade
         fs::path compiled_from = get_conpool()[info.compiled_from]->to_string();
         string name = get_conpool()[info.name]->to_string();
         // Set init
-        Sign init = Sign(get_conpool()[info.init]->to_string());
-        module_init_signs.push_back(init);
+        string init = get_conpool()[info.init]->to_string();
+        if (!init.empty())
+            module_init_signs.push_back(init);
 
         start_sign_scope(name);
 
-        auto module = halloc_mgr<ObjModule>(vm->get_memory_manager(), Sign(""));
+        auto module = halloc_mgr<ObjModule>(vm->get_memory_manager(), get_sign());
         module->set_path(compiled_from);
         module->set_sign(get_sign());
         module->set_constant_pool(get_conpool());
@@ -168,12 +174,13 @@ namespace spade
         end_sign_scope();
         end_conpool_scope();
 
-        // TODO: Do something with init
         if (const auto obj = get_scope()) {
             obj->set_member(name, module);
         } else {
             vm->set_symbol(name, module);
         }
+
+        spdlog::info("Loader: Loaded module: {}", module->get_sign().to_string());
     }
 
     void Loader::load_method(const MethodInfo &info) {
@@ -236,10 +243,11 @@ namespace spade
         // Set frame template
         FrameTemplate frame(info.code, info.stack_max, args, locals, exceptions, lines, matches);
         ObjMethod *method = halloc_mgr<ObjMethod>(vm->get_memory_manager(), kind, sign, frame, type_params);
-        frame.set_method(method);
         // Set the method in the scope
         assert(get_scope()->get_tag() == ObjTag::MODULE || get_scope()->get_tag() == ObjTag::TYPE);
         get_scope()->set_member(name, method);
+
+        spdlog::info("Loader: Loaded method: {}", method->get_sign().to_string());
     }
 
     void Loader::load_class(const ClassInfo &info) {
@@ -284,7 +292,7 @@ namespace spade
             // Set metadata
             vm->set_metadata((get_sign() | name).to_string(), load_meta(info.meta));
             // Set the global in the scope
-            assert(get_scope()->get_tag() == ObjTag::MODULE);
+            assert(get_scope()->get_tag() == ObjTag::TYPE);
             get_scope()->set_member(name, obj_null);
         }
         // Set methods
@@ -299,6 +307,8 @@ namespace spade
 
         assert(get_scope()->get_tag() == ObjTag::MODULE || get_scope()->get_tag() == ObjTag::TYPE);
         get_scope()->set_member(name, type);
+
+        spdlog::info("Loader: Loaded type: {}", type->get_sign().to_string());
     }
 
     vector<Obj *> Loader::load_const_pool(const vector<CpInfo> &cps) {
@@ -306,6 +316,7 @@ namespace spade
         for (const auto &cp: cps) {
             pool.push_back(load_cp(cp));
         }
+        spdlog::info("Loader: Loaded constant pool");
         return pool;
     }
 

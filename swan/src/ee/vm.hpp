@@ -50,12 +50,6 @@ namespace spade
         std::stringstream out;
 
         // State variables
-        /// Maximum call stack depth
-        ptrdiff_t stack_depth;
-        /// Call stack
-        std::unique_ptr<Frame[]> call_stack;
-        /// Frame pointer to the next frame of the current active frame
-        Frame *fp = null;
 
       public:
         explicit SpadeVM(MemoryManager *manager, std::unique_ptr<Debugger> debugger = null, const Settings &settings = {});
@@ -118,124 +112,6 @@ namespace spade
          * @return Type* the standard type
          */
         Type *get_vm_type(ObjTag tag);
-
-        // State operations
-        // Frame operations
-        /**
-         * Pushes a call frame on top of the call stack
-         * @param frame the frame to be pushed
-         */
-        void push_frame(Frame frame);
-
-        /**
-         * Pops the active call frame and reloads the state
-         * @return true if a frame was popped
-         */
-        bool pop_frame();
-
-        // Stack operations
-        /**
-         * Pushes val on top of the operand stack
-         * @param val value to be pushed
-         */
-        void push(Obj *val) const {
-            get_frame()->push(val);
-        }
-
-        /**
-         * Pops the operand stack
-         * @return the popped value
-         */
-        Obj *pop() const {
-            return get_frame()->pop();
-        }
-
-        /**
-         * @return the value on top of the operand stack
-         */
-        Obj *peek() const {
-            return get_frame()->peek();
-        }
-
-        // Constant pool operations
-        /**
-         * Loads the constant from the constant pool at index
-         * @param index
-         * @return the loaded value
-         */
-        Obj *load_const(uint16_t index) const {
-            return get_frame()->get_const_pool()[index]->copy();
-        }
-
-        // Code operations
-        /**
-         * Advances ip by 1 byte and returns the byte read
-         * @return the byte
-         */
-        uint8_t read_byte() {
-            return *get_frame()->ip++;
-        }
-
-        /**
-         * Advances ip by 2 bytes and returns the bytes read
-         * @return the short
-         */
-        uint16_t read_short() {
-            const auto frame = get_frame();
-            frame->ip += 2;
-            return (frame->ip[-2] << 8) | frame->ip[-1];
-        }
-
-        /**
-         * Adjusts the ip by offset
-         * @param offset offset to be adjusted
-         */
-        void adjust(ptrdiff_t offset) {
-            get_frame()->ip += offset;
-        }
-
-        /**
-         * @return The call stack
-         */
-        const Frame *get_call_stack() const {
-            return &call_stack[0];
-        }
-
-        /**
-         * @return The call stack
-         */
-        Frame *get_call_stack() {
-            return &call_stack[0];
-        }
-
-        /**
-         * @return The active frame
-         */
-        Frame *get_frame() const {
-            return fp - 1;
-        }
-
-        /**
-         * @return The size of the call stack
-         */
-        uint16_t get_call_stack_size() const {
-            return fp - &call_stack[0];
-        }
-
-        /**
-         * @return The program counter
-         */
-        uint32_t get_pc() const {
-            return get_frame()->ip - &get_frame()->code[0];
-        }
-
-        /**
-         * Sets the program counter
-         * @param pc the program counter value
-         */
-        void set_pc(uint32_t pc) {
-            get_frame()->ip = &get_frame()->code[0] + pc;
-        }
 
         /**
          * @return the set of vm threads

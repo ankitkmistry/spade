@@ -1,9 +1,30 @@
 #include "thread.hpp"
+#include "../utils/errors.hpp"
+#include "vm.hpp"
 #include <shared_mutex>
 
 namespace spade
 {
-    Thread::Thread(SpadeVM *vm, const std::function<void(Thread *)> &fun, const std::function<void()> &pre_fun) : thread(), vm(vm) {
+    ThreadState::ThreadState(size_t max_call_stack_depth)
+        : stack_depth(max_call_stack_depth), call_stack(std::make_unique<Frame[]>(stack_depth)), fp(&call_stack[0]) {}
+
+    void ThreadState::push_frame(Frame frame) {
+        if (fp - &call_stack[0] >= stack_depth)
+            throw StackOverflowError();
+        *fp++ = std::move(frame);
+    }
+
+    bool ThreadState::pop_frame() {
+        if (fp > &call_stack[0]) {
+            // std::destroy_at(fp - 1);
+            fp--;
+            return true;
+        }
+        return false;
+    }
+
+    Thread::Thread(SpadeVM *vm, const std::function<void(Thread *)> &fun, const std::function<void()> &pre_fun)
+        : thread(), vm(vm), state(vm->get_settings().max_call_stack_depth) {
         // The mutex to check if the current thread was registered
         std::mutex clr_mutex;
         // The cond var that notifies if the thread has got clearance to start

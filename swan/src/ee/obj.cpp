@@ -1,4 +1,5 @@
 #include "obj.hpp"
+#include "thread.hpp"
 #include "memory/memory.hpp"
 #include "spimp/utils.hpp"
 #include "utils/errors.hpp"
@@ -353,12 +354,11 @@ namespace spade
     }
 
     ObjModule *ObjModule::current() {
-        // TODO: implement this
-        // if (const auto thread = Thread::current()) {
-        //     const auto state = thread->get_state();
-        //     if (const auto frame = state->get_frame(); frame > state->get_call_stack())
-        //         return frame->get_module();
-        // }
+        if (const auto thread = Thread::current()) {
+            const auto &state = thread->get_state();
+            if (const auto frame = state.get_frame(); frame > state.get_call_stack())
+                return frame->get_module();
+        }
         return null;
     }
 
@@ -376,12 +376,12 @@ namespace spade
         for (const auto &[name, slot]: member_slots) {
             obj->set_member(name, slot.get_value()->copy());
         }
-        // TODO: implement this
         // Create new type params
-        // Table<TypeParam *> new_type_params;
-        // for (const auto &[name, type_param]: type_params) {
-        //     new_type_params[name] = cast<TypeParam>(type_param->copy());
-        // }
+        Table<Type *> new_type_params;
+        for (const auto &[name, type_param]: type_params) {
+            new_type_params[name] = cast<Type>(type_param->force_copy());
+        }
+        // TODO: implement this
         // Obj::reify(obj, type_params, new_type_params);
         return obj;
     }

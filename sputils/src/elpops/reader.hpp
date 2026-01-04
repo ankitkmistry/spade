@@ -58,7 +58,7 @@ namespace spade
         }
 
       public:
-        explicit ElpReader(const std::filesystem::path &path) : file(path, std::ios::in | std::ios::binary) {
+        explicit ElpReader(const std::filesystem::path &path) : file(path, std::ios::in | std::ios::binary), path(path.generic_string()) {
             if (!file)
                 throw FileNotFoundError(path.string());
         }

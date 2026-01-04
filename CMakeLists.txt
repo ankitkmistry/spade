@@ -63,22 +63,6 @@ target_include_directories (spasm PRIVATE spasm/src)
 target_include_directories (spasm PUBLIC sputils/src)
 target_link_libraries (spasm PUBLIC sputils PRIVATE argparse::argparse)
 
-# Target: velocity
-# It is the implementation of the Spade Virtual Machine (VM) for Spade.
-file (GLOB_RECURSE VELOCITY_SRCS velocity/src/*.cpp)
-file (GLOB_RECURSE VELOCITY_INCLUDES velocity/src/*.hpp)
-
-add_executable (velocity ${VELOCITY_SRCS} ${VELOCITY_INCLUDES})
-
-# Reference: https://llvm.org/docs/CMake.html
-target_include_directories (velocity PUBLIC velocity/src PUBLIC sputils/src PRIVATE ${LLVM_INCLUDE_DIRS})
-separate_arguments (LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
-add_definitions (${LLVM_DEFINITIONS_LIST})
-
-# Find the libraries that correspond to the LLVM components
-llvm_map_components_to_libnames (LLVM_LIBS core support orcjit native)
-target_link_libraries (velocity PUBLIC sputils PRIVATE ${LLVM_LIBS})
-
 # Target: swan
 # It is the new implementation of the Spade Virtual Machine (VM) for Spade.
 file (GLOB_RECURSE SWAN_SRCS swan/src/*.cpp)
@@ -93,14 +77,13 @@ add_definitions (${LLVM_DEFINITIONS_LIST})
 
 # Find the libraries that correspond to the LLVM components
 llvm_map_components_to_libnames (LLVM_LIBS core support orcjit native)
-target_link_libraries (swan PUBLIC sputils PRIVATE ${LLVM_LIBS})
+target_link_libraries (swan PUBLIC sputils PRIVATE spdlog::spdlog ${LLVM_LIBS})
 
 if (MSVC)
     # warning level 4
     # target_compile_options (sputils PRIVATE /W4)
     # target_compile_options (spadec PRIVATE /W4)
     # target_compile_options (spasm PRIVATE /W4)
-    # target_compile_options (velocity PRIVATE /W4)
     target_compile_options (sputils PRIVATE /MD)
     target_compile_definitions (sputils PRIVATE _ITERATOR_DEBUG_LEVEL=0)
 
@@ -109,15 +92,11 @@ if (MSVC)
 
     target_compile_options (spasm PRIVATE /MD)
     target_compile_definitions (spasm PRIVATE _ITERATOR_DEBUG_LEVEL=0)
-
-    target_compile_options (velocity PRIVATE /MD)
-    target_compile_definitions (velocity PRIVATE _ITERATOR_DEBUG_LEVEL=0)
 else ()
     # additional warnings
     target_compile_options (sputils PRIVATE -Wall -Wextra)
     target_compile_options (spadec PRIVATE -Wall -Wextra)
     target_compile_options (spasm PRIVATE -Wall -Wextra)
-    target_compile_options (velocity PRIVATE -Wall -Wextra)
 endif ()
 
 if (APPLE)

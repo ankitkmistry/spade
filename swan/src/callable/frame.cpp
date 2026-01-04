@@ -1,4 +1,6 @@
 #include "frame.hpp"
+#include "method.hpp"
+#include "../ee/vm.hpp"
 #include <cstring>
 #include <memory>
 
@@ -60,37 +62,12 @@ namespace spade
         return *this;
     }
 
-    void Frame::push(Obj *val) {
-        *sp++ = val;
-    }
-
-    Obj *Frame::pop() {
-        return *--sp;
-    }
-
-    Obj *Frame::peek() {
-        return sp[-1];
-    }
-
-    uint32_t Frame::get_stack_count() const {
-        return sp - &stack[0];
-    }
-
-    uint32_t Frame::get_code_count() const {
-        return code_count;
-    }
-
     void Frame::set_method(ObjMethod *met) {
         method = met;
-        // TODO: fix this
-        // module = cast<ObjModule>(SpadeVM::current()->get_symbol(method->get_sign().get_parent_module().to_string()));
+        module = cast<ObjModule>(SpadeVM::current()->get_symbol(method->get_sign().get_parent_module().to_string()));
     }
 
-    const vector<Obj *> &Frame::get_const_pool() const {
-        return module->get_constant_pool();
-    }
-
-    Frame FrameTemplate::initialize() {
+    Frame FrameTemplate::initialize(ObjMethod *method) {
         Frame frame(stack_max);
 
         frame.code_count = code_count;
@@ -104,8 +81,7 @@ namespace spade
         frame.lines = lines;
         frame.matches = matches;
         frame.method = method;
-        // TODO: fix this
-        // frame.module = cast<ObjModule>(SpadeVM::current()->get_symbol(method->get_sign().get_parent_module().to_string()));
+        frame.module = cast<ObjModule>(SpadeVM::current()->get_symbol(method->get_sign().get_parent_module().to_string()));
         return frame;
     }
 }    // namespace spade
