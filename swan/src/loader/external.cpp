@@ -48,7 +48,7 @@ namespace spade
     }
 #endif
 
-    Library::Library(const string &path, void *handle) : ref_count(new size_t(1)), path(path), handle(handle) {}
+    Library::Library(const string &path, void *handle) : ref_count(new std::atomic_size_t(1)), path(path), handle(handle) {}
 
     Library::Library(const Library &other) : ref_count(other.ref_count), path(other.path), handle(other.handle) {
         if (ref_count)

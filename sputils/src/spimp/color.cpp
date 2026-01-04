@@ -62,15 +62,15 @@ namespace color
          */
     static std::runtime_error _color_win_get_last_error() {
         LPVOID err_msg_buf;
-        DWORD n = FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER              // Allocates a buffer for the message
-                                        | FORMAT_MESSAGE_FROM_SYSTEM        // Searches the system message table
-                                        | FORMAT_MESSAGE_IGNORE_INSERTS,    // Ignores insert sequences in the message definition.
-                                nullptr,                                    // Handle to the module containing the message table
-                                GetLastError(),                             // Error code to format
-                                0,                                          // Default language
-                                reinterpret_cast<LPWSTR>(&err_msg_buf),     // Output buffer for the formatted message
-                                0,                                          // Minimum size of the output buffer
-                                nullptr);                                   // No arguments for insert sequences
+        DWORD n = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER              // Allocates a buffer for the message
+                                         | FORMAT_MESSAGE_FROM_SYSTEM        // Searches the system message table
+                                         | FORMAT_MESSAGE_IGNORE_INSERTS,    // Ignores insert sequences in the message definition.
+                                 NULL,                                       // Handle to the module containing the message table
+                                 GetLastError(),                             // Error code to format
+                                 0,                                          // Default language
+                                 reinterpret_cast<LPSTR>(&err_msg_buf),      // Output buffer for the formatted message
+                                 0,                                          // Minimum size of the output buffer
+                                 NULL);                                      // No arguments for insert sequences
         // Create a new buffer
         auto buf = std::make_unique<char[]>(n);
         std::memcpy(buf.get(), err_msg_buf, n);

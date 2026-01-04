@@ -1,12 +1,12 @@
 #pragma once
 
 #include "utils/common.hpp"
-#include <cstddef>
+#include <atomic>
 
 namespace spade
 {
     class Library {
-        size_t *ref_count;
+        std::atomic_size_t *ref_count;
         string path;
         void *handle;
 

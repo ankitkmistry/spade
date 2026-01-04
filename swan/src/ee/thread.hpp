@@ -46,7 +46,7 @@ namespace spade
          * Pushes val on top of the operand stack
          * @param val value to be pushed
          */
-        void push(Obj *val) const {
+        void push(Obj *val) {
             get_frame()->push(val);
         }
 
@@ -54,7 +54,7 @@ namespace spade
          * Pops the operand stack
          * @return the popped value
          */
-        Obj *pop() const {
+        Obj *pop() {
             return get_frame()->pop();
         }
 
@@ -119,7 +119,14 @@ namespace spade
         /**
          * @return The active frame
          */
-        Frame *get_frame() const {
+        const Frame *get_frame() const {
+            return fp - 1;
+        }
+
+        /**
+         * @return The active frame
+         */
+        Frame *get_frame() {
             return fp - 1;
         }
 

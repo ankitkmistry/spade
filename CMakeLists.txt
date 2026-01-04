@@ -13,7 +13,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Set C++ standard to C++20.
 set (CMAKE_CXX_STANDARD 20)
-set (CMAKE_CXX_STANDARD_REQUIRED True)
+set (CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Set cmake module path
 set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
@@ -28,6 +28,23 @@ find_package(argparse REQUIRED CONFIG)
 find_package(spdlog REQUIRED CONFIG)
 find_package(libffi REQUIRED CONFIG)
 find_package(Boost REQUIRED COMPONENTS core predef container_hash)
+
+# Set up git submodules
+find_package(Git QUIET)
+if (EXISTS "${PROJECT_SOURCE_DIR}/.git")
+    option(GIT_SUBMODULE "Check submodules during build" ON)
+    if (GIT_SUBMODULE) 
+        message(STATUS "Submodule update")
+        execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive --force --rebase
+                        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                        RESULT_VARIABLE GIT_SUBMOD_RESULT)
+        if (NOT GIT_SUBMOD_RESULT EQUAL "0") 
+            message(FATAL_ERROR "git submodule update --init --recursive --force failed with exit code ${GIT_SUBMOD_RESULT}")
+        endif ()
+    endif ()
+endif ()
+
+add_subdirectory(external/nite)
 
 # Target: sputils
 # It is the central utility library used by all other targets
@@ -81,7 +98,7 @@ target_include_directories (swan PUBLIC sputils/src)
 # llvm_map_components_to_libnames (LLVM_LIBS core support orcjit native)
 # target_link_libraries (swan PUBLIC sputils PRIVATE spdlog::spdlog ${LLVM_LIBS})
 
-target_link_libraries (swan PUBLIC sputils PRIVATE spdlog::spdlog)
+target_link_libraries (swan PUBLIC sputils PRIVATE nite::nite spdlog::spdlog)
 
 if (MSVC)
     # warning level 4
