@@ -88,7 +88,6 @@ namespace spade
 
     struct GlobalInfo {
         /// The kind of the global
-        /// The kind of the arg
         /// 0x00 : VAR
         /// 0x01 : CONST
         uint16_t kind = 0;

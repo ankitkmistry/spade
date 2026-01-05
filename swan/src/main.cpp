@@ -17,6 +17,7 @@ class PrettyDebugger : public Debugger {
     State &state;
     Position call_stack_pane_pivot;
     Position code_pivot;
+    TextInputState command_line;
 
   public:
     PrettyDebugger() : state(GetState()) {}
@@ -31,6 +32,7 @@ class PrettyDebugger : public Debugger {
 
         bool loop = true;
         const auto &th_state = Thread::current()->get_state();
+        const auto frame = th_state.get_frame();
 
         // clang-format off
         while (loop && !ShouldWindowClose(state)) {
@@ -39,53 +41,143 @@ class PrettyDebugger : public Debugger {
                 HandleEvent(event, [&](const KeyEvent &ev) {
                     if (!ev.key_down)
                         return;
-                    if (ev.key_code == KeyCode::ESCAPE && ev.modifiers == 0)
+                    if (ev.key_code == KeyCode::F4 && ev.modifiers == 0)
                         CloseWindow(state);
-                    if (ev.key_code == KeyCode::ENTER && ev.modifiers == 0)
-                        loop = false;
                 });
             }
 
             BeginDrawing(state);
             BeginGridPane(state, {
+                .pos = {0, 0},
                 .size = GetPaneSize(state),
-                .col_sizes = {50, 50},
-                .row_sizes = {100},
+                .col_sizes = {27, 27, 46},
+                .row_sizes = {50, 50},
             });
 
             BeginGridCell(state, 0, 0); {
-                Code(th_state.get_frame());
+                BeginBorder(state, BOX_BORDER_LIGHT);
+                Text(state, {
+                    .text = " Call Stack ",
+                    .pos = {2, 0},
+                });
                 FillBackground(state, Color::from_hex(0x201640));
+                EndBorder(state);
+                FillBackground(state, Color::from_hex(0x201640));
+                CallStack(th_state);
             } EndPane(state);
 
             BeginGridCell(state, 1, 0); {
-                BeginGridPane(state, {
-                    .size = GetPaneSize(state),
-                    .col_sizes = {100},
-                    .row_sizes = {50, 50},
+                BeginBorder(state, BOX_BORDER_LIGHT);
+                Text(state, {
+                    .text = " Code ",
+                    .pos = {2, 0},
                 });
+                FillBackground(state, Color::from_hex(0x3b4261));
+                EndBorder(state);
+                FillBackground(state, Color::from_hex(0x3b4261));
+                Code(frame);
+            } EndPane(state);
 
+            BeginGridCell(state, 0, 1); {
+                BeginBorder(state, BOX_BORDER_LIGHT);
+                Text(state, {
+                    .text = " Args ",
+                    .pos = {2, 0},
+                });
+                FillBackground(state, Color::from_hex(0x3b4261));
+                EndBorder(state);
+                FillBackground(state, Color::from_hex(0x3b4261));
+                VarTable(frame->get_args());
+            } EndPane(state);
+
+            BeginGridCell(state, 1, 1); {
+                BeginBorder(state, BOX_BORDER_LIGHT);
+                Text(state, {
+                    .text = " Locals ",
+                    .pos = {2, 0},
+                });
+                FillBackground(state, Color::from_hex(0x201640));
+                EndBorder(state);
+                FillBackground(state, Color::from_hex(0x201640));
+                VarTable(frame->get_locals());
+            } EndPane(state);
+
+            BeginGridCell(state, 2, 0); {
+                BeginGridPane(state, {
+                    .pos = {0, 0},
+                    .size = GetPaneSize(state),
+                    .col_sizes = {50, 50},
+                    .row_sizes = {100},
+                });
                 BeginGridCell(state, 0, 0); {
-                    CallStack(th_state);
-                    FillBackground(state, Color::from_hex(0x3b4261));
+                    // Operand stack
+                    Text(state, {
+                        .text = "> Operand Stack",
+                        .pos = {0, 0},
+                    });
+                    OperandStack(frame);
                 } EndPane(state);
-                BeginGridCell(state, 0, 1); {
+                BeginGridCell(state, 1, 0); {
                     BeginBorder(state, BOX_BORDER_LIGHT);
                     Text(state, {
                         .text = " Output ",
                         .pos = {2, 0},
                     });
+                    FillBackground(state, Color::from_hex(0x201640));
                     EndBorder(state);
-
+                    // The output
                     TextBox(state, {
                         .text = vm->get_output(),
+                        .pos = {0, 0},
                         .size = GetPaneSize(state),
+                        .style = {.bg = Color::from_hex(0x201640), .fg = COLOR_WHITE},
                     });
                 } EndPane(state);
-
                 EndPane(state);
+                // TODO: show exception info (this is part of command)
             } EndPane(state);
-            
+
+            BeginGridCell(state, 2, 1); {
+                BeginBorder(state, BOX_BORDER_LIGHT);
+                Text(state, {
+                    .text = " Debug Console ",
+                    .pos = {2, 0},
+                });
+                FillBackground(state, Color::from_hex(0x3b4261));
+                // Command prompt
+                Text(state, {
+                    .text = "> ",
+                    .pos = {0, GetPaneSize(state).height - 1},
+                });
+                TextInput(state, command_line, {
+                    .pos = {2, GetPaneSize(state).height - 1},
+                    .size = {GetPaneSize(state).width - 2, 1},
+                    .wrap = false,
+                    .handle_enter_as_event = true,
+                    .focus = true,
+                    .on_enter = [&](TextInputInfo &) {
+                        string command = command_line.get_text();
+                        command_line.end_selection();
+                        command_line.go_home();
+                        command_line.start_selection();
+                        command_line.go_end();
+                        command_line.erase_selection();
+                        command_line.end_selection();
+                        loop = false;
+
+                        if(command == "q") CloseWindow(state);
+                    },
+                });
+                EndBorder(state);
+                // The output
+                TextBox(state, {
+                    .text = "",
+                    .pos = {0, 0},
+                    .size = GetPaneSize(state),
+                    .style = {.bg = Color::from_hex(0x3b4261), .fg = COLOR_WHITE},
+                });
+            } EndPane(state);
+
             EndPane(state);
             EndDrawing(state);
         }
@@ -97,13 +189,27 @@ class PrettyDebugger : public Debugger {
     }
 
   private:
-    void Instructions(size_t &cur_col, const uint8_t *code, const uint8_t *ip, const uint32_t code_count, const vector<Obj *> pool,
-                      const LineNumberTable &line_table) const {
+    struct Instruction {
+        uint32_t start;
+        string source_line_str;
+        Opcode opcode;
+        string param;
+    };
+
+    void Code(const Frame *frame) {
+        const auto code = &frame->code[0];
+        const auto ip = frame->ip;
+        const auto code_count = frame->get_code_count();
+        const auto &pool = frame->get_const_pool();
+        const auto &line_table = frame->get_lines();
+
         if (code_count == 0)
             return;
 
-        auto byte_line_max_len = std::to_string(code_count - 1).length();
-        auto source_line_max_len = std::to_string(line_table.get_line_infos().back().sourceLine).length() + 2;
+        const auto byte_line_max_len = std::to_string(code_count - 1).length();
+        const auto source_line_max_len = std::to_string(line_table.get_line_infos().back().sourceLine).length() + 2;
+        vector<Instruction> instructions;
+        size_t active_instr = 0;
         uint64_t source_line = 0;
         uint32_t i = 0;
         const auto read_byte = [&i, code]() -> uint8_t { return code[i++]; };
@@ -111,26 +217,31 @@ class PrettyDebugger : public Debugger {
             i += 2;
             return code[i - 2] << 8 | code[i - 1];
         };
+
         while (i < code_count) {
-            uint64_t source_line_temp = line_table.get_source_line(i);
+            // Compute source line
+            uint64_t source_line_tmp = line_table.get_source_line(i);
             string source_line_str;
-            if (source_line != source_line_temp) {
-                source_line = source_line_temp;
+            if (source_line != source_line_tmp) {
+                // If the current source line is different from the prev one then show the line number
+                source_line = source_line_tmp;
                 source_line_str = pad_right(std::to_string(source_line) + " |", source_line_max_len);
             } else {
+                // If the current source line is same as the prev source line then do not show the line number
                 source_line_str = pad_right(" |", source_line_max_len);
             }
+
             // Get the start of the line
-            auto start = i;
+            const auto start = i;
             // Get the opcode
-            auto opcode = static_cast<Opcode>(read_byte());
-            // The parameters of the opcode, if any
+            const auto opcode = static_cast<Opcode>(read_byte());
+            // Evaluate parameters of the opcode
             string param;
             switch (OpcodeInfo::params_count(opcode)) {
             case 1: {
-                uint8_t num = read_byte();
-                string valStr = OpcodeInfo::take_from_const_pool(opcode) ? std::format("({})", pool[num]->to_string()) : "";
-                param = std::format("{} {}", num, valStr);
+                const auto num = read_byte();
+                string val_str = OpcodeInfo::take_from_const_pool(opcode) ? std::format("({})", pool[num]->to_string()) : "";
+                param = std::format("{} {}", num, val_str);
                 break;
             }
             case 2: {
@@ -145,148 +256,148 @@ class PrettyDebugger : public Debugger {
                 case Opcode::JNE:
                 case Opcode::JGE:
                 case Opcode::JGT:
+                    // Why this??
                     num = static_cast<int8_t>(num);
                     break;
                 default:
                     break;
                 }
-                string valStr = OpcodeInfo::take_from_const_pool(opcode) ? std::format("({})", pool[num]->to_string()) : "";
-                param = std::format("{} {}", num, valStr);
+                string val_str = OpcodeInfo::take_from_const_pool(opcode) ? std::format("({})", pool[num]->to_string()) : "";
+                param = std::format("{} {}", num, val_str);
                 break;
             }
             default:
                 param = "";
                 if (opcode == Opcode::CLOSURELOAD) {
-                    auto count = read_byte();
+                    const auto count = read_byte();
                     param.append("[");
                     for (uint8_t i = 0; i < count; i++) {
-                        auto local_idx = read_short();
-                        param.append(std::to_string(local_idx));
-                        param.append("->");
+                        const auto local_idx = read_short();
+                        string kind;
+                        size_t to_idx;
                         switch (read_byte()) {
                         case 0:
-                            param.append("arg(");
-                            param.append(std::to_string(read_byte()));
-                            param.append(")");
+                            kind = "arg";
+                            to_idx = read_byte();
                             break;
                         case 1:
-                            param.append("local(");
-                            param.append(std::to_string(read_short()));
-                            param.append(")");
+                            kind = "local";
+                            to_idx = read_short();
                             break;
                         default:
                             throw Unreachable();
                         }
-                        param.append(", ");
+                        param += std::format("{}->{}({}), ", local_idx, kind, to_idx);
                     }
-                    param.pop_back();
-                    param.pop_back();
+                    if (param.back() != '[') {
+                        param.pop_back();
+                        param.pop_back();
+                    }
                     param.append("]");
                 }
                 break;
             }
-            string final_str = std::format(" {} {: >{}}: {} {} {}", (start == ip - code - 1 ? ">" : " "), start, byte_line_max_len, source_line_str,
-                                           OpcodeInfo::to_string(opcode), param);
-            // clang-format off
-            Text(state, {
-                .text = final_str,
-                .pos = {0, cur_col++},
-            });
-            // clang-format on
+
+            if (start == ip - code - 1)
+                active_instr = instructions.size();
+            instructions.emplace_back(start, source_line_str, opcode, param);
+        }
+
+        // Now set the things in order
+        for (size_t i = 0; i < instructions.size(); i++) {
+            const auto &instr = instructions[i];
+            string text = std::format(" {} {: >{}}: {} {} {}", " ", instr.start, byte_line_max_len, instr.source_line_str,
+                                      OpcodeInfo::to_string(instr.opcode), instr.param);
+
+            if (i < GetPaneSize(state).height) {
+                Style line_style;
+                if (i == active_instr)
+                    line_style = {.bg = Color::from_hex(0x400296), .fg = COLOR_WHITE};
+                else
+                    line_style = {.bg = Color::from_hex(0x201640), .fg = COLOR_WHITE};
+
+                // clang-format off
+                TextBox(state, {
+                    .text = text,
+                    .pos = {0, i},
+                    .size = {GetPaneSize(state).width, 1},
+                    .style = line_style,
+                });
+                // clang-format on
+            }
         }
     }
 
-    void Code(const Frame *frame) {
-        size_t max_width = 1;
+    void OperandStack(const Frame *frame) {
         vector<string> data;
         for (Obj **sp = &frame->stack[0]; sp < frame->sp; sp++) {
             const auto text = " " + (*sp)->to_string();
             data.push_back(text);
-            max_width += text.size() + 3;
+        }
+        // clang-format off
+        if (data.empty()) {
+            Text(state, {
+                .text = "<empty>",
+                .pos = {0, 1},
+            });
+        } else { 
+            SimpleTable(state, {
+                .data = data,
+                .include_header_row = false,
+                .num_cols = 1,
+                .num_rows = data.size(),
+                .pos = {0, 1},
+                .table_style = {.bg = Color::from_hex(0x3936ad), .fg = COLOR_WHITE},
+                .show_border = false,
+                .border = TABLE_BORDER_LIGHT,
+            }); 
+        }
+        // clang-format on
+    }
+
+    void VarTable(const VariableTable &table) {
+        vector<string> data{" index", " value"};
+        for (uint8_t i = 0; i < table.count(); i++) {
+            data.push_back(std::to_string(i));
+            data.push_back(table.get(i)->to_string());
         }
 
-        Size max_size = Size{.width = max_width, .height = GetPaneSize(state).height};
-
         // clang-format off
-        BeginScrollPane(state, code_pivot, {
-            .min_size = GetPaneSize(state),
-            .max_size = max_size,
-            .scroll_bar = SCROLL_LIGHT,
-            .show_hscroll_bar = false,
-        }); {
-            Text(state, {
-                .text = "Operand stack",
-                .pos = {0, 0},
-            });
-            if (!data.empty())
-                SimpleTable(state, {
-                    .data = data,
-                    .include_header_row = false,
-                    .num_cols = data.size(),
-                    .num_rows = 1,
-                    .pos = {0, 1},
-                    .show_border = true,
-                    .border = TABLE_BORDER_LIGHT,
-                });
-            else
-                Text(state, {
-                    .text = "    <No stack>",
-                    .pos = {0, 2},
-                });
-
-            Text(state, {
-                .text = "Bytecode",
-                .pos = {0, 5},
-            });
-
-            size_t cur_col = 6;
-            Instructions(cur_col, &frame->code[0], frame->ip, frame->get_code_count(), frame->get_const_pool(), frame->get_lines());
-        } EndPane(state);
+        SimpleTable(state, {
+           .data = data,
+           .include_header_row = true,
+           .num_cols = 2,
+           .num_rows = data.size() / 2,
+           .pos = {0, 0},
+           .header_style = {.bg = Color::from_hex(0x345c25), .fg = COLOR_WHITE},
+           .table_style = {.bg = Color::from_hex(0x104876), .fg = COLOR_WHITE},
+           .show_border = false,
+           .border = TABLE_BORDER_LIGHT,
+        });
         // clang-format on
     }
 
     void CallStack(const ThreadState &th_state) {
-        vector<string> table{" i", " method", " args"};
+        vector<string> table{" index", " method"};
 
         const auto call_stack = th_state.get_call_stack();
         for (auto frame = th_state.get_frame(); frame >= call_stack; frame--) {
-            table.push_back(std::to_string(table.size() / 3 - 1));
+            table.push_back(std::to_string(table.size() / 2 - 1));
             table.push_back(frame->get_method()->to_string());
-            table.push_back(frame->get_args().to_string());
         }
 
         // clang-format off
-        BeginNoPane(state);
-        Size size = SimpleTable(state, {
-           .data = table,
-           .include_header_row = true,
-           .num_cols = 3,
-           .num_rows = table.size() / 3,
-           .show_border = true,
-           .border = TABLE_BORDER_LIGHT,
-        });
-        EndPane(state);
-
-        BeginScrollPane(state, call_stack_pane_pivot, {
-            .min_size = GetPaneSize(state),
-            .max_size = size + Size(0, 1),
-            .scroll_bar = SCROLL_LIGHT,
-            .scroll_factor = 1.5,
-        });
-        Text(state, {
-            .text = "Call Stack",
-            .pos = {0, 0},
-        });
         SimpleTable(state, {
            .data = table,
            .include_header_row = true,
-           .num_cols = 3,
-           .num_rows = table.size() / 3,
-           .pos = {0, 1},
-           .show_border = true,
+           .num_cols = 2,
+           .num_rows = table.size() / 2,
+           .pos = {0, 0},
+           .header_style = {.bg = Color::from_hex(0x345c25), .fg = COLOR_WHITE},
+           .table_style = {.bg = Color::from_hex(0x104876), .fg = COLOR_WHITE},
+           .show_border = false,
            .border = TABLE_BORDER_LIGHT,
         });
-        EndPane(state);
         // clang-format on
     }
 };
