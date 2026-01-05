@@ -1,6 +1,8 @@
 #pragma once
 
 #include "ee/obj.hpp"
+#include "utils/errors.hpp"
+#include <memory>
 
 namespace spade
 {
@@ -20,17 +22,16 @@ namespace spade
     inline T *halloc(Args... args)
         requires std::derived_from<T, Obj>
     {
-        // auto manager = MemoryManager::current();
-        // if (manager == null)
-        //     throw ArgumentError("halloc()", "manager is null");
-        // void *memory = manager->allocate(sizeof(T));
-        // if (memory == null)
-        //     throw MemoryError(sizeof(T));
-        // Obj *obj = new (memory) T(args...);
-        // obj->get_info().manager = manager;
-        // manager->post_allocation(obj);
-        // return (T *) obj;
-        return new T(args...);
+        auto manager = MemoryManager::current();
+        if (manager == null)
+            throw ArgumentError("halloc()", "manager is null");
+        void *memory = manager->allocate(sizeof(T));
+        if (memory == null)
+            throw MemoryError(sizeof(T));
+        Obj *obj = new (memory) T(args...);
+        obj->get_info().manager = manager;
+        manager->post_allocation(obj);
+        return (T *) obj;
     }
 
     /**
@@ -51,19 +52,17 @@ namespace spade
     inline T *halloc_mgr(MemoryManager *manager, Args... args)
         requires std::derived_from<T, Obj>
     {
-        // if (manager == null)
-        //     manager = MemoryManager::current();
-        // if (manager == null)
-        //     throw ArgumentError("halloc()", "manager is null");
-        // void *memory = manager->allocate(sizeof(T));
-        // if (memory == null)
-        //     throw MemoryError(sizeof(T));
-        // Obj *obj = new (memory) T(std::forward<Args>(args)...);
-        // obj->get_info().manager = manager;
-        // manager->post_allocation(obj);
-        // return (T *) obj;
-        (void) manager;
-        return new T(args...);
+        if (manager == null)
+            manager = MemoryManager::current();
+        if (manager == null)
+            throw ArgumentError("halloc_mgr()", "manager is null");
+        void *memory = manager->allocate(sizeof(T));
+        if (memory == null)
+            throw MemoryError(sizeof(T));
+        Obj *obj = new (memory) T(std::forward<Args>(args)...);
+        obj->get_info().manager = manager;
+        manager->post_allocation(obj);
+        return (T *) obj;
     }
 
     /**
@@ -71,9 +70,8 @@ namespace spade
      * @param obj the object to be freed
      */
     inline static void hfree(Obj *obj) {
-        // auto manager = obj->get_info().manager;
-        // obj->~Obj();
-        // manager->deallocate(obj);
-        delete obj;
+        auto manager = obj->get_info().manager;
+        std::destroy_at(obj);
+        manager->deallocate(obj);
     }
 }    // namespace spade

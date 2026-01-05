@@ -2,25 +2,50 @@
 #include "ee/debugger.hpp"
 #include "ee/vm.hpp"
 #include "ee/thread.hpp"
+#include "memory/basic/basic_manager.hpp"
 #include "spinfo/opcode.hpp"
 #include <memory>
 #include <nite.hpp>
 #include <iostream>
+#include <spdlog/details/log_msg.h>
 #include <spdlog/spdlog.h>
+#include "spdlog/sinks/base_sink.h"
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <string>
+#include <mutex>
 
 using namespace spade;
 using namespace nite;
 
+class PrettyDebugger;
+
+template<typename Mutex>
+class DebuggerSink : public spdlog::sinks::base_sink<Mutex> {
+    PrettyDebugger *debugger;
+
+  protected:
+    void sink_it_(const spdlog::details::log_msg &msg) override;
+
+    void flush_() override {}
+
+  public:
+    DebuggerSink(PrettyDebugger *debugger) : debugger(debugger) {}
+};
+
+using DebuggerSink_mt = DebuggerSink<std::mutex>;
+using DebuggerSink_st = DebuggerSink<spdlog::details::null_mutex>;
+
 class PrettyDebugger : public Debugger {
+    vector<string> console;
     State &state;
     Position call_stack_pane_pivot;
     Position code_pivot;
     TextInputState command_line;
 
   public:
-    PrettyDebugger() : state(GetState()) {}
+    PrettyDebugger() : state(GetState()) {
+        console.push_back("");
+    }
 
     void init(const SpadeVM *) {
         Initialize(state);
@@ -171,10 +196,12 @@ class PrettyDebugger : public Debugger {
                 EndBorder(state);
                 // The output
                 TextBox(state, {
+                    // .text = GetVisibleConsoleText(),
                     .text = "",
                     .pos = {0, 0},
                     .size = GetPaneSize(state),
                     .style = {.bg = Color::from_hex(0x3b4261), .fg = COLOR_WHITE},
+                    .wrap = false,
                 });
             } EndPane(state);
 
@@ -188,6 +215,21 @@ class PrettyDebugger : public Debugger {
         Cleanup();
     }
 
+    void print(const string &str) {
+        for (const char c: str) {
+            if (c == '\n') {
+                console.push_back("");
+            } else {
+                console.back() += c;
+            }
+        }
+    }
+
+    void println(const string &str) {
+        print(str);
+        print("\n");
+    }
+
   private:
     struct Instruction {
         uint32_t start;
@@ -195,6 +237,34 @@ class PrettyDebugger : public Debugger {
         Opcode opcode;
         string param;
     };
+
+    string GetVisibleConsoleText() {
+        const auto max_lines = GetPaneSize(state).height;
+        vector<string> lines;
+        if (console.back().empty()) {
+            lines.insert(lines.begin(), console.begin(), console.end() - 1);
+        } else {
+            lines = console;
+        }
+
+        string result;
+        if (lines.size() < max_lines) {
+            // Return all
+            for (size_t i = 0; i < lines.size(); i++) {
+                result += lines[i];
+                if (i < lines.size() - 1)
+                    result += '\n';
+            }
+        } else {
+            // keep [size()-max_lines, size())
+            for (size_t i = lines.size() - max_lines; i < lines.size(); i++) {
+                result += lines[i];
+                if (i < lines.size() - 1)
+                    result += '\n';
+            }
+        }
+        return result;
+    }
 
     void Code(const Frame *frame) {
         const auto code = &frame->code[0];
@@ -255,15 +325,16 @@ class PrettyDebugger : public Debugger {
                 case Opcode::JEQ:
                 case Opcode::JNE:
                 case Opcode::JGE:
-                case Opcode::JGT:
-                    // Why this??
-                    num = static_cast<int8_t>(num);
-                    break;
-                default:
+                case Opcode::JGT: {
+                    const auto offset = static_cast<int16_t>(num);
+                    param = std::to_string(offset);
                     break;
                 }
-                string val_str = OpcodeInfo::take_from_const_pool(opcode) ? std::format("({})", pool[num]->to_string()) : "";
-                param = std::format("{} {}", num, val_str);
+                default:
+                    string val_str = OpcodeInfo::take_from_const_pool(opcode) ? std::format("({})", pool[num]->to_string()) : "";
+                    param = std::format("{} {}", num, val_str);
+                    break;
+                }
                 break;
             }
             default:
@@ -306,7 +377,7 @@ class PrettyDebugger : public Debugger {
         // Now set the things in order
         for (size_t i = 0; i < instructions.size(); i++) {
             const auto &instr = instructions[i];
-            string text = std::format(" {} {: >{}}: {} {} {}", " ", instr.start, byte_line_max_len, instr.source_line_str,
+            string text = std::format("{} {: >{}}: {} {} {}", " ", instr.start, byte_line_max_len, instr.source_line_str,
                                       OpcodeInfo::to_string(instr.opcode), instr.param);
 
             if (i < GetPaneSize(state).height) {
@@ -402,18 +473,34 @@ class PrettyDebugger : public Debugger {
     }
 };
 
+template<typename Mutex>
+void DebuggerSink<Mutex>::sink_it_(const spdlog::details::log_msg &msg) {
+    spdlog::memory_buf_t formatted;
+    spdlog::sinks::base_sink<Mutex>::formatter_->format(msg, formatted);
+    string log = fmt::to_string(formatted);
+    debugger->print(log);
+}
+
 int main(int argc, char **argv) {
     vector<string> args;
     for (int i = 1; i < argc; i++) {
         args.push_back(argv[i]);
     }
 
-    auto logger = spdlog::stdout_color_mt("console");
-    logger->set_pattern("[%Y-%m-%d %H:%M:%S %z] [thread %t] [%^%l%$] %v");
+    auto debugger = std::make_unique<PrettyDebugger>();
+    auto manager = std::make_unique<basic::BasicMemoryManager>();
+
+    auto debugger_sink = std::make_shared<DebuggerSink_mt>(&*debugger);
+    auto stdout_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+
+    auto logger = std::make_shared<spdlog::logger>("swan", spdlog::sinks_init_list{stdout_sink, debugger_sink});
+    // logger->set_pattern("[%Y-%m-%d %H:%M:%S %z] [thread %t] [%^%l%$] %v");
+    logger->set_pattern("[%^%l%$] %v");
     spdlog::set_default_logger(logger);
+    spdlog::default_logger();
 
     try {
-        SpadeVM vm(null, std::make_unique<PrettyDebugger>());
+        SpadeVM vm(manager.get(), std::move(debugger));
         vm.start("../swan/res/hello.elp", args, true);
         std::cout << vm.get_output();
         spdlog::info("VM exited with code {}", vm.get_exit_code());

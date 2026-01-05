@@ -12,7 +12,7 @@ namespace spade
         MemoryManager(SpadeVM *vm) : vm(vm) {}
 
       public:
-        virtual ~MemoryManager() {}
+        virtual ~MemoryManager() = default;
 
         /**
          * Allocates a block of memory

@@ -207,6 +207,8 @@ module hello
         plfstore name
         linvoke greet
 
+        gfinvoke hello.print_1_to_10()
+
         vret        
     end
 end
