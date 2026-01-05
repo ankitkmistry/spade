@@ -199,6 +199,8 @@ namespace spade
         MODULE,
         // ObjMethod
         METHOD,
+        // ObjForeign
+        FOREIGN,
         // Type
         TYPE,
         // // TypeParam

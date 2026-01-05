@@ -60,6 +60,11 @@ namespace spade
             : FatalError(std::format("function {} in '{}': {}", function, library, msg)) {}
     };
 
+    class ForeignCallError : public FatalError {
+      public:
+        ForeignCallError(const string &sign, const string &msg) : FatalError(std::format("error calling foreign function: {}: {}", sign, msg)) {}
+    };
+
     class StackOverflowError : public FatalError {
       public:
         explicit StackOverflowError() : FatalError("bad state: stack overflow") {}

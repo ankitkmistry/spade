@@ -28,9 +28,9 @@ namespace spade
             return type_params;
         }
 
-        void call(const vector<Obj *> &args) override;
+        void call(Obj *self, const vector<Obj *> &args) override;
 
-        void call(Obj **args) override;
+        void call(Obj *self, Obj **args) override;
 
         /**
          * Reifies this type and returns the reified type.

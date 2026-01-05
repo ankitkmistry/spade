@@ -11,21 +11,27 @@ namespace spade
     ObjMethod::ObjMethod(Kind kind, const Sign &sign, const FrameTemplate &frame, const Table<Type *> &type_params)
         : ObjCallable(ObjTag::METHOD, kind, sign), frame_template(frame), type_params(type_params) {}
 
-    void ObjMethod::call(const vector<Obj *> &args) {
+    void ObjMethod::call(Obj *self, const vector<Obj *> &args) {
         validate_call_site();
+
         Thread *thread = Thread::current();
         auto new_frame = frame_template.initialize(this);
-        if (new_frame.get_args().count() < args.size())
-            throw ArgumentError(sign.to_string(), std::format("too less arguments, expected {} got {}", new_frame.get_args().count(), args.size()));
-        if (new_frame.get_args().count() > args.size())
-            throw ArgumentError(sign.to_string(), std::format("too many arguments, expected {} got {}", new_frame.get_args().count(), args.size()));
-        for (int i = 0; i < new_frame.get_args().count(); i++) {
+
+        const auto arg_count = new_frame.get_args().count();
+        if (arg_count < args.size())
+            throw ArgumentError(sign.to_string(), std::format("too less arguments, expected {} got {}", arg_count, args.size()));
+        if (arg_count > args.size())
+            throw ArgumentError(sign.to_string(), std::format("too many arguments, expected {} got {}", arg_count, args.size()));
+        for (int i = 0; i < arg_count; i++) {
             new_frame.get_args().set(i, args[i]);
         }
         thread->get_state().push_frame(std::move(new_frame));
+        if (self) {
+            thread->get_state().get_frame()->get_locals().set(0, self);
+        }
     }
 
-    void ObjMethod::call(Obj **args) {
+    void ObjMethod::call(Obj *self, Obj **args) {
         validate_call_site();
         Thread *thread = Thread::current();
         auto new_frame = frame_template.initialize(this);
@@ -33,6 +39,9 @@ namespace spade
             new_frame.get_args().set(i, args[i]);
         }
         thread->get_state().push_frame(std::move(new_frame));
+        if (self) {
+            thread->get_state().get_frame()->get_locals().set(0, self);
+        }
     }
 
     string ObjMethod::to_string() const {

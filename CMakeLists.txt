@@ -26,7 +26,8 @@ set (Boost_USE_STATIC_RUNTIME OFF)
 # find_package(cpptrace REQUIRED CONFIG)
 find_package(argparse REQUIRED CONFIG)
 find_package(spdlog REQUIRED CONFIG)
-find_package(libffi REQUIRED CONFIG)
+# find_package(libffi REQUIRED CONFIG)
+find_package(unofficial-libffi CONFIG REQUIRED)
 find_package(Boost REQUIRED COMPONENTS core predef container_hash)
 
 # Set up git submodules
@@ -98,7 +99,7 @@ target_include_directories (swan PUBLIC sputils/src)
 # llvm_map_components_to_libnames (LLVM_LIBS core support orcjit native)
 # target_link_libraries (swan PUBLIC sputils PRIVATE spdlog::spdlog ${LLVM_LIBS})
 
-target_link_libraries (swan PUBLIC sputils PRIVATE nite::nite spdlog::spdlog)
+target_link_libraries (swan PUBLIC sputils PRIVATE nite::nite spdlog::spdlog unofficial::libffi::libffi)
 
 if (MSVC)
     # warning level 4

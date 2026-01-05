@@ -254,7 +254,7 @@ namespace spade
                     // Get the method
                     const auto method = cast<ObjMethod>(state.pop());
                     // Call it
-                    method->call(frame->sp + 1);
+                    method->call(null, frame->sp + 1);
                     break;
                 }
                 case Opcode::VINVOKE: {
@@ -272,9 +272,8 @@ namespace spade
                     // Get the method
                     const auto method = cast<ObjMethod>(object->get_member(name));
                     // Call it
-                    method->call(frame->sp + 1);
+                    method->call(object, frame->sp + 1);
                     // Set this
-                    state.get_frame()->get_locals().set(0, object);
                     break;
                 }
                 case Opcode::SPINVOKE: {
@@ -282,7 +281,7 @@ namespace spade
                     const uint8_t count = method->get_frame_template().get_args().count();
                     frame->sp -= count;
                     Obj *obj = state.pop();
-                    method->call(frame->sp + 1);
+                    method->call(null, frame->sp + 1);
                     state.get_frame()->get_locals().set(0, obj);
                     break;
                 }
@@ -291,7 +290,7 @@ namespace spade
                     const uint8_t count = method->get_frame_template().get_args().count();
                     frame->sp -= count;
                     Obj *obj = state.pop();
-                    method->call(frame->sp + 1);
+                    method->call(null, frame->sp + 1);
                     state.get_frame()->get_locals().set(0, obj);
                     break;
                 }
@@ -303,7 +302,7 @@ namespace spade
                     // Pop the arguments
                     frame->sp -= count;
                     // Call it
-                    method->call(frame->sp);
+                    method->call(null, frame->sp);
                     break;
                 }
                 case Opcode::GINVOKE: {
@@ -314,7 +313,7 @@ namespace spade
                     // Pop the arguments
                     frame->sp -= count;
                     // Call it
-                    method->call(frame->sp);
+                    method->call(null, frame->sp);
                     break;
                 }
                 case Opcode::VFINVOKE: {
@@ -332,7 +331,7 @@ namespace spade
                     // Get the method
                     const auto method = cast<ObjMethod>(object->get_member(name));
                     // Call it
-                    method->call(frame->sp + 1);
+                    method->call(object, frame->sp + 1);
                     // Set this
                     state.get_frame()->get_locals().set(0, object);
                     break;
@@ -345,7 +344,7 @@ namespace spade
                     // Pop the arguments
                     frame->sp -= count;
                     // Call it
-                    method->call(frame->sp);
+                    method->call(null, frame->sp);
                     break;
                 }
                 case Opcode::GFINVOKE: {
@@ -356,7 +355,7 @@ namespace spade
                     // Pop the arguments
                     frame->sp -= count;
                     // Call it
-                    method->call(frame->sp);
+                    method->call(null, frame->sp);
                     break;
                 }
                 case Opcode::AINVOKE: {
@@ -367,7 +366,7 @@ namespace spade
                     // Pop the arguments
                     frame->sp -= count;
                     // Call it
-                    method->call(frame->sp);
+                    method->call(null, frame->sp);
                     break;
                 }
                 case Opcode::CALLSUB: {

@@ -48,7 +48,7 @@ namespace spade
     }
 #endif
 
-    Library::Library(const string &path, void *handle) : ref_count(new std::atomic_size_t(1)), path(path), handle(handle) {}
+    Library::Library(const fs::path &path, void *handle) : ref_count(new std::atomic_size_t(1)), path(path), handle(handle) {}
 
     Library::Library(const Library &other) : ref_count(other.ref_count), path(other.path), handle(other.handle) {
         if (ref_count)
@@ -107,7 +107,7 @@ namespace spade
         if (symbol == null) {
             const auto code = GetLastError();
             const auto msg = get_last_error();
-            throw NativeLibraryError(path, name, std::format("{} ({:#0x})", msg, code));
+            throw NativeLibraryError(path.string(), name, std::format("{} ({:#0x})", msg, code));
         }
         return symbol;
 #endif
@@ -129,7 +129,7 @@ namespace spade
         if (FreeLibrary(module) == 0) {
             const auto code = GetLastError();
             const auto msg = get_last_error();
-            throw NativeLibraryError(path, std::format("{} ({:#0x})", msg, code));
+            throw NativeLibraryError(path.string(), std::format("{} ({:#0x})", msg, code));
         }
         handle = null;
 #endif
@@ -143,31 +143,30 @@ namespace spade
     Library ExternalLoader::load_library(fs::path path) {
         // TODO: Add advanced lookup
         path = fs::canonical(path);
-        const auto path_str = path.string();
 
-        if (const auto it = libraries.find(path_str); it != libraries.end())
+        if (const auto it = libraries.find(path); it != libraries.end())
             return it->second;
 
 #ifdef OS_WINDOWS
-        const HMODULE module = LoadLibraryA(path_str.c_str());
+        const HMODULE module = LoadLibraryW(path.c_str());
         if (module == null) {
             const auto code = GetLastError();
             const auto msg = get_last_error();
-            throw NativeLibraryError(path_str, std::format("{} ({:#0x})", msg, code));
+            throw NativeLibraryError(path.string(), std::format("{} ({:#0x})", msg, code));
         }
 
-        Library library(path_str, module);
-        libraries.emplace(path_str, library);
+        Library library(path, module);
+        libraries.emplace(path, library);
         return library;
 #endif
 
 #ifdef OS_LINUX
-        const auto lib = dlopen(path_str.c_str(), RTLD_LAZY);
+        const auto lib = dlopen(path.c_str(), RTLD_LAZY);
         if (lib == null)
             throw NativeLibraryError(path, string(dlerror()));
 
-        Library library(path_str, lib);
-        libraries.emplace(path_str, library);
+        Library library(path, lib);
+        libraries.emplace(path, library);
         return library;
 #endif
     }

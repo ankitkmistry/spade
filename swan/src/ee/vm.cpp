@@ -1,4 +1,5 @@
 #include "vm.hpp"
+#include "callable/foreign.hpp"
 #include "utils/errors.hpp"
 #include "memory/memory.hpp"
 #include "loader/loader.hpp"
@@ -16,8 +17,8 @@ namespace spade
     SpadeVM::SpadeVM(MemoryManager *manager, std::unique_ptr<Debugger> debugger, const Settings &settings)
         : modules(),
           threads(),
-          loader(this),
           manager(manager),
+          loader(this),
           on_exit_list(),
           settings(settings),
           metadata(),
@@ -25,8 +26,7 @@ namespace spade
           exit_code(1),
           out(),
           debugger(std::move(debugger)) {
-        if (manager)
-            manager->set_vm(this);
+        manager->set_vm(this);
     }
 
     void SpadeVM::on_exit(const std::function<void()> &fun) {
@@ -209,21 +209,32 @@ namespace spade
             const auto entry = result.entry;
             // Initialize the modules
             for (const auto init: result.inits) {
-                init->call({});
+                init->call(null, {});
                 run(thread);
                 spdlog::info("SpadeVM: Called module initializer: {}", init->get_sign().to_string());
             }
+            // TODO: inserting intrinsics
+            // Sign sign("hello.clock()");
+            // auto hello_clock = halloc_mgr<ObjForeign>(
+            //         manager, sign,
+            //         (void *) [](Thread * thread) {
+            //             spdlog::info("hello.clock() from libffi");
+            //             return halloc<ObjInt>(clock());
+            //         },
+            //         false);
+            // set_symbol(sign.to_string(), hello_clock);
+            // hello_clock->invoke(null, {});
             // Complain if there is no entry point
             if (entry == null)
                 throw IllegalAccessError(std::format("cannot find entry point in '{}'", filename));
             // Call the function
             if (const auto args_count = entry->get_frame_template().get_args().count(); args_count == 0)
-                entry->call({});
+                entry->call(null, {});
             else if (const auto args_count = entry->get_frame_template().get_args().count(); args_count == 1) {
                 // Convert vector<string> to ObjArray
                 auto array = halloc_mgr<ObjArray>(manager, args.size());
                 for (size_t i = 0; i < args.size(); ++i) array->set(i, halloc_mgr<ObjString>(manager, args[i]));
-                entry->call(vector<Obj *>{array});
+                entry->call(null, vector<Obj *>{array});
             } else
                 throw runtime_error("entry point must have zero or one argument (basic.array): " + entry->get_sign().to_string());
             // Enter execution loop

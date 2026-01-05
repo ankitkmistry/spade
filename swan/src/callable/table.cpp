@@ -131,6 +131,7 @@ namespace spade
         }
         case ObjTag::OBJECT:
         case ObjTag::MODULE:
+        case ObjTag::FOREIGN:
         case ObjTag::METHOD:
         case ObjTag::TYPE:
         case ObjTag::CAPTURE:
@@ -164,6 +165,7 @@ namespace spade
         case ObjTag::OBJECT:
         case ObjTag::MODULE:
         case ObjTag::METHOD:
+        case ObjTag::FOREIGN:
         case ObjTag::TYPE:
         case ObjTag::CAPTURE:
             boost::hash_combine(seed, obj);

@@ -30,10 +30,10 @@ namespace spade
         Table<ObjModule *> modules;
         /// The threads
         std::set<Thread *> threads;
-        /// The loader
-        Loader loader;
         /// The memory manager
         MemoryManager *manager;
+        /// The loader
+        Loader loader;
         /// The actions to be performed when the vm terminates
         std::vector<std::function<void()>> on_exit_list;
         /// The vm settings
@@ -42,7 +42,7 @@ namespace spade
         Table<Table<string>> metadata;
         std::shared_mutex metadata_mtx;
         /// The exit code of the vm (-1 represents unfinished state)
-        int exit_code;
+        int32_t exit_code;
         /// The vm debugger
         std::unique_ptr<Debugger> debugger;
         /// The output stream
@@ -157,7 +157,7 @@ namespace spade
         /**
          * @return the exit code of the vm
          */
-        int get_exit_code() const {
+        int32_t get_exit_code() const {
             return exit_code;
         }
 

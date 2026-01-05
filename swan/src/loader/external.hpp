@@ -7,11 +7,11 @@ namespace spade
 {
     class Library {
         std::atomic_size_t *ref_count;
-        string path;
+        fs::path path;
         void *handle;
 
       public:
-        Library(const string &path, void *handle);
+        Library(const fs::path &path, void *handle);
 
         Library() = delete;
         Library(const Library &other);
@@ -30,7 +30,7 @@ namespace spade
 
         void *get_symbol(const string &name);
 
-        const string &get_path() const {
+        const fs::path &get_path() const {
             return path;
         }
 
@@ -39,7 +39,7 @@ namespace spade
     };
 
     class ExternalLoader {
-        Table<Library> libraries;
+        std::unordered_map<fs::path, Library> libraries;
 
       public:
         Library load_library(fs::path path);
