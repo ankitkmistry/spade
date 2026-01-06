@@ -112,6 +112,33 @@ namespace spade
         member_slots[name] = MemberSlot(value);
     }
 
+    Flags Obj::get_flags(const string &name) const {
+        if (const auto it = member_slots.find(name); it != member_slots.end()) {
+            return it->second.get_flags();
+        } else if (type) {
+            if (const auto it = type->member_slots.find(name); it != type->member_slots.end()) {
+                if (it->second.get_flags().is_static())
+                    return it->second.get_flags();
+            }
+        }
+        throw IllegalAccessError(std::format("cannot find member: {} in {}", name, to_string()));
+    }
+
+    void Obj::set_flags(const string &name, Flags flags) {
+        if (const auto it = member_slots.find(name); it != member_slots.end()) {
+            it->second.set_flags(flags);
+            return;
+        } else if (type) {
+            if (const auto it = type->member_slots.find(name); it != type->member_slots.end()) {
+                if (it->second.get_flags().is_static()) {
+                    it->second.set_flags(flags);
+                    return;
+                }
+            }
+        }
+        throw IllegalAccessError(std::format("cannot find member: {} in {}", name, to_string()));
+}
+
     ObjNull::ObjNull() : Obj(ObjTag::NULL_OBJ) {}
 
     Ordering ObjNull::compare(const Obj *other) const {

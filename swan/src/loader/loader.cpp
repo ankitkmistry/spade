@@ -149,13 +149,14 @@ namespace spade
 
         for (const auto &info: info.globals) {
             // INFO: check info.kind
-            // INFO: check info.access_flags
+            Flags flags(info.access_flags);
             string name = get_conpool()[info.name]->to_string();
             // Set metadata
             vm->set_metadata((get_sign() | name).to_string(), load_meta(info.meta));
             // Set the global in the scope
             assert(get_scope()->get_tag() == ObjTag::MODULE);
             get_scope()->set_member(name, obj_null);
+            get_scope()->set_flags(name, flags);
         }
 
         for (const auto &method: info.methods) {
@@ -199,7 +200,7 @@ namespace spade
         default:
             throw Unreachable();
         }
-        // INFO: check info.access_flags
+        Flags flags(info.access_flags);
         string name = get_conpool()[info.name]->to_string();
         Sign sign = get_sign() | name;
 
@@ -246,6 +247,7 @@ namespace spade
         // Set the method in the scope
         assert(get_scope()->get_tag() == ObjTag::MODULE || get_scope()->get_tag() == ObjTag::TYPE);
         get_scope()->set_member(name, method);
+        get_scope()->set_flags(name, flags);
 
         spdlog::info("Loader: Loaded method: {}", method->get_sign().to_string());
     }
@@ -269,7 +271,7 @@ namespace spade
         default:
             throw Unreachable();
         }
-        // INFO: check info.access_flags
+        Flags flags(info.access_flags);
         string name = get_conpool()[info.name]->to_string();
         start_sign_scope(name);
 
@@ -287,13 +289,14 @@ namespace spade
         // Set fields
         for (const auto &info: info.fields) {
             // INFO: check info.kind
-            // INFO: check info.access_flags
+            Flags flags(info.access_flags);
             string name = get_conpool()[info.name]->to_string();
             // Set metadata
             vm->set_metadata((get_sign() | name).to_string(), load_meta(info.meta));
             // Set the global in the scope
             assert(get_scope()->get_tag() == ObjTag::TYPE);
             get_scope()->set_member(name, obj_null);
+            get_scope()->set_flags(name, flags);
         }
         // Set methods
         for (const auto &method: info.methods) {
@@ -307,6 +310,7 @@ namespace spade
 
         assert(get_scope()->get_tag() == ObjTag::MODULE || get_scope()->get_tag() == ObjTag::TYPE);
         get_scope()->set_member(name, type);
+        get_scope()->set_flags(name, flags);
 
         spdlog::info("Loader: Loaded type: {}", type->get_sign().to_string());
     }

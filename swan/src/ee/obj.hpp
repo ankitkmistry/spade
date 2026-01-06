@@ -170,8 +170,12 @@ namespace spade
             value = value_;
         }
 
-        const Flags &get_flags() const {
+        Flags get_flags() const {
             return flags;
+        }
+
+        void set_flags(Flags flags) {
+            this->flags = flags;
         }
     };
 
@@ -270,7 +274,7 @@ namespace spade
         /**
          * @return the type of the object
          */
-        virtual Type *get_type() const {
+        Type *get_type() const {
             return type;
         }
 
@@ -283,7 +287,7 @@ namespace spade
         /**
          * @return the members of this object
          */
-        virtual const Table<MemberSlot> &get_member_slots() const {
+        const Table<MemberSlot> &get_member_slots() const {
             return member_slots;
         }
 
@@ -337,7 +341,7 @@ namespace spade
          * @param name the name of the member
          * @return the member of this object, the member can be static also
          */
-        virtual Obj *get_member(const string &name) const;
+        Obj *get_member(const string &name) const;
 
         /**
          * Sets the member of this object with @p name and sets it to @p value.
@@ -345,7 +349,22 @@ namespace spade
          * @param name name of the member
          * @param value value to be set to
          */
-        virtual void set_member(const string &name, Obj *value);
+        void set_member(const string &name, Obj *value);
+
+        /**
+         * @throws IllegalAccessError if the member cannot be found
+         * @param name the name of the member
+         * @return the access flags of the member of this object, the member can be static also
+         */
+        Flags get_flags(const string &name) const;
+
+        /**
+         * Sets the access flags of the member of this object with @p name and sets it to @p value.
+         * @throws IllegalAccessError if the member cannot be found
+         * @param name name of the member
+         * @param flags flags to be set to
+         */
+        void set_flags(const string &name, Flags flags);
     };
 
     class ObjNull;
@@ -582,7 +601,7 @@ namespace spade
         }
     };
 
-    class ObjModule : public Obj {
+    class ObjModule final : public Obj {
       private:
         Sign sign;
         /// Path of the module
@@ -640,7 +659,7 @@ namespace spade
         }
     };
 
-    class Type : public Obj {
+    class Type final : public Obj {
       public:
         enum class Kind : uint8_t {
             /// Represents a class
@@ -680,53 +699,53 @@ namespace spade
 
         Obj *force_copy() const;
 
-        virtual Kind get_kind() const {
+        Kind get_kind() const {
             return kind;
         }
 
-        virtual void set_kind(Kind kind) {
+        void set_kind(Kind kind) {
             this->kind = kind;
         }
 
-        virtual const Sign &get_sign() const {
+        const Sign &get_sign() const {
             return sign;
         }
 
-        virtual void set_sign(const Sign &sign) {
+        void set_sign(const Sign &sign) {
             this->sign = sign;
         }
 
-        virtual const Table<Type *> &get_type_params() const {
+        const Table<Type *> &get_type_params() const {
             return type_params;
         }
 
-        virtual const vector<Sign> &get_supers() const {
+        const vector<Sign> &get_supers() const {
             return supers;
         }
 
-        virtual vector<Sign> &get_supers() {
+        vector<Sign> &get_supers() {
             return supers;
         }
 
-        virtual void set_supers(const vector<Sign> &supers) {
+        void set_supers(const vector<Sign> &supers) {
             this->supers = supers;
         }
 
-        virtual Table<Type *> &get_type_params() {
+        Table<Type *> &get_type_params() {
             return type_params;
         }
 
-        virtual void set_type_params(const Table<Type *> &type_params) {
+        void set_type_params(const Table<Type *> &type_params) {
             this->type_params = type_params;
         }
     };
 
-    class ObjCapture : public Obj {
+    class ObjCapture final : public Obj {
       private:
         Obj *value;
 
       public:
-        ObjCapture(Obj *value = null);
+        ObjCapture(Obj *value);
 
         Obj *get() const {
             return value;
