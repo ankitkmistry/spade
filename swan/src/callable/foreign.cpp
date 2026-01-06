@@ -14,6 +14,8 @@ namespace spade
             throw ArgumentError(sign.to_string(), std::format("too less arguments, expected {} got {}", arg_count, args.size()));
         if (arg_count > args.size())
             throw ArgumentError(sign.to_string(), std::format("too many arguments, expected {} got {}", arg_count, args.size()));
+
+        foreign_call(self, args);
     }
 
     void ObjForeign::call(Obj *self, Obj **args) {
@@ -23,7 +25,7 @@ namespace spade
         foreign_call(self, vector(args, args + arg_count));
     }
 
-    void ObjForeign::foreign_call(Obj *self, const vector<Obj *> &args) {
+    void ObjForeign::foreign_call(Obj *self, vector<Obj *> args) {
         // Call the foreign function as follows:
         // If has_self:
         //     handle(thread, self, args);
@@ -48,8 +50,8 @@ namespace spade
             ffi_values[i++] = &thread;
             if (has_self)
                 ffi_values[i++] = &self;
-            for (; i < args.size(); i++) {
-                ffi_values[i] = null;
+            for (size_t j = 0; j < args.size(); j++) {
+                ffi_values[i + j] = &args[j];
             }
         }
 

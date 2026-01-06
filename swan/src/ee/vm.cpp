@@ -1,5 +1,4 @@
 #include "vm.hpp"
-#include "callable/foreign.hpp"
 #include "utils/errors.hpp"
 #include "memory/memory.hpp"
 #include "loader/loader.hpp"
@@ -198,13 +197,11 @@ namespace spade
         thread->set_status(Thread::RUNNING);
         spdlog::info("SpadeVM: Thread set to running");
         try {
-            if (debugger) {
+            if (debugger)
                 debugger->init(this);
-                spdlog::info("SpadeVM: Debugger initialized");
-            }
             // Load the basic types and module
             load_basic();
-            // Load the file and ge the entry point
+            // Load the file and get the entry point
             const auto result = loader.load(filename);
             const auto entry = result.entry;
             // Initialize the modules
@@ -213,17 +210,6 @@ namespace spade
                 run(thread);
                 spdlog::info("SpadeVM: Called module initializer: {}", init->get_sign().to_string());
             }
-            // TODO: inserting intrinsics
-            // Sign sign("hello.clock()");
-            // auto hello_clock = halloc_mgr<ObjForeign>(
-            //         manager, sign,
-            //         (void *) [](Thread * thread) {
-            //             spdlog::info("hello.clock() from libffi");
-            //             return halloc<ObjInt>(clock());
-            //         },
-            //         false);
-            // set_symbol(sign.to_string(), hello_clock);
-            // hello_clock->invoke(null, {});
             // Complain if there is no entry point
             if (entry == null)
                 throw IllegalAccessError(std::format("cannot find entry point in '{}'", filename));

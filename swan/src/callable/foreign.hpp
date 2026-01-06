@@ -16,6 +16,6 @@ namespace spade
         void call(Obj *self, Obj **args) override;
 
       private:
-        void foreign_call(Obj *self, const vector<Obj *> &args);
+        void foreign_call(Obj *self, vector<Obj *> args);
     };
 }    // namespace spade

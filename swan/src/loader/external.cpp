@@ -1,4 +1,5 @@
 #include "utils/common.hpp"
+#include <spdlog/spdlog.h>
 #include <cassert>
 
 #ifdef OS_WINDOWS
@@ -109,6 +110,7 @@ namespace spade
             const auto msg = get_last_error();
             throw NativeLibraryError(path.string(), name, std::format("{} ({:#0x})", msg, code));
         }
+        spdlog::info("Library: Loaded external symbol: {}", name);
         return symbol;
 #endif
 
@@ -116,6 +118,7 @@ namespace spade
         void *symbol = dlsym(handle, name.c_str());
         if (symbol == null)
             throw NativeLibraryError(path, name, string(dlerror()));
+        spdlog::info("Library: Loaded external symbol: {}", name);
         return symbol;
 #endif
     }
@@ -132,18 +135,18 @@ namespace spade
             throw NativeLibraryError(path.string(), std::format("{} ({:#0x})", msg, code));
         }
         handle = null;
+        spdlog::info("Library: Unloaded external library: {}", path.generic_string());
 #endif
 
 #ifdef OS_LINUX
         if (dlclose(handle) != 0)
             throw NativeLibraryError(path, string(dlerror()));
+        spdlog::info("Library: Unloaded external library: {}", path.generic_string());
 #endif
     }
 
     Library ExternalLoader::load_library(fs::path path) {
         // TODO: Add advanced lookup
-        path = fs::canonical(path);
-
         if (const auto it = libraries.find(path); it != libraries.end())
             return it->second;
 
@@ -157,6 +160,7 @@ namespace spade
 
         Library library(path, module);
         libraries.emplace(path, library);
+        spdlog::info("ExternalLoader: Loaded external library: {}", path.generic_string());
         return library;
 #endif
 
@@ -167,6 +171,7 @@ namespace spade
 
         Library library(path, lib);
         libraries.emplace(path, library);
+        spdlog::info("ExternalLoader: Loaded external library: {}", path.generic_string());
         return library;
 #endif
     }
