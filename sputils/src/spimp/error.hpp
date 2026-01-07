@@ -1,6 +1,7 @@
 #pragma once
 
 #include "spimp/common.hpp"
+#include <source_location>
 #include <stdexcept>
 #include <format>
 
@@ -43,7 +44,8 @@ namespace spade
 
     class Unreachable : public SpadeError {
       public:
-        explicit Unreachable() : SpadeError("unreachable code reached") {}
+        explicit Unreachable(const std::source_location location = std::source_location::current())
+            : SpadeError(std::format("unreachable code reached at {}:{}:{}", location.file_name(), location.line(), location.column())) {}
     };
 
     class FileNotFoundError : public SpadeError {
@@ -59,8 +61,7 @@ namespace spade
 
     class SignatureError : public SpadeError {
       public:
-        SignatureError(const string &sign, const string &msg)
-            : SpadeError(std::format("invalid signature: {}: '{}'", msg, sign)) {}
+        SignatureError(const string &sign, const string &msg) : SpadeError(std::format("invalid signature: {}: '{}'", msg, sign)) {}
 
         SignatureError(const string &sign) : SpadeError(std::format("invalid signature: '{}'", sign)) {}
     };

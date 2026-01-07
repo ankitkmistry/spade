@@ -114,37 +114,21 @@ namespace spade
                 case Opcode::PASTORE:
                     frame->get_args().set(state.read_byte(), state.pop());
                     break;
-                case Opcode::TLOAD:
+                case Opcode::TLOADC:
                     // TODO: implement this
                     // push(frame->get_method()->get_type_param(load_const(read_short())->to_string()));
                     break;
-                case Opcode::TFLOAD:
+                case Opcode::TFLOADC:
                     // TODO: implement this
                     // push(frame->get_method()->get_type_param(load_const(read_byte())->to_string()));
                     break;
-                case Opcode::TSTORE:
+                case Opcode::TLOADM:
                     // TODO: implement this
-                    // frame->get_method()
-                    //         ->get_type_param(load_const(read_short())->to_string())
-                    //         ->set_placeholder(cast<Type>(peek()));
+                    // push(frame->get_method()->get_type_param(load_const(read_short())->to_string()));
                     break;
-                case Opcode::TFSTORE:
+                case Opcode::TFLOADM:
                     // TODO: implement this
-                    // frame->get_method()
-                    //         ->get_type_param(load_const(read_byte())->to_string())
-                    //         ->set_placeholder(cast<Type>(peek()));
-                    break;
-                case Opcode::PTSTORE:
-                    // TODO: implement this
-                    // frame->get_method()
-                    //         ->get_type_param(load_const(read_short())->to_string())
-                    //         ->set_placeholder(cast<Type>(pop()));
-                    break;
-                case Opcode::PTFSTORE:
-                    // TODO: implement this
-                    // frame->get_method()
-                    //         ->get_type_param(load_const(read_byte())->to_string())
-                    //         ->set_placeholder(cast<Type>(pop()));
+                    // push(frame->get_method()->get_type_param(load_const(read_byte())->to_string()));
                     break;
                 case Opcode::MLOAD: {
                     const auto object = state.pop();

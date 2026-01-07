@@ -806,15 +806,20 @@ outside:
             }
             break;
         }
-        case Opcode::TLOAD:
-        case Opcode::TFLOAD:
-        case Opcode::TSTORE:
-        case Opcode::TFSTORE:
-        case Opcode::PTSTORE:
-        case Opcode::PTFSTORE: {
+        case Opcode::TLOADC:
+        case Opcode::TFLOADC: {
             const auto tok = peek();
             const auto sign = parse_signature();
-            if (!ctx->has_type_param(sign) && !klass->has_type_param(sign))
+            if (!klass->has_type_param(sign))
+                throw error("undefined type arg", tok);
+            emit_value(module->get_constant(sign.to_string()));
+            break;
+        }
+        case Opcode::TLOADM:
+        case Opcode::TFLOADM: {
+            const auto tok = peek();
+            const auto sign = parse_signature();
+            if (!ctx->has_type_param(sign))
                 throw error("undefined type arg", tok);
             emit_value(module->get_constant(sign.to_string()));
             break;

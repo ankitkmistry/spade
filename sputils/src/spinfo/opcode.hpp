@@ -75,18 +75,14 @@
     /* pop store arg */                                                                                                                              \
     OPCODE(PASTORE, 1, false, PASTORE)                                                                                                               \
     /* ----------------------------------------------------- */                                                                                      \
-    /* load typearg */                                                                                                                               \
-    OPCODE(TLOAD, 2, true, TFLOAD)                                                                                                                   \
-    /* load typearg fast */                                                                                                                          \
-    OPCODE(TFLOAD, 1, true, TLOAD)                                                                                                                   \
-    /* store typearg */                                                                                                                              \
-    OPCODE(TSTORE, 2, true, TFSTORE)                                                                                                                 \
-    /* store typearg fast */                                                                                                                         \
-    OPCODE(TFSTORE, 1, true, TSTORE)                                                                                                                 \
-    /* pop store typearg */                                                                                                                          \
-    OPCODE(PTSTORE, 2, true, PTFSTORE)                                                                                                               \
-    /* pop store typearg fast */                                                                                                                     \
-    OPCODE(PTFSTORE, 1, true, PTSTORE)                                                                                                               \
+    /* load typearg from class */                                                                                                                    \
+    OPCODE(TLOADC, 2, true, TFLOADC)                                                                                                                 \
+    /* load typearg fast from class */                                                                                                               \
+    OPCODE(TFLOADC, 1, true, TLOADC)                                                                                                                 \
+    /* load typearg from method*/                                                                                                                    \
+    OPCODE(TLOADM, 2, true, TFLOADM)                                                                                                                 \
+    /* load typearg fast from method*/                                                                                                               \
+    OPCODE(TFLOADM, 1, true, TLOADM)                                                                                                                 \
     /* ----------------------------------------------------- */                                                                                      \
     /* load member */                                                                                                                                \
     OPCODE(MLOAD, 2, true, MFLOAD)                                                                                                                   \
@@ -332,8 +328,8 @@ namespace spade
     case Opcode::name:                                                                                                                               \
         return std::string(static_cast<const char *>(to_lower(#name)));
                 LIST_OF_OPCODES
-                default:
-                    throw Unreachable();
+            default:
+                throw Unreachable();
 #undef OPCODE
             }
         }
@@ -344,8 +340,8 @@ namespace spade
     case Opcode::name:                                                                                                                               \
         return params;
                 LIST_OF_OPCODES
-                default:
-                    throw Unreachable();
+            default:
+                throw Unreachable();
 #undef OPCODE
             }
         }
@@ -356,8 +352,8 @@ namespace spade
     case Opcode::name:                                                                                                                               \
         return take;
                 LIST_OF_OPCODES
-                default:
-                    throw Unreachable();
+            default:
+                throw Unreachable();
 #undef OPCODE
             }
         }
@@ -368,8 +364,8 @@ namespace spade
     case Opcode::name:                                                                                                                               \
         return Opcode::alternate;
                 LIST_OF_OPCODES
-                default:
-                    throw Unreachable();
+            default:
+                throw Unreachable();
 #undef OPCODE
             }
         }
