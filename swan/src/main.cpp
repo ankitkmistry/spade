@@ -174,20 +174,11 @@ class PrettyDebugger : public Debugger {
                     .text = "> ",
                     .pos = {0, GetPaneSize(state).height - 1},
                 });
-                TextInput(state, command_line, {
+                TextField(state, command_line, {
                     .pos = {2, GetPaneSize(state).height - 1},
-                    .size = {GetPaneSize(state).width - 2, 1},
-                    .wrap = false,
-                    .handle_enter_as_event = true,
-                    .focus = true,
-                    .on_enter = [&](TextInputInfo &) {
-                        string command = command_line.get_text();
-                        command_line.end_selection();
-                        command_line.go_home();
-                        command_line.start_selection();
-                        command_line.go_end();
-                        command_line.erase_selection();
-                        command_line.end_selection();
+                    .width = GetPaneSize(state).width - 2,
+                    .on_enter = [&](TextFieldInfo &) {
+                        auto command = command_line.delete_all();
                         loop = false;
 
                         if(command == "q") CloseWindow(state);
