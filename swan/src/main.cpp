@@ -181,14 +181,16 @@ class PrettyDebugger : public Debugger {
                         auto command = command_line.delete_all();
                         loop = false;
 
-                        if(command == "q") CloseWindow(state);
+                        println(command);
+                        if (command == "q") CloseWindow(state);
+                        if (command == "clear") console = {""};
                     },
                 });
                 EndBorder(state);
                 // The output
                 TextBox(state, {
-                    // .text = GetVisibleConsoleText(),
-                    .text = "",
+                    .text = GetVisibleConsoleText(),
+                    // .text = "",
                     .pos = {0, 0},
                     .size = GetPaneSize(state),
                     .style = {.bg = Color::from_hex(0x3b4261), .fg = COLOR_WHITE},
@@ -481,10 +483,11 @@ int main(int argc, char **argv) {
     auto debugger = std::make_unique<PrettyDebugger>();
     auto manager = std::make_unique<basic::BasicMemoryManager>();
 
-    auto debugger_sink = std::make_shared<DebuggerSink_mt>(&*debugger);
+    // auto debugger_sink = std::make_shared<DebuggerSink_mt>(&*debugger);
     auto stdout_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
 
-    auto logger = std::make_shared<spdlog::logger>("swan", spdlog::sinks_init_list{stdout_sink, debugger_sink});
+    // auto logger = std::make_shared<spdlog::logger>("swan", spdlog::sinks_init_list{stdout_sink, debugger_sink});
+    auto logger = std::make_shared<spdlog::logger>("swan", stdout_sink);
     // logger->set_pattern("[%Y-%m-%d %H:%M:%S %z] [thread %t] [%^%l%$] %v");
     logger->set_pattern("[%^%l%$] %v");
     spdlog::set_default_logger(logger);

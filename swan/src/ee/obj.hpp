@@ -7,6 +7,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <shared_mutex>
 #include <string>
 #include <boost/functional/hash.hpp>
 
@@ -239,6 +240,7 @@ namespace spade
         Type *type;
         /// Member slots of the object
         Table<MemberSlot> member_slots;
+        std::shared_mutex member_slots_mtx;
 
         Obj(ObjTag tag);
 
@@ -339,7 +341,7 @@ namespace spade
         /**
          * @throws IllegalAccessError if the member cannot be found
          * @param name the name of the member
-         * @return the member of this object, the member can be static also
+         * @return the member of this object
          */
         Obj *get_member(const string &name) const;
 
@@ -354,7 +356,7 @@ namespace spade
         /**
          * @throws IllegalAccessError if the member cannot be found
          * @param name the name of the member
-         * @return the access flags of the member of this object, the member can be static also
+         * @return the access flags of the member of this object
          */
         Flags get_flags(const string &name) const;
 
