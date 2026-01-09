@@ -109,8 +109,6 @@ struct MethodInfo {
     uint8_t kind;
     uint16_t access_flags;
     cpidx name;
-    uint8_t type_params_count;
-    TypeParamInfo type_params[type_params_count];
     uint8_t args_count;
     ArgInfo args[args_count];
     uint16_t locals_count;
@@ -133,8 +131,6 @@ Represents a method.
     - `0x02` - Constructor
 - `access_flags` - Access flags of the method
 - `name` : `string` - Name of the method
-- `type_params_count` - Count of type params in the method
-- `type_params` - Array of type params of length `type_params_count`
 - `args_count` - Count of args in the method
 - `args` - Array of args of length `args_count`
 - `locals_count` - Count of locals in the method
@@ -148,15 +144,6 @@ Represents a method.
 - `match_count` - Count of match table items
 - `matches` - Match table of the method
 - `meta` - Meta information of the method
-
-### struct `TypeParamInfo`
-```c
-struct TypeParamInfo {
-    cpidx name;
-};
-```
-Represents information of a type parameter.
-- `name` : `string` - index to the constant pool containing the name of the type parameter
 
 ### struct `ArgInfo`
 ```c
@@ -259,8 +246,6 @@ struct ClassInfo {
     uint16_t access_flags;
     cpidx name;
     cpidx supers;
-    uint8_t type_params_count;
-    TypeParamInfo type_params[type_params_count];
     uint16_t fields_count;
     FieldInfo fields[fields_count];
     uint16_t methods_count;
@@ -277,8 +262,6 @@ Represents a class.
 - `access_flags` - Access flags of the class
 - `name` : `string` - Name of the class
 - `supers` : `array<sign>` - List of the signatures of super classes
-- `type_params_count` - Count of type params in the class
-- `type_params` - Array of type params of length `type_params_count`
 - `fields_count` - Count of fields in the class
 - `fields` - Array of fields of length `fields_count`
 - `methods_count` - Count of methods in the class

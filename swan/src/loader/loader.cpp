@@ -204,8 +204,6 @@ namespace spade
         string name = get_conpool()[info.name]->to_string();
         Sign sign = get_sign() | name;
 
-        // TODO: check info.type_params
-        Table<Type *> type_params;
         // Set args
         VariableTable args(info.args_count);
         for (size_t i = 0; const auto &arg: info.args) {
@@ -243,7 +241,7 @@ namespace spade
         vm->set_metadata(sign.to_string(), load_meta(info.meta));
         // Set frame template
         FrameTemplate frame(info.code, info.stack_max, args, locals, exceptions, lines, matches);
-        ObjMethod *method = halloc_mgr<ObjMethod>(vm->get_memory_manager(), kind, sign, frame, type_params);
+        ObjMethod *method = halloc_mgr<ObjMethod>(vm->get_memory_manager(), kind, sign, frame);
         // Set the method in the scope
         assert(get_scope()->get_tag() == ObjTag::MODULE || get_scope()->get_tag() == ObjTag::TYPE);
         get_scope()->set_member(name, method);
@@ -280,10 +278,8 @@ namespace spade
         cast<ObjArray>(get_conpool()[info.supers])->for_each([&](Obj *super) {    //
             supers.emplace_back(super->to_string());                              //
         });
-        // TODO: check info.type_params
-        Table<Type *> type_params;
 
-        auto type = halloc_mgr<Type>(vm->get_memory_manager(), kind, get_sign(), type_params, supers);
+        auto type = halloc_mgr<Type>(vm->get_memory_manager(), kind, get_sign(), supers);
         start_scope(type);
 
         // Set fields

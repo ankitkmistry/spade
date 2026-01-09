@@ -159,23 +159,20 @@ namespace spade
 
         const auto module = halloc_mgr<ObjModule>(manager, Sign("basic"));
 
-        const auto type_any = halloc_mgr<Type>(manager, Type::Kind::CLASS, Sign("basic.any"), Table<Type *>{}, vector<Sign>{});
+        const auto type_any = halloc_mgr<Type>(manager, Type::Kind::CLASS, Sign("basic.any"), vector<Sign>{});
         const vector<Sign> supers = {type_any->get_sign()};
 
-        const auto type_Enum = halloc_mgr<Type>(manager, Type::Kind::CLASS, Sign("basic.Enum"), Table<Type *>{}, supers);
-        const auto type_Annotation = halloc_mgr<Type>(manager, Type::Kind::CLASS, Sign("basic.Annotation"), Table<Type *>{}, supers);
-        const auto type_Throwable = halloc_mgr<Type>(manager, Type::Kind::CLASS, Sign("basic.Throwable"), Table<Type *>{}, supers);
+        const auto type_Enum = halloc_mgr<Type>(manager, Type::Kind::CLASS, Sign("basic.Enum"), supers);
+        const auto type_Annotation = halloc_mgr<Type>(manager, Type::Kind::CLASS, Sign("basic.Annotation"), supers);
+        const auto type_Throwable = halloc_mgr<Type>(manager, Type::Kind::CLASS, Sign("basic.Throwable"), supers);
 
-        const auto type_bool = halloc_mgr<Type>(manager, Type::Kind::CLASS, Sign("basic.bool"), Table<Type *>{}, supers);
-        const auto type_int = halloc_mgr<Type>(manager, Type::Kind::CLASS, Sign("basic.int"), Table<Type *>{}, supers);
-        const auto type_float = halloc_mgr<Type>(manager, Type::Kind::CLASS, Sign("basic.float"), Table<Type *>{}, supers);
-        const auto type_char = halloc_mgr<Type>(manager, Type::Kind::CLASS, Sign("basic.char"), Table<Type *>{}, supers);
-        const auto type_string = halloc_mgr<Type>(manager, Type::Kind::CLASS, Sign("basic.string"), Table<Type *>{}, supers);
+        const auto type_bool = halloc_mgr<Type>(manager, Type::Kind::CLASS, Sign("basic.bool"), supers);
+        const auto type_int = halloc_mgr<Type>(manager, Type::Kind::CLASS, Sign("basic.int"), supers);
+        const auto type_float = halloc_mgr<Type>(manager, Type::Kind::CLASS, Sign("basic.float"), supers);
+        const auto type_char = halloc_mgr<Type>(manager, Type::Kind::CLASS, Sign("basic.char"), supers);
+        const auto type_string = halloc_mgr<Type>(manager, Type::Kind::CLASS, Sign("basic.string"), supers);
 
-        const Table<Type *> type_array_tps{
-                {"[T]", halloc_mgr<Type>(manager, Sign("[T]"))}
-        };
-        const auto type_array = halloc_mgr<Type>(manager, Type::Kind::CLASS, Sign("basic.array[T]"), type_array_tps, supers);
+        const auto type_array = halloc_mgr<Type>(manager, Type::Kind::CLASS, Sign("basic.array[T]"), supers);
 
         module->set_member("any", type_any);
         module->set_member("Enum", type_Enum);

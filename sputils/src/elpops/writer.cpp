@@ -72,11 +72,6 @@ namespace spade
         write(info.name);
         write(info.supers);
 
-        write(info.type_params_count);
-        for (int i = 0; i < info.type_params_count; ++i) {
-            write(info.type_params[i]);
-        }
-
         write(info.fields_count);
         for (int i = 0; i < info.fields_count; ++i) {
             write(info.fields[i]);
@@ -101,11 +96,6 @@ namespace spade
         write(info.kind);
         write(info.access_flags);
         write(info.name);
-
-        write(info.type_params_count);
-        for (int i = 0; i < info.type_params_count; ++i) {
-            write(info.type_params[i]);
-        }
 
         write(info.args_count);
         for (int i = 0; i < info.args_count; ++i) {
@@ -175,10 +165,6 @@ namespace spade
         write(info.meta);
     }
 
-    void ElpWriter::write(const TypeParamInfo &info) {
-        write(info.name);
-    }
-
     void ElpWriter::write(const GlobalInfo &info) {
         write(info.kind);
         write(info.access_flags);
@@ -198,23 +184,23 @@ namespace spade
     void ElpWriter::write(const CpInfo &info) {
         write(info.tag);
         switch (info.tag) {
-            case 0x03:
-                write(std::get<uint32_t>(info.value));
-                break;
-            case 0x04:
-                write(std::get<uint64_t>(info.value));
-                break;
-            case 0x05:
-                write(std::get<uint64_t>(info.value));
-                break;
-            case 0x06:
-                write(std::get<_UTF8>(info.value));
-                break;
-            case 0x07:
-                write(std::get<_Container>(info.value));
-                break;
-            default:
-                throw Unreachable();
+        case 0x03:
+            write(std::get<uint32_t>(info.value));
+            break;
+        case 0x04:
+            write(std::get<uint64_t>(info.value));
+            break;
+        case 0x05:
+            write(std::get<uint64_t>(info.value));
+            break;
+        case 0x06:
+            write(std::get<_UTF8>(info.value));
+            break;
+        case 0x07:
+            write(std::get<_Container>(info.value));
+            break;
+        default:
+            throw Unreachable();
         }
     }
 

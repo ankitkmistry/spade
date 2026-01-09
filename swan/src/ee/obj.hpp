@@ -220,8 +220,7 @@ namespace spade
     };
 
     struct MemoryInfo {
-        bool marked = false;
-        uint32_t life = 0;
+        // bool marked = false;
         MemoryManager *manager = null;
     };
 
@@ -240,7 +239,7 @@ namespace spade
         Type *type;
         /// Member slots of the object
         Table<MemberSlot> member_slots;
-        std::shared_mutex member_slots_mtx;
+        mutable std::shared_mutex member_slots_mtx;
 
         Obj(ObjTag tag);
 
@@ -679,15 +678,14 @@ namespace spade
       protected:
         Kind kind;
         Sign sign;
-        Table<Type *> type_params;
         vector<Sign> supers;
 
-        Type(ObjTag tag, Kind kind, Sign sign) : Obj(tag), kind(kind), sign(sign), type_params(), supers() {}
+        Type(ObjTag tag, Kind kind, Sign sign) : Obj(tag), kind(kind), sign(sign), supers() {}
 
       public:
-        Type(Kind kind, Sign sign, const Table<Type *> &type_params, const vector<Sign> &supers);
+        Type(Kind kind, Sign sign, const vector<Sign> &supers);
 
-        Type(Sign sign) : Type(Kind::CLASS, sign, {}, {}) {}
+        Type(Sign sign) : Type(Kind::CLASS, sign, {}) {}
 
         Obj *copy() const override {
             return (Obj *) this;
@@ -698,8 +696,6 @@ namespace spade
         }
 
         string to_string() const override;
-
-        Obj *force_copy() const;
 
         Kind get_kind() const {
             return kind;
@@ -717,28 +713,12 @@ namespace spade
             this->sign = sign;
         }
 
-        const Table<Type *> &get_type_params() const {
-            return type_params;
-        }
-
-        const vector<Sign> &get_supers() const {
-            return supers;
-        }
-
         vector<Sign> &get_supers() {
             return supers;
         }
 
         void set_supers(const vector<Sign> &supers) {
             this->supers = supers;
-        }
-
-        Table<Type *> &get_type_params() {
-            return type_params;
-        }
-
-        void set_type_params(const Table<Type *> &type_params) {
-            this->type_params = type_params;
         }
     };
 

@@ -75,15 +75,6 @@
     /* pop store arg */                                                                                                                              \
     OPCODE(PASTORE, 1, false, PASTORE)                                                                                                               \
     /* ----------------------------------------------------- */                                                                                      \
-    /* load typearg from class */                                                                                                                    \
-    OPCODE(TLOADC, 2, true, TFLOADC)                                                                                                                 \
-    /* load typearg fast from class */                                                                                                               \
-    OPCODE(TFLOADC, 1, true, TLOADC)                                                                                                                 \
-    /* load typearg from method*/                                                                                                                    \
-    OPCODE(TLOADM, 2, true, TFLOADM)                                                                                                                 \
-    /* load typearg fast from method*/                                                                                                               \
-    OPCODE(TFLOADM, 1, true, TLOADM)                                                                                                                 \
-    /* ----------------------------------------------------- */                                                                                      \
     /* load member */                                                                                                                                \
     OPCODE(MLOAD, 2, true, MFLOAD)                                                                                                                   \
     /* load member fast */                                                                                                                           \
@@ -260,8 +251,6 @@
     OPCODE(MTFPERF, 1, false, MTPERF)                                                                                                                \
     /* load closure */                                                                                                                               \
     OPCODE(CLOSURELOAD, -1, false, CLOSURELOAD)                                                                                                      \
-    /* load reified object */                                                                                                                        \
-    OPCODE(REIFIEDLOAD, 1, false, REIFIEDLOAD)                                                                                                       \
     /* load object */                                                                                                                                \
     OPCODE(OBJLOAD, 0, false, OBJLOAD)                                                                                                               \
     /* throw */                                                                                                                                      \

@@ -18,72 +18,50 @@ class SignParser {
             return {
                     SignElement{"", Sign::Kind::EMPTY}
             };
+
         vector<SignElement> elements;
-        if (match('[')) {
-            elements.emplace_back(IDENTIFIER(), Sign::Kind::TYPE_PARAM);
-            expect(']');
-        } else {
-            string module;
-            // allow the unnamed module
-            if (isalpha(peek())) {
+        string module;
+        // allow the unnamed module
+        if (isalpha(peek())) {
+            module = IDENTIFIER();
+            elements.emplace_back(module, Sign::Kind::MODULE);
+            while (match(':')) {
+                expect(':');
                 module = IDENTIFIER();
                 elements.emplace_back(module, Sign::Kind::MODULE);
-                while (match(':')) {
-                    expect(':');
-                    module = IDENTIFIER();
-                    elements.emplace_back(module, Sign::Kind::MODULE);
-                }
-            } else {
-                elements.emplace_back(module, Sign::Kind::MODULE);
             }
-            while (match('.')) elements.push_back(classOrMethodElement());
+        } else {
+            elements.emplace_back(module, Sign::Kind::MODULE);
         }
+        while (match('.')) elements.push_back(classOrMethodElement());
         return elements;
     }
 
     SignElement classOrMethodElement() {
         const auto name = IDENTIFIER();
-        vector<string> list;
-        // Check type params
-        if (match('[')) {
-            list = idList();
-            expect(']');
-        }
         // Check params
         if (match('(')) {
             vector<SignParam> params;
             if (peek() != ')')
                 params = paramsElement();
             expect(')');
-            return {name, Sign::Kind::METHOD, list, params};
+            return {name, Sign::Kind::METHOD, params};
         }
-        return {name, Sign::Kind::CLASS, list};
+        return {name, Sign::Kind::CLASS};
     }
 
     SignElement classElement() {
         const auto name = IDENTIFIER();
-        vector<string> list;
-        // Check type params
-        if (match('[')) {
-            list = idList();
-            expect(']');
-        }
-        return {name, Sign::Kind::CLASS, list};
+        return {name, Sign::Kind::CLASS};
     }
 
     // SignElement methodElement() {
     //     auto name = IDENTIFIER();
-    //     vector<string> list;
-    //     // Check type params
-    //     if (match('[')) {
-    //         list = idList();
-    //         expect(']');
-    //     }
     //     // Check params
     //     expect('(');
     //     vector<SignParam> params = paramsElement();
     //     expect(')');
-    //     return {name, Sign::Kind::METHOD, list, params};
+    //     return {name, Sign::Kind::METHOD, params};
     // }
 
     vector<SignParam> paramsElement() {
@@ -99,11 +77,6 @@ class SignParser {
 
     SignParam paramElement() {
         vector<SignElement> elements;
-        if (match('[')) {
-            elements.emplace_back(IDENTIFIER(), Sign::Kind::TYPE_PARAM);
-            expect(']');
-            return {SignParam::Kind::CLASS, Sign(elements)};
-        }
         string module;
         // allow the unnamed module
         if (isalpha(peek())) {
@@ -243,19 +216,9 @@ string SignElement::to_string() const {
         break;
     case Sign::Kind::CLASS:
         str = name;
-        if (!type_params.empty()) {
-            str.append("[");
-            str.append(join(type_params, ", "));
-            str.append("]");
-        }
         break;
     case Sign::Kind::METHOD:
         str = name;
-        if (!type_params.empty()) {
-            str.append("[");
-            str.append(join(type_params, ", "));
-            str.append("]");
-        }
         str.append("(");
         if (!params.empty()) {
             string param_str;
@@ -269,11 +232,6 @@ string SignElement::to_string() const {
             }
         }
         str.append(")");
-        break;
-    case Sign::Kind::TYPE_PARAM:
-        str.append("[");
-        str.append(name);
-        str.append("]");
         break;
     }
     return str;
@@ -293,8 +251,6 @@ string Sign::to_string() const {
             case Kind::CLASS:
             case Kind::METHOD:
                 str.append(".");
-                break;
-            case Kind::TYPE_PARAM:
                 break;
             }
         }
@@ -335,10 +291,6 @@ Sign Sign::get_parent_class() const {
             return Sign(slice(elements, 0, i));
     }
     return EMPTY;
-}
-
-const vector<string> &Sign::get_type_params() const {
-    return elements.back().get_type_params();
 }
 
 const vector<SignParam> &Sign::get_params() const {

@@ -99,11 +99,6 @@ namespace spade
         MetaInfo meta;
     };
 
-    struct TypeParamInfo {
-        /// [string] Name of the type param
-        cpidx name;
-    };
-
     struct ArgInfo {
         /// The kind of the arg
         /// 0x00 : VAR
@@ -178,11 +173,6 @@ namespace spade
         /// [string] Name of the method
         cpidx name;
 
-        /// Count of type params in the method
-        uint8_t type_params_count = 0;
-        /// List of type params
-        vector<TypeParamInfo> type_params;
-
         /// Count of args in the method
         uint8_t args_count = 0;
         /// List of args
@@ -243,11 +233,6 @@ namespace spade
         cpidx name;
         /// [array<sign>] List of the signatures of super classes
         cpidx supers;
-
-        /// Count of type params in the class
-        uint8_t type_params_count = 0;
-        /// List of type params
-        vector<TypeParamInfo> type_params;
 
         /// Count of fields in the class
         uint16_t fields_count = 0;

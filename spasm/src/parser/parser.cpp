@@ -251,15 +251,6 @@ namespace spasm
         current_sign |= sign;
         parse_term();
 
-        vector<TypeParamInfo> type_params;
-        type_params.reserve(sign.get_type_params().size());
-        for (const auto &type_param: sign.get_type_params()) {
-            TypeParamInfo info;
-            info.name = get_current_module()->get_constant(type_param);
-            type_params.push_back(info);
-            ctx->add_type_param(type_param);
-        }
-
         std::unordered_map<string, ValueContext> properties{
                 {"@kind",   0                     },
                 {"@supers", vector<ValueContext>()},
@@ -317,12 +308,6 @@ namespace spasm
         klass.name = get_current_module()->get_constant(name);
         klass.supers = get_current_module()->get_constant(std::get<vector<ValueContext>>(properties["@supers"].value));
 
-        if (const auto max = std::numeric_limits<decltype(klass.type_params_count)>::max(); type_params.size() >= max)
-            throw error(std::format("type_params_count cannot be >= {}", max), start);
-        else {
-            klass.type_params_count = type_params.size() & max;
-            klass.type_params = type_params;
-        }
         if (const auto max = std::numeric_limits<decltype(klass.fields_count)>::max(); fields.size() >= max)
             throw error(std::format("fields_count cannot be >= {}", max), start);
         else {
@@ -366,15 +351,6 @@ namespace spasm
         const auto name = sign.to_string();
         current_sign |= sign;
         parse_term();
-
-        vector<TypeParamInfo> type_params;
-        type_params.reserve(sign.get_type_params().size());
-        for (const auto &type_param: sign.get_type_params()) {
-            TypeParamInfo info;
-            info.name = get_current_module()->get_constant(type_param);
-            type_params.push_back(info);
-            ctx->add_type_param(type_param);
-        }
 
         std::unordered_map<string, ValueContext> properties{
                 {"@closure_start", -1},
@@ -501,12 +477,6 @@ outside:
         method.kind = context_stack[context_stack.size() - 2]->get_kind() == ContextType::MODULE ? 0x00 : 0x01;
         method.name = get_current_module()->get_constant(name);
 
-        if (const auto max = std::numeric_limits<decltype(method.type_params_count)>::max(); type_params.size() >= max)
-            throw error(std::format("type_params_count cannot be >= {}", max), start);
-        else {
-            method.type_params_count = type_params.size() & max;
-            method.type_params = type_params;
-        }
         if (const auto max = std::numeric_limits<decltype(method.args_count)>::max(); args.size() >= max)
             errors.error(error(std::format("args_count cannot be >= {}", max), start));
         else {
@@ -806,24 +776,6 @@ outside:
             }
             break;
         }
-        case Opcode::TLOADC:
-        case Opcode::TFLOADC: {
-            const auto tok = peek();
-            const auto sign = parse_signature();
-            if (!klass->has_type_param(sign))
-                throw error("undefined type arg", tok);
-            emit_value(module->get_constant(sign.to_string()));
-            break;
-        }
-        case Opcode::TLOADM:
-        case Opcode::TFLOADM: {
-            const auto tok = peek();
-            const auto sign = parse_signature();
-            if (!ctx->has_type_param(sign))
-                throw error("undefined type arg", tok);
-            emit_value(module->get_constant(sign.to_string()));
-            break;
-        }
         case Opcode::MLOAD:
         case Opcode::MFLOAD:
         case Opcode::MSTORE:
@@ -941,9 +893,6 @@ outside:
             ctx->get_code()[capture_count_loc] = capture_count;
             break;
         }
-        case Opcode::REIFIEDLOAD:
-            emit_value(static_cast<uint64_t>(str2int(expect(TokenType::INTEGER))));
-            break;
         default:
             break;
         }
@@ -999,11 +948,7 @@ outside:
 
     Sign Parser::parse_signature() {
         vector<SignElement> elements;
-        if (match(TokenType::LBRACKET)) {
-            const auto name = expect(TokenType::IDENTIFIER)->get_text();
-            elements.emplace_back(name, Sign::Kind::TYPE_PARAM);
-            expect(TokenType::RBRACKET);
-        } else if (match(TokenType::IDENTIFIER)) {
+        if (match(TokenType::IDENTIFIER)) {
             elements.emplace_back(current()->get_text(), Sign::Kind::MODULE);
             while (match(TokenType::COLON)) {
                 expect(TokenType::COLON);
@@ -1021,13 +966,6 @@ outside:
 
     SignElement Parser::parse_sign_class_or_method() {
         const auto name = expect(TokenType::IDENTIFIER)->get_text();
-        vector<string> type_params;
-        if (match(TokenType::LBRACKET)) {
-            do {
-                type_params.push_back(expect(TokenType::IDENTIFIER)->get_text());
-            } while (match(TokenType::COMMA));
-            expect(TokenType::RBRACKET);
-        }
         if (match(TokenType::LPAREN)) {
             vector<SignParam> params;
             if (!match(TokenType::RPAREN)) {
@@ -1036,32 +974,18 @@ outside:
                 } while (match(TokenType::COMMA));
                 expect(TokenType::RPAREN);
             }
-            return SignElement(name, Sign::Kind::METHOD, type_params, params);
+            return SignElement(name, Sign::Kind::METHOD, params);
         }
-        return SignElement(name, Sign::Kind::CLASS, type_params);
+        return SignElement(name, Sign::Kind::CLASS);
     }
 
     SignElement Parser::parse_sign_class() {
         const auto name = expect(TokenType::IDENTIFIER)->get_text();
-        vector<string> type_params;
-        if (match(TokenType::LBRACKET)) {
-            do {
-                type_params.push_back(expect(TokenType::IDENTIFIER)->get_text());
-            } while (match(TokenType::COMMA));
-            expect(TokenType::RBRACKET);
-        }
-        return SignElement(name, Sign::Kind::CLASS, type_params);
+        return SignElement(name, Sign::Kind::CLASS);
     }
 
     SignElement Parser::parse_sign_method() {
         const auto name = expect(TokenType::IDENTIFIER)->get_text();
-        vector<string> type_params;
-        if (match(TokenType::LBRACKET)) {
-            do {
-                type_params.push_back(expect(TokenType::IDENTIFIER)->get_text());
-            } while (match(TokenType::COMMA));
-            expect(TokenType::RBRACKET);
-        }
         vector<SignParam> params;
         expect(TokenType::LPAREN);
         if (!match(TokenType::RPAREN)) {
@@ -1070,7 +994,7 @@ outside:
             } while (match(TokenType::COMMA));
             expect(TokenType::RPAREN);
         }
-        return SignElement(name, Sign::Kind::METHOD, type_params, params);
+        return SignElement(name, Sign::Kind::METHOD, params);
     }
 
     SignParam Parser::parse_sign_param() {

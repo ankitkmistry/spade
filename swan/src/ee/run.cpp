@@ -114,22 +114,6 @@ namespace spade
                 case Opcode::PASTORE:
                     frame->get_args().set(state.read_byte(), state.pop());
                     break;
-                case Opcode::TLOADC:
-                    // TODO: implement this
-                    // push(frame->get_method()->get_type_param(load_const(read_short())->to_string()));
-                    break;
-                case Opcode::TFLOADC:
-                    // TODO: implement this
-                    // push(frame->get_method()->get_type_param(load_const(read_byte())->to_string()));
-                    break;
-                case Opcode::TLOADM:
-                    // TODO: implement this
-                    // push(frame->get_method()->get_type_param(load_const(read_short())->to_string()));
-                    break;
-                case Opcode::TFLOADM:
-                    // TODO: implement this
-                    // push(frame->get_method()->get_type_param(load_const(read_byte())->to_string()));
-                    break;
                 case Opcode::MLOAD: {
                     const auto object = state.pop();
                     const auto name = Sign(state.load_const(state.read_short())->to_string()).get_name();
@@ -648,21 +632,6 @@ namespace spade
                     }
                     state.push(method);
                     break;
-                }
-                case Opcode::REIFIEDLOAD: {
-                    // TODO: implement this
-                    // const uint8_t count = read_byte();
-                    // // Pop the arguments
-                    // frame->sp -= count;
-                    // const auto args = frame->sp;
-                    // const auto obj = pop();
-                    // if (is<ObjMethod>(obj))
-                    //     push(cast<ObjMethod>(obj)->get_reified(args, count));
-                    // else if (is<Type>(obj))
-                    //     push(cast<Type>(obj)->get_reified(args, count));
-                    // else
-                    //     throw runtime_error(std::format("cannot set_placeholder value of {}", obj->get_type()->to_string()));
-                    // break;
                 }
                 case Opcode::THROW: {
                     const auto value = state.pop();

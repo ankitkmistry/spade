@@ -1,22 +1,5 @@
 #pragma once
 
-// Grammar specification of signatures
-// ----------------------------------------------------
-// signature    ::= <empty>                                     // empty signature
-//                | '[' IDENTIFIER ']'                          // type parameter
-//                | module ('.' (class | method))*              // general signature
-//                ;
-//
-// module       ::= (IDENTIFIER ('::' IDENTIFIER)*)?;           // module part of signature
-// class        ::= IDENTIFIER typeparams?;                     // class part of signature
-// method       ::= IDENTIFIER typeparams? '(' params? ')';     // method part of signature
-//
-// typeparams   ::= '[' IDENTIFIER (',' IDENTIFIER)* ']';       // typeparams required by class or method
-// params       ::= param (',' param)*;                         // param list
-// param        ::= '[' IDENTIFIER ']'                          // type parameter as a param
-//                | module ('.' class)+ ('(' params? ')')?      // general signature allowed by param
-//                ;
-
 #include "../spimp/common.hpp"
 
 class SignElement;
@@ -37,8 +20,6 @@ class Sign final {
         CLASS,
         /// Signature refers to a method
         METHOD,
-        /// Signature refers to a type param
-        TYPE_PARAM
     };
 
   private:
@@ -89,11 +70,6 @@ class Sign final {
      * @return the kind of the signature
      */
     Kind get_kind() const;
-
-    /**
-     * @return the type params of the signature if exists, otherwise returns an empty array
-     */
-    const vector<string> &get_type_params() const;
 
     /**
      * @return the params of the signature if exists, otherwise returns an empty array
@@ -230,12 +206,11 @@ class SignElement final {
   private:
     string name;
     Sign::Kind kind;
-    vector<string> type_params;
     vector<SignParam> params;
 
   public:
-    SignElement(const string &name, Sign::Kind kind, const vector<string> &type_params = {}, const vector<SignParam> &params = {})
-        : name(name), kind(kind), type_params(type_params), params(params) {}
+    SignElement(const string &name, Sign::Kind kind, const vector<SignParam> &params = {})
+        : name(name), kind(kind), params(params) {}
 
     SignElement(const SignElement &other) = default;
     SignElement(SignElement &&other) noexcept = default;
@@ -253,10 +228,6 @@ class SignElement final {
 
     const vector<SignParam> &get_params() const {
         return params;
-    }
-
-    const vector<string> &get_type_params() const {
-        return type_params;
     }
 
     string to_string() const;

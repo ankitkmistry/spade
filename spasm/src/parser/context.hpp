@@ -106,18 +106,8 @@ namespace spasm
     };
 
     class ClassContext : public Context {
-        std::unordered_set<string> type_params;
-
       public:
         ClassContext() : Context(ContextType::CLASS) {}
-
-        void add_type_param(const Sign &sign) {
-            type_params.insert(sign.to_string());
-        }
-
-        bool has_type_param(const Sign &sign) {
-            return type_params.contains(sign.to_string());
-        }
     };
 
     class MethodContext : public Context {
@@ -125,7 +115,6 @@ namespace spasm
 
         std::unordered_map<string, decltype(std::declval<MethodInfo>().args_count)> args;
         std::unordered_map<string, decltype(std::declval<MethodInfo>().locals_count)> locals;
-        std::unordered_set<string> type_params;
 
         vector<uint8_t> code;
         std::unordered_map<string, uint32_t> labels;
@@ -172,14 +161,6 @@ namespace spasm
             if (const auto it = locals.find(name); it != locals.end())
                 return locals.at(name);
             return std::nullopt;
-        }
-
-        void add_type_param(const Sign &sign) {
-            type_params.insert(sign.to_string());
-        }
-
-        bool has_type_param(const Sign &sign) {
-            return type_params.contains(sign.to_string());
         }
 
         void set_line(uint32_t lineno) {

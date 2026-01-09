@@ -370,22 +370,25 @@ class PrettyDebugger : public Debugger {
         // Now set the things in order
         for (size_t i = 0; i < instructions.size(); i++) {
             const auto &instr = instructions[i];
-            string text = std::format("{} {: >{}}: {} {} {}", " ", instr.start, byte_line_max_len, instr.source_line_str,
-                                      OpcodeInfo::to_string(instr.opcode), instr.param);
 
             if (i < GetPaneSize(state).height) {
-                Style line_style;
+                Color line_bg;
                 if (i == active_instr)
-                    line_style = {.bg = Color::from_hex(0x400296), .fg = COLOR_WHITE};
+                    line_bg = Color::from_hex(0x400296);
                 else
-                    line_style = {.bg = Color::from_hex(0x201640), .fg = COLOR_WHITE};
-
+                    line_bg = Color::from_hex(0x201640);
+                // 82ff9e
                 // clang-format off
-                TextBox(state, {
-                    .text = text,
+                RichTextBox(state, {
+                    .text = color_fmt("%(#{},#FFFFFF){} %(#{},#FFB626){: >{}}%(#{},#FFFFFF): {} %(#{},#82ff9e){}%(#{},#FFFFFF) {}", 
+                                line_bg.to_string_hex(), " ",
+                                line_bg.to_string_hex(), instr.start, byte_line_max_len, line_bg.to_string_hex(),
+                                instr.source_line_str, 
+                                line_bg.to_string_hex(), OpcodeInfo::to_string(instr.opcode), line_bg.to_string_hex(),
+                                instr.param),
                     .pos = {0, i},
                     .size = {GetPaneSize(state).width, 1},
-                    .style = line_style,
+                    .style = {.bg = line_bg, .fg = COLOR_WHITE},
                 });
                 // clang-format on
             }

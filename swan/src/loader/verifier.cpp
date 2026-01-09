@@ -33,7 +33,6 @@ namespace spade
     void Verifier::check_method(const MethodInfo &method, const uint16_t cp_count) {
         if (method.kind > 0x02)
             throw corrupt();
-        for (const auto &type_param: method.type_params) check_range(type_param.name, cp_count);
         for (const auto &arg: method.args) check_arg(arg, cp_count);
         for (const auto &local: method.locals) check_local(local, cp_count);
         for (const auto &exception_table: method.exception_table) check_exception(exception_table, cp_count);

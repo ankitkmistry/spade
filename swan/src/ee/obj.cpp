@@ -368,28 +368,12 @@ namespace spade
         return null;
     }
 
-    Type::Type(Kind kind, Sign sign, const Table<Type *> &type_params, const vector<Sign> &supers)
-        : Obj(ObjTag::TYPE), kind(kind), sign(sign), type_params(type_params), supers(supers) {}
+    Type::Type(Kind kind, Sign sign, const vector<Sign> &supers)
+        : Obj(ObjTag::TYPE), kind(kind), sign(sign), supers(supers) {}
 
     string Type::to_string() const {
         static const string kind_names[] = {"class", "interface", "enum", "annotation", "type_parameter", "unresolved"};
         return std::format("<{} '{}'>", kind_names[static_cast<int>(kind)], sign.to_string());
-    }
-
-    Obj *Type::force_copy() const {
-        const auto obj = halloc_mgr<Type>(info.manager, kind, sign, type_params, supers);
-        // Copy members
-        for (const auto &[name, slot]: member_slots) {
-            obj->set_member(name, slot.get_value()->copy());
-        }
-        // Create new type params
-        Table<Type *> new_type_params;
-        for (const auto &[name, type_param]: type_params) {
-            new_type_params[name] = cast<Type>(type_param->force_copy());
-        }
-        // TODO: implement this
-        // Obj::reify(obj, type_params, new_type_params);
-        return obj;
     }
 
     ObjCapture::ObjCapture(Obj *value) : Obj(ObjTag::CAPTURE), value(value) {}

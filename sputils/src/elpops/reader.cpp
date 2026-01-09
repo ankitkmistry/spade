@@ -78,12 +78,6 @@ namespace spade
         klass.name = read_short();
         klass.supers = read_short();
 
-        klass.type_params_count = read_byte();
-        klass.type_params = vector<TypeParamInfo>(klass.type_params_count);
-        for (int i = 0; i < klass.type_params_count; ++i) {
-            klass.type_params[i] = read_type_param_info();
-        }
-
         klass.fields_count = read_short();
         klass.fields = vector<FieldInfo>(klass.fields_count);
         for (int i = 0; i < klass.fields_count; ++i) {
@@ -114,12 +108,6 @@ namespace spade
         method.kind = read_byte();
         method.access_flags = read_short();
         method.name = read_short();
-
-        method.type_params_count = read_byte();
-        method.type_params = vector<TypeParamInfo>(method.type_params_count);
-        for (int i = 0; i < method.type_params_count; ++i) {
-            method.type_params[i] = read_type_param_info();
-        }
 
         method.args_count = read_byte();
         method.args = vector<ArgInfo>(method.args_count);
@@ -208,12 +196,6 @@ namespace spade
         arg.kind = read_short();
         arg.meta = read_meta_info();
         return arg;
-    }
-
-    TypeParamInfo ElpReader::read_type_param_info() {
-        TypeParamInfo typeParam;
-        typeParam.name = read_short();
-        return typeParam;
     }
 
     GlobalInfo ElpReader::read_global_info() {
