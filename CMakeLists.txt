@@ -23,10 +23,8 @@ set (LLVM_DIR thirdparty/llvm/lib/cmake/llvm)
 set (Boost_USE_STATIC_LIBS ON)
 set (Boost_USE_STATIC_RUNTIME OFF)
 
-# find_package(cpptrace REQUIRED CONFIG)
 find_package(argparse REQUIRED CONFIG)
 find_package(spdlog REQUIRED CONFIG)
-# find_package(libffi REQUIRED CONFIG)
 find_package(unofficial-libffi CONFIG REQUIRED)
 find_package(Boost REQUIRED COMPONENTS core predef container_hash)
 
@@ -66,8 +64,8 @@ file (GLOB_RECURSE SPADEC_INCLUDES spadec/src/*.hpp)
 add_executable (spadec ${SPADEC_SRCS})
 target_include_directories (spadec PUBLIC spadec/src)
 target_include_directories (spadec PUBLIC sputils/src)
-# target_link_libraries (spadec PUBLIC sputils PRIVATE cpptrace::cpptrace spdlog::spdlog)
 target_link_libraries (spadec PUBLIC sputils PRIVATE spdlog::spdlog)
+# target_link_libraries (spadec PUBLIC sputils PRIVATE spdlog::spdlog)
 
 # Target: spasm
 # It is the assembler of the Spade language bytecode
@@ -119,14 +117,6 @@ else ()
     target_compile_options (sputils PRIVATE -Wall -Wextra)
     target_compile_options (spadec PRIVATE -Wall -Wextra)
     target_compile_options (spasm PRIVATE -Wall -Wextra)
-endif ()
-
-if (APPLE)
-    add_custom_command (
-        TARGET spadec
-        POST_BUILD
-        COMMAND dsymutil $<TARGET_FILE:spadec>
-    )
 endif ()
 
 if (CMAKE_BUILD_TYPE EQUAL "RelWithDebInfo")

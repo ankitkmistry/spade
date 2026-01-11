@@ -2,6 +2,7 @@
 #include <sputils.hpp>
 
 #include "error_printer.hpp"
+#include "spimp/color.hpp"
 #include "utils/error.hpp"
 
 namespace spadec
@@ -21,7 +22,7 @@ namespace spadec
     }
 
     struct CodePrintInfo {
-        string line_info_color = color::fg(color::White);
+        string line_info_color = color::fg(COLOR_WHITE);
         bool underline;
         string underline_char;
         int max_lines;
@@ -117,12 +118,12 @@ namespace spadec
 
         switch (type) {
         case ErrorType::ERROR:
-            error_type_str = color::fg(color::Red) + color::attr(color::BOLD) + "error" + color::attr(color::RESET);
+            error_type_str = color::fg(COLOR_RED) + color::attr(color::BOLD) + "error" + color::attr(color::RESET);
             info.underline = true;
             info.underline_char = color::fg(color::from_hex(0xfe5455)) + '^' + color::attr(color::RESET);
             break;
         case ErrorType::WARNING:
-            error_type_str = color::fg(color::Orange) + color::attr(color::BOLD) + "warning" + color::attr(color::RESET);
+            error_type_str = color::fg(COLOR_ORANGE) + color::attr(color::BOLD) + "warning" + color::attr(color::RESET);
             info.underline = true;
             info.underline_char = color::fg(color::from_hex(0xffbd2a)) + '~' + color::attr(color::RESET);
             break;

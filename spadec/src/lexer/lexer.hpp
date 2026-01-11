@@ -3,6 +3,7 @@
 #include "token.hpp"
 #include "utils/common.hpp"
 #include "utils/error.hpp"
+#include <functional>
 
 namespace spadec
 {

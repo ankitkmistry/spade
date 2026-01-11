@@ -1,11 +1,9 @@
+#include <argparse/argparse.hpp>
 #include <cassert>
-#include <clocale>
-#include <format>
 #include <iostream>
 #include <fstream>
-#include <cpptrace/utils.hpp>
-#include <cpptrace/from_current.hpp>
-#include <cpptrace/formatting.hpp>
+#include <spdlog/logger.h>
+#include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 
 #include "utils/error.hpp"
@@ -17,9 +15,7 @@
 #include "analyzer/analyzer.hpp"
 #include "utils/options.hpp"
 
-#define ENABLE_BACKTRACE_FILTER (false)
-
-void compile() {
+void compile(const std::filesystem::path& file_path) {
     // change log pattern
 
     using namespace spadec;
@@ -28,11 +24,8 @@ void compile() {
             .import_search_dirs = {},
             .w_error = false,
     };
-    fs::path file_path;
     ErrorPrinter error_printer;
     try {
-        file_path = "./spadec/res/test.sp";
-
         // Setup the log file
         std::ofstream log_out(file_path.string() + ".log");
         auto logger = spdlog::basic_logger_mt("spadec", file_path.string() + ".log");
@@ -91,39 +84,20 @@ void graph_test() {
 }
 
 int main(int argc, char *argv[]) {
-    namespace fs = std::filesystem;
-    cpptrace::experimental::set_cache_mode(cpptrace::cache_mode::prioritize_memory);
-    CPPTRACE_TRY {
-        std::setlocale(LC_CTYPE, ".UTF-8");
-        color::Console::init();
-        compile();
-        // graph_test();
-        // opcode_test();
-        color::Console::restore();
-        return 0;
-    }
-    CPPTRACE_CATCH(const std::exception &err) {
-        const auto formatter =
-                cpptrace::formatter()
-                        .colors(cpptrace::formatter::color_mode::automatic)
-                        .addresses(cpptrace::formatter::address_mode::object)
-                        .snippets(false)
-                        //  .filtered_frame_placeholders(false)
-                        .filter([](const cpptrace::stacktrace_frame &frame) -> bool {
-                            if (!ENABLE_BACKTRACE_FILTER)
-                                return true;
-                            auto file_path = fs::absolute(fs::path(frame.filename));
-                            fs::path src_path;
-                            if (file_path.has_parent_path()) {
-                                if ((src_path = file_path.parent_path(), file_path.parent_path().stem() == "src") ||
-                                    (file_path.parent_path().has_parent_path() &&
-                                     (src_path = file_path.parent_path().parent_path(), file_path.parent_path().parent_path().stem() == "src")))
-                                    return src_path.has_parent_path() && src_path.parent_path().stem() == "spadec";
-                            }
-                            return false;
-                        });
-        std::cerr << std::format("exception occurred:\n    {}: {}\n", spade::cpp_demangle(typeid(err).name()), err.what());
-        formatter.print(cpptrace::from_current_exception());
+    argparse::ArgumentParser program("spadec");
+    // program.add_argument("-o", "--output").help("specifies the output filename").metavar("FILEPATH").default_value("");
+    program.add_argument("input").required().remaining().nargs(1);
+
+    try {
+        program.parse_args(argc, argv);
+    } catch (const std::exception &err) {
+        std::cerr << err.what() << std::endl;
+        std::cerr << program;
         return 1;
     }
+
+    compile(program.get("input"));
+    // graph_test();
+    // opcode_test();
+    return 0;
 }

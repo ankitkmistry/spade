@@ -1,7 +1,7 @@
 # import foo as bar
 # import mod.bar as foo
-import lib
-import io.print
+import lib;
+import io.print;
 
 public enum Color {
 	RED, BLUE, GREEN, WHITE, BLACK
@@ -13,29 +13,29 @@ public enum Color {
 # class Class_C : Class_A {}
 
 abstract class A {
-	public fun f(){}
-	public abstract fun b(a:Enum)->int
+	public fun f() {}
+	public abstract fun b(a: Enum) -> int
 }
 interface B {
-	public fun b(a:Enum)->int
+	public fun b(a: Enum) -> int
 }
 public class C : A, B {
 	public override fun f() {}
-	public fun b(_a:Enum)->int = 0
+	public fun b(_a: Enum) -> int = 0;
 }
 
 class CounterFn {
-	private var i = 0
+	private var i = 0;
 
 	public init() {}
 
 	public fun __call__() -> int {
-		i += 1
-		return i - 1
+		i += 1;
+		return i - 1;
 	}
 }
 
-const do_count = CounterFn()
+const do_count = CounterFn();
 
 # fun lambda() {
 # 	const fn1 = fun (i: int) { return i + 1 }
@@ -62,13 +62,13 @@ const do_count = CounterFn()
 # }
 
 class Kacha {
-	var a: int
+	var a: int;
 
 	init() {
-		self.a = 11 		# Comment this and get a beautiful error msg
-		var b = Kacha()
-        var c = a
-		a = c + b.a
+		self.a = 11; 		# Comment this and get a beautiful error msg
+		var b = Kacha();
+        var c = a;
+		a = c + b.a;
 	}
 	public fun get_aam() {}
 	public fun get_mango() {}
@@ -78,14 +78,14 @@ class Kacha {
 
 public fun try_test() -> int {
     try {
-        do_count() as void
-        return 0
+        do_count() as void;
+        return 0;
     } catch Exception {
-        do_count() as void
-        return 1
+        do_count() as void;
+        return 1;
     } catch Exception {
-        do_count() as void
-        return 1
+        do_count() as void;
+        return 1;
     } /* finally {
         # do_count() as void # show a beautiful error message
         #   return 1
@@ -95,44 +95,44 @@ public fun try_test() -> int {
 public fun loop_test(cond: bool) -> int {
     while not cond {
         while cond {
-            if false: return 0
-            continue
+            if false: return 0;
+            continue;
         }
-        if cond: break
+        if cond: break;
     }
-    return 0 # show a beautiful error message
+    return 0; # show a beautiful error message
 }
 
 public fun kacha_test() {
-	var kacha: Kacha = Kacha()
+	var kacha: Kacha = Kacha();
 	# kacha.get_amo() # show a beautiful error message
 	{}
 	if true {
-		kacha = Kacha()
-		kacha.get_aam()
+		kacha = Kacha();
+		kacha.get_aam();
 	} else {
 		if true {
-			kacha = Kacha()
-			kacha.get_aam()
+			kacha = Kacha();
+			kacha.get_aam();
 		} else {
-			kacha.get_amro()
+			kacha.get_amro();
 		}
 	}
 }
 
 public fun main() { 
-	var text = "hello, world"
-	text = text[::-1] # "dlrow ,olleh"
+	var text = "hello, world";
+	text = text[::-1]; # "dlrow ,olleh"
 
 	# lambda()
 	
-	var str_buf: lib.StringBuilder? = lib.StringBuilder("west ")
-	print(do_count(), do_count(), do_count(), sep: ", ")
-	str_buf?[0] = " "
+	var str_buf: lib.StringBuilder? = lib.StringBuilder("west ");
+	print(do_count(), do_count(), do_count(), sep: ", ");
+	str_buf?[0] = " ";
 	{} # TODO: do something about line separators!!
-	str_buf?[1] = " "
+	str_buf?[1] = " ";
 	{}
-	(str_buf ??= lib.StringBuilder()) += lib.StringBuilder("bengal\n")
+	(str_buf ??= lib.StringBuilder()) += lib.StringBuilder("bengal\n");
 	print(lib.StringBuilder()
 		.appendln("hello")
 		.appendln("this is from spade")
@@ -140,8 +140,8 @@ public fun main() {
 		.keep(0, 5)
 		.clear()
 		.to_string()
-	)
-	print((0).to_string())
-	print("hello, world! my name is aashita", end: "")
-	print()
+	);
+	print((0).to_string());
+	print("hello, world! my name is aashita", end: "");
+	print();
 }

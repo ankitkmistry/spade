@@ -8,9 +8,9 @@
 
 namespace spadec
 {
-    void Analyzer::visit(ast::decl::TypeParam &node) {}
+    void Analyzer::visit(ast::decl::TypeParam &) {}
 
-    void Analyzer::visit(ast::decl::Constraint &node) {}
+    void Analyzer::visit(ast::decl::Constraint &) {}
 
     void Analyzer::visit(ast::decl::Param &node) {
         ParamInfo param_info;

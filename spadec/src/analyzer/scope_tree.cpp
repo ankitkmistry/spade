@@ -1,3 +1,5 @@
+#include <spdlog/spdlog.h>
+
 #include "scope_tree.hpp"
 #include "lexer/token.hpp"
 #include "parser/ast.hpp"
@@ -222,85 +224,85 @@ namespace spadec
         }
     }
 
-    void ScopeTreeBuilder::visit(ast::Reference &node) {}
+    void ScopeTreeBuilder::visit(ast::Reference &) {}
 
-    void ScopeTreeBuilder::visit(ast::type::Reference &node) {}
+    void ScopeTreeBuilder::visit(ast::type::Reference &) {}
 
-    void ScopeTreeBuilder::visit(ast::type::Function &node) {}
+    void ScopeTreeBuilder::visit(ast::type::Function &) {}
 
-    void ScopeTreeBuilder::visit(ast::type::TypeLiteral &node) {}
+    void ScopeTreeBuilder::visit(ast::type::TypeLiteral &) {}
 
-    void ScopeTreeBuilder::visit(ast::type::Nullable &node) {}
+    void ScopeTreeBuilder::visit(ast::type::Nullable &) {}
 
-    void ScopeTreeBuilder::visit(ast::type::TypeBuilder &node) {}
+    void ScopeTreeBuilder::visit(ast::type::TypeBuilder &) {}
 
-    void ScopeTreeBuilder::visit(ast::type::TypeBuilderMember &node) {}
+    void ScopeTreeBuilder::visit(ast::type::TypeBuilderMember &) {}
 
-    void ScopeTreeBuilder::visit(ast::expr::Constant &node) {}
+    void ScopeTreeBuilder::visit(ast::expr::Constant &) {}
 
-    void ScopeTreeBuilder::visit(ast::expr::Super &node) {}
+    void ScopeTreeBuilder::visit(ast::expr::Super &) {}
 
-    void ScopeTreeBuilder::visit(ast::expr::Self &node) {}
+    void ScopeTreeBuilder::visit(ast::expr::Self &) {}
 
-    void ScopeTreeBuilder::visit(ast::expr::DotAccess &node) {}
+    void ScopeTreeBuilder::visit(ast::expr::DotAccess &) {}
 
-    void ScopeTreeBuilder::visit(ast::expr::Call &node) {}
+    void ScopeTreeBuilder::visit(ast::expr::Call &) {}
 
-    void ScopeTreeBuilder::visit(ast::expr::Argument &node) {}
+    void ScopeTreeBuilder::visit(ast::expr::Argument &) {}
 
-    void ScopeTreeBuilder::visit(ast::expr::Reify &node) {}
+    void ScopeTreeBuilder::visit(ast::expr::Reify &) {}
 
-    void ScopeTreeBuilder::visit(ast::expr::Index &node) {}
+    void ScopeTreeBuilder::visit(ast::expr::Index &) {}
 
-    void ScopeTreeBuilder::visit(ast::expr::Slice &node) {}
+    void ScopeTreeBuilder::visit(ast::expr::Slice &) {}
 
-    void ScopeTreeBuilder::visit(ast::expr::Unary &node) {}
+    void ScopeTreeBuilder::visit(ast::expr::Unary &) {}
 
-    void ScopeTreeBuilder::visit(ast::expr::Cast &node) {}
+    void ScopeTreeBuilder::visit(ast::expr::Cast &) {}
 
-    void ScopeTreeBuilder::visit(ast::expr::Binary &node) {}
+    void ScopeTreeBuilder::visit(ast::expr::Binary &) {}
 
-    void ScopeTreeBuilder::visit(ast::expr::ChainBinary &node) {}
+    void ScopeTreeBuilder::visit(ast::expr::ChainBinary &) {}
 
-    void ScopeTreeBuilder::visit(ast::expr::Ternary &node) {}
+    void ScopeTreeBuilder::visit(ast::expr::Ternary &) {}
 
-    void ScopeTreeBuilder::visit(ast::expr::Lambda &node) {}
+    void ScopeTreeBuilder::visit(ast::expr::Lambda &) {}
 
-    void ScopeTreeBuilder::visit(ast::expr::Assignment &node) {}
+    void ScopeTreeBuilder::visit(ast::expr::Assignment &) {}
 
-    void ScopeTreeBuilder::visit(ast::stmt::Block &node) {}
+    void ScopeTreeBuilder::visit(ast::stmt::Block &) {}
 
-    void ScopeTreeBuilder::visit(ast::stmt::If &node) {}
+    void ScopeTreeBuilder::visit(ast::stmt::If &) {}
 
-    void ScopeTreeBuilder::visit(ast::stmt::While &node) {}
+    void ScopeTreeBuilder::visit(ast::stmt::While &) {}
 
-    void ScopeTreeBuilder::visit(ast::stmt::DoWhile &node) {}
+    void ScopeTreeBuilder::visit(ast::stmt::DoWhile &) {}
 
-    void ScopeTreeBuilder::visit(ast::stmt::Throw &node) {}
+    void ScopeTreeBuilder::visit(ast::stmt::Throw &) {}
 
-    void ScopeTreeBuilder::visit(ast::stmt::Catch &node) {}
+    void ScopeTreeBuilder::visit(ast::stmt::Catch &) {}
 
-    void ScopeTreeBuilder::visit(ast::stmt::Try &node) {}
+    void ScopeTreeBuilder::visit(ast::stmt::Try &) {}
 
-    void ScopeTreeBuilder::visit(ast::stmt::Continue &node) {}
+    void ScopeTreeBuilder::visit(ast::stmt::Continue &) {}
 
-    void ScopeTreeBuilder::visit(ast::stmt::Break &node) {}
+    void ScopeTreeBuilder::visit(ast::stmt::Break &) {}
 
-    void ScopeTreeBuilder::visit(ast::stmt::Return &node) {}
+    void ScopeTreeBuilder::visit(ast::stmt::Return &) {}
 
-    void ScopeTreeBuilder::visit(ast::stmt::Yield &node) {}
+    void ScopeTreeBuilder::visit(ast::stmt::Yield &) {}
 
-    void ScopeTreeBuilder::visit(ast::stmt::Expr &node) {}
+    void ScopeTreeBuilder::visit(ast::stmt::Expr &) {}
 
-    void ScopeTreeBuilder::visit(ast::stmt::Declaration &node) {}
+    void ScopeTreeBuilder::visit(ast::stmt::Declaration &) {}
 
-    void ScopeTreeBuilder::visit(ast::decl::TypeParam &node) {}
+    void ScopeTreeBuilder::visit(ast::decl::TypeParam &) {}
 
-    void ScopeTreeBuilder::visit(ast::decl::Constraint &node) {}
+    void ScopeTreeBuilder::visit(ast::decl::Constraint &) {}
 
-    void ScopeTreeBuilder::visit(ast::decl::Param &node) {}
+    void ScopeTreeBuilder::visit(ast::decl::Param &) {}
 
-    void ScopeTreeBuilder::visit(ast::decl::Params &node) {}
+    void ScopeTreeBuilder::visit(ast::decl::Params &) {}
 
     void ScopeTreeBuilder::visit(ast::decl::Function &node) {
         check_modifiers(&node, node.get_modifiers());
@@ -335,7 +337,7 @@ namespace spadec
         end_scope();
     }
 
-    void ScopeTreeBuilder::visit(ast::decl::Parent &node) {}
+    void ScopeTreeBuilder::visit(ast::decl::Parent &) {}
 
     void ScopeTreeBuilder::visit(ast::decl::Enumerator &node) {
         if (!scope_stack.empty()) {
@@ -415,7 +417,7 @@ namespace spadec
         end_scope();
     }
 
-    void ScopeTreeBuilder::visit(ast::Import &node) {}
+    void ScopeTreeBuilder::visit(ast::Import &) {}
 
     void ScopeTreeBuilder::visit(ast::Module &node) {
         if (!scope_stack.empty())

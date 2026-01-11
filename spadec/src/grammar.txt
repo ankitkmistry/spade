@@ -3,7 +3,7 @@ Grammar for the Spade programming language
 
 // Grammar rules
 module      ::= import* declaration* END_OF_FILE;
-import      ::= 'import' ('.' '.' | '.')? reference ('.' '*' | 'as' IDENTIFIER)?;
+import      ::= 'import' ('.' '.' | '.')? reference ('.' '*' | 'as' IDENTIFIER)? ';';
 reference   ::= IDENTIFIER ('.' IDENTIFIER)*;
 
 
@@ -16,12 +16,13 @@ compound_decl   ::= ('class' | 'enum' | 'interface' | 'annotation') IDENTIFIER
                     ('{' enumerator_list? member_decl* '}')?;
 member_decl     ::= variable_decl | function_decl | init_decl | compound_decl;
 init_decl       ::= 'init' '(' params ')' block;
-variable_decl   ::= ('var' | 'const') IDENTIFIER (':' type)? ('=' expression)?;
+variable_decl   ::= ('var' | 'const') IDENTIFIER (':' type)? ('=' expression)? ';';
 function_decl   ::= 'fun' IDENTIFIER
                     ('[' type_param_list ']' set context_generics on)?
                     '(' params? ')' ('->' type)?
                     (if context_generics "where" constraint_list)?
-                    ('=' statement | block)?;
+                    definition?;
+definition      ::= '=' expression ';' | block;
 
 modifiers   ::= ('abstract' | 'final' | 'static' | 'override' | 'private' | 'internal' | 'protected' | 'public')*;
 type_param  ::= ('out' | 'in') IDENTIFIER ('=' type)?;
@@ -36,11 +37,12 @@ param       ::= 'const'? '*'? IDENTIFIER (':' type)? ('=' lambda)?
 statements      ::= block | statement;
 block           ::= '{' (block | declaration | statement)* '}';
 statement       ::= (if_stmt | while_stmt | do_while_stmt | try_stmt
-                  | 'continue' | 'break'
-                  | 'throw' expression
-                  | 'return' expression?
-                  | 'yield' expression
-                  | expression)? ';';
+                  | 'continue' ';'
+                  | 'break' ';'
+                  | 'throw' expression ';'
+                  | 'return' expression? ';'
+                  | 'yield' expression ';'
+                  | expression ';')?;
 if_stmt         ::= 'if' expression (':' statement | block) ('else' (':' statement | block | if_stmt))?;
 while_stmt      ::= 'while' expression (':' statement | block) ('else' (':' statement | block))?;
 do_while_stmt   ::= 'do' block 'while' expression ('else' (':' statement | block))?;

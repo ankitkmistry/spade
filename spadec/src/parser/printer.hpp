@@ -77,7 +77,7 @@ namespace spadec
             end_level();
         }
 
-        void print(const std::shared_ptr<ast::AstNode> &node, const string &name) {
+        void print(const std::shared_ptr<ast::AstNode> &node, const string &) {
             if (!node)
                 return;
             start_level();

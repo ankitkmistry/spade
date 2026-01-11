@@ -1,5 +1,3 @@
-#include <numeric>
-
 #include "symbol_path.hpp"
 
 namespace spadec
@@ -13,7 +11,12 @@ namespace spadec
     }
 
     string SymbolPath::to_string() const {
-        return std::accumulate(elements.begin(), elements.end(), string(),
-                               [](const string &a, const string &b) { return a + (a.empty() ? "" : ".") + b; });
+        string result;
+        for (const auto &element: elements) {
+            result += element + ".";
+        }
+        if (!result.empty())
+            result.pop_back();
+        return result;
     }
 }    // namespace spadec

@@ -107,7 +107,7 @@ namespace spadec
         // Parser rules
         /// module ::= import* declaration* END_OF_FILE
         std::shared_ptr<ast::Module> module();
-        /// import ::= 'import' ('..' | '.')? reference ('.' '*' | 'as' IDENTIFIER)?
+        /// import ::= 'import' ('..' | '.')? reference ('.' '*' | 'as' IDENTIFIER)? ';'
         std::shared_ptr<ast::Import> import();
         /// reference ::= IDENTIFIER ('.' IDENTIFIER)*
         std::shared_ptr<ast::Reference> reference();
@@ -123,16 +123,18 @@ namespace spadec
         std::shared_ptr<ast::Declaration> compound_decl();
         /// member_decl ::= variable_decl | function_decl | init_decl | compound_decl
         std::shared_ptr<ast::Declaration> member_decl();
+        /// variable_decl ::= ('var' | 'const') IDENTIFIER (':' type)? ('=' expression)? ';'
+        std::shared_ptr<ast::Declaration> variable_decl();
         /// init_decl ::= 'init' '(' params ')' block
         std::shared_ptr<ast::Declaration> init_decl();
-        /// variable_decl ::= ('var' | 'const') IDENTIFIER (':' type)? ('=' expression)?
-        std::shared_ptr<ast::Declaration> variable_decl();
         /// function_decl ::= 'fun' IDENTIFIER
         ///                     ('[' type_param_list ']' set context_generics on)?
         ///                     '(' params? ')' ('->' type)?
         ///                     (if context_generics "where" constraint_list)?
-        ///                     ('=' statement | block)?
+        ///                     definition?
         std::shared_ptr<ast::Declaration> function_decl();
+        /// definition ::= '=' expression ';' | block;
+        std::shared_ptr<ast::Statement> definition();
 
         /// modifiers ::= ('abstract' | 'final' | 'static' | 'override' | 'private' | 'internal' | 'protected' | 'public')*
         std::vector<std::shared_ptr<Token>> modifiers();
@@ -155,11 +157,12 @@ namespace spadec
         /// block ::= '{' (block | declaration | statement)* '}'
         std::shared_ptr<ast::stmt::Block> block();
         /// statement ::= (if_stmt | while_stmt | do_while_stmt | try_stmt
-        ///             | 'continue' | 'break'
-        //              | 'throw' expression
-        //              | 'return' expression?
-        //              | 'yield' expression
-        //              | expression)? ';'
+        ///             | 'continue' ';'
+        ///             | 'break' ';'
+        //              | 'throw' expression ';'
+        //              | 'return' expression? ';'
+        //              | 'yield' expression ';'
+        //              | expression ';')?
         std::shared_ptr<ast::Statement> statement();
         /// if_stmt ::= 'if' expression (':' statement | block) ('else' (':' statement | block | if_stmt))?
         std::shared_ptr<ast::Statement> if_stmt();

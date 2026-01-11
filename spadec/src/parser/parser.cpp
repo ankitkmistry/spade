@@ -85,6 +85,7 @@ namespace spadec
             expect(TokenType::STAR);
             elements.push_back("*");
         }
+        expect(TokenType::SEMI_COLON);
         return std::make_shared<ast::Import>(start, current(), elements, ref->get_path().back(), alias);
     }
 
@@ -180,10 +181,18 @@ namespace spadec
         return decl;
     }
 
-#define DEFINITION()                                                                                                                                 \
-    (match(TokenType::EQUAL) ? spade::cast<ast::Statement>(std::make_shared<ast::stmt::Block>(std::make_shared<ast::stmt::Return>(expression())))    \
-     : peek()->get_type() == TokenType::LBRACE ? block()                                                                                             \
-                                               : throw error(std::format("expected {}", make_expected_string(TokenType::EQUAL, TokenType::LBRACE))))
+    std::shared_ptr<ast::Declaration> Parser::variable_decl() {
+        const auto token = expect(TokenType::VAR, TokenType::CONST);
+        const auto name = expect(TokenType::IDENTIFIER);
+        std::shared_ptr<ast::Type> var_type;
+        if (match(TokenType::COLON))
+            var_type = type();
+        std::shared_ptr<ast::Expression> expr;
+        if (match(TokenType::EQUAL))
+            expr = expression();
+        expect(TokenType::SEMI_COLON);
+        return std::make_shared<ast::decl::Variable>(token, current(), name, var_type, expr);
+    }
 
     std::shared_ptr<ast::Declaration> Parser::init_decl() {
         const auto name = expect(TokenType::INIT);
@@ -195,18 +204,6 @@ namespace spadec
         std::shared_ptr<ast::Statement> def = block();
         return std::make_shared<ast::decl::Function>(name, current(), name, std::vector<std::shared_ptr<ast::decl::TypeParam>>{},
                                                      std::vector<std::shared_ptr<ast::decl::Constraint>>{}, init_params, null, def);
-    }
-
-    std::shared_ptr<ast::Declaration> Parser::variable_decl() {
-        const auto token = expect(TokenType::VAR, TokenType::CONST);
-        const auto name = expect(TokenType::IDENTIFIER);
-        std::shared_ptr<ast::Type> var_type;
-        if (match(TokenType::COLON))
-            var_type = type();
-        std::shared_ptr<ast::Expression> expr;
-        if (match(TokenType::EQUAL))
-            expr = expression();
-        return std::make_shared<ast::decl::Variable>(token, current(), name, var_type, expr);
     }
 
     std::shared_ptr<ast::Declaration> Parser::function_decl() {
@@ -234,11 +231,21 @@ namespace spadec
         }
         std::shared_ptr<ast::Statement> def;
         if (peek()->get_type() == TokenType::EQUAL || peek()->get_type() == TokenType::LBRACE)
-            def = DEFINITION();
+            def = definition();
         return std::make_shared<ast::decl::Function>(token, current(), name, type_params, constraints, fun_params, ret_type, def);
     }
 
-#undef DEFINITION
+    std::shared_ptr<ast::Statement> Parser::definition() {
+        if (match(TokenType::EQUAL)) {
+            const auto expr = expression();
+            expect(TokenType::SEMI_COLON);
+            return std::make_shared<ast::stmt::Block>(std::make_shared<ast::stmt::Return>(expr));
+        } else if (peek()->get_type() == TokenType::LBRACE) {
+            return block();
+        } else {
+            throw error(std::format("expected {}", make_expected_string(TokenType::EQUAL, TokenType::LBRACE)));
+        }
+    }
 
     std::vector<std::shared_ptr<Token>> Parser::modifiers() {
         std::vector<std::shared_ptr<Token>> mods;
@@ -410,45 +417,51 @@ namespace spadec
             break;
         case TokenType::CONTINUE:
             result = std::make_shared<ast::stmt::Continue>(advance());
+            expect(TokenType::SEMI_COLON);
             break;
         case TokenType::BREAK:
             result = std::make_shared<ast::stmt::Break>(advance());
+            expect(TokenType::SEMI_COLON);
             break;
         case TokenType::THROW: {
             const auto token = advance();
             const auto expr = expression();
+            expect(TokenType::SEMI_COLON);
             result = std::make_shared<ast::stmt::Throw>(token, expr);
             break;
         }
         case TokenType::RETURN: {
             const auto token = advance();
             const auto expr = rule_optional(&Parser::expression);
+            expect(TokenType::SEMI_COLON);
             result = expr ? std::make_shared<ast::stmt::Return>(token, expr) : std::make_shared<ast::stmt::Return>(token);
             break;
         }
         case TokenType::YIELD: {
             const auto token = advance();
             const auto expr = expression();
+            expect(TokenType::SEMI_COLON);
             result = std::make_shared<ast::stmt::Yield>(token, expr);
             break;
         }
         case TokenType::SEMI_COLON: {
             const auto token = advance();
+            expect(TokenType::SEMI_COLON);
             return std::make_shared<ast::stmt::Block>(token, token, std::vector<std::shared_ptr<ast::Statement>>{});
         }
         default: {
             int tok_idx = index;
             try {
                 result = std::make_shared<ast::stmt::Expr>(expression());
-                break;
             } catch (const ParserError &) {
                 index = tok_idx;
                 throw error("expected a statement or expression");
             }
+            expect(TokenType::SEMI_COLON);
+            break;
         }
         }
 
-        expect(TokenType::SEMI_COLON);
         return result;
     }
 
@@ -767,7 +780,7 @@ namespace spadec
         if (exprs.size() == 1)
             return exprs.back();
         std::shared_ptr<ast::Expression> expr = exprs.back();
-        for (size_t i = ops.size() - 1; ; i--) {
+        for (size_t i = ops.size() - 1;; i--) {
             expr = std::make_shared<ast::expr::Binary>(exprs[i], ops[i], expr);
             if (i == 0)
                 break;

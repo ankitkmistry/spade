@@ -736,7 +736,7 @@ namespace spadec::scope
             return cast<ast::stmt::Block>(node);
         }
 
-        string to_string(bool decorated = true) const override {
+        string to_string(bool = true) const override {
             return "block";
         }
     };

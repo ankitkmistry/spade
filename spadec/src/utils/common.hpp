@@ -2,13 +2,6 @@
 
 #include <string>
 #include <filesystem>
-
-#ifdef SPDLOG_ACTIVE_LEVEL
-#    undef SPDLOG_ACTIVE_LEVEL
-#endif
-#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_DEBUG
-#include <spdlog/spdlog.h>
-
 #include <sputils.hpp>
 
 #define MAX_FUN_CHECK_SEQ (5)

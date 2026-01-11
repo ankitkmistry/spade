@@ -1,6 +1,7 @@
 #include <iostream>
 #include <map>
 #include <set>
+#include <spdlog/spdlog.h>
 #include <unordered_set>
 
 #include "analyzer.hpp"
@@ -933,7 +934,7 @@ namespace spadec
                 err_grp.error(error(std::format("ambiguous call to '{}'", funs.to_string()), &node));
                 for (const auto &fun: candidates)
                     err_grp.note(error(std::format("possible candidate declared here: '{}'", fun->to_string()), fun->get_node()))
-                           .note(error("this error should not have occurred, please raise a github issue"));
+                            .note(error("this error should not have occurred, please raise a github issue"));
                 throw err_grp;
             }
             candidate = candidates[0];
@@ -2033,7 +2034,7 @@ namespace spadec
         _res_type_info.function().pos_kwd_params() = params;
     }
 
-    void Analyzer::visit(ast::type::TypeLiteral &node) {
+    void Analyzer::visit(ast::type::TypeLiteral &) {
         _res_type_info.reset();
     }
 
@@ -2043,12 +2044,12 @@ namespace spadec
         _res_type_info.nullable() = true;
     }
 
-    void Analyzer::visit(ast::type::TypeBuilder &node) {
+    void Analyzer::visit(ast::type::TypeBuilder &) {
         // TODO: implement this
         _res_type_info.reset();
     }
 
-    void Analyzer::visit(ast::type::TypeBuilderMember &node) {
+    void Analyzer::visit(ast::type::TypeBuilderMember &) {
         // TODO: implement this
     }
 }    // namespace spadec

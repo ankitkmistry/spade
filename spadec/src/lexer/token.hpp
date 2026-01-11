@@ -276,6 +276,8 @@ namespace spadec
                 return "=";
             case TokenType::COLON:
                 return ":";
+            case TokenType::SEMI_COLON:
+                return ";";
             case TokenType::IMPORT:
                 return "import";
             case TokenType::ENUM:
@@ -461,6 +463,8 @@ namespace spadec
                 return "EQUAL";
             case TokenType::COLON:
                 return "COLON";
+            case TokenType::SEMI_COLON:
+                return "SEMI_COLON";
             case TokenType::IMPORT:
                 return "IMPORT";
             case TokenType::ENUM:

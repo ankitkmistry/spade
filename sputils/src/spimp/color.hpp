@@ -1,11 +1,7 @@
 #pragma once
 
-#include <algorithm>
-#include <cstddef>
 #include <cstdint>
-#include <cmath>
 #include <format>
-#include <cstring>
 #include <string>
 
 namespace color
@@ -26,8 +22,6 @@ namespace color
 
         friend constexpr Color from_hex(uint32_t hex_code);
 
-        friend Color from_hsb(int hue, int saturation, int brightness);
-
         constexpr bool operator==(const Color &rhs) const {
             return red == rhs.red && green == rhs.green && blue == rhs.blue;
         }
@@ -40,41 +34,12 @@ namespace color
             return std::format("#{:2x}{:2x}{:2x}", red, green, blue);
         }
 
-        std::string to_string_hsb() const {
-            // Refer to
-            // https://stackoverflow.com/questions/6614792/fast-optimized-and-accurate-rgb-hsb-conversion-code-in-c#answer-72451462
-            double r = red;
-            double g = green;
-            double b = blue;
-            double K = 0.f;
-
-            if (g < b) {
-                std::swap(g, b);
-                K = -1.f;
-            }
-
-            if (r < g) {
-                std::swap(r, g);
-                K = -2.f / 6.f - K;
-            }
-
-            double chroma = r - std::min(g, b);
-            double h = std::abs(K + (g - b) / (6.f * chroma + 1e-20f));
-            double s = chroma / (r + 1e-20f);
-            double v = r;
-            return std::format("(h={:f}, s={:f}, b={:f})", h, s, v);
-        }
-
         std::string to_string_rgb() const {
             return std::format("(r={:d}, g={:d}, b={:d})", red, green, blue);
         }
 
         std::string to_string() const {
             return to_string_hex();
-        }
-
-        constexpr Color inverse() const {
-            return {static_cast<uint8_t>(255 - red), static_cast<uint8_t>(255 - green), static_cast<uint8_t>(255 - blue)};
         }
     };
 
@@ -89,16 +54,7 @@ namespace color
         Color fg_color;
         int attributes = RESET;
 
-        constexpr Style(Color bg_color, Color fg_color, int attributes = RESET)
-            : bg_color(bg_color), fg_color(fg_color), attributes(attributes) {}
-
-        constexpr Style reverse() const {
-            return {fg_color, bg_color, attributes};
-        }
-
-        constexpr Style inverse() const {
-            return {bg_color.inverse(), fg_color.inverse()};
-        }
+        constexpr Style(Color bg_color, Color fg_color, int attributes = RESET) : bg_color(bg_color), fg_color(fg_color), attributes(attributes) {}
 
         std::string to_string() const;
 
@@ -113,56 +69,6 @@ namespace color
         const static Style DEFAULT;
     };
 
-    class Console {
-      public:
-        /**
-         * @return true if the terminal is open, false otherwise
-         */
-        static bool is_terminal_open();
-
-        /**
-         * Initializes the console
-         */
-        static void init();
-
-        /**
-         * Restores old console configurations
-         */
-        static void restore();
-
-        /**
-         * @return size of the console (height, width)
-         */
-        static std::pair<size_t, size_t> size();
-
-        /**
-         * Clears the console
-         */
-        static void clear();
-
-        /**
-         * Sets the style of the console
-         * @param style the specified style
-         */
-        static void style(const Style &style);
-
-        /**
-         * Moves the cursor of the console to position (x,y) of the console
-         * @param x x coord
-         * @param y y coord
-         */
-        static void gotoxy(size_t x, size_t y);
-
-        /**
-         * Sets the cell of the console at position (x,y)
-         * @param x x coord
-         * @param y y coord
-         * @param value value to set
-         * @param style style of the cell
-         */
-        static void set_cell(size_t x, size_t y, wchar_t value, Style style);
-    };
-
     constexpr inline Color from_rgb(const uint8_t red, const uint8_t green, const uint8_t blue) {
         return Color{red, green, blue};
     }
@@ -170,20 +76,6 @@ namespace color
     constexpr inline Color from_hex(const uint32_t hex_code) {
         return Color{static_cast<uint8_t>((hex_code >> 16) & 0xff), static_cast<uint8_t>((hex_code >> 8) & 0xff),
                      static_cast<uint8_t>(hex_code & 0xff)};
-    }
-
-    inline Color from_hsb(const int hue, const int saturation, const int brightness) {
-        // Refer to https://en.wikipedia.org/wiki/HSL_and_HSV#HSV_to_RGB_alternative
-        int h = hue % 360;
-        double s = saturation / 100.;
-        double b = brightness / 100.;
-
-        const auto f = [=](const int n) {
-            const double k = fmod(n + h / 60, 6);
-            return b - b * s * std::max(0., std::min({k, 4 - k, 1.}));
-        };
-
-        return Color{static_cast<uint8_t>(f(5)), static_cast<uint8_t>(f(3)), static_cast<uint8_t>(f(1))};
     }
 
     inline std::string fg(const Color color) {
@@ -207,151 +99,151 @@ namespace color
         return res;
     }
 
-    inline constexpr Color Alice_Blue = color::from_hex(0xF0F8FF);
-    inline constexpr Color Antique_White = color::from_hex(0xFAEBD7);
-    inline constexpr Color Aqua = color::from_hex(0x00FFFF);
-    inline constexpr Color Aquamarine = color::from_hex(0x7FFFD4);
-    inline constexpr Color Azure = color::from_hex(0xF0FFFF);
-    inline constexpr Color Beige = color::from_hex(0xF5F5DC);
-    inline constexpr Color Bisque = color::from_hex(0xFFE4C4);
-    inline constexpr Color Black = color::from_hex(0x000000);
-    inline constexpr Color Blanched_Almond = color::from_hex(0xFFEBCD);
-    inline constexpr Color Blue = color::from_hex(0x0000FF);
-    inline constexpr Color Blue_Violet = color::from_hex(0x8A2BE2);
-    inline constexpr Color Brown = color::from_hex(0xA52A2A);
-    inline constexpr Color Burlywood = color::from_hex(0xDEB887);
-    inline constexpr Color Cadet_Blue = color::from_hex(0x5F9EA0);
-    inline constexpr Color Chartreuse = color::from_hex(0x7FFF00);
-    inline constexpr Color Chocolate = color::from_hex(0xD2691E);
-    inline constexpr Color Coral = color::from_hex(0xFF7F50);
-    inline constexpr Color Cornflower_Blue = color::from_hex(0x6495ED);
-    inline constexpr Color Cornsilk = color::from_hex(0xFFF8DC);
-    inline constexpr Color Crimson = color::from_hex(0xDC143C);
-    inline constexpr Color Cyan = color::from_hex(0x00FFFF);
-    inline constexpr Color Dark_Blue = color::from_hex(0x00008B);
-    inline constexpr Color Dark_Cyan = color::from_hex(0x008B8B);
-    inline constexpr Color Dark_Goldenrod = color::from_hex(0xB8860B);
-    inline constexpr Color Dark_Gray = color::from_hex(0xA9A9A9);
-    inline constexpr Color Dark_Green = color::from_hex(0x006400);
-    inline constexpr Color Dark_Khaki = color::from_hex(0xBDB76B);
-    inline constexpr Color Dark_Magenta = color::from_hex(0x8B008B);
-    inline constexpr Color Dark_Olive_Green = color::from_hex(0x556B2F);
-    inline constexpr Color Dark_Orange = color::from_hex(0xFF8C00);
-    inline constexpr Color Dark_Orchid = color::from_hex(0x9932CC);
-    inline constexpr Color Dark_Red = color::from_hex(0x8B0000);
-    inline constexpr Color Dark_Salmon = color::from_hex(0xE9967A);
-    inline constexpr Color Dark_Sea_Green = color::from_hex(0x8FBC8F);
-    inline constexpr Color Dark_Slate_Blue = color::from_hex(0x483D8B);
-    inline constexpr Color Dark_Slate_Gray = color::from_hex(0x2F4F4F);
-    inline constexpr Color Dark_Turquoise = color::from_hex(0x00CED1);
-    inline constexpr Color Dark_Violet = color::from_hex(0x9400D3);
-    inline constexpr Color Deep_Pink = color::from_hex(0xFF1493);
-    inline constexpr Color Deep_Sky_Blue = color::from_hex(0x00BFFF);
-    inline constexpr Color Dim_Gray = color::from_hex(0x696969);
-    inline constexpr Color Dodger_Blue = color::from_hex(0x1E90FF);
-    inline constexpr Color Firebrick = color::from_hex(0xB22222);
-    inline constexpr Color Floral_White = color::from_hex(0xFFFAF0);
-    inline constexpr Color Forest_Green = color::from_hex(0x228B22);
-    inline constexpr Color Fuchsia = color::from_hex(0xFF00FF);
-    inline constexpr Color Gainsboro = color::from_hex(0xDCDCDC);
-    inline constexpr Color Ghost_White = color::from_hex(0xF8F8FF);
-    inline constexpr Color Gold = color::from_hex(0xFFD700);
-    inline constexpr Color Goldenrod = color::from_hex(0xDAA520);
-    inline constexpr Color Gray = color::from_hex(0xBEBEBE);
-    inline constexpr Color Web_Gray = color::from_hex(0x808080);
-    inline constexpr Color Green = color::from_hex(0x00FF00);
-    inline constexpr Color Web_Green = color::from_hex(0x008000);
-    inline constexpr Color Green_Yellow = color::from_hex(0xADFF2F);
-    inline constexpr Color Honeydew = color::from_hex(0xF0FFF0);
-    inline constexpr Color Hot_Pink = color::from_hex(0xFF69B4);
-    inline constexpr Color Indian_Red = color::from_hex(0xCD5C5C);
-    inline constexpr Color Indigo = color::from_hex(0x4B0082);
-    inline constexpr Color Ivory = color::from_hex(0xFFFFF0);
-    inline constexpr Color Khaki = color::from_hex(0xF0E68C);
-    inline constexpr Color Lavender = color::from_hex(0xE6E6FA);
-    inline constexpr Color Lavender_Blush = color::from_hex(0xFFF0F5);
-    inline constexpr Color Lawn_Green = color::from_hex(0x7CFC00);
-    inline constexpr Color Lemon_Chiffon = color::from_hex(0xFFFACD);
-    inline constexpr Color Light_Blue = color::from_hex(0xADD8E6);
-    inline constexpr Color Light_Coral = color::from_hex(0xF08080);
-    inline constexpr Color Light_Cyan = color::from_hex(0xE0FFFF);
-    inline constexpr Color Light_Goldenrod = color::from_hex(0xFAFAD2);
-    inline constexpr Color Light_Gray = color::from_hex(0xD3D3D3);
-    inline constexpr Color Light_Green = color::from_hex(0x90EE90);
-    inline constexpr Color Light_Pink = color::from_hex(0xFFB6C1);
-    inline constexpr Color Light_Salmon = color::from_hex(0xFFA07A);
-    inline constexpr Color Light_Sea_Green = color::from_hex(0x20B2AA);
-    inline constexpr Color Light_Sky_Blue = color::from_hex(0x87CEFA);
-    inline constexpr Color Light_Slate_Gray = color::from_hex(0x778899);
-    inline constexpr Color Light_Steel_Blue = color::from_hex(0xB0C4DE);
-    inline constexpr Color Light_Yellow = color::from_hex(0xFFFFE0);
-    inline constexpr Color Lime = color::from_hex(0x00FF00);
-    inline constexpr Color Lime_Green = color::from_hex(0x32CD32);
-    inline constexpr Color Linen = color::from_hex(0xFAF0E6);
-    inline constexpr Color Magenta = color::from_hex(0xFF00FF);
-    inline constexpr Color Maroon = color::from_hex(0xB03060);
-    inline constexpr Color Web_Maroon = color::from_hex(0x800000);
-    inline constexpr Color Medium_Aquamarine = color::from_hex(0x66CDAA);
-    inline constexpr Color Medium_Blue = color::from_hex(0x0000CD);
-    inline constexpr Color Medium_Orchid = color::from_hex(0xBA55D3);
-    inline constexpr Color Medium_Purple = color::from_hex(0x9370DB);
-    inline constexpr Color Medium_Sea_Green = color::from_hex(0x3CB371);
-    inline constexpr Color Medium_Slate_Blue = color::from_hex(0x7B68EE);
-    inline constexpr Color Medium_Spring_Green = color::from_hex(0x00FA9A);
-    inline constexpr Color Medium_Turquoise = color::from_hex(0x48D1CC);
-    inline constexpr Color Medium_Violet_Red = color::from_hex(0xC71585);
-    inline constexpr Color Midnight_Blue = color::from_hex(0x191970);
-    inline constexpr Color Mint_Cream = color::from_hex(0xF5FFFA);
-    inline constexpr Color Misty_Rose = color::from_hex(0xFFE4E1);
-    inline constexpr Color Moccasin = color::from_hex(0xFFE4B5);
-    inline constexpr Color Navajo_White = color::from_hex(0xFFDEAD);
-    inline constexpr Color Navy_Blue = color::from_hex(0x000080);
-    inline constexpr Color Old_Lace = color::from_hex(0xFDF5E6);
-    inline constexpr Color Olive = color::from_hex(0x808000);
-    inline constexpr Color Olive_Drab = color::from_hex(0x6B8E23);
-    inline constexpr Color Orange = color::from_hex(0xFFA500);
-    inline constexpr Color Orange_Red = color::from_hex(0xFF4500);
-    inline constexpr Color Orchid = color::from_hex(0xDA70D6);
-    inline constexpr Color Pale_Goldenrod = color::from_hex(0xEEE8AA);
-    inline constexpr Color Pale_Green = color::from_hex(0x98FB98);
-    inline constexpr Color Pale_Turquoise = color::from_hex(0xAFEEEE);
-    inline constexpr Color Pale_Violet_Red = color::from_hex(0xDB7093);
-    inline constexpr Color Papaya_Whip = color::from_hex(0xFFEFD5);
-    inline constexpr Color Peach_Puff = color::from_hex(0xFFDAB9);
-    inline constexpr Color Peru = color::from_hex(0xCD853F);
-    inline constexpr Color Pink = color::from_hex(0xFFC0CB);
-    inline constexpr Color Plum = color::from_hex(0xDDA0DD);
-    inline constexpr Color Powder_Blue = color::from_hex(0xB0E0E6);
-    inline constexpr Color Purple = color::from_hex(0xA020F0);
-    inline constexpr Color Web_Purple = color::from_hex(0x800080);
-    inline constexpr Color Rebecca_Purple = color::from_hex(0x663399);
-    inline constexpr Color Red = color::from_hex(0xFF0000);
-    inline constexpr Color Rosy_Brown = color::from_hex(0xBC8F8F);
-    inline constexpr Color Royal_Blue = color::from_hex(0x4169E1);
-    inline constexpr Color Saddle_Brown = color::from_hex(0x8B4513);
-    inline constexpr Color Salmon = color::from_hex(0xFA8072);
-    inline constexpr Color Sandy_Brown = color::from_hex(0xF4A460);
-    inline constexpr Color Sea_Green = color::from_hex(0x2E8B57);
-    inline constexpr Color Seashell = color::from_hex(0xFFF5EE);
-    inline constexpr Color Sienna = color::from_hex(0xA0522D);
-    inline constexpr Color Silver = color::from_hex(0xC0C0C0);
-    inline constexpr Color Sky_Blue = color::from_hex(0x87CEEB);
-    inline constexpr Color Slate_Blue = color::from_hex(0x6A5ACD);
-    inline constexpr Color Slate_Gray = color::from_hex(0x708090);
-    inline constexpr Color Snow = color::from_hex(0xFFFAFA);
-    inline constexpr Color Spring_Green = color::from_hex(0x00FF7F);
-    inline constexpr Color Steel_Blue = color::from_hex(0x4682B4);
-    inline constexpr Color Tan = color::from_hex(0xD2B48C);
-    inline constexpr Color Teal = color::from_hex(0x008080);
-    inline constexpr Color Thistle = color::from_hex(0xD8BFD8);
-    inline constexpr Color Tomato = color::from_hex(0xFF6347);
-    inline constexpr Color Turquoise = color::from_hex(0x40E0D0);
-    inline constexpr Color Violet = color::from_hex(0xEE82EE);
-    inline constexpr Color Wheat = color::from_hex(0xF5DEB3);
-    inline constexpr Color White = color::from_hex(0xFFFFFF);
-    inline constexpr Color White_Smoke = color::from_hex(0xF5F5F5);
-    inline constexpr Color Yellow = color::from_hex(0xFFFF00);
-    inline constexpr Color Yellow_Green = color::from_hex(0x9ACD32);
+#define COLOR_ALICE_BLUE          (::color::from_hex(0xF0F8FF))
+#define COLOR_ANTIQUE_WHITE       (::color::from_hex(0xFAEBD7))
+#define COLOR_AQUA                (::color::from_hex(0x00FFFF))
+#define COLOR_AQUAMARINE          (::color::from_hex(0x7FFFD4))
+#define COLOR_AZURE               (::color::from_hex(0xF0FFFF))
+#define COLOR_BEIGE               (::color::from_hex(0xF5F5DC))
+#define COLOR_BISQUE              (::color::from_hex(0xFFE4C4))
+#define COLOR_BLACK               (::color::from_hex(0x000000))
+#define COLOR_BLANCHED_ALMOND     (::color::from_hex(0xFFEBCD))
+#define COLOR_BLUE                (::color::from_hex(0x0000FF))
+#define COLOR_BLUE_VIOLET         (::color::from_hex(0x8A2BE2))
+#define COLOR_BROWN               (::color::from_hex(0xA52A2A))
+#define COLOR_BURLYWOOD           (::color::from_hex(0xDEB887))
+#define COLOR_CADET_BLUE          (::color::from_hex(0x5F9EA0))
+#define COLOR_CHARTREUSE          (::color::from_hex(0x7FFF00))
+#define COLOR_CHOCOLATE           (::color::from_hex(0xD2691E))
+#define COLOR_CORAL               (::color::from_hex(0xFF7F50))
+#define COLOR_CORNFLOWER_BLUE     (::color::from_hex(0x6495ED))
+#define COLOR_CORNSILK            (::color::from_hex(0xFFF8DC))
+#define COLOR_CRIMSON             (::color::from_hex(0xDC143C))
+#define COLOR_CYAN                (::color::from_hex(0x00FFFF))
+#define COLOR_DARK_BLUE           (::color::from_hex(0x00008B))
+#define COLOR_DARK_CYAN           (::color::from_hex(0x008B8B))
+#define COLOR_DARK_GOLDENROD      (::color::from_hex(0xB8860B))
+#define COLOR_DARK_GRAY           (::color::from_hex(0xA9A9A9))
+#define COLOR_DARK_GREEN          (::color::from_hex(0x006400))
+#define COLOR_DARK_KHAKI          (::color::from_hex(0xBDB76B))
+#define COLOR_DARK_MAGENTA        (::color::from_hex(0x8B008B))
+#define COLOR_DARK_OLIVE_GREEN    (::color::from_hex(0x556B2F))
+#define COLOR_DARK_ORANGE         (::color::from_hex(0xFF8C00))
+#define COLOR_DARK_ORCHID         (::color::from_hex(0x9932CC))
+#define COLOR_DARK_RED            (::color::from_hex(0x8B0000))
+#define COLOR_DARK_SALMON         (::color::from_hex(0xE9967A))
+#define COLOR_DARK_SEA_GREEN      (::color::from_hex(0x8FBC8F))
+#define COLOR_DARK_SLATE_BLUE     (::color::from_hex(0x483D8B))
+#define COLOR_DARK_SLATE_GRAY     (::color::from_hex(0x2F4F4F))
+#define COLOR_DARK_TURQUOISE      (::color::from_hex(0x00CED1))
+#define COLOR_DARK_VIOLET         (::color::from_hex(0x9400D3))
+#define COLOR_DEEP_PINK           (::color::from_hex(0xFF1493))
+#define COLOR_DEEP_SKY_BLUE       (::color::from_hex(0x00BFFF))
+#define COLOR_DIM_GRAY            (::color::from_hex(0x696969))
+#define COLOR_DODGER_BLUE         (::color::from_hex(0x1E90FF))
+#define COLOR_FIREBRICK           (::color::from_hex(0xB22222))
+#define COLOR_FLORAL_WHITE        (::color::from_hex(0xFFFAF0))
+#define COLOR_FOREST_GREEN        (::color::from_hex(0x228B22))
+#define COLOR_FUCHSIA             (::color::from_hex(0xFF00FF))
+#define COLOR_GAINSBORO           (::color::from_hex(0xDCDCDC))
+#define COLOR_GHOST_WHITE         (::color::from_hex(0xF8F8FF))
+#define COLOR_GOLD                (::color::from_hex(0xFFD700))
+#define COLOR_GOLDENROD           (::color::from_hex(0xDAA520))
+#define COLOR_GRAY                (::color::from_hex(0xBEBEBE))
+#define COLOR_WEB_GRAY            (::color::from_hex(0x808080))
+#define COLOR_GREEN               (::color::from_hex(0x00FF00))
+#define COLOR_WEB_GREEN           (::color::from_hex(0x008000))
+#define COLOR_GREEN_YELLOW        (::color::from_hex(0xADFF2F))
+#define COLOR_HONEYDEW            (::color::from_hex(0xF0FFF0))
+#define COLOR_HOT_PINK            (::color::from_hex(0xFF69B4))
+#define COLOR_INDIAN_RED          (::color::from_hex(0xCD5C5C))
+#define COLOR_INDIGO              (::color::from_hex(0x4B0082))
+#define COLOR_IVORY               (::color::from_hex(0xFFFFF0))
+#define COLOR_KHAKI               (::color::from_hex(0xF0E68C))
+#define COLOR_LAVENDER            (::color::from_hex(0xE6E6FA))
+#define COLOR_LAVENDER_BLUSH      (::color::from_hex(0xFFF0F5))
+#define COLOR_LAWN_GREEN          (::color::from_hex(0x7CFC00))
+#define COLOR_LEMON_CHIFFON       (::color::from_hex(0xFFFACD))
+#define COLOR_LIGHT_BLUE          (::color::from_hex(0xADD8E6))
+#define COLOR_LIGHT_CORAL         (::color::from_hex(0xF08080))
+#define COLOR_LIGHT_CYAN          (::color::from_hex(0xE0FFFF))
+#define COLOR_LIGHT_GOLDENROD     (::color::from_hex(0xFAFAD2))
+#define COLOR_LIGHT_GRAY          (::color::from_hex(0xD3D3D3))
+#define COLOR_LIGHT_GREEN         (::color::from_hex(0x90EE90))
+#define COLOR_LIGHT_PINK          (::color::from_hex(0xFFB6C1))
+#define COLOR_LIGHT_SALMON        (::color::from_hex(0xFFA07A))
+#define COLOR_LIGHT_SEA_GREEN     (::color::from_hex(0x20B2AA))
+#define COLOR_LIGHT_SKY_BLUE      (::color::from_hex(0x87CEFA))
+#define COLOR_LIGHT_SLATE_GRAY    (::color::from_hex(0x778899))
+#define COLOR_LIGHT_STEEL_BLUE    (::color::from_hex(0xB0C4DE))
+#define COLOR_LIGHT_YELLOW        (::color::from_hex(0xFFFFE0))
+#define COLOR_LIME                (::color::from_hex(0x00FF00))
+#define COLOR_LIME_GREEN          (::color::from_hex(0x32CD32))
+#define COLOR_LINEN               (::color::from_hex(0xFAF0E6))
+#define COLOR_MAGENTA             (::color::from_hex(0xFF00FF))
+#define COLOR_MAROON              (::color::from_hex(0xB03060))
+#define COLOR_WEB_MAROON          (::color::from_hex(0x800000))
+#define COLOR_MEDIUM_AQUAMARINE   (::color::from_hex(0x66CDAA))
+#define COLOR_MEDIUM_BLUE         (::color::from_hex(0x0000CD))
+#define COLOR_MEDIUM_ORCHID       (::color::from_hex(0xBA55D3))
+#define COLOR_MEDIUM_PURPLE       (::color::from_hex(0x9370DB))
+#define COLOR_MEDIUM_SEA_GREEN    (::color::from_hex(0x3CB371))
+#define COLOR_MEDIUM_SLATE_BLUE   (::color::from_hex(0x7B68EE))
+#define COLOR_MEDIUM_SPRING_GREEN (::color::from_hex(0x00FA9A))
+#define COLOR_MEDIUM_TURQUOISE    (::color::from_hex(0x48D1CC))
+#define COLOR_MEDIUM_VIOLET_RED   (::color::from_hex(0xC71585))
+#define COLOR_MIDNIGHT_BLUE       (::color::from_hex(0x191970))
+#define COLOR_MINT_CREAM          (::color::from_hex(0xF5FFFA))
+#define COLOR_MISTY_ROSE          (::color::from_hex(0xFFE4E1))
+#define COLOR_MOCCASIN            (::color::from_hex(0xFFE4B5))
+#define COLOR_NAVAJO_WHITE        (::color::from_hex(0xFFDEAD))
+#define COLOR_NAVY_BLUE           (::color::from_hex(0x000080))
+#define COLOR_OLD_LACE            (::color::from_hex(0xFDF5E6))
+#define COLOR_OLIVE               (::color::from_hex(0x808000))
+#define COLOR_OLIVE_DRAB          (::color::from_hex(0x6B8E23))
+#define COLOR_ORANGE              (::color::from_hex(0xFFA500))
+#define COLOR_ORANGE_RED          (::color::from_hex(0xFF4500))
+#define COLOR_ORCHID              (::color::from_hex(0xDA70D6))
+#define COLOR_PALE_GOLDENROD      (::color::from_hex(0xEEE8AA))
+#define COLOR_PALE_GREEN          (::color::from_hex(0x98FB98))
+#define COLOR_PALE_TURQUOISE      (::color::from_hex(0xAFEEEE))
+#define COLOR_PALE_VIOLET_RED     (::color::from_hex(0xDB7093))
+#define COLOR_PAPAYA_WHIP         (::color::from_hex(0xFFEFD5))
+#define COLOR_PEACH_PUFF          (::color::from_hex(0xFFDAB9))
+#define COLOR_PERU                (::color::from_hex(0xCD853F))
+#define COLOR_PINK                (::color::from_hex(0xFFC0CB))
+#define COLOR_PLUM                (::color::from_hex(0xDDA0DD))
+#define COLOR_POWDER_BLUE         (::color::from_hex(0xB0E0E6))
+#define COLOR_PURPLE              (::color::from_hex(0xA020F0))
+#define COLOR_WEB_PURPLE          (::color::from_hex(0x800080))
+#define COLOR_REBECCA_PURPLE      (::color::from_hex(0x663399))
+#define COLOR_RED                 (::color::from_hex(0xFF0000))
+#define COLOR_ROSY_BROWN          (::color::from_hex(0xBC8F8F))
+#define COLOR_ROYAL_BLUE          (::color::from_hex(0x4169E1))
+#define COLOR_SADDLE_BROWN        (::color::from_hex(0x8B4513))
+#define COLOR_SALMON              (::color::from_hex(0xFA8072))
+#define COLOR_SANDY_BROWN         (::color::from_hex(0xF4A460))
+#define COLOR_SEA_GREEN           (::color::from_hex(0x2E8B57))
+#define COLOR_SEASHELL            (::color::from_hex(0xFFF5EE))
+#define COLOR_SIENNA              (::color::from_hex(0xA0522D))
+#define COLOR_SILVER              (::color::from_hex(0xC0C0C0))
+#define COLOR_SKY_BLUE            (::color::from_hex(0x87CEEB))
+#define COLOR_SLATE_BLUE          (::color::from_hex(0x6A5ACD))
+#define COLOR_SLATE_GRAY          (::color::from_hex(0x708090))
+#define COLOR_SNOW                (::color::from_hex(0xFFFAFA))
+#define COLOR_SPRING_GREEN        (::color::from_hex(0x00FF7F))
+#define COLOR_STEEL_BLUE          (::color::from_hex(0x4682B4))
+#define COLOR_TAN                 (::color::from_hex(0xD2B48C))
+#define COLOR_TEAL                (::color::from_hex(0x008080))
+#define COLOR_THISTLE             (::color::from_hex(0xD8BFD8))
+#define COLOR_TOMATO              (::color::from_hex(0xFF6347))
+#define COLOR_TURQUOISE           (::color::from_hex(0x40E0D0))
+#define COLOR_VIOLET              (::color::from_hex(0xEE82EE))
+#define COLOR_WHEAT               (::color::from_hex(0xF5DEB3))
+#define COLOR_WHITE               (::color::from_hex(0xFFFFFF))
+#define COLOR_WHITE_SMOKE         (::color::from_hex(0xF5F5F5))
+#define COLOR_YELLOW              (::color::from_hex(0xFFFF00))
+#define COLOR_YELLOW_GREEN        (::color::from_hex(0x9ACD32))
 
-    inline constexpr Style Style::DEFAULT = Style(color::Black, color::White);
+    inline constexpr Style Style::DEFAULT = Style(COLOR_BLACK, COLOR_WHITE);
 }    // namespace color
