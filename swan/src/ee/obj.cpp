@@ -100,7 +100,7 @@ namespace spade
             return;
         }
         // Create a new member slot if there is no such member
-        member_slots[name] = MemberSlot(value);
+        member_slots.emplace(name, value);
     }
 
     Flags Obj::get_flags(const string &name) const {

@@ -57,8 +57,14 @@ namespace spasm
     }
 
     int64_t Parser::str2int(const std::shared_ptr<Token> &token) {
+        int sign = 1;
         string str = token->get_text();
         int base = 10;
+
+        if (str.size() >= 1 && str[0] == '-') {
+            str = str.substr(1);
+            sign = -1;
+        }
 
         if (str.size() >= 2 && str.starts_with("0x")) {
             str = str.substr(2);
@@ -66,12 +72,15 @@ namespace spasm
         } else if (str.size() > 1 && str[0] == '0') {
             str = str.substr(1);
             base = 8;
+        } else if (str.size() > 2 && str.starts_with("0b")) {
+            str = str.substr(2);
+            base = 2;
         }
 
         int64_t value = 0;
         auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), value, base);
         if (ec == std::errc())
-            return value;
+            return value * sign;
         else if (ec == std::errc::invalid_argument)
             throw error("number is invalid", token);
         else if (ec == std::errc::result_out_of_range)
@@ -353,8 +362,7 @@ namespace spasm
         parse_term();
 
         std::unordered_map<string, ValueContext> properties{
-                {"@closure_start", -1},
-                {"@stack_max",     32},
+                {"@stack_max", 32},
         };
         while (match(TokenType::PROPERTY)) {
             const auto property_name = current()->get_text();

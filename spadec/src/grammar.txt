@@ -1,5 +1,5 @@
-// Grammar for the Spade programming language
-
+Grammar for the Spade programming language
+-----------------------------------------------------------------------------------
 
 // Grammar rules
 module      ::= import* declaration* END_OF_FILE;
@@ -210,3 +210,5 @@ null
 object
 type
 _
+
+-----------------------------------------------------------------------------------

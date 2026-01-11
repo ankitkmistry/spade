@@ -194,7 +194,8 @@ namespace spasm
                     if (c == '-') {
                         if (is_decimal_digit(peek()))
                             // Also match negative integers
-                            advance();
+                            c = advance();
+                            // And fallthrough
                         else if (match('>'))
                             return get_token(TokenType::ARROW);
                         else

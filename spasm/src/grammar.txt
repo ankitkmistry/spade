@@ -1,3 +1,6 @@
+Grammar specification of Spade assembly language
+-----------------------------------------------------------------------------------
+
 assembly ::= ('import' STRING NEWLINE)*
               module*
               EOF;
@@ -7,11 +10,10 @@ module ::= ('module' IDENTIFIER NEWLINE)
            (method | class | module)*
            'end'
 
-global ::= PROPERTY name ':' signature NEWLINE;
+global ::= ('@var' | '@const') name ':' signature NEWLINE;
 
-method ::= 'method' PROPERTY? signature NEWLINE
-            // '@closure_start' NUMBER NEWLINE
-            // '@stack_max' NUMBER NEWLINE
+method ::= 'method' ('@entry' | '@init')? signature NEWLINE
+            ('@stack_max' NUMBER NEWLINE)*
             ('arg' arg
             | 'local' local
             | 'exception' exception_item
@@ -19,15 +21,15 @@ method ::= 'method' PROPERTY? signature NEWLINE
             line*
            'end';
 
-arg             ::= PROPERTY name ':' signature NEWLINE;
-local           ::= PROPERTY name ':' signature NEWLINE;
+arg             ::= ('@var' | '@const') name ':' signature NEWLINE;
+local           ::= ('@var' | '@const') name ':' signature NEWLINE;
 exception_item  ::= LABEL '-' LABEL '->' LABEL ':' signature NEWLINE;
 case            ::= (value | '_') '->' LABEL
 line            ::= (LABEL ':' NEWLINE)? IDENTIFIER (value | name | LABEL)? NEWLINE;
 
 class ::= 'class' signature NEWLINE
-            // '@kind' ('class' | 'interface' | 'enum' | 'annotation') NEWLINE
-            // '@supers' array NEWLINE
+            ('@kind' ('class' | 'interface' | 'enum' | 'annotation') NEWLINE
+            |'@supers' array NEWLINE)*
             ('field' field | method)*
           'end';
 
@@ -54,8 +56,7 @@ sign_module         ::= (IDENTIFIER ('::' IDENTIFIER)*)?;                       
 sign_class          ::= IDENTIFIER;                                             // class part of signature
 sign_method         ::= IDENTIFIER '(' sign_params? ')';                        // method part of signature
 sign_params         ::= sign_param (',' sign_param)*;                           // param list
-sign_param          ::= '[' IDENTIFIER ']'                                      // type parameter as a param
-                      | sign_module ('.' sign_class)+ ('(' sign_params? ')')?   // general signature allowed by param
+sign_param          ::= sign_module ('.' sign_class)+ ('(' sign_params? ')')?   // general signature allowed by param
                       ;
 
 // Lexer definitions
@@ -82,3 +83,5 @@ fragment <HEX>      :  ([0-9a-fA-F]_?)+;
 
 <WHITESPACE>    :  [ \t\f]+ -> skip;
 <LINE_COMMENT>  :  #~[\r\n]* -> skip;
+
+-----------------------------------------------------------------------------------

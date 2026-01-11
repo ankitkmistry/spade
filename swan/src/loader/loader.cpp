@@ -304,7 +304,7 @@ namespace spade
         end_scope();
         end_sign_scope();
 
-        assert(get_scope()->get_tag() == ObjTag::MODULE || get_scope()->get_tag() == ObjTag::TYPE);
+        assert(get_scope()->get_tag() == ObjTag::MODULE);
         get_scope()->set_member(name, type);
         get_scope()->set_flags(name, flags);
 
