@@ -1,6 +1,5 @@
 #pragma once
 
-#include <concepts>
 #include <filesystem>
 #include <optional>
 #include <type_traits>
@@ -15,6 +14,8 @@
 #    define OS_LINUX
 #elif defined __APPLE__
 #    define OS_MAC
+#else
+#    define OS_OTHER
 #endif
 
 #if defined __GNUC__
@@ -28,6 +29,14 @@
 #endif
 
 #define null (nullptr)
+
+#ifdef COMPILER_MSVC
+#define SWAN_EXPORT __declspec(dllexport)
+#endif
+
+#ifndef SWAN_EXPORT
+#define SWAN_EXPORT
+#endif
 
 namespace spade
 {

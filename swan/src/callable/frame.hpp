@@ -7,7 +7,7 @@ namespace spade
 {
     class ObjMethod;
 
-    class Frame {
+    class SWAN_EXPORT Frame {
         friend class FrameTemplate;
 
       private:
@@ -167,7 +167,7 @@ namespace spade
         }
     };
 
-    class FrameTemplate {
+    class SWAN_EXPORT FrameTemplate {
         uint32_t code_count;
         std::unique_ptr<uint8_t[]> code;
         uint32_t stack_max;

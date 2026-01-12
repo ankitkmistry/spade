@@ -9,7 +9,7 @@ namespace spade
 {
     class SpadeVM;
 
-    class ThreadState {
+    class SWAN_EXPORT ThreadState {
         /// Maximum call stack depth
         ptrdiff_t stack_depth;
         /// Call stack
@@ -156,7 +156,7 @@ namespace spade
     /**
      * Representation of a vm thread
      */
-    class Thread {
+    class SWAN_EXPORT Thread {
         inline static std::shared_mutex threads_mtx;
         inline static std::unordered_map<std::thread::id, Thread *> threads;
 

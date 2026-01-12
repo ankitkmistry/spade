@@ -5,7 +5,7 @@
 
 namespace spade
 {
-    class VariableTable {
+    class SWAN_EXPORT VariableTable {
         vector<Obj *> values;
         vector<Table<string>> metas;
 
@@ -79,7 +79,7 @@ namespace spade
     /**
      * Represents an exception in the exception table
      */
-    class Exception {
+    class SWAN_EXPORT Exception {
       private:
         uint32_t from, to, target;
         Type *type;
@@ -147,7 +147,7 @@ namespace spade
         }
     };
 
-    class ExceptionTable {
+    class SWAN_EXPORT ExceptionTable {
         friend class BasicCollector;
 
         friend class FrameTemplate;
@@ -198,7 +198,7 @@ namespace spade
      * Represents a table which stores the corresponding line numbers
      * of the source code and byte code. It is used for printing stack trace and debugging purposes
      */
-    class LineNumberTable {
+    class SWAN_EXPORT LineNumberTable {
       public:
         struct LineInfo {
             uint32_t sourceLine;
@@ -238,7 +238,7 @@ namespace spade
     /**
      * Represents a case in a match statement
      */
-    class Case {
+    class SWAN_EXPORT Case {
       private:
         Obj *value = null;
         uint32_t location = -1;
@@ -271,15 +271,15 @@ namespace spade
     /**
      * Represents a check table
      */
-    class MatchTable {
+    class SWAN_EXPORT MatchTable {
         friend class BasicCollector;
 
       private:
-        struct ObjEqual {
+        struct SWAN_EXPORT ObjEqual {
             bool operator()(Obj *lhs, Obj *rhs) const;
         };
 
-        struct ObjHash {
+        struct SWAN_EXPORT ObjHash {
             void hash(size_t &seed, Obj *obj) const;
             size_t operator()(Obj *obj) const;
         };

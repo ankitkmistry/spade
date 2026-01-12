@@ -9,7 +9,7 @@ namespace spade
     /**
      * Represents the bytecode verifier
      */
-    class Verifier {
+    class SWAN_EXPORT Verifier {
       private:
         ElpInfo elp;
         string path;

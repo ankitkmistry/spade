@@ -1,18 +1,17 @@
-#include "callable/table.hpp"
-#include "ee/debugger.hpp"
-#include "ee/vm.hpp"
-#include "ee/thread.hpp"
-#include "memory/basic/basic_manager.hpp"
-#include "spinfo/opcode.hpp"
-#include <memory>
-#include <nite.hpp>
+#include "retriever.hpp"
 #include <iostream>
+
+#include <callable/method.hpp>
+#include <ee/debugger.hpp>
+#include <ee/thread.hpp>
+#include <ee/vm.hpp>
+#include <memory/basic/basic_manager.hpp>
+#include <nite.hpp>
+#include <spinfo/opcode.hpp>
 #include <spdlog/details/log_msg.h>
 #include <spdlog/spdlog.h>
-#include "spdlog/sinks/base_sink.h"
+#include <spdlog/sinks/base_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
-#include <string>
-#include <mutex>
 
 using namespace spade;
 using namespace nite;
@@ -36,7 +35,7 @@ using DebuggerSink_mt = DebuggerSink<std::mutex>;
 using DebuggerSink_st = DebuggerSink<spdlog::details::null_mutex>;
 
 class PrettyDebugger : public Debugger {
-    vector<string> console;
+    std::vector<std::string> console;
     State &state;
     Position call_stack_pane_pivot;
     Position code_pivot;
@@ -469,12 +468,27 @@ class PrettyDebugger : public Debugger {
     }
 };
 
-template<typename Mutex>
-void DebuggerSink<Mutex>::sink_it_(const spdlog::details::log_msg &msg) {
-    spdlog::memory_buf_t formatted;
-    spdlog::sinks::base_sink<Mutex>::formatter_->format(msg, formatted);
-    string log = fmt::to_string(formatted);
-    debugger->print(log);
+int main1() {
+    pretty::Retriever commands;
+    commands.add_command("breakpoint");
+    commands.add_command("breakdo");
+    commands.add_command("break");
+    commands.add_command("watchpoint");
+    commands.add_command("thread");
+    commands.add_command("frame");
+    commands.add_command("print");
+
+    std::cout << string(15, '-') << std::endl;
+
+    auto result = commands.get_command("br");
+    for (const auto &[name, _]: result) {
+        std::cout << "name: " << name << std::endl;
+    }
+
+    std::cout << string(15, '-') << std::endl;
+
+    // commands.print();
+    return 0;
 }
 
 int main(int argc, char **argv) {

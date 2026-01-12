@@ -38,7 +38,7 @@ namespace spade
      *   internal        |-----------------------+  |
      *   private         |--------------------------+
      */
-    struct Flags {
+    struct SWAN_EXPORT Flags {
         uint16_t raw;
 
 #define STATIC_MASK         (0b0000'0000'0000'0001)
@@ -151,7 +151,7 @@ namespace spade
 #undef PUBLIC_MASK
     };
 
-    class MemberSlot {
+    class SWAN_EXPORT MemberSlot {
       private:
         Obj *value;
         Flags flags;
@@ -227,7 +227,7 @@ namespace spade
     class Type;
     class ObjBool;
 
-    class Obj {
+    class SWAN_EXPORT Obj {
       protected:
         /// Tag of the object
         ObjTag tag;
@@ -380,7 +380,7 @@ namespace spade
     class ObjMethod;
     class ObjCapture;
 
-    class ObjNull final : public Obj {
+    class SWAN_EXPORT ObjNull final : public Obj {
       public:
         ObjNull();
 
@@ -400,7 +400,7 @@ namespace spade
         Ordering compare(const Obj *other) const override;
     };
 
-    class ObjBool final : public Obj {
+    class SWAN_EXPORT ObjBool final : public Obj {
       private:
         bool b;
 
@@ -428,7 +428,7 @@ namespace spade
         }
     };
 
-    class ObjChar final : public Obj {
+    class SWAN_EXPORT ObjChar final : public Obj {
       private:
         char c;
 
@@ -455,7 +455,7 @@ namespace spade
         }
     };
 
-    class ObjString final : public Obj {
+    class SWAN_EXPORT ObjString final : public Obj {
       private:
         string str;
 
@@ -483,7 +483,7 @@ namespace spade
         }
     };
 
-    class ObjArray final : public Obj {
+    class SWAN_EXPORT ObjArray final : public Obj {
       private:
         std::unique_ptr<Obj *[]> array;
         size_t length;
@@ -513,7 +513,7 @@ namespace spade
         Ordering compare(const Obj *other) const override;
     };
 
-    class ObjNumber : public Obj {
+    class SWAN_EXPORT ObjNumber : public Obj {
       protected:
         ObjNumber(ObjTag tag) : Obj(tag) {}
 
@@ -526,7 +526,7 @@ namespace spade
         virtual Obj *operator/(const ObjNumber *n) const = 0;
     };
 
-    class ObjInt final : public ObjNumber {
+    class SWAN_EXPORT ObjInt final : public ObjNumber {
       private:
         int64_t val;
 
@@ -569,7 +569,7 @@ namespace spade
         }
     };
 
-    class ObjFloat final : public ObjNumber {
+    class SWAN_EXPORT ObjFloat final : public ObjNumber {
         double val;
 
       public:
@@ -602,7 +602,7 @@ namespace spade
         }
     };
 
-    class ObjModule final : public Obj {
+    class SWAN_EXPORT ObjModule final : public Obj {
       private:
         Sign sign;
         /// Path of the module
@@ -660,7 +660,7 @@ namespace spade
         }
     };
 
-    class Type final : public Obj {
+    class SWAN_EXPORT Type final : public Obj {
       public:
         enum class Kind : uint8_t {
             /// Represents a class
@@ -722,7 +722,7 @@ namespace spade
         }
     };
 
-    class ObjCapture final : public Obj {
+    class SWAN_EXPORT ObjCapture final : public Obj {
       private:
         Obj *value;
 
@@ -747,7 +747,7 @@ namespace spade
 }    // namespace spade
 
 template<>
-struct std::hash<std::vector<spade::Type *>> {
+struct SWAN_EXPORT std::hash<std::vector<spade::Type *>> {
     size_t operator()(const std::vector<spade::Type *> &list) const {
         return boost::hash_range(list.begin(), list.end());
     }

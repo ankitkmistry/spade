@@ -4,7 +4,7 @@
 
 namespace spade
 {
-    class ObjForeign final : public ObjCallable {
+    class SWAN_EXPORT ObjForeign final : public ObjCallable {
         void *handle;
         bool has_self;
 

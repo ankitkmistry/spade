@@ -1,10 +1,12 @@
 #pragma once
 
+#include "utils/common.hpp"
+
 namespace spade
 {
     class SpadeVM;
 
-    class Debugger {
+    class SWAN_EXPORT Debugger {
       public:
         virtual ~Debugger() = default;
 

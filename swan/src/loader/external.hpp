@@ -5,7 +5,7 @@
 
 namespace spade
 {
-    class Library {
+    class SWAN_EXPORT Library {
         std::atomic_size_t *ref_count;
         fs::path path;
         void *handle;
@@ -38,7 +38,7 @@ namespace spade
         void close_handle();
     };
 
-    class ExternalLoader {
+    class SWAN_EXPORT ExternalLoader {
         std::unordered_map<fs::path, Library> libraries;
 
       public:

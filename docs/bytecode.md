@@ -2,215 +2,217 @@
 
 This document provides the specification of all the available instructions provided by the Spade Virtual Machine
 
-## `nop` instruction 
+## Instructions
 
-## `const_null` instruction 
+### `nop` instruction 
 
-## `const_true` instruction 
+### `const_null` instruction 
 
-## `const_false` instruction 
+### `const_true` instruction 
 
-## `const` instruction 
+### `const_false` instruction 
 
-## `constl` instruction 
+### `const` instruction 
 
-## `pop` instruction 
+### `constl` instruction 
 
-## `npop` instruction 
+### `pop` instruction 
 
-## `dup` instruction 
+### `npop` instruction 
 
-## `ndup` instruction 
+### `dup` instruction 
 
-## `gload` instruction 
+### `ndup` instruction 
 
-## `gfload` instruction 
+### `gload` instruction 
 
-## `gstore` instruction 
+### `gfload` instruction 
 
-## `gfstore` instruction 
+### `gstore` instruction 
 
-## `pgstore` instruction 
+### `gfstore` instruction 
 
-## `pgfstore` instruction 
+### `pgstore` instruction 
 
-## `lload` instruction 
+### `pgfstore` instruction 
 
-## `lfload` instruction 
+### `lload` instruction 
 
-## `lstore` instruction 
+### `lfload` instruction 
 
-## `lfstore` instruction 
+### `lstore` instruction 
 
-## `plstore` instruction 
+### `lfstore` instruction 
 
-## `plfstore` instruction 
+### `plstore` instruction 
 
-## `aload` instruction 
+### `plfstore` instruction 
 
-## `astore` instruction 
+### `aload` instruction 
 
-## `pastore` instruction 
+### `astore` instruction 
 
-## `mload` instruction 
+### `pastore` instruction 
 
-## `mfload` instruction 
+### `mload` instruction 
 
-## `mstore` instruction 
+### `mfload` instruction 
 
-## `mfstore` instruction 
+### `mstore` instruction 
 
-## `pmstore` instruction 
+### `mfstore` instruction 
 
-## `pmfstore` instruction 
+### `pmstore` instruction 
 
-## `spload` instruction 
+### `pmfstore` instruction 
 
-## `spfload` instruction 
+### `spload` instruction 
 
-## `arrpack` instruction 
+### `spfload` instruction 
 
-## `arrunpack` instruction 
+### `arrpack` instruction 
 
-## `arrbuild` instruction 
+### `arrunpack` instruction 
 
-## `arrfbuild` instruction 
+### `arrbuild` instruction 
 
-## `iload` instruction 
+### `arrfbuild` instruction 
 
-## `istore` instruction 
+### `iload` instruction 
 
-## `pistore` instruction 
+### `istore` instruction 
 
-## `arrlen` instruction 
+### `pistore` instruction 
 
-## `invoke` instruction 
+### `arrlen` instruction 
 
-## `vinvoke` instruction 
+### `invoke` instruction 
 
-## `spinvoke` instruction 
+### `vinvoke` instruction 
 
-## `linvoke` instruction 
+### `spinvoke` instruction 
 
-## `ginvoke` instruction 
+### `linvoke` instruction 
 
-## `ainvoke` instruction 
+### `ginvoke` instruction 
 
-## `vfinvoke` instruction 
+### `ainvoke` instruction 
 
-## `spfinvoke` instruction 
+### `vfinvoke` instruction 
 
-## `lfinvoke` instruction 
+### `spfinvoke` instruction 
 
-## `gfinvoke` instruction 
+### `lfinvoke` instruction 
 
-## `callsub` instruction 
+### `gfinvoke` instruction 
 
-## `retsub` instruction 
+### `callsub` instruction 
 
-## `jmp` instruction 
+### `retsub` instruction 
 
-## `jt` instruction 
+### `jmp` instruction 
 
-## `jf` instruction 
+### `jt` instruction 
 
-## `jlt` instruction 
+### `jf` instruction 
 
-## `jle` instruction 
+### `jlt` instruction 
 
-## `jeq` instruction 
+### `jle` instruction 
 
-## `jne` instruction 
+### `jeq` instruction 
 
-## `jge` instruction 
+### `jne` instruction 
 
-## `jgt` instruction 
+### `jge` instruction 
 
-## `not` instruction 
+### `jgt` instruction 
 
-## `inv` instruction 
+### `not` instruction 
 
-## `neg` instruction 
+### `inv` instruction 
 
-## `gettype` instruction 
+### `neg` instruction 
 
-## `scast` instruction 
+### `gettype` instruction 
 
-## `ccast` instruction 
+### `scast` instruction 
 
-## `concat` instruction 
+### `ccast` instruction 
 
-## `pow` instruction 
+### `concat` instruction 
 
-## `mul` instruction 
+### `pow` instruction 
 
-## `div` instruction 
+### `mul` instruction 
 
-## `rem` instruction 
+### `div` instruction 
 
-## `add` instruction 
+### `rem` instruction 
 
-## `sub` instruction 
+### `add` instruction 
 
-## `shl` instruction 
+### `sub` instruction 
 
-## `shr` instruction 
+### `shl` instruction 
 
-## `ushr` instruction 
+### `shr` instruction 
 
-## `and` instruction 
+### `ushr` instruction 
 
-## `or` instruction 
+### `and` instruction 
 
-## `xor` instruction 
+### `or` instruction 
 
-## `lt` instruction 
+### `xor` instruction 
 
-## `le` instruction 
+### `lt` instruction 
 
-## `eq` instruction 
+### `le` instruction 
 
-## `ne` instruction 
+### `eq` instruction 
 
-## `ge` instruction 
+### `ne` instruction 
 
-## `gt` instruction 
+### `ge` instruction 
 
-## `is` instruction 
+### `gt` instruction 
 
-## `nis` instruction 
+### `is` instruction 
 
-## `isnull` instruction 
+### `nis` instruction 
 
-## `nisnull` instruction 
+### `isnull` instruction 
 
-## `i2f` instruction 
+### `nisnull` instruction 
 
-## `f2i` instruction 
+### `i2f` instruction 
 
-## `i2b` instruction 
+### `f2i` instruction 
 
-## `b2i` instruction 
+### `i2b` instruction 
 
-## `o2b` instruction 
+### `b2i` instruction 
 
-## `o2s` instruction 
+### `o2b` instruction 
 
-## `entermonitor` instruction 
+### `o2s` instruction 
 
-## `exitmonitor` instruction 
+### `entermonitor` instruction 
 
-## `mtperf` instruction 
+### `exitmonitor` instruction 
 
-## `mtfperf` instruction 
+### `mtperf` instruction 
 
-## `closureload` instruction 
+### `mtfperf` instruction 
 
-## `objload` instruction 
+### `closureload` instruction 
 
-## `throw` instruction 
+### `objload` instruction 
 
-## `ret` instruction 
+### `throw` instruction 
 
-## `vret` instruction 
+### `ret` instruction 
+
+### `vret` instruction 
 

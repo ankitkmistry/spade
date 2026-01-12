@@ -19,7 +19,7 @@ namespace spade
      * @return the allocated object
      */
     template<typename T, typename... Args>
-    inline T *halloc(Args... args)
+    SWAN_EXPORT inline T *halloc(Args... args)
         requires std::derived_from<T, Obj>
     {
         auto manager = MemoryManager::current();
@@ -49,7 +49,7 @@ namespace spade
      * @return the allocated object
      */
     template<typename T, typename... Args>
-    inline T *halloc_mgr(MemoryManager *manager, Args... args)
+    SWAN_EXPORT inline T *halloc_mgr(MemoryManager *manager, Args... args)
         requires std::derived_from<T, Obj>
     {
         if (manager == null)
@@ -69,7 +69,7 @@ namespace spade
      * Frees an `Obj` object allocated by spade::halloc
      * @param obj the object to be freed
      */
-    inline static void hfree(Obj *obj) {
+    SWAN_EXPORT inline void hfree(Obj *obj) {
         auto manager = obj->get_info().manager;
         std::destroy_at(obj);
         manager->deallocate(obj);

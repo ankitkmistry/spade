@@ -5,7 +5,7 @@
 
 namespace spade
 {
-    class ObjMethod final : public ObjCallable {
+    class SWAN_EXPORT ObjMethod final : public ObjCallable {
       private:
         // The table of all reified types in the form of [type_arg_specifier -> type]
         // static std::unordered_map<vector<Type *>, ObjMethod *> reification_table;

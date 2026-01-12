@@ -15,19 +15,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set (CMAKE_CXX_STANDARD 20)
 set (CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Set cmake module path
-set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
-set (LLVM_DIR thirdparty/llvm/lib/cmake/llvm)
-
-# Set up boost
-set (Boost_USE_STATIC_LIBS ON)
-set (Boost_USE_STATIC_RUNTIME OFF)
-
-find_package(argparse REQUIRED CONFIG)
-find_package(spdlog REQUIRED CONFIG)
-find_package(unofficial-libffi CONFIG REQUIRED)
-find_package(Boost REQUIRED COMPONENTS core predef container_hash)
-
 # Set up git submodules
 find_package(Git QUIET)
 if (EXISTS "${PROJECT_SOURCE_DIR}/.git")
@@ -43,12 +30,22 @@ if (EXISTS "${PROJECT_SOURCE_DIR}/.git")
     endif ()
 endif ()
 
+# Set up llvm directory
+set (LLVM_DIR thirdparty/llvm/lib/cmake/llvm)
+
+# Set up boost
+set (Boost_USE_STATIC_LIBS ON)
+set (Boost_USE_STATIC_RUNTIME OFF)
+
 add_subdirectory(external/nite)
+find_package(argparse REQUIRED CONFIG)
+find_package(spdlog REQUIRED CONFIG)
+find_package(unofficial-libffi CONFIG REQUIRED)
+find_package(Boost REQUIRED COMPONENTS core predef container_hash)
 
 # Target: sputils
 # It is the central utility library used by all other targets
 file (GLOB_RECURSE SPUTILS_SRCS sputils/src/*.cpp)
-file (GLOB_RECURSE SPUTILS_INCLUDES sputils/src/*.hpp)
 
 add_library (sputils STATIC ${SPUTILS_SRCS})
 
@@ -59,32 +56,29 @@ target_link_libraries (sputils ${Boost_LIBRARIES})
 # Target: spadec
 # It is the compiler of the Spade language
 file (GLOB_RECURSE SPADEC_SRCS spadec/src/*.cpp)
-file (GLOB_RECURSE SPADEC_INCLUDES spadec/src/*.hpp)
 
 add_executable (spadec ${SPADEC_SRCS})
 target_include_directories (spadec PUBLIC spadec/src)
-target_include_directories (spadec PUBLIC sputils/src)
-target_link_libraries (spadec PUBLIC sputils PRIVATE spdlog::spdlog)
+# target_include_directories (spadec PUBLIC sputils/src)
+target_link_libraries (spadec PUBLIC sputils PRIVATE spdlog::spdlog argparse::argparse)
 # target_link_libraries (spadec PUBLIC sputils PRIVATE spdlog::spdlog)
 
 # Target: spasm
 # It is the assembler of the Spade language bytecode
 file (GLOB_RECURSE SPASM_SRCS spasm/src/*.cpp)
-file (GLOB_RECURSE SPASM_INCLUDES spasm/src/*.hpp)
 
 add_executable (spasm ${SPASM_SRCS})
 target_include_directories (spasm PUBLIC spasm/src)
-target_include_directories (spasm PUBLIC sputils/src)
+# target_include_directories (spasm PUBLIC sputils/src)
 target_link_libraries (spasm PUBLIC sputils PRIVATE argparse::argparse)
 
 # Target: swan
 # It is the new implementation of the Spade Virtual Machine (VM) for Spade.
 file (GLOB_RECURSE SWAN_SRCS swan/src/*.cpp)
-file (GLOB_RECURSE SWAN_INCLUDES swan/src/*.hpp)
 
-add_executable (swan ${SWAN_SRCS})
+add_library (swan SHARED ${SWAN_SRCS})
 target_include_directories (swan PUBLIC swan/src)
-target_include_directories (swan PUBLIC sputils/src)
+# target_include_directories (swan PUBLIC sputils/src)
 
 # # Set up llvm
 # # Reference: https://llvm.org/docs/CMake.html
@@ -98,6 +92,14 @@ target_include_directories (swan PUBLIC sputils/src)
 # target_link_libraries (swan PUBLIC sputils PRIVATE spdlog::spdlog ${LLVM_LIBS})
 
 target_link_libraries (swan PUBLIC sputils PRIVATE nite::nite spdlog::spdlog unofficial::libffi::libffi)
+
+# Target: pretty
+# It is debugger of spade
+file(GLOB_RECURSE PRETTY_SRCS pretty/src/*.cpp)
+
+add_executable (pretty ${PRETTY_SRCS})
+target_include_directories (pretty PUBLIC pretty/src)
+target_link_libraries(pretty PRIVATE swan nite::nite spdlog::spdlog)
 
 if (MSVC)
     # warning level 4

@@ -7,12 +7,12 @@ namespace spade
 {
     class SpadeVM;
 
-    struct LoadResult {
+    struct SWAN_EXPORT LoadResult {
         ObjMethod *entry;
         std::vector<ObjMethod *> inits;
     };
 
-    class Loader {
+    class SWAN_EXPORT Loader {
         SpadeVM *vm;
         Obj *obj_null;
 

@@ -13,7 +13,7 @@ namespace spade
     /**
      * Represents VM settings
      */
-    struct Settings {
+    struct SWAN_EXPORT Settings {
         string VERSION = "0.0.0";
         string LANG_NAME = "Spade";
         string VM_NAME = "Swan";
@@ -25,7 +25,7 @@ namespace spade
         vector<fs::path> mod_path;
     };
 
-    class SpadeVM {
+    class SWAN_EXPORT SpadeVM {
         /// The modules
         Table<ObjModule *> modules;
         /// The threads

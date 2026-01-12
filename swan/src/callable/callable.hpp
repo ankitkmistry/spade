@@ -4,7 +4,7 @@
 
 namespace spade
 {
-    class ObjCallable : public Obj {
+    class SWAN_EXPORT ObjCallable : public Obj {
       public:
         enum class Kind { FUNCTION, METHOD, CONSTRUCTOR, FOREIGN };
 
