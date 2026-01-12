@@ -28,15 +28,25 @@
 #    define COMPILER_OTHER
 #endif
 
-#define null (nullptr)
-
-#ifdef COMPILER_MSVC
-#define SWAN_EXPORT __declspec(dllexport)
+#if defined OS_WINDOWS
+#    if defined COMPILER_MSVC
+#        define SWAN_EXPORT __declspec(dllexport)
+#    elif defined COMPILER_CLANG
+#        if __has_declspec_attribute(dllexport)
+#            define SWAN_EXPORT __declspec(dllexport)
+#        else
+#            define SWAN_EXPORT __attribute__((dllexport))
+#        endif
+#    elif defined COMPILER_GCC
+#        define SWAN_EXPORT __attribute__((dllexport))
+#    endif
 #endif
 
 #ifndef SWAN_EXPORT
-#define SWAN_EXPORT
+#    define SWAN_EXPORT
 #endif
+
+#define null (nullptr)
 
 namespace spade
 {

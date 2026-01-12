@@ -30,9 +30,6 @@ if (EXISTS "${PROJECT_SOURCE_DIR}/.git")
     endif ()
 endif ()
 
-# Set up llvm directory
-set (LLVM_DIR thirdparty/llvm/lib/cmake/llvm)
-
 # Set up boost
 set (Boost_USE_STATIC_LIBS ON)
 set (Boost_USE_STATIC_RUNTIME OFF)
@@ -59,9 +56,7 @@ file (GLOB_RECURSE SPADEC_SRCS spadec/src/*.cpp)
 
 add_executable (spadec ${SPADEC_SRCS})
 target_include_directories (spadec PUBLIC spadec/src)
-# target_include_directories (spadec PUBLIC sputils/src)
 target_link_libraries (spadec PUBLIC sputils PRIVATE spdlog::spdlog argparse::argparse)
-# target_link_libraries (spadec PUBLIC sputils PRIVATE spdlog::spdlog)
 
 # Target: spasm
 # It is the assembler of the Spade language bytecode
@@ -69,16 +64,15 @@ file (GLOB_RECURSE SPASM_SRCS spasm/src/*.cpp)
 
 add_executable (spasm ${SPASM_SRCS})
 target_include_directories (spasm PUBLIC spasm/src)
-# target_include_directories (spasm PUBLIC sputils/src)
 target_link_libraries (spasm PUBLIC sputils PRIVATE argparse::argparse)
 
 # Target: swan
 # It is the new implementation of the Spade Virtual Machine (VM) for Spade.
-file (GLOB_RECURSE SWAN_SRCS swan/src/*.cpp)
+file (GLOB_RECURSE SWAN_SRCS swan/src/**/*.cpp)
 
 add_library (swan SHARED ${SWAN_SRCS})
 target_include_directories (swan PUBLIC swan/src)
-# target_include_directories (swan PUBLIC sputils/src)
+target_link_libraries (swan PUBLIC sputils PRIVATE spdlog::spdlog unofficial::libffi::libffi)
 
 # # Set up llvm
 # # Reference: https://llvm.org/docs/CMake.html
@@ -89,9 +83,19 @@ target_include_directories (swan PUBLIC swan/src)
 #
 # # Find the libraries that correspond to the LLVM components
 # llvm_map_components_to_libnames (LLVM_LIBS core support orcjit native)
-# target_link_libraries (swan PUBLIC sputils PRIVATE spdlog::spdlog ${LLVM_LIBS})
+# target_link_libraries (swan PRIVATE ${LLVM_LIBS})
 
-target_link_libraries (swan PUBLIC sputils PRIVATE nite::nite spdlog::spdlog unofficial::libffi::libffi)
+# Set up asmjit
+# Reference: https://asmjit.com/doc/group__asmjit__build.html#cmake_integration
+set (ASMJIT_DIR "external/asmjit")
+set (ASMJIT_STATIC TRUE)
+add_subdirectory ("${ASMJIT_DIR}")
+# target_link_libraries(swan PRIVATE asmjit::asmjit)
+target_link_libraries(swan PUBLIC asmjit::asmjit)
+
+add_executable (swan_test swan/src/main.cpp)
+target_include_directories (swan_test PUBLIC swan/src)
+target_link_libraries(swan_test PUBLIC swan)
 
 # Target: pretty
 # It is debugger of spade
