@@ -6,6 +6,7 @@ namespace spade
 {
     class SWAN_EXPORT ObjForeign final : public ObjCallable {
         void *handle;
+        bool is_jit_compiled;
         bool has_self;
 
       public:

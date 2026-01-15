@@ -16,7 +16,7 @@ namespace spade
         UNDEFINED,
     };
 
-    enum ValueTag {
+    enum ValueTag : uint64_t {
         VALUE_NULL,
         VALUE_BOOL,
         VALUE_CHAR,
@@ -26,14 +26,33 @@ namespace spade
     };
 
     class SWAN_EXPORT Value final {
+        friend class ValueCheck;
+
         ValueTag tag;
 
-        union {
-            bool b;
-            char c;
-            int64_t i;
-            double f;
-            Obj *obj;
+        union As {
+            struct {
+                uint8_t b;
+                char _pad0[7];
+            };
+
+            struct {
+                char c;
+                char _pad1[7];
+            };
+
+            struct {
+                int64_t i;
+            };
+
+            struct {
+                double f;
+            };
+
+            struct {
+                Obj *obj;
+                char _pad3[8 - sizeof(Obj *)];
+            };
         } as;
 
       public:
@@ -186,5 +205,26 @@ namespace spade
         }
     };
 
-    static_assert(sizeof(Value) == 16, "Size of Value class must be 16 bytes");
+    class ValueCheck {
+        static_assert(sizeof(Value) == 16, "Size of Value class must be 16 bytes");
+
+        static_assert(offsetof(Value, tag) == 0, "Value::tag should be at offset 0");
+        static_assert(offsetof(Value, as.b) == 8, "Value::as::b should be at offset 8");
+        static_assert(offsetof(Value, as.c) == 8, "Value::as::c should be at offset 8");
+        static_assert(offsetof(Value, as.i) == 8, "Value::as::i should be at offset 8");
+        static_assert(offsetof(Value, as.f) == 8, "Value::as::f should be at offset 8");
+        static_assert(offsetof(Value, as.obj) == 8, "Value::as::obj should be at offset 8");
+
+        static_assert(sizeof(Value::tag) == 8, "Value::tag should be 8 bytes");
+        static_assert(sizeof(Value::As::f) == 8, "Value::As::f should be 8 bytes");
+        static_assert(sizeof(Obj *) == 4 || sizeof(Obj *) == 8, "Value::as::obj should be 4 or 8 bytes");
+
+      public:
+        ValueCheck() = delete;
+        ValueCheck(const ValueCheck &) = delete;
+        ValueCheck(ValueCheck &&) = delete;
+        ValueCheck &operator=(const ValueCheck &) = delete;
+        ValueCheck &operator=(ValueCheck &&) = delete;
+        ~ValueCheck() = delete;
+    };
 }    // namespace spade

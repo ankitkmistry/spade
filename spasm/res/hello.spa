@@ -59,12 +59,12 @@ module hello
     method print_1_to_10()
         local @var i : basic.int
 
-        const 0
+        const 1
         plfstore i
     $cond:
         lfload i
         const 10
-        jge $end
+        jgt $end
     $body:
         lfload i
         println

@@ -172,7 +172,7 @@ namespace spade
     }
 
     Value Value::operator~() const {
-        if (is_int()) 
+        if (is_int())
             return Value(~as.i);
         throw Unreachable();
     }
@@ -181,7 +181,7 @@ namespace spade
         if (tag != n.tag)
             throw Unreachable();
 
-        if (is_int()) 
+        if (is_int())
             return Value(as.i % n.as.i);
         throw Unreachable();
     }
@@ -190,7 +190,7 @@ namespace spade
         if (tag != n.tag)
             throw Unreachable();
 
-        if (is_int()) 
+        if (is_int())
             return Value(as.i << n.as.i);
         throw Unreachable();
     }
@@ -199,7 +199,7 @@ namespace spade
         if (tag != n.tag)
             throw Unreachable();
 
-        if (is_int()) 
+        if (is_int())
             return Value(as.i >> n.as.i);
         throw Unreachable();
     }
@@ -208,7 +208,7 @@ namespace spade
         if (tag != n.tag)
             throw Unreachable();
 
-        if (is_int()) 
+        if (is_int())
             return Value(as.i & n.as.i);
         throw Unreachable();
     }
@@ -217,7 +217,7 @@ namespace spade
         if (tag != n.tag)
             throw Unreachable();
 
-        if (is_int()) 
+        if (is_int())
             return Value(as.i | n.as.i);
         throw Unreachable();
     }
@@ -226,7 +226,7 @@ namespace spade
         if (tag != n.tag)
             throw Unreachable();
 
-        if (is_int()) 
+        if (is_int())
             return Value(as.i ^ n.as.i);
         throw Unreachable();
     }
@@ -245,7 +245,7 @@ namespace spade
         case VALUE_NULL:
             return Value();
         case VALUE_BOOL:
-            return Value(as.b);
+            return Value(static_cast<bool>(as.b));
         case VALUE_CHAR:
             return Value(as.c);
         case VALUE_INT:

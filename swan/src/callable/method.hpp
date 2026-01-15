@@ -15,11 +15,15 @@ namespace spade
       public:
         ObjMethod(Kind kind, const Sign &sign, const FrameTemplate &frame);
 
+        const FrameTemplate &get_frame_template() const {
+            return frame_template;
+        }
+
         FrameTemplate &get_frame_template() {
             return frame_template;
         }
 
-        void call(Obj *self, const vector<Value > &args) override;
+        void call(Obj *self, const vector<Value> &args) override;
 
         void call(Obj *self, Value *args) override;
 
