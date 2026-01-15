@@ -46,7 +46,7 @@ namespace spade
          * Pushes val on top of the operand stack
          * @param val value to be pushed
          */
-        void push(Obj *val) {
+        void push(Value val) {
             get_frame()->push(val);
         }
 
@@ -54,14 +54,14 @@ namespace spade
          * Pops the operand stack
          * @return the popped value
          */
-        Obj *pop() {
+        Value pop() {
             return get_frame()->pop();
         }
 
         /**
          * @return the value on top of the operand stack
          */
-        Obj *peek() const {
+        Value peek() const {
             return get_frame()->peek();
         }
 
@@ -71,8 +71,8 @@ namespace spade
          * @param index
          * @return the loaded value
          */
-        Obj *load_const(uint16_t index) const {
-            return get_frame()->get_const_pool()[index]->copy();
+        Value load_const(uint16_t index) const {
+            return get_frame()->get_const_pool()[index].copy();
         }
 
         // Code operations

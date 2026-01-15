@@ -72,7 +72,7 @@ namespace spade
          * The vm execution loop
          * @param thread the execution thread
          */
-        Obj *run(Thread *thread);
+        Value run(Thread *thread);
 
         ThrowSignal runtime_error(const string &str) const;
 
@@ -81,7 +81,7 @@ namespace spade
          * @param sign the signature of the symbol
          * @return the value of the symbol corresponding to the signature @p sign
          */
-        Obj *get_symbol(const string &sign, bool strict = true) const;
+        Value get_symbol(const string &sign, bool strict = true) const;
 
         /**
          * Set the value of the symbol corresponding to the signature @p sign
@@ -89,7 +89,7 @@ namespace spade
          * @param sign the signature of the symbol
          * @param val the value
          */
-        void set_symbol(const string &sign, Obj *val);
+        void set_symbol(const string &sign, Value val);
 
         /**
          * @param sign the sign of the symbol
@@ -110,7 +110,7 @@ namespace spade
          * @param tag the kind of object to get the standard type for
          * @return Type* the standard type
          */
-        Type *get_vm_type(ObjTag tag);
+        // Type *get_vm_type(ObjTag tag);
 
         /**
          * @return the set of vm threads

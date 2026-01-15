@@ -269,7 +269,7 @@ class PrettyDebugger : public Debugger {
             return;
 
         const auto byte_line_max_len = std::to_string(code_count - 1).length();
-        const auto source_line_max_len = std::to_string(line_table.get_line_infos().back().sourceLine).length() + 2;
+        const auto source_line_max_len = std::to_string(line_table.get_line_infos().back().source_line).length() + 2;
         vector<Instruction> instructions;
         size_t active_instr = 0;
         uint64_t source_line = 0;
@@ -302,7 +302,7 @@ class PrettyDebugger : public Debugger {
             switch (OpcodeInfo::params_count(opcode)) {
             case 1: {
                 const auto num = read_byte();
-                string val_str = OpcodeInfo::take_from_const_pool(opcode) ? std::format("({})", pool[num]->to_string()) : "";
+                string val_str = OpcodeInfo::take_from_const_pool(opcode) ? std::format("({})", pool[num].to_string()) : "";
                 param = std::format("{} {}", num, val_str);
                 break;
             }
@@ -323,7 +323,7 @@ class PrettyDebugger : public Debugger {
                     break;
                 }
                 default:
-                    string val_str = OpcodeInfo::take_from_const_pool(opcode) ? std::format("({})", pool[num]->to_string()) : "";
+                    string val_str = OpcodeInfo::take_from_const_pool(opcode) ? std::format("({})", pool[num].to_string()) : "";
                     param = std::format("{} {}", num, val_str);
                     break;
                 }
@@ -396,8 +396,8 @@ class PrettyDebugger : public Debugger {
 
     void OperandStack(const Frame *frame) {
         vector<string> data;
-        for (Obj **sp = &frame->stack[0]; sp < frame->sp; sp++) {
-            const auto text = " " + (*sp)->to_string();
+        for (Value *sp = &frame->stack[0]; sp < frame->sp; sp++) {
+            const auto text = " " + sp->to_string();
             data.push_back(text);
         }
         // clang-format off
@@ -425,7 +425,7 @@ class PrettyDebugger : public Debugger {
         vector<string> data{" index", " value"};
         for (uint8_t i = 0; i < table.count(); i++) {
             data.push_back(std::to_string(i));
-            data.push_back(table.get(i)->to_string());
+            data.push_back(table.get(i).to_string());
         }
 
         // clang-format off

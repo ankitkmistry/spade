@@ -17,8 +17,8 @@ namespace spade
       public:
         std::unique_ptr<uint8_t[]> code = null;
         uint8_t *ip = null;
-        std::unique_ptr<Obj *[]> stack = null;
-        Obj **sp = null;
+        std::unique_ptr<Value[]> stack = null;
+        Value *sp = null;
 
       private:
         VariableTable args;
@@ -43,7 +43,7 @@ namespace spade
          * Pushes onto the stack
          * @param val the value to be pushed
          */
-        void push(Obj *val) {
+        void push(Value val) {
             *sp++ = val;
         }
 
@@ -51,21 +51,21 @@ namespace spade
          * Pops the stack
          * @return the popped value
          */
-        Obj *pop() {
+        Value pop() {
             return *--sp;
         }
 
         /**
          * @return The value of the last item of the stack
          */
-        Obj *peek() const {
+        Value peek() const {
             return sp[-1];
         }
 
         /**
          * @return The constant pool
          */
-        const vector<Obj *> &get_const_pool() const {
+        const vector<Value> &get_const_pool() const {
             return module->get_constant_pool();
         }
 
@@ -232,7 +232,7 @@ namespace spade
         // Destructor
         ~FrameTemplate() = default;
 
-        Frame initialize(ObjMethod*method);
+        Frame initialize(ObjMethod *method);
         FrameTemplate *copy();
 
         uint32_t get_code_count() const {

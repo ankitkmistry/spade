@@ -3,14 +3,13 @@
 #include "ee/thread.hpp"
 #include "frame.hpp"
 #include "ee/obj.hpp"
-#include "memory/memory.hpp"
 #include "utils/errors.hpp"
 
 namespace spade
 {
-    ObjMethod::ObjMethod(Kind kind, const Sign &sign, const FrameTemplate &frame) : ObjCallable(ObjTag::METHOD, kind, sign), frame_template(frame) {}
+    ObjMethod::ObjMethod(Kind kind, const Sign &sign, const FrameTemplate &frame) : ObjCallable(OBJ_METHOD, kind, sign), frame_template(frame) {}
 
-    void ObjMethod::call(Obj *self, const vector<Obj *> &args) {
+    void ObjMethod::call(Obj *self, const vector<Value > &args) {
         validate_call_site();
 
         Thread *thread = Thread::current();
@@ -31,7 +30,7 @@ namespace spade
         }
     }
 
-    void ObjMethod::call(Obj *self, Obj **args) {
+    void ObjMethod::call(Obj *self, Value *args) {
         validate_call_site();
         Thread *thread = Thread::current();
         auto new_frame = frame_template.initialize(this);

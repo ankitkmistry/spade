@@ -14,11 +14,10 @@ namespace spade
 
     class SWAN_EXPORT Loader {
         SpadeVM *vm;
-        Obj *obj_null;
 
         std::vector<Obj *> scope_stack;
         std::vector<Sign> sign_stack;
-        std::vector<std::vector<Obj *>> conpool_stack;
+        std::vector<std::vector<Value>> conpool_stack;
 
         std::vector<Sign> module_init_signs;
 
@@ -36,8 +35,8 @@ namespace spade
         const Sign &get_sign() const;
         void end_sign_scope();
 
-        void start_conpool_scope(const vector<Obj *> &conpool);
-        const vector<Obj *> &get_conpool() const;
+        void start_conpool_scope(const vector<Value> &conpool);
+        const vector<Value> &get_conpool() const;
         void end_conpool_scope();
 
         fs::path resolve_path(const fs::path &from_path, const fs::path &path);
@@ -48,8 +47,8 @@ namespace spade
         void load_class(const ClassInfo &info);
 
         Table<string> load_meta(const MetaInfo &meta);
-        vector<Obj *> load_const_pool(const vector<CpInfo> &cps);
-        Obj *load_cp(const CpInfo &cp);
+        vector<Value> load_const_pool(const vector<CpInfo> &cps);
+        Value load_cp(const CpInfo &cp);
         string load_utf8(const _UTF8 &info);
     };
 }    // namespace spade

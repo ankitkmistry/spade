@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ee/value.hpp"
 #include "utils/common.hpp"
 #include "memory/manager.hpp"
 #include "spinfo/sign.hpp"
@@ -8,7 +9,6 @@
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
-#include <string>
 #include <boost/functional/hash.hpp>
 
 namespace spade
@@ -153,21 +153,21 @@ namespace spade
 
     class SWAN_EXPORT MemberSlot {
       private:
-        Obj *value;
+        Value value;
         Flags flags;
 
       public:
-        MemberSlot(Obj *value = null, Flags flags = Flags{0}) : value(value), flags(flags) {}
+        MemberSlot(Value value = Value(), Flags flags = Flags{0}) : value(value), flags(flags) {}
 
-        Obj *get_value() const {
+        Value get_value() const {
             return value;
         }
 
-        Obj *&get_value() {
+        Value &get_value() {
             return value;
         }
 
-        void set_value(Obj *value_) {
+        void set_value(Value value_) {
             value = value_;
         }
 
@@ -180,43 +180,24 @@ namespace spade
         }
     };
 
-    enum class ObjTag : uint8_t {
-        // ObjNull
-        NULL_OBJ,
-        // ObjBool
-        BOOL,
-        // ObjChar
-        CHAR,
+    enum ObjTag : uint8_t {
         // ObjString
-        STRING,
-        // ObjInt
-        INT,
-        // ObjFloat
-        FLOAT,
+        OBJ_STRING,
         // ObjArray
-        ARRAY,
+        OBJ_ARRAY,
         // Obj
-        OBJECT,
-        // ObjPointer
-        CAPTURE,
+        OBJ_OBJECT,
+        // ObjCapture
+        OBJ_CAPTURE,
 
         // ObjModule
-        MODULE,
+        OBJ_MODULE,
         // ObjMethod
-        METHOD,
+        OBJ_METHOD,
         // ObjForeign
-        FOREIGN,
+        OBJ_FOREIGN,
         // Type
-        TYPE,
-        // // TypeParam
-        // TYPE_PARAM,
-    };
-
-    enum class Ordering {
-        LESS,
-        EQUAL,
-        GREATER,
-        UNDEFINED,
+        OBJ_TYPE,
     };
 
     struct MemoryInfo {
@@ -225,7 +206,6 @@ namespace spade
     };
 
     class Type;
-    class ObjBool;
 
     class SWAN_EXPORT Obj {
       protected:
@@ -245,6 +225,12 @@ namespace spade
 
       public:
         Obj(Type *type);
+
+        Obj() = delete;
+        Obj(const Obj &) = delete;
+        Obj(Obj &&) = delete;
+        Obj &operator=(const Obj &) = delete;
+        Obj &operator=(Obj &&) = delete;
 
         /**
          * Virtual destructor for Obj
@@ -294,18 +280,17 @@ namespace spade
 
         /**
          * Performs a complete deep copy on the object.
-         * @warning The user should not use this function except in exceptional cases
          * @return a copy of the object
          */
         virtual Obj *copy() const;
 
         virtual Ordering compare(const Obj *other) const;
-        ObjBool *operator<(const Obj *other) const;
-        ObjBool *operator>(const Obj *other) const;
-        ObjBool *operator<=(const Obj *other) const;
-        ObjBool *operator>=(const Obj *other) const;
-        ObjBool *operator==(const Obj *other) const;
-        ObjBool *operator!=(const Obj *other) const;
+        Value operator<(const Obj *other) const;
+        Value operator>(const Obj *other) const;
+        Value operator<=(const Obj *other) const;
+        Value operator>=(const Obj *other) const;
+        Value operator==(const Obj *other) const;
+        Value operator!=(const Obj *other) const;
 
         /**
          * @return the corresponding truth value of the object
@@ -342,7 +327,7 @@ namespace spade
          * @param name the name of the member
          * @return the member of this object
          */
-        Obj *get_member(const string &name) const;
+        Value get_member(const string &name) const;
 
         /**
          * Sets the member of this object with @p name and sets it to @p value.
@@ -350,7 +335,7 @@ namespace spade
          * @param name name of the member
          * @param value value to be set to
          */
-        void set_member(const string &name, Obj *value);
+        void set_member(const string &name, Value value);
 
         /**
          * @throws IllegalAccessError if the member cannot be found
@@ -368,92 +353,12 @@ namespace spade
         void set_flags(const string &name, Flags flags);
     };
 
-    class ObjNull;
-    class ObjBool;
-    class ObjChar;
     class ObjString;
     class ObjArray;
-    class ObjInt;
-    class ObjFloat;
     class ObjModule;
     class TypeParam;
     class ObjMethod;
     class ObjCapture;
-
-    class SWAN_EXPORT ObjNull final : public Obj {
-      public:
-        ObjNull();
-
-        bool truth() const override {
-            return false;
-        }
-
-        string to_string() const override {
-            return "null";
-        }
-
-        Obj *copy() const override {
-            // immutable state
-            return (Obj *) this;
-        }
-
-        Ordering compare(const Obj *other) const override;
-    };
-
-    class SWAN_EXPORT ObjBool final : public Obj {
-      private:
-        bool b;
-
-      public:
-        ObjBool(bool value);
-
-        bool truth() const override {
-            return b;
-        }
-
-        string to_string() const override {
-            return b ? "true" : "false";
-        }
-
-        Obj *copy() const override {
-            // immutable state
-            return (Obj *) this;
-        }
-
-        Ordering compare(const Obj *other) const override;
-        ObjBool *operator!() const;
-
-        bool value() const {
-            return b;
-        }
-    };
-
-    class SWAN_EXPORT ObjChar final : public Obj {
-      private:
-        char c;
-
-      public:
-        ObjChar(const char c);
-
-        bool truth() const override {
-            return c != '\0';
-        }
-
-        string to_string() const override {
-            return string(1, c);
-        }
-
-        Obj *copy() const override {
-            // immutable state
-            return (Obj *) this;
-        }
-
-        Ordering compare(const Obj *other) const override;
-
-        char value() const {
-            return c;
-        }
-    };
 
     class SWAN_EXPORT ObjString final : public Obj {
       private:
@@ -485,18 +390,18 @@ namespace spade
 
     class SWAN_EXPORT ObjArray final : public Obj {
       private:
-        std::unique_ptr<Obj *[]> array;
+        std::unique_ptr<Value[]> array;
         size_t length;
 
       public:
         explicit ObjArray(size_t length);
 
-        void for_each(const std::function<void(Obj *)> &func) const;
+        void for_each(const std::function<void(Value)> &func) const;
 
-        Obj *get(int64_t i) const;
-        Obj *get(size_t i) const;
-        void set(int64_t i, Obj *value);
-        void set(size_t i, Obj *value);
+        Value get(int64_t i) const;
+        Value get(size_t i) const;
+        void set(int64_t i, Value value);
+        void set(size_t i, Value value);
 
         size_t count() const {
             return length;
@@ -513,102 +418,13 @@ namespace spade
         Ordering compare(const Obj *other) const override;
     };
 
-    class SWAN_EXPORT ObjNumber : public Obj {
-      protected:
-        ObjNumber(ObjTag tag) : Obj(tag) {}
-
-      public:
-        virtual Obj *operator-() const = 0;
-        virtual Obj *power(const ObjNumber *n) const = 0;
-        virtual Obj *operator+(const ObjNumber *n) const = 0;
-        virtual Obj *operator-(const ObjNumber *n) const = 0;
-        virtual Obj *operator*(const ObjNumber *n) const = 0;
-        virtual Obj *operator/(const ObjNumber *n) const = 0;
-    };
-
-    class SWAN_EXPORT ObjInt final : public ObjNumber {
-      private:
-        int64_t val;
-
-      public:
-        ObjInt(int64_t val);
-
-        Obj *copy() const override {
-            // Immutable state
-            return (Obj *) this;
-        }
-
-        bool truth() const override {
-            return val != 0;
-        }
-
-        string to_string() const override {
-            return std::to_string(val);
-        }
-
-        Ordering compare(const Obj *other) const override;
-
-        Obj *operator-() const override;
-        Obj *power(const ObjNumber *n) const override;
-        Obj *operator+(const ObjNumber *n) const override;
-        Obj *operator-(const ObjNumber *n) const override;
-        Obj *operator*(const ObjNumber *n) const override;
-        Obj *operator/(const ObjNumber *n) const override;
-
-        ObjInt *operator~() const;
-        ObjInt *operator%(const ObjInt &n) const;
-        ObjInt *operator<<(const ObjInt &n) const;
-        ObjInt *operator>>(const ObjInt &n) const;
-        ObjInt *operator&(const ObjInt &n) const;
-        ObjInt *operator|(const ObjInt &n) const;
-        ObjInt *operator^(const ObjInt &n) const;
-        ObjInt *unsigned_right_shift(const ObjInt &n) const;
-
-        int64_t value() const {
-            return val;
-        }
-    };
-
-    class SWAN_EXPORT ObjFloat final : public ObjNumber {
-        double val;
-
-      public:
-        ObjFloat(double val);
-
-        Obj *copy() const override {
-            // Immutable state
-            return (Obj *) this;
-        }
-
-        bool truth() const override {
-            return val != 0.0;
-        }
-
-        string to_string() const override {
-            return std::to_string(val);
-        }
-
-        Ordering compare(const Obj *other) const override;
-
-        Obj *operator-() const override;
-        Obj *power(const ObjNumber *n) const override;
-        Obj *operator+(const ObjNumber *n) const override;
-        Obj *operator-(const ObjNumber *n) const override;
-        Obj *operator*(const ObjNumber *n) const override;
-        Obj *operator/(const ObjNumber *n) const override;
-
-        double value() const {
-            return val;
-        }
-    };
-
     class SWAN_EXPORT ObjModule final : public Obj {
       private:
         Sign sign;
         /// Path of the module
         fs::path path;
         /// The constant pool of the module
-        vector<Obj *> constant_pool;
+        vector<Value> constant_pool;
         /// The module init method
         ObjMethod *init = null;
 
@@ -643,11 +459,11 @@ namespace spade
             this->path = path;
         }
 
-        const vector<Obj *> &get_constant_pool() const {
+        const vector<Value> &get_constant_pool() const {
             return constant_pool;
         }
 
-        void set_constant_pool(const vector<Obj *> &conpool) {
+        void set_constant_pool(const vector<Value> &conpool) {
             constant_pool = conpool;
         }
 
@@ -724,16 +540,16 @@ namespace spade
 
     class SWAN_EXPORT ObjCapture final : public Obj {
       private:
-        Obj *value;
+        Value value;
 
       public:
-        ObjCapture(Obj *value);
+        ObjCapture(Value value);
 
-        Obj *get() const {
+        Value get() const {
             return value;
         }
 
-        void set(Obj *value) {
+        void set(Value value) {
             this->value = value;
         }
 

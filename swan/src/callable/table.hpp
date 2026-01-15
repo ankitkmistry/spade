@@ -6,7 +6,7 @@
 namespace spade
 {
     class SWAN_EXPORT VariableTable {
-        vector<Obj *> values;
+        vector<Value> values;
         vector<Table<string>> metas;
 
       public:
@@ -33,14 +33,14 @@ namespace spade
          * @return The value of the argument at index i
          * @param i the argument index
          */
-        Obj *get(uint8_t i) const;
+        Value get(uint8_t i) const;
 
         /**
          * Sets the value of the argument at index i to val
          * @param i the argument index
          * @param val value to be changed
          */
-        void set(uint8_t i, Obj *val);
+        void set(uint8_t i, Value val);
 
         /**
          * @param i index of the argument
@@ -201,9 +201,9 @@ namespace spade
     class SWAN_EXPORT LineNumberTable {
       public:
         struct LineInfo {
-            uint32_t sourceLine;
-            uint16_t byteStart;
-            uint16_t byteEnd;
+            uint32_t source_line;
+            uint16_t byte_start;
+            uint16_t byte_end;
         };
 
       private:
@@ -240,13 +240,13 @@ namespace spade
      */
     class SWAN_EXPORT Case {
       private:
-        Obj *value = null;
-        uint32_t location = -1;
+        Value value;
+        uint32_t location;
 
       public:
-        Case(Obj *value, uint32_t location) : value(value), location(location) {}
+        Case(Value value, uint32_t location) : value(value), location(location) {}
 
-        Case() = default;
+        Case() = delete;
         Case(const Case &other) = default;
         Case(Case &&other) noexcept = default;
         Case &operator=(const Case &other) = default;
@@ -256,7 +256,7 @@ namespace spade
         /**
          * @return The value to be matched
          */
-        Obj *get_value() const {
+        Value get_value() const {
             return value;
         }
 
@@ -275,16 +275,16 @@ namespace spade
         friend class BasicCollector;
 
       private:
-        struct SWAN_EXPORT ObjEqual {
-            bool operator()(Obj *lhs, Obj *rhs) const;
+        struct SWAN_EXPORT ValueEqual {
+            bool operator()(Value lhs, Value rhs) const;
         };
 
-        struct SWAN_EXPORT ObjHash {
-            void hash(size_t &seed, Obj *obj) const;
-            size_t operator()(Obj *obj) const;
+        struct SWAN_EXPORT ValueHash {
+            void hash(size_t &seed, Value value) const;
+            size_t operator()(Value value) const;
         };
 
-        std::unordered_map<Obj *, uint32_t, ObjHash, ObjEqual> table;
+        std::unordered_map<Value, uint32_t, ValueHash, ValueEqual> table;
         uint32_t default_location;
 
       public:
@@ -303,7 +303,7 @@ namespace spade
             return default_location;
         }
 
-        std::unordered_map<Obj *, uint32_t, ObjHash, ObjEqual> get_table() const {
+        std::unordered_map<Value, uint32_t, ValueHash, ValueEqual> get_table() const {
             return table;
         }
 
@@ -325,6 +325,6 @@ namespace spade
          * @param value value to be matched
          * @return The destination location
          */
-        uint32_t perform(Obj *value) const;
+        uint32_t perform(Value value) const;
     };
-}
+}    // namespace spade

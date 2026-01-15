@@ -48,17 +48,17 @@ namespace spade
         return ThrowSignal{halloc_mgr<ObjString>(manager, str)};
     }
 
-    Obj *SpadeVM::get_symbol(const string &sign, bool strict) const {
+    Value SpadeVM::get_symbol(const string &sign, bool strict) const {
         const Sign symbol_sign(sign);
         if (symbol_sign.empty())
             return null;
 
         const auto &elements = symbol_sign.get_elements();
         size_t i = 0;
-        Obj *obj;
+        Value value;
 
         if (const auto it = modules.find(elements[i++].to_string()); it != modules.end())
-            obj = it->second;
+            value = it->second;
         else {
             if (strict)
                 throw IllegalAccessError(std::format("cannot find symbol: {}", sign));
@@ -68,7 +68,15 @@ namespace spade
 
         for (; i < elements.size(); ++i) {
             try {
-                obj = obj->get_member(elements[i].to_string());
+                if (value.is_obj()) {
+                    const auto obj = value.as_obj();
+                    value = obj->get_member(elements[i].to_string());
+                } else {
+                    if (strict)
+                        throw IllegalAccessError(std::format("cannot find symbol: {}", sign));
+                    else
+                        return null;
+                }
             } catch (const IllegalAccessError &) {
                 if (strict)
                     throw IllegalAccessError(std::format("cannot find symbol: {}", sign));
@@ -76,35 +84,47 @@ namespace spade
                     return null;
             }
         }
-        return obj;
+        return value;
     }
 
-    void SpadeVM::set_symbol(const string &sign, Obj *val) {
+    void SpadeVM::set_symbol(const string &sign, Value val) {
         const Sign symbol_sign(sign);
         if (symbol_sign.empty())
             return;
 
         const auto &elements = symbol_sign.get_elements();
         size_t i = 0;
-        Obj *obj;
+        Value value;
 
         if (const auto it = modules.find(elements[i++].to_string()); it != modules.end())
-            obj = it->second;
+            value = it->second;
         else {
-            if (i >= elements.size())
-                modules[sign] = cast<ObjModule>(val);
+            if (i >= elements.size() && val.is_obj())
+                modules[sign] = cast<ObjModule>(val.as_obj());
             else
-                throw IllegalAccessError(std::format("cannot find symbol: {}", sign));
+                throw IllegalAccessError(std::format("cannot set symbol: {}", sign));
         }
 
         for (; i < elements.size(); i++) {
             if (i >= elements.size() - 1) {
-                obj->set_member(elements.back().to_string(), val);
+                if (value.is_obj()) {
+                    const auto obj = value.as_obj();
+                    obj->set_member(elements.back().to_string(), val);
+                } else {
+                    throw IllegalAccessError(std::format("cannot set symbol: {}", sign));
+                }
             } else {
                 try {
-                    obj = obj->get_member(elements[i].to_string());
+                    if (value.is_obj()) {
+                        const auto obj = value.as_obj();
+                        value = obj->get_member(elements[i].to_string());
+                    } else {
+                        const auto cur_sign = Sign(vector(elements.begin(), elements.begin() + i + 1));
+                        throw IllegalAccessError(std::format("cannot find symbol: {}", cur_sign.to_string()));
+                    }
                 } catch (const IllegalAccessError &) {
-                    throw IllegalAccessError(std::format("cannot find symbol: {}", sign));
+                    const auto cur_sign = Sign(vector(elements.begin(), elements.begin() + i + 1));
+                    throw IllegalAccessError(std::format("cannot find symbol: {}", cur_sign.to_string()));
                 }
             }
         }
@@ -124,28 +144,28 @@ namespace spade
         metadata[sign] = meta;
     }
 
-    Type *SpadeVM::get_vm_type(ObjTag tag) {
-        switch (tag) {
-        case ObjTag::NULL_OBJ:
-            return cast<Type>(get_symbol("basic.any"));
-        case ObjTag::BOOL:
-            return cast<Type>(get_symbol("basic.bool"));
-        case ObjTag::CHAR:
-            return cast<Type>(get_symbol("basic.char"));
-        case ObjTag::STRING:
-            return cast<Type>(get_symbol("basic.string"));
-        case ObjTag::INT:
-            return cast<Type>(get_symbol("basic.int"));
-        case ObjTag::FLOAT:
-            return cast<Type>(get_symbol("basic.float"));
-        case ObjTag::ARRAY:
-            return cast<Type>(get_symbol("basic.array[T]"));
-        case ObjTag::OBJECT:
-            return cast<Type>(get_symbol("basic.any"));
-        default:
-            return null;
-        }
-    }
+    // Type *SpadeVM::get_vm_type(ObjTag tag) {
+    //     switch (tag) {
+    //     case ObjTag::NULL_OBJ:
+    //         return cast<Type>(get_symbol("basic.any"));
+    //     case ObjTag::BOOL:
+    //         return cast<Type>(get_symbol("basic.bool"));
+    //     case ObjTag::CHAR:
+    //         return cast<Type>(get_symbol("basic.char"));
+    //     case ObjTag::STRING:
+    //         return cast<Type>(get_symbol("basic.string"));
+    //     case ObjTag::INT:
+    //         return cast<Type>(get_symbol("basic.int"));
+    //     case ObjTag::FLOAT:
+    //         return cast<Type>(get_symbol("basic.float"));
+    //     case ObjTag::ARRAY:
+    //         return cast<Type>(get_symbol("basic.array[T]"));
+    //     case ObjTag::OBJECT:
+    //         return cast<Type>(get_symbol("basic.any"));
+    //     default:
+    //         return null;
+    //     }
+    // }
 
     SpadeVM *SpadeVM::current() {
         if (const auto thread = Thread::current())
@@ -216,8 +236,10 @@ namespace spade
             else if (const auto args_count = entry->get_frame_template().get_args().count(); args_count == 1) {
                 // Convert vector<string> to ObjArray
                 auto array = halloc_mgr<ObjArray>(manager, args.size());
-                for (size_t i = 0; i < args.size(); ++i) array->set(i, halloc_mgr<ObjString>(manager, args[i]));
-                entry->call(null, vector<Obj *>{array});
+                for (size_t i = 0; i < args.size(); ++i) {
+                    array->set(i, halloc_mgr<ObjString>(manager, args[i]));
+                }
+                entry->call(null, vector<Value>{array});
             } else
                 throw runtime_error("entry point must have zero or one argument (basic.array): " + entry->get_sign().to_string());
             // Enter execution loop

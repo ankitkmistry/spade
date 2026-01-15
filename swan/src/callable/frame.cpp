@@ -7,7 +7,7 @@
 namespace spade
 {
     Frame::Frame(uint32_t stack_max) : stack_max(stack_max) {
-        stack = std::make_unique<Obj *[]>(stack_max);
+        stack = std::make_unique<Value[]>(stack_max);
         sp = &stack[0];
     }
 
@@ -31,7 +31,7 @@ namespace spade
         std::memcpy(&code[0], &frame.code[0], code_count);
         ip = &code[0] + (frame.ip - &frame.code[0]);
 
-        stack = std::make_unique<Obj *[]>(stack_max);
+        stack = std::make_unique<Value[]>(stack_max);
         std::memcpy(&stack[0], &frame.stack[0], stack_max * sizeof(Obj *));
         sp = &stack[0] + (frame.sp - &frame.stack[0]);
     }
@@ -39,10 +39,6 @@ namespace spade
     Frame &Frame::operator=(const Frame &frame) {
         stack_max = frame.stack_max;
         code_count = frame.code_count;
-        // code = null;
-        // ip = null;
-        // stack = null;
-        // sp = null;
         args = frame.args;
         locals = frame.locals;
         exceptions = frame.exceptions;
@@ -55,7 +51,7 @@ namespace spade
         std::memcpy(&code[0], &frame.code[0], code_count);
         ip = &code[0] + (frame.ip - &frame.code[0]);
 
-        stack = std::make_unique<Obj *[]>(stack_max);
+        stack = std::make_unique<Value[]>(stack_max);
         std::memcpy(&stack[0], &frame.stack[0], stack_max * sizeof(Obj *));
         sp = &stack[0] + (frame.sp - &frame.stack[0]);
 
@@ -64,7 +60,7 @@ namespace spade
 
     void Frame::set_method(ObjMethod *met) {
         method = met;
-        module = cast<ObjModule>(SpadeVM::current()->get_symbol(method->get_sign().get_parent_module().to_string()));
+        module = cast<ObjModule>(SpadeVM::current()->get_symbol(method->get_sign().get_parent_module().to_string()).as_obj());
     }
 
     Frame FrameTemplate::initialize(ObjMethod *method) {
@@ -81,7 +77,7 @@ namespace spade
         frame.lines = lines;
         frame.matches = matches;
         frame.method = method;
-        frame.module = cast<ObjModule>(SpadeVM::current()->get_symbol(method->get_sign().get_parent_module().to_string()));
+        frame.module = cast<ObjModule>(SpadeVM::current()->get_symbol(method->get_sign().get_parent_module().to_string()).as_obj());
         return frame;
     }
 }    // namespace spade

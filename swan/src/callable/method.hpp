@@ -19,9 +19,9 @@ namespace spade
             return frame_template;
         }
 
-        void call(Obj *self, const vector<Obj *> &args) override;
+        void call(Obj *self, const vector<Value > &args) override;
 
-        void call(Obj *self, Obj **args) override;
+        void call(Obj *self, Value *args) override;
 
         TypeParam *get_type_param(const string &name) const;
 

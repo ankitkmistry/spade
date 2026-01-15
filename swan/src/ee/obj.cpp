@@ -13,7 +13,7 @@ namespace spade
 {
     Obj::Obj(ObjTag tag) : tag(tag), monitor(), type(null), member_slots() {}
 
-    Obj::Obj(Type *type) : tag(ObjTag::OBJECT), monitor(), type(type), member_slots() {
+    Obj::Obj(Type *type) : tag(OBJ_OBJECT), monitor(), type(type), member_slots() {
         set_type(type);
     }
 
@@ -28,7 +28,7 @@ namespace spade
     Obj *Obj::copy() const {
         const auto obj = halloc_mgr<Obj>(info.manager, type);
         for (const auto &[name, slot]: member_slots) {
-            obj->set_member(name, slot.get_value()->copy());
+            obj->set_member(name, slot.get_value().copy());
         }
         return obj;
     }
@@ -39,45 +39,45 @@ namespace spade
         return Ordering::UNDEFINED;
     }
 
-    ObjBool *Obj::operator<(const Obj *other) const {
-        return halloc_mgr<ObjBool>(info.manager, compare(other) == Ordering::LESS);
+    Value Obj::operator<(const Obj *other) const {
+        return Value(compare(other) == Ordering::LESS);
     }
 
-    ObjBool *Obj::operator>(const Obj *other) const {
-        return halloc_mgr<ObjBool>(info.manager, compare(other) == Ordering::GREATER);
+    Value Obj::operator>(const Obj *other) const {
+        return Value(compare(other) == Ordering::GREATER);
     }
 
-    ObjBool *Obj::operator<=(const Obj *other) const {
+    Value Obj::operator<=(const Obj *other) const {
         switch (compare(other)) {
         case Ordering::LESS:
         case Ordering::EQUAL:
-            return halloc_mgr<ObjBool>(info.manager, true);
+            return Value(true);
         default:
-            return halloc_mgr<ObjBool>(info.manager, false);
+            return Value(false);
         }
     }
 
-    ObjBool *Obj::operator>=(const Obj *other) const {
+    Value Obj::operator>=(const Obj *other) const {
         switch (compare(other)) {
         case Ordering::EQUAL:
         case Ordering::GREATER:
-            return halloc_mgr<ObjBool>(info.manager, true);
+            return Value(true);
         default:
-            return halloc_mgr<ObjBool>(info.manager, false);
+            return Value(false);
         }
     }
 
-    ObjBool *Obj::operator==(const Obj *other) const {
-        return halloc_mgr<ObjBool>(info.manager, compare(other) == Ordering::EQUAL);
+    Value Obj::operator==(const Obj *other) const {
+        return Value(compare(other) == Ordering::EQUAL);
     }
 
-    ObjBool *Obj::operator!=(const Obj *other) const {
+    Value Obj::operator!=(const Obj *other) const {
         switch (compare(other)) {
         case Ordering::LESS:
         case Ordering::GREATER:
-            return halloc_mgr<ObjBool>(info.manager, true);
+            return Value(true);
         default:
-            return halloc_mgr<ObjBool>(info.manager, false);
+            return Value(false);
         }
     }
 
@@ -85,7 +85,7 @@ namespace spade
         return std::format("<object of type {}>", type->get_sign().to_string());
     }
 
-    Obj *Obj::get_member(const string &name) const {
+    Value Obj::get_member(const string &name) const {
         std::shared_lock member_slots_lk(member_slots_mtx);
         if (const auto it = member_slots.find(name); it != member_slots.end()) {
             return it->second.get_value();
@@ -93,7 +93,7 @@ namespace spade
         throw IllegalAccessError(std::format("cannot find member: {} in {}", name, to_string()));
     }
 
-    void Obj::set_member(const string &name, Obj *value) {
+    void Obj::set_member(const string &name, Value value) {
         std::unique_lock member_slots_lk(member_slots_mtx);
         if (const auto it = member_slots.find(name); it != member_slots.end()) {
             it->second.set_value(value);
@@ -118,50 +118,12 @@ namespace spade
         throw IllegalAccessError(std::format("cannot find member: {} in {}", name, to_string()));
     }
 
-    ObjNull::ObjNull() : Obj(ObjTag::NULL_OBJ) {}
+    ObjString::ObjString(const string &str) : Obj(OBJ_STRING), str(str) {}
 
-    Ordering ObjNull::compare(const Obj *other) const {
-        if (other->get_tag() == ObjTag::NULL_OBJ)
-            return Ordering::EQUAL;
-        return Ordering::UNDEFINED;
-    }
-
-    ObjBool::ObjBool(bool value) : Obj(ObjTag::BOOL), b(value) {}
-
-    Ordering ObjBool::compare(const Obj *other) const {
-        if (other->get_tag() == ObjTag::BOOL) {
-            const auto other_bool = cast<const ObjBool>(other);
-            if (b == other_bool->b)
-                return Ordering::EQUAL;
-        }
-        return Ordering::UNDEFINED;
-    }
-
-    ObjBool *ObjBool::operator!() const {
-        return halloc_mgr<ObjBool>(info.manager, !b);
-    }
-
-    ObjChar::ObjChar(const char c) : Obj(ObjTag::CHAR), c(c) {}
-
-    Ordering ObjChar::compare(const Obj *other) const {
-        if (other->get_tag() == ObjTag::CHAR) {
-            const auto other_char = cast<const ObjChar>(other);
-            if (c < other_char->c)
-                return Ordering::LESS;
-            else if (c > other_char->c)
-                return Ordering::GREATER;
-            else
-                return Ordering::EQUAL;
-        }
-        return Ordering::UNDEFINED;
-    }
-
-    ObjString::ObjString(const string &str) : Obj(ObjTag::STRING), str(str) {}
-
-    ObjString::ObjString(const uint8_t *bytes, uint16_t len) : Obj(ObjTag::STRING), str(bytes, bytes + len) {}
+    ObjString::ObjString(const uint8_t *bytes, uint16_t len) : Obj(OBJ_STRING), str(bytes, bytes + len) {}
 
     Ordering ObjString::compare(const Obj *other) const {
-        if (other->get_tag() == ObjTag::STRING) {
+        if (other->get_tag() == OBJ_STRING) {
             const auto other_str = cast<const ObjString>(other);
             if (str < other_str->str)
                 return Ordering::LESS;
@@ -173,19 +135,19 @@ namespace spade
         return Ordering::UNDEFINED;
     }
 
-    ObjArray::ObjArray(size_t length) : Obj(ObjTag::ARRAY), array(null), length(length) {
+    ObjArray::ObjArray(size_t length) : Obj(OBJ_ARRAY), array(null), length(length) {
         if (length > 0) {
-            array = std::make_unique<Obj *[]>(length);
+            array = std::make_unique<Value[]>(length);
         }
     }
 
-    void ObjArray::for_each(const std::function<void(Obj *)> &func) const {
+    void ObjArray::for_each(const std::function<void(Value)> &func) const {
         for (size_t i = 0; i < length; i++) {
             func(array[i]);
         }
     }
 
-    Obj *ObjArray::get(int64_t i) const {
+    Value ObjArray::get(int64_t i) const {
         if (i < 0)
             i += length;
         if (i < 0 || i >= length)
@@ -193,13 +155,13 @@ namespace spade
         return array[i];
     }
 
-    Obj *ObjArray::get(size_t i) const {
+    Value ObjArray::get(size_t i) const {
         if (i >= length)
             throw IndexError("array", i);
         return array[i];
     }
 
-    void ObjArray::set(int64_t i, Obj *value) {
+    void ObjArray::set(int64_t i, Value value) {
         if (i < 0)
             i += length;
         if (i < 0 || i >= length)
@@ -207,7 +169,7 @@ namespace spade
         array[i] = value;
     }
 
-    void ObjArray::set(size_t i, Obj *value) {
+    void ObjArray::set(size_t i, Value value) {
         if (i >= length)
             throw IndexError("array", i);
         array[i] = value;
@@ -216,7 +178,7 @@ namespace spade
     string ObjArray::to_string() const {
         string str;
         for (size_t i = 0; i < length; ++i) {
-            str += array[i]->to_string() + (i < length - 1 ? ", " : "");
+            str += array[i].to_string() + (i < length - 1 ? ", " : "");
         }
         return "[" + str + "]";
     }
@@ -224,13 +186,13 @@ namespace spade
     Obj *ObjArray::copy() const {
         auto new_array = halloc_mgr<ObjArray>(info.manager, length);
         for (size_t i = 0; i < length; i++) {
-            new_array->set(i, get(i)->copy());
+            new_array->set(i, get(i).copy());
         }
         return new_array;
     }
 
     Ordering ObjArray::compare(const Obj *other) const {
-        if (other->get_tag() == ObjTag::ARRAY) {
+        if (other->get_tag() == OBJ_ARRAY) {
             const auto str = to_string();
             const auto other_str = other->to_string();
             if (str < other_str)
@@ -243,117 +205,7 @@ namespace spade
         return Ordering::UNDEFINED;
     }
 
-    ObjInt::ObjInt(int64_t val) : ObjNumber(ObjTag::INT), val(val) {}
-
-    Ordering ObjInt::compare(const Obj *other) const {
-        if (other->get_tag() == ObjTag::INT) {
-            const auto other_int = cast<const ObjInt>(other);
-            if (val < other_int->val)
-                return Ordering::LESS;
-            else if (val > other_int->val)
-                return Ordering::GREATER;
-            else
-                return Ordering::EQUAL;
-        }
-        return Ordering::UNDEFINED;
-    }
-
-    Obj *ObjInt::operator-() const {
-        return halloc_mgr<ObjInt>(info.manager, -val);
-    }
-
-    Obj *ObjInt::power(const ObjNumber *n) const {
-        return halloc_mgr<ObjFloat>(info.manager, std::pow(val, cast<const ObjInt>(n)->val));
-    }
-
-    Obj *ObjInt::operator+(const ObjNumber *n) const {
-        return halloc_mgr<ObjInt>(info.manager, val + cast<const ObjInt>(n)->val);
-    }
-
-    Obj *ObjInt::operator-(const ObjNumber *n) const {
-        return halloc_mgr<ObjInt>(info.manager, val - cast<const ObjInt>(n)->val);
-    }
-
-    Obj *ObjInt::operator*(const ObjNumber *n) const {
-        return halloc_mgr<ObjInt>(info.manager, val * cast<const ObjInt>(n)->val);
-    }
-
-    Obj *ObjInt::operator/(const ObjNumber *n) const {
-        return halloc_mgr<ObjInt>(info.manager, val / cast<const ObjInt>(n)->val);
-    }
-
-    ObjInt *ObjInt::operator~() const {
-        return halloc_mgr<ObjInt>(info.manager, ~val);
-    }
-
-    ObjInt *ObjInt::operator%(const ObjInt &n) const {
-        return halloc_mgr<ObjInt>(info.manager, val % n.val);
-    }
-
-    ObjInt *ObjInt::operator<<(const ObjInt &n) const {
-        return halloc_mgr<ObjInt>(info.manager, val << n.val);
-    }
-
-    ObjInt *ObjInt::operator>>(const ObjInt &n) const {
-        return halloc_mgr<ObjInt>(info.manager, val >> n.val);
-    }
-
-    ObjInt *ObjInt::operator&(const ObjInt &n) const {
-        return halloc_mgr<ObjInt>(info.manager, val & n.val);
-    }
-
-    ObjInt *ObjInt::operator|(const ObjInt &n) const {
-        return halloc_mgr<ObjInt>(info.manager, val | n.val);
-    }
-
-    ObjInt *ObjInt::operator^(const ObjInt &n) const {
-        return halloc_mgr<ObjInt>(info.manager, val ^ n.val);
-    }
-
-    ObjInt *ObjInt::unsigned_right_shift(const ObjInt &n) const {
-        return halloc_mgr<ObjInt>(info.manager, val & 0x7fffffff >> n.val);
-    }
-
-    ObjFloat::ObjFloat(double val) : ObjNumber(ObjTag::FLOAT), val(val) {}
-
-    Ordering ObjFloat::compare(const Obj *other) const {
-        if (other->get_tag() == ObjTag::INT) {
-            const auto other_float = cast<const ObjFloat>(other);
-            if (val < other_float->val)
-                return Ordering::LESS;
-            else if (val > other_float->val)
-                return Ordering::GREATER;
-            else if (val == other_float->val)
-                return Ordering::EQUAL;
-        }
-        return Ordering::UNDEFINED;
-    }
-
-    Obj *ObjFloat::operator-() const {
-        return halloc_mgr<ObjFloat>(info.manager, -val);
-    }
-
-    Obj *ObjFloat::power(const ObjNumber *n) const {
-        return halloc_mgr<ObjFloat>(info.manager, std::pow(val, cast<const ObjFloat>(n)->val));
-    }
-
-    Obj *ObjFloat::operator+(const ObjNumber *n) const {
-        return halloc_mgr<ObjFloat>(info.manager, val + cast<const ObjFloat>(n)->val);
-    }
-
-    Obj *ObjFloat::operator-(const ObjNumber *n) const {
-        return halloc_mgr<ObjFloat>(info.manager, val - cast<const ObjFloat>(n)->val);
-    }
-
-    Obj *ObjFloat::operator*(const ObjNumber *n) const {
-        return halloc_mgr<ObjFloat>(info.manager, val * cast<const ObjFloat>(n)->val);
-    }
-
-    Obj *ObjFloat::operator/(const ObjNumber *n) const {
-        return halloc_mgr<ObjFloat>(info.manager, val / cast<const ObjFloat>(n)->val);
-    }
-
-    ObjModule::ObjModule(const Sign &sign) : Obj(ObjTag::MODULE), sign(sign) {}
+    ObjModule::ObjModule(const Sign &sign) : Obj(OBJ_MODULE), sign(sign) {}
 
     string ObjModule::to_string() const {
         return std::format("<module {}>", sign.to_string());
@@ -368,21 +220,20 @@ namespace spade
         return null;
     }
 
-    Type::Type(Kind kind, Sign sign, const vector<Sign> &supers)
-        : Obj(ObjTag::TYPE), kind(kind), sign(sign), supers(supers) {}
+    Type::Type(Kind kind, Sign sign, const vector<Sign> &supers) : Obj(OBJ_TYPE), kind(kind), sign(sign), supers(supers) {}
 
     string Type::to_string() const {
         static const string kind_names[] = {"class", "interface", "enum", "annotation", "type_parameter", "unresolved"};
         return std::format("<{} '{}'>", kind_names[static_cast<int>(kind)], sign.to_string());
     }
 
-    ObjCapture::ObjCapture(Obj *value) : Obj(ObjTag::CAPTURE), value(value) {}
+    ObjCapture::ObjCapture(Value value) : Obj(OBJ_CAPTURE), value(value) {}
 
     bool ObjCapture::truth() const {
-        return value && value->get_tag() != ObjTag::NULL_OBJ;
+        return !value.is_null();
     }
 
     string ObjCapture::to_string() const {
-        return value ? std::format("<pointer to {}>", value->to_string()) : "<pointer to null>";
+        return std::format("<pointer to {}>", value.to_string());
     }
 }    // namespace spade

@@ -12,7 +12,7 @@
 
 namespace spade
 {
-    Loader::Loader(SpadeVM *vm) : vm(vm), obj_null(halloc_mgr<ObjNull>(vm->get_memory_manager())) {}
+    Loader::Loader(SpadeVM *vm) : vm(vm) {}
 
     LoadResult Loader::load(const fs::path &path) {
         // Read the file
@@ -39,12 +39,12 @@ namespace spade
         // Find the module inits
         vector<ObjMethod *> inits;
         for (const auto &sign: module_init_signs) {
-            inits.push_back(cast<ObjMethod>(vm->get_symbol(sign.to_string())));
+            inits.push_back(cast<ObjMethod>(vm->get_symbol(sign.to_string()).as_obj()));
         }
         module_init_signs.clear();
         // Return the result
         return LoadResult{
-                .entry = entry.empty() ? null : cast<ObjMethod>(vm->get_symbol(entry)),
+                .entry = entry.empty() ? null : cast<ObjMethod>(vm->get_symbol(entry).as_obj()),
                 .inits = inits,
         };
     }
@@ -78,11 +78,11 @@ namespace spade
             sign_stack.pop_back();
     }
 
-    void Loader::start_conpool_scope(const vector<Obj *> &conpool) {
+    void Loader::start_conpool_scope(const vector<Value> &conpool) {
         conpool_stack.push_back(conpool);
     }
 
-    const vector<Obj *> &Loader::get_conpool() const {
+    const vector<Value> &Loader::get_conpool() const {
         return conpool_stack.back();
     }
 
@@ -131,10 +131,10 @@ namespace spade
         start_conpool_scope(load_const_pool(info.constant_pool));
 
         // INFO: check info.kind
-        fs::path compiled_from = get_conpool()[info.compiled_from]->to_string();
-        string name = get_conpool()[info.name]->to_string();
+        fs::path compiled_from = get_conpool()[info.compiled_from].to_string();
+        string name = get_conpool()[info.name].to_string();
         // Set init
-        string init = get_conpool()[info.init]->to_string();
+        string init = get_conpool()[info.init].to_string();
         if (!init.empty())
             module_init_signs.push_back(init);
 
@@ -150,12 +150,12 @@ namespace spade
         for (const auto &info: info.globals) {
             // INFO: check info.kind
             Flags flags(info.access_flags);
-            string name = get_conpool()[info.name]->to_string();
+            string name = get_conpool()[info.name].to_string();
             // Set metadata
             vm->set_metadata((get_sign() | name).to_string(), load_meta(info.meta));
             // Set the global in the scope
-            assert(get_scope()->get_tag() == ObjTag::MODULE);
-            get_scope()->set_member(name, obj_null);
+            assert(get_scope()->get_tag() == OBJ_MODULE);
+            get_scope()->set_member(name, Value());
             get_scope()->set_flags(name, flags);
         }
 
@@ -201,20 +201,20 @@ namespace spade
             throw Unreachable();
         }
         Flags flags(info.access_flags);
-        string name = get_conpool()[info.name]->to_string();
+        string name = get_conpool()[info.name].to_string();
         Sign sign = get_sign() | name;
 
         // Set args
         VariableTable args(info.args_count);
         for (size_t i = 0; const auto &arg: info.args) {
-            args.set(i, obj_null);
+            args.set(i, Value());
             args.set_meta(i, load_meta(info.meta));
             i++;
         }
         // Set locals
         VariableTable locals(info.locals_count);
         for (size_t i = 0; const auto &local: info.locals) {
-            locals.set(i, obj_null);
+            locals.set(i, Value());
             locals.set_meta(i, load_meta(info.meta));
             i++;
         }
@@ -243,7 +243,7 @@ namespace spade
         FrameTemplate frame(info.code, info.stack_max, args, locals, exceptions, lines, matches);
         ObjMethod *method = halloc_mgr<ObjMethod>(vm->get_memory_manager(), kind, sign, frame);
         // Set the method in the scope
-        assert(get_scope()->get_tag() == ObjTag::MODULE || get_scope()->get_tag() == ObjTag::TYPE);
+        assert(get_scope()->get_tag() == OBJ_MODULE || get_scope()->get_tag() == OBJ_TYPE);
         get_scope()->set_member(name, method);
         get_scope()->set_flags(name, flags);
 
@@ -270,13 +270,13 @@ namespace spade
             throw Unreachable();
         }
         Flags flags(info.access_flags);
-        string name = get_conpool()[info.name]->to_string();
+        string name = get_conpool()[info.name].to_string();
         start_sign_scope(name);
 
         // Set supers
         vector<Sign> supers;
-        cast<ObjArray>(get_conpool()[info.supers])->for_each([&](Obj *super) {    //
-            supers.emplace_back(super->to_string());                              //
+        cast<ObjArray>(get_conpool()[info.supers].as_obj())->for_each([&](Value super) {    //
+            supers.emplace_back(super.to_string());                                        //
         });
 
         auto type = halloc_mgr<Type>(vm->get_memory_manager(), kind, get_sign(), supers);
@@ -286,12 +286,11 @@ namespace spade
         for (const auto &info: info.fields) {
             // INFO: check info.kind
             Flags flags(info.access_flags);
-            string name = get_conpool()[info.name]->to_string();
+            string name = get_conpool()[info.name].to_string();
             // Set metadata
             vm->set_metadata((get_sign() | name).to_string(), load_meta(info.meta));
             // Set the global in the scope
-            assert(get_scope()->get_tag() == ObjTag::TYPE);
-            get_scope()->set_member(name, obj_null);
+            get_scope()->set_member(name, Value());
             get_scope()->set_flags(name, flags);
         }
         // Set methods
@@ -304,15 +303,15 @@ namespace spade
         end_scope();
         end_sign_scope();
 
-        assert(get_scope()->get_tag() == ObjTag::MODULE);
+        assert(get_scope()->get_tag() == OBJ_MODULE);
         get_scope()->set_member(name, type);
         get_scope()->set_flags(name, flags);
 
         spdlog::info("Loader: Loaded type: {}", type->get_sign().to_string());
     }
 
-    vector<Obj *> Loader::load_const_pool(const vector<CpInfo> &cps) {
-        vector<Obj *> pool;
+    vector<Value> Loader::load_const_pool(const vector<CpInfo> &cps) {
+        vector<Value> pool;
         for (const auto &cp: cps) {
             pool.push_back(load_cp(cp));
         }
@@ -329,21 +328,21 @@ namespace spade
         return table;
     }
 
-    Obj *Loader::load_cp(const CpInfo &cp) {
+    Value Loader::load_cp(const CpInfo &cp) {
         const auto mgr = vm->get_memory_manager();
         switch (cp.tag) {
         case 0x00:
-            return obj_null;
+            return Value();
         case 0x01:
-            return halloc_mgr<ObjBool>(mgr, true);
+            return Value(true);
         case 0x02:
-            return halloc_mgr<ObjBool>(mgr, false);
+            return Value(false);
         case 0x03:
-            return halloc_mgr<ObjChar>(mgr, static_cast<char>(std::get<uint32_t>(cp.value)));
+            return Value(static_cast<char>(std::get<uint32_t>(cp.value)));
         case 0x04:
-            return halloc_mgr<ObjInt>(mgr, unsigned_to_signed(std::get<uint64_t>(cp.value)));
+            return Value(unsigned_to_signed(std::get<uint64_t>(cp.value)));
         case 0x05:
-            return halloc_mgr<ObjFloat>(mgr, raw_to_double(std::get<uint64_t>(cp.value)));
+            return Value(raw_to_double(std::get<uint64_t>(cp.value)));
         case 0x06:
             return halloc_mgr<ObjString>(mgr, std::get<_UTF8>(cp.value).bytes.data(), std::get<_UTF8>(cp.value).len);
         case 0x07: {

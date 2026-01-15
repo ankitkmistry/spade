@@ -1,13 +1,16 @@
 #include "table.hpp"
+#include "ee/obj.hpp"
 #include "memory/memory.hpp"
+#include "spimp/utils.hpp"
 #include "utils/errors.hpp"
+#include <boost/container_hash/hash_fwd.hpp>
 
 namespace spade
 {
     VariableTable::VariableTable(const VariableTable &other) {
-        values = vector<Obj *>(other.values.size());
+        values = vector<Value>(other.values.size());
         for (size_t i = 0; i < other.count(); i++) {
-            values[i] = other.values[i]->copy();
+            values[i] = other.values[i].copy();
         }
         metas = other.metas;
     }
@@ -18,9 +21,9 @@ namespace spade
     }
 
     VariableTable &VariableTable::operator=(const VariableTable &other) {
-        values = vector<Obj *>(other.values.size());
+        values = vector<Value>(other.values.size());
         for (size_t i = 0; i < other.count(); i++) {
-            values[i] = other.values[i]->copy();
+            values[i] = other.values[i].copy();
         }
         metas = other.metas;
         return *this;
@@ -35,31 +38,37 @@ namespace spade
     ObjCapture *VariableTable::ramp_up(uint8_t i) {
         if (i >= values.size())
             throw IndexError("variable", i);
+
         auto &value = values[i];
-        if (is<ObjCapture>(value))
-            return cast<ObjCapture>(value);
-        const auto pointer = halloc_mgr<ObjCapture>(value->get_info().manager, value);
-        value = pointer;
+        if (value.is_obj() && value.as_obj()->get_tag() == OBJ_CAPTURE) {
+            return cast<ObjCapture>(value.as_obj());
+        }
+
+        const auto pointer = halloc<ObjCapture>(value);
+        value.set(pointer);
         return pointer;
     }
 
-    Obj *VariableTable::get(uint8_t i) const {
+    Value VariableTable::get(uint8_t i) const {
         if (i >= values.size())
             throw IndexError("variable", i);
 
-        const auto value = values[i];
+        const auto &value = values[i];
         // Don't return the pointer, instead get the dereferenced value
-        return is<ObjCapture>(value) ? cast<ObjCapture>(value)->get() : value;
+        if (value.is_obj() && value.as_obj()->get_tag() == OBJ_CAPTURE) {
+            return cast<ObjCapture>(value.as_obj())->get();
+        }
+        return value;
     }
 
-    void VariableTable::set(uint8_t i, Obj *val) {
+    void VariableTable::set(uint8_t i, Value val) {
         if (i >= values.size())
             throw IndexError("variable", i);
 
         auto &value = values[i];
         // Don't set the value if it is a pointer, instead change the value it is pointing at
-        if (is<ObjCapture>(value))
-            cast<ObjCapture>(value)->set(val);
+        if (value.is_obj() && value.as_obj()->get_tag() == OBJ_CAPTURE)
+            cast<ObjCapture>(value.as_obj())->set(val);
         else
             value = val;
     }
@@ -90,104 +99,128 @@ namespace spade
     }
 
     void LineNumberTable::add_line(uint8_t times, uint32_t source_line) {
-        if (!line_infos.empty() && line_infos.back().sourceLine == source_line) {
-            line_infos.back().byteEnd += times;
+        if (!line_infos.empty() && line_infos.back().source_line == source_line) {
+            line_infos.back().byte_end += times;
         } else {
-            uint16_t end = line_infos.empty() ? 0 : line_infos.back().byteEnd;
-            line_infos.push_back(LineInfo{.sourceLine = source_line, .byteStart = end, .byteEnd = (uint16_t) (end + times)});
+            uint16_t end = line_infos.empty() ? 0 : line_infos.back().byte_end;
+            line_infos.push_back(LineInfo{.source_line = source_line, .byte_start = end, .byte_end = (uint16_t) (end + times)});
         }
     }
 
     uint64_t LineNumberTable::get_source_line(uint32_t byte_line) const {
         for (const auto line_info: line_infos)
-            if (line_info.byteStart <= byte_line && byte_line < line_info.byteEnd)
-                return line_info.sourceLine;
+            if (line_info.byte_start <= byte_line && byte_line < line_info.byte_end)
+                return line_info.source_line;
         throw IllegalAccessError(std::format("no source line mapping is present for byte line {}", byte_line));
     }
 
-    bool MatchTable::ObjEqual::operator()(Obj *lhs, Obj *rhs) const {
-        if (lhs->get_tag() != rhs->get_tag())
+    bool MatchTable::ValueEqual::operator()(Value lhs, Value rhs) const {
+        if (lhs.get_tag() != rhs.get_tag())
             return false;
-        switch (lhs->get_tag()) {
-        case ObjTag::NULL_OBJ:
+        switch (lhs.get_tag()) {
+        case VALUE_NULL:
             return true;
-        case ObjTag::BOOL:
-            return lhs->truth() == rhs->truth();
-        case ObjTag::CHAR:
-        case ObjTag::STRING:
-        case ObjTag::INT:
-        case ObjTag::FLOAT:
-            return lhs->to_string() == rhs->to_string();
-        case ObjTag::ARRAY: {
-            const auto lhs_arr = cast<ObjArray>(lhs);
-            const auto rhs_arr = cast<ObjArray>(rhs);
-            if (lhs_arr->count() != rhs_arr->count())
+        case VALUE_BOOL:
+            return lhs.as_bool() == rhs.as_bool();
+        case VALUE_CHAR:
+            return lhs.as_char() == rhs.as_char();
+        case VALUE_INT:
+            return lhs.as_int() == rhs.as_int();
+        case VALUE_FLOAT:
+            return lhs.as_float() == rhs.as_float();
+        case VALUE_OBJ: {
+            const auto lhs_obj = lhs.as_obj();
+            const auto rhs_obj = rhs.as_obj();
+
+            if (lhs_obj->get_tag() != rhs_obj->get_tag())
                 return false;
-            for (size_t i = 0; i < lhs_arr->count(); i++) {
-                if (!MatchTable::ObjEqual()(lhs_arr->get(i), rhs_arr->get(i)))
+            switch (lhs_obj->get_tag()) {
+            case OBJ_STRING:
+                return lhs_obj->to_string() == rhs_obj->to_string();
+            case OBJ_ARRAY: {
+                const auto lhs_arr = cast<ObjArray>(lhs_obj);
+                const auto rhs_arr = cast<ObjArray>(rhs_obj);
+                if (lhs_arr->count() != rhs_arr->count())
                     return false;
+                for (size_t i = 0; i < lhs_arr->count(); i++) {
+                    if (!MatchTable::ValueEqual()(lhs_arr->get(i), rhs_arr->get(i)))
+                        return false;
+                }
+                return true;
             }
-            return true;
+            case OBJ_OBJECT:
+            case OBJ_MODULE:
+            case OBJ_FOREIGN:
+            case OBJ_METHOD:
+            case OBJ_TYPE:
+            case OBJ_CAPTURE:
+                return lhs_obj == rhs_obj;
+            }
         }
-        case ObjTag::OBJECT:
-        case ObjTag::MODULE:
-        case ObjTag::FOREIGN:
-        case ObjTag::METHOD:
-        case ObjTag::TYPE:
-        case ObjTag::CAPTURE:
-            return lhs == rhs;
         }
         throw Unreachable();
     }
 
-    void MatchTable::ObjHash::hash(size_t &seed, Obj *obj) const {
-        boost::hash_combine(seed, obj->get_tag());
-        switch (obj->get_tag()) {
-        case ObjTag::NULL_OBJ:
+    void MatchTable::ValueHash::hash(size_t &seed, Value value) const {
+        boost::hash_combine(seed, value.get_tag());
+        switch (value.get_tag()) {
+        case VALUE_NULL:
             break;
-        case ObjTag::BOOL:
-            boost::hash_combine(seed, obj->truth());
+        case VALUE_BOOL:
+            boost::hash_combine(seed, value.as_bool());
             break;
-        case ObjTag::CHAR:
-        case ObjTag::STRING:
-        case ObjTag::INT:
-        case ObjTag::FLOAT:
-            boost::hash_combine(seed, obj->to_string());
+        case VALUE_CHAR:
+            boost::hash_combine(seed, value.as_char());
             break;
-        case ObjTag::ARRAY: {
-            const auto arr = cast<ObjArray>(obj);
-            for (size_t i = 0; i < arr->count(); i++) {
-                const auto obj = arr->get(i);
-                hash(seed, obj);
+        case VALUE_INT:
+            boost::hash_combine(seed, value.as_int());
+            break;
+        case VALUE_FLOAT:
+            boost::hash_combine(seed, value.as_float());
+            break;
+        case VALUE_OBJ: {
+            const auto obj = value.as_obj();
+            switch (obj->get_tag()) {
+            case OBJ_STRING:
+                boost::hash_combine(seed, obj->to_string());
+                break;
+            case OBJ_ARRAY: {
+                const auto arr = cast<ObjArray>(obj);
+                for (size_t i = 0; i < arr->count(); i++) {
+                    const auto obj = arr->get(i);
+                    hash(seed, obj);
+                }
+                break;
+            }
+            case OBJ_OBJECT:
+            case OBJ_MODULE:
+            case OBJ_METHOD:
+            case OBJ_FOREIGN:
+            case OBJ_TYPE:
+            case OBJ_CAPTURE:
+                boost::hash_combine(seed, obj);
+                break;
             }
             break;
         }
-        case ObjTag::OBJECT:
-        case ObjTag::MODULE:
-        case ObjTag::METHOD:
-        case ObjTag::FOREIGN:
-        case ObjTag::TYPE:
-        case ObjTag::CAPTURE:
-            boost::hash_combine(seed, obj);
-            break;
         }
     }
 
-    size_t MatchTable::ObjHash::operator()(Obj *obj) const {
+    size_t MatchTable::ValueHash::operator()(Value value) const {
         size_t seed = 0;
-        hash(seed, obj);
+        hash(seed, value);
         return seed;
     }
 
     MatchTable::MatchTable(const vector<Case> &cases, uint32_t default_location) : default_location(default_location) {
         for (const auto &kase: cases) {
-            table[kase.get_value()] = kase.get_location();
+            table.emplace(kase.get_value(), kase.get_location());
         }
     }
 
     // #define NAIVE_MATCH_PERFORM
 
-    uint32_t MatchTable::perform(Obj *value) const {
+    uint32_t MatchTable::perform(Value value) const {
 #ifdef NAIVE_MATCH_PERFORM
         // Info: improve this to perform fast matching in case of integer values
         for (const auto &[case_value, location]: table) {

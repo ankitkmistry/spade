@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common.hpp"
+#include "ee/value.hpp"
 #include "spimp/error.hpp"
 
 namespace spade
@@ -10,16 +11,14 @@ namespace spade
         explicit RuntimeError(const string &arg) : SpadeError(arg) {}
     };
 
-    class Obj;
-
     class ThrowSignal : public RuntimeError {
       private:
-        Obj *value;
+        Value value;
 
       public:
-        explicit ThrowSignal(Obj *value) : RuntimeError("value is thrown in the vm"), value(value) {}
+        explicit ThrowSignal(Value value) : RuntimeError("value is thrown in the vm"), value(value) {}
 
-        Obj *get_value() const {
+        Value get_value() const {
             return value;
         }
     };

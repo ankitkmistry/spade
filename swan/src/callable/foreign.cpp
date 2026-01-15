@@ -5,7 +5,7 @@
 
 namespace spade
 {
-    void ObjForeign::call(Obj *self, const vector<Obj *> &args) {
+    void ObjForeign::call(Obj *self, const vector<Value> &args) {
         validate_call_site();
 
         const uint8_t arg_count = sign.get_elements().back().get_params().size() & 0xFF;
@@ -18,47 +18,77 @@ namespace spade
         foreign_call(self, args);
     }
 
-    void ObjForeign::call(Obj *self, Obj **args) {
+    void ObjForeign::call(Obj *self, Value *args) {
         validate_call_site();
 
         const uint8_t arg_count = sign.get_elements().back().get_params().size() & 0xFF;
         foreign_call(self, vector(args, args + arg_count));
     }
 
-    void ObjForeign::foreign_call(Obj *self, vector<Obj *> args) {
-        // Call the foreign function as follows:
-        // If has_self:
-        //     handle(thread, self, args);
-        // If not has_self:
-        //     handle(thread, args)
+    void ObjForeign::foreign_call(Obj *self, vector<Value> args) {
+        /// Call the foreign function as follows:
+        /// If has_self:
+        ///     handle(thread, self, args);
+        /// If not has_self:
+        ///     handle(thread, args)
+        ///
+        /// An equivalent C function can be declared as (the function can never be variadic):
+        ///     spade::Value handle_with_self(spade::Thread *thread, Obj *self, Value *arg0, Value *arg1);
+        ///     spade::Value handle(spade::Thread *thread, Value *arg0, Value *arg1);
+        /// or
+        ///     spade::Value handle_with_self(spade::Thread *thread, Obj *self);
+        ///     spade::Value handle(spade::Thread *thread);
+        /// or
+        ///     spade::Value handle_with_self(spade::Thread *thread, Obj *self, Value *arg0);
+        ///     spade::Value handle(spade::Thread *thread, Value *arg0);
+
+        // class Value is always 16 bytes
+        ffi_type *value_type_elements[3];
+        value_type_elements[0] = &ffi_type_uint64;
+        value_type_elements[1] = &ffi_type_uint64;
+        value_type_elements[2] = null;
+
+        ffi_type ffi_type_value;
+        ffi_type_value.size = ffi_type_value.alignment = 0;
+        ffi_type_value.type = FFI_TYPE_STRUCT;
+        ffi_type_value.elements = value_type_elements;
 
         auto thread = Thread::current();
-        Obj *return_value = null;
+        Value return_value;
 
         ffi_cif cif;
-        const size_t ffi_args_count = has_self ? 2 + args.size() : 1 + args.size();
-        const auto ffi_arg_types = std::make_unique<ffi_type *[]>(ffi_args_count);
-        const auto ffi_values = std::make_unique<void *[]>(ffi_args_count);
+        std::vector<ffi_type *> ffi_arg_types;
+        std::vector<void *> ffi_values;
 
-        // Fill arg types
-        for (size_t i = 0; i < ffi_args_count; i++) {
-            ffi_arg_types[i] = &ffi_type_pointer;
+        // `thread` argument
+        ffi_arg_types.push_back(&ffi_type_pointer);
+        ffi_values.push_back(&thread);
+        // `self` argument
+        if (has_self) {
+            ffi_arg_types.push_back(&ffi_type_pointer);
+            ffi_values.push_back(&self);
         }
-
-        {    // Fill arg values
-            size_t i = 0;
-            ffi_values[i++] = &thread;
-            if (has_self)
-                ffi_values[i++] = &self;
-            for (size_t j = 0; j < args.size(); j++) {
-                ffi_values[i + j] = &args[j];
+        // function arguments
+        for (size_t i = 0; i < args.size(); i++) {
+            Value &arg = args[i];
+            switch (arg.get_tag()) {
+            case VALUE_NULL:
+            case VALUE_BOOL:
+            case VALUE_CHAR:
+            case VALUE_INT:
+            case VALUE_FLOAT:
+            case VALUE_OBJ:
+                ffi_arg_types.push_back(&ffi_type_pointer);
+                ffi_values.push_back(&arg);
+            default:
+                throw Unreachable();
             }
         }
 
-        const auto result = ffi_prep_cif(&cif, FFI_DEFAULT_ABI, ffi_args_count, &ffi_type_pointer, &ffi_arg_types[0]);
+        const auto result = ffi_prep_cif(&cif, FFI_DEFAULT_ABI, ffi_arg_types.size(), &ffi_type_value, ffi_arg_types.data());
         switch (result) {
         case FFI_OK:
-            ffi_call(&cif, (void (*)()) handle, &return_value, &ffi_values[0]);
+            ffi_call(&cif, (void (*)()) handle, &return_value, ffi_values.data());
             break;
         case FFI_BAD_TYPEDEF:
             throw ForeignCallError(sign.to_string(), "FFI_BAD_TYPEDEF");
@@ -70,8 +100,7 @@ namespace spade
             throw Unreachable();
         }
 
-        if (return_value) {
+        if (return_value)
             thread->get_state().push(return_value);
-        }
     }
 }    // namespace spade

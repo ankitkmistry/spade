@@ -41,7 +41,7 @@ namespace spade
          * @param method the method to be called
          * @param args arguments of the method
          */
-        virtual void call(Obj *self, const vector<Obj *> &args) = 0;
+        virtual void call(Obj *self, const vector<Value> &args) = 0;
 
         /**
          * Calls this method with @p args on the current thread
@@ -51,19 +51,6 @@ namespace spade
          * @param method the method to be called
          * @param args pointer to the args on the stack
          */
-        virtual void call(Obj *self, Obj **args) = 0;
-
-        /**
-         * Calls this method with @p args on the current thread.
-         * Invokes the VM, completes the execution of
-         * the function and returns the return value.
-         * In case the function returns void, @c ObjNull is returned
-         * @throws IllegalAccessError if the function is called outside a vm thread
-         * @param self the self object (or this pointer) can be null if the method 
-         *             does not require a self object
-         * @param args the method to be called
-         * @return the return value of the function
-         */
-        Obj *invoke(Obj *self, const vector<Obj *> &args);
+        virtual void call(Obj *self, Value *args) = 0;
     };
 }    // namespace spade
