@@ -1,5 +1,6 @@
 #include "utils.hpp"
 
+#include <bit>
 #include <filesystem>
 #include <boost/core/demangle.hpp>
 
@@ -39,6 +40,10 @@ namespace spade
     }
 
     double raw_to_double(uint64_t digits) {
+        // TODO: raw_to_double and double_to_raw are machine dependent
+        // and may produce incorrect results if the machine does not
+        // use "IEEE 754" to represent floating-point values
+
         union Converter {
             uint64_t digits;
             double number;
@@ -48,6 +53,10 @@ namespace spade
     }
 
     uint64_t double_to_raw(double number) {
+        // TODO: raw_to_double and double_to_raw are machine dependent
+        // and may produce incorrect results if the machine does not
+        // use "IEEE 754" to represent floating-point values
+
         union Converter {
             uint64_t digits;
             double number;
@@ -57,21 +66,11 @@ namespace spade
     }
 
     int64_t unsigned_to_signed(uint64_t number) {
-        union Converter {
-            uint64_t number1;
-            int64_t number2;
-        } converter{.number1 = number};
-
-        return converter.number2;
+        return std::bit_cast<int64_t>(number);
     }
 
     uint64_t signed_to_unsigned(int64_t number) {
-        union Converter {
-            uint64_t number1;
-            int64_t number2;
-        } converter{.number2 = number};
-
-        return converter.number1;
+        return std::bit_cast<uint64_t>(number);
     }
 
     std::string get_absolute_path(const std::string &path) {
