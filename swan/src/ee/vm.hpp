@@ -66,7 +66,7 @@ namespace spade
          * @param args the command line args array
          * @param block blocks the caller if the flag is set
          */
-        void start(const string &filename, const vector<string> &args, bool block = false);
+        void start(const string &filename, const vector<string> &args = {}, bool block = false);
 
         /**
          * The vm execution loop

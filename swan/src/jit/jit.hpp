@@ -1,18 +1,21 @@
 #pragma once
 
-#include <asmjit/x86.h>
-#include "asmjit/x86/x86compiler.h"
-#include "asmjit/x86/x86operand.h"
 #include "ee/vm.hpp"
+#include "utils/common.hpp"
+#include <asmjit/x86.h>
 
 namespace spade
 {
-    class JitCompiler {
+    class SWAN_EXPORT JitCompiler {
         SpadeVM *vm;
         asmjit::JitRuntime runtime;
+        asmjit::FileLogger logger;
 
       public:
-        JitCompiler(SpadeVM *vm) : vm(vm) {}
+        JitCompiler(SpadeVM *vm) : vm(vm), logger(stdout) {
+            logger.set_flags(asmjit::FormatFlags::kMachineCode | asmjit::FormatFlags::kShowAliases | asmjit::FormatFlags::kExplainImms);
+            logger.set_indentation(asmjit::FormatIndentationGroup::kCode, 4);
+        }
 
         JitCompiler() = delete;
         JitCompiler(const JitCompiler &) = delete;
@@ -26,7 +29,6 @@ namespace spade
 
       private:
         void *assemble_symbol(const ObjMethod *method, bool has_self);
-        void generate_body(asmjit::x86::Compiler &c, bool has_self, const asmjit::x86::Gp &thread, const asmjit::x86::Gp &self,
-                           const asmjit::x86::Gp &ret, const vector<asmjit::x86::Gp> &args);
+        void generate_body(asmjit::x86::Assembler &a, bool has_self, const asmjit::Label &exit);
     };
 }    // namespace spade
