@@ -1,6 +1,3 @@
 [submodule "external/nite"]
 	path = external/nite
 	url = https://github.com/ankitkmistry/nite
-[submodule "external/asmjit"]
-	path = external/asmjit
-	url = https://github.com/asmjit/asmjit
