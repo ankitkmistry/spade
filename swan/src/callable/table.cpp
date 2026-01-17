@@ -15,23 +15,12 @@ namespace spade
         metas = other.metas;
     }
 
-    VariableTable::VariableTable(VariableTable &&other) noexcept {
-        values = std::move(other.values);
-        metas = std::move(other.metas);
-    }
-
     VariableTable &VariableTable::operator=(const VariableTable &other) {
         values = vector<Value>(other.values.size());
         for (size_t i = 0; i < other.count(); i++) {
             values[i] = other.values[i].copy();
         }
         metas = other.metas;
-        return *this;
-    }
-
-    VariableTable &VariableTable::operator=(VariableTable &&other) noexcept {
-        values = std::move(other.values);
-        metas = std::move(other.metas);
         return *this;
     }
 

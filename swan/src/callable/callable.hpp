@@ -41,7 +41,7 @@ namespace spade
          * @param method the method to be called
          * @param args arguments of the method
          */
-        virtual void call(Obj *self, const vector<Value> &args) = 0;
+        virtual void call(Obj *self, vector<Value> args) = 0;
 
         /**
          * Calls this method with @p args on the current thread

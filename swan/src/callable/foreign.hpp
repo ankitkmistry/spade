@@ -13,8 +13,8 @@ namespace spade
         ObjForeign(const Sign &sign, void *handle, bool has_self)
             : ObjCallable(OBJ_FOREIGN, Kind::FOREIGN, sign), handle(handle), has_self(has_self) {}
 
-        void call(Obj *self, const vector<Value> &args) override;
-        void call(Obj *self, Value*args) override;
+        void call(Obj *self, vector<Value> args) override;
+        void call(Obj *self, Value *args) override;
 
       private:
         void foreign_call(Obj *self, vector<Value> args);

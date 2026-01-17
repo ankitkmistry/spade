@@ -239,9 +239,9 @@ namespace spade
         }
         // Set metadata
         vm->set_metadata(sign.to_string(), load_meta(info.meta));
-        // Set frame template
-        FrameTemplate frame(info.code, info.stack_max, args, locals, exceptions, lines, matches);
-        ObjMethod *method = halloc_mgr<ObjMethod>(vm->get_memory_manager(), kind, sign, frame);
+        // Create method
+        ObjMethod *method =
+                halloc_mgr<ObjMethod>(vm->get_memory_manager(), kind, sign, info.code, info.stack_max, args, locals, exceptions, lines, matches);
         // Set the method in the scope
         assert(get_scope()->get_tag() == OBJ_MODULE || get_scope()->get_tag() == OBJ_TYPE);
         get_scope()->set_member(name, method);
@@ -276,7 +276,7 @@ namespace spade
         // Set supers
         vector<Sign> supers;
         cast<ObjArray>(get_conpool()[info.supers].as_obj())->for_each([&](Value super) {    //
-            supers.emplace_back(super.to_string());                                        //
+            supers.emplace_back(super.to_string());                                         //
         });
 
         auto type = halloc_mgr<Type>(vm->get_memory_manager(), kind, get_sign(), supers);

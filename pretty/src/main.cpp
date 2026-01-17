@@ -260,10 +260,10 @@ class PrettyDebugger : public Debugger {
 
     void Code(const Frame *frame) {
         const auto code = &frame->code[0];
-        const auto ip = frame->ip;
+        const auto ip = &frame->code[frame->pc];
         const auto code_count = frame->get_code_count();
         const auto &pool = frame->get_const_pool();
-        const auto &line_table = frame->get_lines();
+        const auto &line_table = frame->get_method()->get_lines();
 
         if (code_count == 0)
             return;
@@ -396,8 +396,9 @@ class PrettyDebugger : public Debugger {
 
     void OperandStack(const Frame *frame) {
         vector<string> data;
-        for (Value *sp = &frame->stack[0]; sp < frame->sp; sp++) {
-            const auto text = " " + sp->to_string();
+        for (size_t i = 0; i < frame->sc; i++) {
+            const auto &value = frame->stack[i];
+            const auto text = " " + value.to_string();
             data.push_back(text);
         }
         // clang-format off

@@ -14,9 +14,9 @@ namespace spade
 
         VariableTable() = default;
         VariableTable(const VariableTable &other);
-        VariableTable(VariableTable &&other) noexcept;
+        VariableTable(VariableTable &&other) noexcept = default;
         VariableTable &operator=(const VariableTable &other);
-        VariableTable &operator=(VariableTable &&other) noexcept;
+        VariableTable &operator=(VariableTable &&other) noexcept = default;
         ~VariableTable() = default;
 
         /**

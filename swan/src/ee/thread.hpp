@@ -13,9 +13,9 @@ namespace spade
         /// Maximum call stack depth
         ptrdiff_t stack_depth;
         /// Call stack
-        std::unique_ptr<Frame[]> call_stack;
+        std::vector<Frame> call_stack;
         /// Frame pointer to the next frame of the current active frame
-        Frame *fp = null;
+        // size_t fc = 0;
 
       public:
         ThreadState(size_t max_call_stack_depth);
@@ -33,7 +33,7 @@ namespace spade
          * Pushes a call frame on top of the call stack
          * @param frame the frame to be pushed
          */
-        void push_frame(Frame frame);
+        void push_frame(Frame &&frame);
 
         /**
          * Pops the active call frame and reloads the state
@@ -81,7 +81,12 @@ namespace spade
          * @return the byte
          */
         uint8_t read_byte() {
-            return *get_frame()->ip++;
+            const auto frame = get_frame();
+
+            assert(frame->pc < frame->get_code_count() && "program counter is out of bounds");
+            const uint8_t byte = frame->code[frame->pc];
+            frame->pc++;
+            return byte;
         }
 
         /**
@@ -90,8 +95,14 @@ namespace spade
          */
         uint16_t read_short() {
             const auto frame = get_frame();
-            frame->ip += 2;
-            return (frame->ip[-2] << 8) | frame->ip[-1];
+
+            assert(frame->pc < frame->get_code_count() && "program counter is out of bounds");
+            const uint8_t byte1 = frame->code[frame->pc];
+            frame->pc++;
+            assert(frame->pc < frame->get_code_count() && "program counter is out of bounds");
+            const uint8_t byte2 = frame->code[frame->pc];
+            frame->pc++;
+            return (byte1 << 8) | byte2;
         }
 
         /**
@@ -99,7 +110,7 @@ namespace spade
          * @param offset offset to be adjusted
          */
         void adjust(ptrdiff_t offset) {
-            get_frame()->ip += offset;
+            get_frame()->pc += offset;
         }
 
         /**
@@ -120,28 +131,33 @@ namespace spade
          * @return The active frame
          */
         const Frame *get_frame() const {
-            return fp - 1;
+            // assert(fc > 0 && "frame counter is out of bounds");
+            // return &call_stack[fc - 1];
+            return &call_stack.back();
         }
 
         /**
          * @return The active frame
          */
         Frame *get_frame() {
-            return fp - 1;
+            // assert(fc > 0 && "frame counter is out of bounds");
+            // return &call_stack[fc - 1];
+            return &call_stack.back();
         }
 
         /**
          * @return The size of the call stack
          */
         uint16_t get_call_stack_size() const {
-            return fp - &call_stack[0];
+            // return fc;
+            return call_stack.size();
         }
 
         /**
          * @return The program counter
          */
         uint32_t get_pc() const {
-            return get_frame()->ip - &get_frame()->code[0];
+            return get_frame()->pc;
         }
 
         /**
@@ -149,7 +165,7 @@ namespace spade
          * @param pc the program counter value
          */
         void set_pc(uint32_t pc) {
-            get_frame()->ip = &get_frame()->code[0] + pc;
+            get_frame()->pc = pc;
         }
     };
 

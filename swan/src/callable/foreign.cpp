@@ -6,7 +6,7 @@
 
 namespace spade
 {
-    void ObjForeign::call(Obj *self, const vector<Value> &args) {
+    void ObjForeign::call(Obj *self, vector<Value> args) {
         validate_call_site();
 
         const uint8_t arg_count = sign.get_elements().back().get_params().size() & 0xFF;

@@ -1,24 +1,38 @@
 #include "thread.hpp"
+#include "callable/frame.hpp"
 #include "utils/errors.hpp"
 #include "vm.hpp"
 #include <condition_variable>
+#include <cstring>
 #include <shared_mutex>
 
 namespace spade
 {
     ThreadState::ThreadState(size_t max_call_stack_depth)
-        : stack_depth(max_call_stack_depth), call_stack(std::make_unique<Frame[]>(stack_depth)), fp(&call_stack[0]) {}
+        // : stack_depth(max_call_stack_depth), call_stack(std::make_unique<Frame[]>(stack_depth)), fc(0) {
+        : stack_depth(max_call_stack_depth), call_stack() {
+        // for (size_t i = 0; i < stack_depth; i++) call_stack[i] = Frame();
+    }
 
-    void ThreadState::push_frame(Frame frame) {
-        if (fp - &call_stack[0] >= stack_depth)
+    void ThreadState::push_frame(Frame &&frame) {
+        // if (fc >= stack_depth)
+        //     throw StackOverflowError();
+        // call_stack[fc] = std::move(frame);
+        // fc++;
+        if (get_call_stack_size() >= stack_depth)
             throw StackOverflowError();
-        *fp++ = std::move(frame);
+        call_stack.push_back(std::move(frame));
     }
 
     bool ThreadState::pop_frame() {
-        if (fp > &call_stack[0]) {
-            // std::destroy_at(fp - 1);
-            fp--;
+        // if (fc > 0) {
+        //     fc--;
+        //     // std::destroy_at(&frame[fc]);
+        //     return true;
+        // }
+        // return false;
+        if (get_call_stack_size() > 0) {
+            call_stack.pop_back();
             return true;
         }
         return false;
