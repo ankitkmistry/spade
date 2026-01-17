@@ -204,20 +204,6 @@ namespace spade
         string name = get_conpool()[info.name].to_string();
         Sign sign = get_sign() | name;
 
-        // Set args
-        VariableTable args(info.args_count);
-        for (size_t i = 0; const auto &arg: info.args) {
-            args.set(i, Value());
-            args.set_meta(i, load_meta(info.meta));
-            i++;
-        }
-        // Set locals
-        VariableTable locals(info.locals_count);
-        for (size_t i = 0; const auto &local: info.locals) {
-            locals.set(i, Value());
-            locals.set_meta(i, load_meta(info.meta));
-            i++;
-        }
         // Set exception table
         ExceptionTable exceptions;
         for (const auto &ex: info.exception_table) {
@@ -240,8 +226,8 @@ namespace spade
         // Set metadata
         vm->set_metadata(sign.to_string(), load_meta(info.meta));
         // Create method
-        ObjMethod *method =
-                halloc_mgr<ObjMethod>(vm->get_memory_manager(), kind, sign, info.code, info.stack_max, args, locals, exceptions, lines, matches);
+        ObjMethod *method = halloc_mgr<ObjMethod>(vm->get_memory_manager(), kind, sign, info.code, info.stack_max, info.args_count, info.locals_count,
+                                                  exceptions, lines, matches);
         // Set the method in the scope
         assert(get_scope()->get_tag() == OBJ_MODULE || get_scope()->get_tag() == OBJ_TYPE);
         get_scope()->set_member(name, method);

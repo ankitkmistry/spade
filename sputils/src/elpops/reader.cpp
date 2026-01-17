@@ -110,17 +110,7 @@ namespace spade
         method.name = read_short();
 
         method.args_count = read_byte();
-        method.args = vector<ArgInfo>(method.args_count);
-        for (int i = 0; i < method.args_count; i++) {
-            method.args[i] = read_arg_info();
-        }
-
         method.locals_count = read_short();
-        method.locals = vector<LocalInfo>(method.locals_count);
-        for (int i = 0; i < method.locals_count; i++) {
-            method.locals[i] = read_local_info();
-        }
-
         method.stack_max = read_int();
         method.code_count = read_int();
         method.code = vector<uint8_t>(method.code_count);
@@ -184,20 +174,6 @@ namespace spade
         return exception;
     }
 
-    LocalInfo ElpReader::read_local_info() {
-        LocalInfo local;
-        local.kind = read_short();
-        local.meta = read_meta_info();
-        return local;
-    }
-
-    ArgInfo ElpReader::read_arg_info() {
-        ArgInfo arg;
-        arg.kind = read_short();
-        arg.meta = read_meta_info();
-        return arg;
-    }
-
     GlobalInfo ElpReader::read_global_info() {
         GlobalInfo global;
         global.kind = read_short();
@@ -224,23 +200,23 @@ namespace spade
         CpInfo cp;
         cp.tag = read_byte();
         switch (cp.tag) {
-            case 0x03:
-                cp.value = read_int();
-                break;
-            case 0x04:
-                cp.value = read_long();
-                break;
-            case 0x05:
-                cp.value = read_long();
-                break;
-            case 0x06:
-                cp.value = read_utf8();
-                break;
-            case 0x07:
-                cp.value = read_container();
-                break;
-            default:
-                corrupt_file_error();
+        case 0x03:
+            cp.value = read_int();
+            break;
+        case 0x04:
+            cp.value = read_long();
+            break;
+        case 0x05:
+            cp.value = read_long();
+            break;
+        case 0x06:
+            cp.value = read_utf8();
+            break;
+        case 0x07:
+            cp.value = read_container();
+            break;
+        default:
+            corrupt_file_error();
         }
         return cp;
     }

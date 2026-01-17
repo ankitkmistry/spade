@@ -1,6 +1,7 @@
 #pragma once
 
 #include "table.hpp"
+#include <cstdint>
 
 namespace spade
 {
@@ -20,11 +21,8 @@ namespace spade
         uint32_t sc;
 
       private:
-        size_t args_count;
-        size_t locals_count;
-
-        VariableTable args;
-        VariableTable locals;
+        uint8_t args_count;
+        uint16_t locals_count;
         ObjMethod *method;
         ObjModule *module;
 
@@ -70,33 +68,21 @@ namespace spade
             return module->get_constant_pool();
         }
 
-        /**
-         * @return The arguments table
-         */
-        VariableTable &get_args() {
-            return args;
+        uint8_t get_args_count() const {
+            return args_count;
         }
 
-        /**
-         * @return The locals table
-         */
-        VariableTable &get_locals() {
-            return locals;
+        Value get_arg(uint8_t i) const;
+        void set_arg(uint8_t i, Value value) const;
+        ObjCapture *ramp_up_arg(uint8_t i) const;
+
+        uint16_t get_locals_count() const {
+            return locals_count;
         }
 
-        /**
-         * @return The arguments table
-         */
-        const VariableTable &get_args() const {
-            return args;
-        }
-
-        /**
-         * @return The locals table
-         */
-        const VariableTable &get_locals() const {
-            return locals;
-        }
+        Value get_local(uint16_t i) const;
+        void set_local(uint16_t i, Value value) const;
+        ObjCapture *ramp_up_local(uint16_t i) const;
 
         /**
          * @return The method associated with the this frame

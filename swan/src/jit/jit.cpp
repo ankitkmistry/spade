@@ -6,8 +6,11 @@
 #include "ee/value.hpp"
 #include "memory/memory.hpp"
 #include "callable/method.hpp"
+#include "spimp/utils.hpp"
+#include "spinfo/opcode.hpp"
 
 #include <asmjit/x86.h>
+#include <iostream>
 #include <spdlog/spdlog.h>
 
 /// # x86_64 JIT Function Calling Convention
@@ -62,17 +65,130 @@
 
 namespace spade
 {
+    static void print_bytecode(const SpadeVM *vm, const ObjMethod *method) {
+        const auto module = cast<ObjModule>(vm->get_symbol(method->get_sign().get_parent_module().to_string()).as_obj());
+
+        const auto code = method->get_code();
+        const auto ip = code;
+        const auto code_count = method->get_code_count();
+        const auto &pool = module->get_constant_pool();
+        const auto &line_table = method->get_lines();
+
+        if (code_count == 0)
+            return;
+
+        const auto byte_line_max_len = std::to_string(code_count - 1).length();
+        const auto source_line_max_len = std::to_string(line_table.get_line_infos().back().source_line).length() + 2;
+        uint64_t source_line = 0;
+        uint32_t i = 0;
+        const auto read_byte = [&i, code]() -> uint8_t { return code[i++]; };
+        const auto read_short = [&i, code]() -> uint16_t {
+            i += 2;
+            return code[i - 2] << 8 | code[i - 1];
+        };
+
+        while (i < code_count) {
+            // Compute source line
+            uint64_t source_line_tmp = line_table.get_source_line(i);
+            string source_line_str;
+            if (source_line != source_line_tmp) {
+                // If the current source line is different from the prev one then show the line number
+                source_line = source_line_tmp;
+                source_line_str = pad_right(std::to_string(source_line) + " |", source_line_max_len);
+            } else {
+                // If the current source line is same as the prev source line then do not show the line number
+                source_line_str = pad_right(" |", source_line_max_len);
+            }
+
+            // Get the start of the line
+            const auto start = i;
+            // Get the opcode
+            const auto opcode = static_cast<Opcode>(read_byte());
+            // Evaluate parameters of the opcode
+            string param;
+            switch (OpcodeInfo::params_count(opcode)) {
+            case 1: {
+                const auto num = read_byte();
+                string val_str = OpcodeInfo::take_from_const_pool(opcode) ? std::format("({})", pool[num].to_string()) : "";
+                param = std::format("{} {}", num, val_str);
+                break;
+            }
+            case 2: {
+                uint16_t num = read_short();
+                switch (opcode) {
+                case Opcode::JMP:
+                case Opcode::JT:
+                case Opcode::JF:
+                case Opcode::JLT:
+                case Opcode::JLE:
+                case Opcode::JEQ:
+                case Opcode::JNE:
+                case Opcode::JGE:
+                case Opcode::JGT: {
+                    const auto offset = static_cast<int16_t>(num);
+                    param = std::to_string(offset);
+                    break;
+                }
+                default:
+                    string val_str = OpcodeInfo::take_from_const_pool(opcode) ? std::format("({})", pool[num].to_string()) : "";
+                    param = std::format("{} {}", num, val_str);
+                    break;
+                }
+                break;
+            }
+            default:
+                param = "";
+                if (opcode == Opcode::CLOSURELOAD) {
+                    const auto count = read_byte();
+                    param.append("[");
+                    for (uint8_t i = 0; i < count; i++) {
+                        const auto local_idx = read_short();
+                        string kind;
+                        size_t to_idx;
+                        switch (read_byte()) {
+                        case 0:
+                            kind = "arg";
+                            to_idx = read_byte();
+                            break;
+                        case 1:
+                            kind = "local";
+                            to_idx = read_short();
+                            break;
+                        default:
+                            throw Unreachable();
+                        }
+                        param += std::format("{}->{}({}), ", local_idx, kind, to_idx);
+                    }
+                    if (param.back() != '[') {
+                        param.pop_back();
+                        param.pop_back();
+                    }
+                    param.append("]");
+                }
+                break;
+            }
+
+            std::cout << std::format("  {: >{}}: {} {} {}\n", start, byte_line_max_len, source_line_str, OpcodeInfo::to_string(opcode), param);
+        }
+    }
+
     void JitCompiler::compile_symbol(const ObjMethod *method) {
         spdlog::info("JitCompiler: Starting compilation of symbol: {}", method->get_sign().to_string());
+        spdlog::info("JitCompiler: BYTECODE START ===================");
+        print_bytecode(vm, method);
+        spdlog::info("JitCompiler: BYTECODE END =====================");
         void *fn = assemble_symbol(method, false);
         spdlog::info("JitCompiler: Completed assembling of symbol: {}", method->get_sign().to_string());
-        const auto ffi_fn = halloc<ObjForeign>(method->get_sign(), fn, false);
-        vm->set_symbol(method->get_sign().to_string(), ffi_fn);
-        spdlog::info("JitCompiler: Inserted the symbol to vm globals: {}", method->get_sign().to_string());
+        // const auto ffi_fn = halloc<ObjForeign>(method->get_sign(), fn, false);
+        // vm->set_symbol(method->get_sign().to_string(), ffi_fn);
+        // spdlog::info("JitCompiler: Inserted the symbol to vm globals: {}", method->get_sign().to_string());
     }
 
     void JitCompiler::compile_symbol(Obj *obj, const ObjMethod *method) {
         spdlog::info("JitCompiler: Starting compilation of symbol: {}", method->get_sign().to_string());
+        spdlog::info("JitCompiler: BYTECODE START ===================");
+        print_bytecode(vm, method);
+        spdlog::info("JitCompiler: BYTECODE END =====================");
         void *fn = assemble_symbol(method, true);
         spdlog::info("JitCompiler: Completed assembling of symbol: {}", method->get_sign().to_string());
         const auto ffi_fn = halloc<ObjForeign>(method->get_sign(), fn, true);

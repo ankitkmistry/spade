@@ -231,9 +231,9 @@ namespace spade
             if (entry == null)
                 throw IllegalAccessError(std::format("cannot find entry point in '{}'", filename));
             // Call the function
-            if (const auto args_count = entry->get_args().count(); args_count == 0)
+            if (const auto args_count = entry->get_args_count(); args_count == 0)
                 entry->call(null, {});
-            else if (const auto args_count = entry->get_args().count(); args_count == 1) {
+            else if (const auto args_count = entry->get_args_count(); args_count == 1) {
                 // Convert vector<string> to ObjArray
                 auto array = halloc_mgr<ObjArray>(manager, args.size());
                 for (size_t i = 0; i < args.size(); ++i) {

@@ -48,7 +48,7 @@ add_library (sputils STATIC ${SPUTILS_SRCS})
 
 target_include_directories (sputils PUBLIC sputils/src)
 target_include_directories (sputils PUBLIC ${Boost_INCLUDE_DIRS})
-target_link_libraries (sputils ${Boost_LIBRARIES})
+target_link_libraries (sputils PUBLIC ${Boost_LIBRARIES})
 
 # Target: spadec
 # It is the compiler of the Spade language
@@ -56,7 +56,7 @@ file (GLOB_RECURSE SPADEC_SRCS spadec/src/*.cpp)
 
 add_executable (spadec ${SPADEC_SRCS})
 target_include_directories (spadec PUBLIC spadec/src)
-target_link_libraries (spadec PUBLIC sputils PRIVATE spdlog::spdlog argparse::argparse)
+target_link_libraries (spadec PUBLIC sputils spdlog::spdlog PRIVATE argparse::argparse)
 
 # Target: spasm
 # It is the assembler of the Spade language bytecode
@@ -72,7 +72,7 @@ file (GLOB_RECURSE SWAN_SRCS swan/src/**/*.cpp)
 
 add_library (swan SHARED ${SWAN_SRCS})
 target_include_directories (swan PUBLIC swan/src)
-target_link_libraries (swan PUBLIC sputils PRIVATE spdlog::spdlog unofficial::libffi::libffi)
+target_link_libraries (swan PUBLIC sputils spdlog::spdlog PRIVATE unofficial::libffi::libffi)
 
 # # Set up llvm
 # # Reference: https://llvm.org/docs/CMake.html
@@ -103,7 +103,7 @@ file(GLOB_RECURSE PRETTY_SRCS pretty/src/*.cpp)
 
 add_executable (pretty ${PRETTY_SRCS})
 target_include_directories (pretty PUBLIC pretty/src)
-target_link_libraries(pretty PRIVATE swan nite::nite spdlog::spdlog)
+target_link_libraries(pretty PRIVATE swan nite::nite)
 
 if (MSVC)
     # warning level 4

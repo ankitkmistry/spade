@@ -2,28 +2,38 @@
 
 #include "callable.hpp"
 #include "callable/table.hpp"
+#include "ee/obj.hpp"
 #include "frame.hpp"
 #include <cstdint>
 
 namespace spade
 {
     class SWAN_EXPORT ObjMethod final : public ObjCallable {
+        struct CaptureInfo {
+            uint16_t local_index;
+            ObjCapture *capture;
+        };
+
       private:
         uint32_t code_count;
         std::unique_ptr<uint8_t[]> code;
         uint32_t stack_max;
-        VariableTable arg_tbl;
-        VariableTable loc_tbl;
+        uint8_t args_count;
+        uint16_t locals_count;
+        vector<CaptureInfo> captures;
         ExceptionTable exceptions;
         LineNumberTable lines;
         vector<MatchTable> matches;
 
       public:
-        ObjMethod(Kind kind, const Sign &sign, const vector<uint8_t> &code, uint32_t stack_max, const VariableTable &args,
-                  const VariableTable &locals, const ExceptionTable &exceptions, const LineNumberTable &lines, const vector<MatchTable> &matches);
+        ObjMethod(Kind kind, const Sign &sign, const vector<uint8_t> &code, uint32_t stack_max, uint8_t args_count, uint16_t locals_count,
+                  const ExceptionTable &exceptions, const LineNumberTable &lines, const vector<MatchTable> &matches);
 
         void call(Obj *self, vector<Value> args) override;
         void call(Obj *self, Value *args) override;
+
+        void set_capture(uint16_t local_idx, ObjCapture *capture);
+        ObjMethod *force_copy() const;
 
         uint32_t get_code_count() const {
             return code_count;
@@ -37,12 +47,12 @@ namespace spade
             return stack_max;
         }
 
-        const VariableTable &get_args() const {
-            return arg_tbl;
+        size_t get_args_count() const {
+            return args_count;
         }
 
-        const VariableTable &get_locals() const {
-            return loc_tbl;
+        size_t get_locals_count() const {
+            return locals_count;
         }
 
         const ExceptionTable &get_exceptions() const {
@@ -55,14 +65,6 @@ namespace spade
 
         const vector<MatchTable> &get_matches() const {
             return matches;
-        }
-
-        VariableTable &get_args() {
-            return arg_tbl;
-        }
-
-        VariableTable &get_locals() {
-            return loc_tbl;
         }
 
         ExceptionTable &get_exceptions() {

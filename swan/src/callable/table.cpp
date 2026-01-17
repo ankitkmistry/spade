@@ -1,85 +1,11 @@
 #include "table.hpp"
 #include "ee/obj.hpp"
-#include "memory/memory.hpp"
 #include "spimp/utils.hpp"
 #include "utils/errors.hpp"
 #include <boost/container_hash/hash_fwd.hpp>
 
 namespace spade
 {
-    VariableTable::VariableTable(const VariableTable &other) {
-        values = vector<Value>(other.values.size());
-        for (size_t i = 0; i < other.count(); i++) {
-            values[i] = other.values[i].copy();
-        }
-        metas = other.metas;
-    }
-
-    VariableTable &VariableTable::operator=(const VariableTable &other) {
-        values = vector<Value>(other.values.size());
-        for (size_t i = 0; i < other.count(); i++) {
-            values[i] = other.values[i].copy();
-        }
-        metas = other.metas;
-        return *this;
-    }
-
-    ObjCapture *VariableTable::ramp_up(uint8_t i) {
-        if (i >= values.size())
-            throw IndexError("variable", i);
-
-        auto &value = values[i];
-        if (value.is_obj() && value.as_obj()->get_tag() == OBJ_CAPTURE) {
-            return cast<ObjCapture>(value.as_obj());
-        }
-
-        const auto pointer = halloc<ObjCapture>(value);
-        value.set(pointer);
-        return pointer;
-    }
-
-    Value VariableTable::get(uint8_t i) const {
-        if (i >= values.size())
-            throw IndexError("variable", i);
-
-        const auto &value = values[i];
-        // Don't return the pointer, instead get the dereferenced value
-        if (value.is_obj() && value.as_obj()->get_tag() == OBJ_CAPTURE) {
-            return cast<ObjCapture>(value.as_obj())->get();
-        }
-        return value;
-    }
-
-    void VariableTable::set(uint8_t i, Value val) {
-        if (i >= values.size())
-            throw IndexError("variable", i);
-
-        auto &value = values[i];
-        // Don't set the value if it is a pointer, instead change the value it is pointing at
-        if (value.is_obj() && value.as_obj()->get_tag() == OBJ_CAPTURE)
-            cast<ObjCapture>(value.as_obj())->set(val);
-        else
-            value = val;
-    }
-
-    const Table<string> &VariableTable::get_meta(uint8_t i) const {
-        if (i >= metas.size())
-            throw IndexError("variable", i);
-        return metas[i];
-    }
-
-    Table<string> &VariableTable::get_meta(uint8_t i) {
-        if (i >= metas.size())
-            throw IndexError("variable", i);
-        return metas[i];
-    }
-
-    void VariableTable::set_meta(uint8_t i, const Table<string> &meta) {
-        if (i >= metas.size())
-            throw IndexError("variable", i);
-        metas[i] = meta;
-    }
-
     Exception ExceptionTable::get_target(uint32_t pc, const Type *type) const {
         for (const auto &exception: exceptions)
             if (exception.get_from() <= pc && pc < exception.get_to() && exception.get_type() == type)

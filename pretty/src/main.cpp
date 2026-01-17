@@ -1,4 +1,5 @@
 #include "retriever.hpp"
+#include "spimp/utils.hpp"
 #include <iostream>
 
 #include <callable/method.hpp>
@@ -111,7 +112,7 @@ class PrettyDebugger : public Debugger {
                 FillBackground(state, Color::from_hex(0x3b4261));
                 EndBorder(state);
                 FillBackground(state, Color::from_hex(0x3b4261));
-                VarTable(frame->get_args());
+                ArgsTable(frame);
             } EndPane(state);
 
             BeginGridCell(state, 1, 1); {
@@ -123,7 +124,7 @@ class PrettyDebugger : public Debugger {
                 FillBackground(state, Color::from_hex(0x201640));
                 EndBorder(state);
                 FillBackground(state, Color::from_hex(0x201640));
-                VarTable(frame->get_locals());
+                LocalsTable(frame);
             } EndPane(state);
 
             BeginGridCell(state, 2, 0); {
@@ -396,7 +397,7 @@ class PrettyDebugger : public Debugger {
 
     void OperandStack(const Frame *frame) {
         vector<string> data;
-        for (size_t i = 0; i < frame->sc; i++) {
+        for (size_t i = frame->get_args_count() + frame->get_locals_count(); i < frame->sc; i++) {
             const auto &value = frame->stack[i];
             const auto text = " " + value.to_string();
             data.push_back(text);
@@ -422,11 +423,33 @@ class PrettyDebugger : public Debugger {
         // clang-format on
     }
 
-    void VarTable(const VariableTable &table) {
+    void ArgsTable(const Frame *frame) {
         vector<string> data{" index", " value"};
-        for (uint8_t i = 0; i < table.count(); i++) {
+        for (uint8_t i = 0; i < frame->get_args_count(); i++) {
             data.push_back(std::to_string(i));
-            data.push_back(table.get(i).to_string());
+            data.push_back(frame->get_arg(i).to_string());
+        }
+
+        // clang-format off
+        SimpleTable(state, {
+           .data = data,
+           .include_header_row = true,
+           .num_cols = 2,
+           .num_rows = data.size() / 2,
+           .pos = {0, 0},
+           .header_style = {.bg = Color::from_hex(0x345c25), .fg = COLOR_WHITE},
+           .table_style = {.bg = Color::from_hex(0x104876), .fg = COLOR_WHITE},
+           .show_border = false,
+           .border = TABLE_BORDER_LIGHT,
+        });
+        // clang-format on
+    }
+
+    void LocalsTable(const Frame *frame) {
+        vector<string> data{" index", " value"};
+        for (uint8_t i = 0; i < frame->get_locals_count(); i++) {
+            data.push_back(std::to_string(i));
+            data.push_back(frame->get_local(i).to_string());
         }
 
         // clang-format off

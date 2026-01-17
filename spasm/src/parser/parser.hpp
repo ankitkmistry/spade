@@ -92,8 +92,8 @@ namespace spasm
         FieldInfo parse_field();
 
         MethodInfo parse_method();
-        ArgInfo parse_arg();
-        LocalInfo parse_local();
+        void parse_arg();
+        void parse_local();
         ExceptionContext parse_exception();
         void parse_line();
 

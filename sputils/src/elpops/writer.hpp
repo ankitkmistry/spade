@@ -54,8 +54,6 @@ namespace spade
         void write(const MatchInfo &info);
         void write(const LineInfo &info);
         void write(const ExceptionTableInfo &info);
-        void write(const LocalInfo &info);
-        void write(const ArgInfo &info);
         void write(const GlobalInfo &info);
         void write(const MetaInfo &info);
         void write(const CpInfo &info);

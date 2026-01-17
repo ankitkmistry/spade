@@ -29,6 +29,7 @@ namespace spade
         const auto obj = halloc_mgr<Obj>(info.manager, type);
         for (const auto &[name, slot]: member_slots) {
             obj->set_member(name, slot.get_value().copy());
+            obj->set_flags(name, slot.get_flags());
         }
         return obj;
     }

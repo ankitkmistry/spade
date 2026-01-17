@@ -18,8 +18,6 @@ namespace spade
         void check_class(const ClassInfo &klass, const uint16_t cp_count);
         void check_field(const FieldInfo &field, const uint16_t cp_count);
         void check_method(const MethodInfo &method, const uint16_t cp_count);
-        void check_arg(const ArgInfo &arg, const uint16_t count);
-        void check_local(const LocalInfo &local, const uint16_t count);
         void check_exception(const ExceptionTableInfo &exception, const uint16_t cp_count);
         void check_line(const LineInfo &line, const uint32_t codeCount);
         void check_match(const MatchInfo &info, const uint32_t codeCount, const uint16_t cp_count);

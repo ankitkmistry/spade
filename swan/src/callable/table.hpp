@@ -1,81 +1,9 @@
 #pragma once
 
 #include "ee/obj.hpp"
-#include "spimp/utils.hpp"
 
 namespace spade
 {
-    class SWAN_EXPORT VariableTable {
-        vector<Value> values;
-        vector<Table<string>> metas;
-
-      public:
-        VariableTable(size_t count) : values(count), metas(count) {}
-
-        VariableTable() = default;
-        VariableTable(const VariableTable &other);
-        VariableTable(VariableTable &&other) noexcept = default;
-        VariableTable &operator=(const VariableTable &other);
-        VariableTable &operator=(VariableTable &&other) noexcept = default;
-        ~VariableTable() = default;
-
-        /**
-         * Ramps up the value of the argument at index i to a pointer where the pointer 
-         * points to the actual value of the argument before ramping up.
-         * If the value was already ramped up, then the value is no longer ramped up
-         * and the existing pointer is returned
-         * @param i index of the argument
-         * @return ObjPointer* the pointer obj
-         */
-        ObjCapture *ramp_up(uint8_t i);
-
-        /**
-         * @return The value of the argument at index i
-         * @param i the argument index
-         */
-        Value get(uint8_t i) const;
-
-        /**
-         * Sets the value of the argument at index i to val
-         * @param i the argument index
-         * @param val value to be changed
-         */
-        void set(uint8_t i, Value val);
-
-        /**
-         * @param i index of the argument
-         * @return The metadata associated to the argument at index i
-         */
-        const Table<string> &get_meta(uint8_t i) const;
-
-        /**
-         * @param i index of the argument
-         * @return The metadata associated to the argument at index i
-         */
-        Table<string> &get_meta(uint8_t i);
-
-        /**
-         * Sets the metadata associated to the argument at index i
-         * @param i index of the argument
-         * @param meta the meta table to set
-         */
-        void set_meta(uint8_t i, const Table<string> &meta);
-
-        /**
-         * @return The total number of arguments present
-         */
-        uint8_t count() const {
-            return values.size() & 0xff;
-        }
-
-        /**
-         * @return The string representation of the table
-         */
-        string to_string() const {
-            return "(" + list_to_string(values) + ")";
-        }
-    };
-
     /**
      * Represents an exception in the exception table
      */

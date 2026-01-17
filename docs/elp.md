@@ -110,9 +110,7 @@ struct MethodInfo {
     uint16_t access_flags;
     cpidx name;
     uint8_t args_count;
-    ArgInfo args[args_count];
     uint16_t locals_count;
-    LocalInfo locals[locals_count];
     uint32_t stack_max;
     uint32_t code_count;
     uint8_t code[code_count];
@@ -132,9 +130,7 @@ Represents a method.
 - `access_flags` - Access flags of the method
 - `name` : `string` - Name of the method
 - `args_count` - Count of args in the method
-- `args` - Array of args of length `args_count`
 - `locals_count` - Count of locals in the method
-- `locals` - Array of locals of length `locals_count`
 - `stack_max` - Maximum size of stack
 - `code_count` - Count of code array
 - `code` - Array of bytecode instructions of length `code_count`
@@ -144,32 +140,6 @@ Represents a method.
 - `match_count` - Count of match table items
 - `matches` - Match table of the method
 - `meta` - Meta information of the method
-
-### struct `ArgInfo`
-```c
-struct ArgInfo {
-    uint16_t kind;
-    MetaInfo meta;
-};
-```
-Represents a argument of a function.
-- `kind` - Kind of argument. The possible values of kind are as follows:
-    - `0x00` - variable
-    - `0x01` - constant
-- `meta` - Meta information of the argument
-
-### struct `LocalInfo`
-```c
-struct LocalInfo {
-    uint16_t kind;
-    MetaInfo meta;
-};
-```
-Represents a local of a function.
-- `kind` - Kind of local. The possible values of kind are as follows:
-    - `0x00` - variable
-    - `0x01` - constant
-- `meta` - Meta information of the local
 
 ### struct `ExceptionTableInfo`
 ```c

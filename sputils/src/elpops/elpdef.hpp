@@ -99,24 +99,6 @@ namespace spade
         MetaInfo meta;
     };
 
-    struct ArgInfo {
-        /// The kind of the arg
-        /// 0x00 : VAR
-        /// 0x01 : CONST
-        uint16_t kind = 0;
-        /// Meta information of the arg
-        MetaInfo meta;
-    };
-
-    struct LocalInfo {
-        /// The kind of the local
-        /// 0x00 : VAR
-        /// 0x01 : CONST
-        uint16_t kind = 0;
-        /// Meta information of the local
-        MetaInfo meta;
-    };
-
     struct ExceptionTableInfo {
         /// Starting region of the exception catching mechanism
         uint32_t start_pc = 0;
@@ -175,14 +157,8 @@ namespace spade
 
         /// Count of args in the method
         uint8_t args_count = 0;
-        /// List of args
-        vector<ArgInfo> args;
-
         /// Count of locals in the method
         uint16_t locals_count = 0;
-        /// List of locals
-        vector<LocalInfo> locals;
-
         /// Maximum size for stack
         uint32_t stack_max = 0;
         /// Count for code array

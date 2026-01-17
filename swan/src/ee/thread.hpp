@@ -213,6 +213,7 @@ namespace spade
          * @param pre_fun The function to execute before @p fun is called
          */
         Thread(SpadeVM *vm, const std::function<void(Thread *)> &fun, const std::function<void()> &pre_fun = [] {});
+        ~Thread();
 
         /**
          * @return The exitcode of the thread

@@ -98,15 +98,7 @@ namespace spade
         write(info.name);
 
         write(info.args_count);
-        for (int i = 0; i < info.args_count; ++i) {
-            write(info.args[i]);
-        }
-
         write(info.locals_count);
-        for (int i = 0; i < info.locals_count; ++i) {
-            write(info.locals[i]);
-        }
-
         write(info.stack_max);
         write(info.code_count);
         for (uint32_t i = 0; i < info.code_count; ++i) {
@@ -152,16 +144,6 @@ namespace spade
         write(info.end_pc);
         write(info.target_pc);
         write(info.exception);
-        write(info.meta);
-    }
-
-    void ElpWriter::write(const LocalInfo &info) {
-        write(info.kind);
-        write(info.meta);
-    }
-
-    void ElpWriter::write(const ArgInfo &info) {
-        write(info.kind);
         write(info.meta);
     }
 

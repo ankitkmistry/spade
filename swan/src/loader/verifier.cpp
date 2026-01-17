@@ -33,8 +33,6 @@ namespace spade
     void Verifier::check_method(const MethodInfo &method, const uint16_t cp_count) {
         if (method.kind > 0x02)
             throw corrupt();
-        for (const auto &arg: method.args) check_arg(arg, cp_count);
-        for (const auto &local: method.locals) check_local(local, cp_count);
         for (const auto &exception_table: method.exception_table) check_exception(exception_table, cp_count);
         const uint32_t code_count = method.code_count;
         check_line(method.line_info, code_count);
@@ -48,16 +46,6 @@ namespace spade
             check_range(kase.location, code_count);
         }
         check_range(info.default_location, code_count);
-    }
-
-    void Verifier::check_arg(const ArgInfo &arg, const uint16_t cp_count) {
-        if (arg.kind > 0x01)
-            throw corrupt();
-    }
-
-    void Verifier::check_local(const LocalInfo &local, const uint16_t cp_count) {
-        if (local.kind > 0x01)
-            throw corrupt();
     }
 
     void Verifier::check_exception(const ExceptionTableInfo &exception, const uint16_t cp_count) {

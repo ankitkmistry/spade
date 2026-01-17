@@ -1,5 +1,8 @@
+#include "ee/obj.hpp"
+#include "spimp/utils.hpp"
 #include "vm.hpp"
 #include "memory/memory.hpp"
+#include <cstdint>
 #include <iostream>
 #include <sputils.hpp>
 
@@ -7,7 +10,6 @@ namespace spade
 {
     Value SpadeVM::run(Thread *thread) {
         auto &state = thread->get_state();
-        const auto top_frame = state.get_frame();
         while (thread->is_running()) {
             const auto opcode = static_cast<Opcode>(state.read_byte());
             auto frame = state.get_frame();
@@ -59,17 +61,16 @@ namespace spade
                     set_symbol(state.load_const(state.read_short()).to_string(), state.peek());
                     break;
                 case Opcode::LLOAD:
-                    state.push(frame->get_locals().get(state.read_short()));
+                    state.push(frame->get_local(state.read_short()));
                     break;
                 case Opcode::LSTORE:
-                    frame->get_locals().set(state.read_short(), state.peek());
+                    frame->set_local(state.read_short(), state.peek());
                     break;
                 case Opcode::SPLOAD: {
                     const auto obj = state.pop();
                     const auto sign = state.load_const(state.read_short()).to_string();
-                    const auto method = cast<ObjMethod>(get_symbol(sign).as_obj()->copy());
-                    method->get_locals().ramp_up(0);
-                    method->get_locals().set(0, obj);
+                    const auto method = cast<ObjMethod>(get_symbol(sign).as_obj())->force_copy();
+                    method->set_capture(0, halloc_mgr<ObjCapture>(manager, obj));
                     state.push(method);
                     break;
                 }
@@ -80,17 +81,16 @@ namespace spade
                     set_symbol(state.load_const(state.read_byte()).to_string(), state.peek());
                     break;
                 case Opcode::LFLOAD:
-                    state.push(frame->get_locals().get(state.read_byte()));
+                    state.push(frame->get_local(state.read_byte()));
                     break;
                 case Opcode::LFSTORE:
-                    frame->get_locals().set(state.read_byte(), state.peek());
+                    frame->set_local(state.read_byte(), state.peek());
                     break;
                 case Opcode::SPFLOAD: {
                     const auto obj = state.pop();
                     const auto sign = state.load_const(state.read_byte()).to_string();
                     const auto method = cast<ObjMethod>(get_symbol(sign).as_obj()->copy());
-                    method->get_locals().ramp_up(0);
-                    method->get_locals().set(0, obj);
+                    method->set_capture(0, halloc_mgr<ObjCapture>(manager, obj));
                     state.push(method);
                     break;
                 }
@@ -98,22 +98,22 @@ namespace spade
                     set_symbol(state.load_const(state.read_short()).to_string(), state.pop());
                     break;
                 case Opcode::PLSTORE:
-                    frame->get_locals().set(state.read_short(), state.pop());
+                    frame->set_local(state.read_short(), state.pop());
                     break;
                 case Opcode::PGFSTORE:
                     set_symbol(state.load_const(state.read_byte()).to_string(), state.pop());
                     break;
                 case Opcode::PLFSTORE:
-                    frame->get_locals().set(state.read_byte(), state.pop());
+                    frame->set_local(state.read_byte(), state.pop());
                     break;
                 case Opcode::ALOAD:
-                    state.push(frame->get_args().get(state.read_byte()));
+                    state.push(frame->get_arg(state.read_byte()));
                     break;
                 case Opcode::ASTORE:
-                    frame->get_args().set(state.read_byte(), state.peek());
+                    frame->set_arg(state.read_byte(), state.peek());
                     break;
                 case Opcode::PASTORE:
-                    frame->get_args().set(state.read_byte(), state.pop());
+                    frame->set_arg(state.read_byte(), state.pop());
                     break;
                 case Opcode::MLOAD: {
                     const auto object = state.pop().as_obj();
@@ -248,27 +248,27 @@ namespace spade
                 }
                 case Opcode::SPINVOKE: {
                     const auto method = cast<ObjMethod>(get_symbol(state.load_const(state.read_short()).to_string()).as_obj());
-                    const uint8_t count = method->get_args().count();
+                    const uint8_t count = method->get_args_count();
                     frame->sc -= count;
                     Obj *obj = state.pop().as_obj();
                     method->call(null, &frame->stack[frame->sc + 1]);
-                    state.get_frame()->get_locals().set(0, obj);
+                    state.get_frame()->set_local(0, obj);
                     break;
                 }
                 case Opcode::SPFINVOKE: {
                     const auto method = cast<ObjMethod>(get_symbol(state.load_const(state.read_byte()).to_string()).as_obj());
-                    const uint8_t count = method->get_args().count();
+                    const uint8_t count = method->get_args_count();
                     frame->sc -= count;
                     Obj *obj = state.pop().as_obj();
                     method->call(null, &frame->stack[frame->sc + 1]);
-                    state.get_frame()->get_locals().set(0, obj);
+                    state.get_frame()->set_local(0, obj);
                     break;
                 }
                 case Opcode::LINVOKE: {
                     // Get the method
-                    const auto method = cast<ObjMethod>(frame->get_locals().get(state.read_short()).as_obj());
+                    const auto method = cast<ObjMethod>(frame->get_local(state.read_short()).as_obj());
                     // Get the arg count
-                    const uint8_t count = method->get_args().count();
+                    const uint8_t count = method->get_args_count();
                     // Pop the arguments
                     frame->sc -= count;
                     // Call it
@@ -279,7 +279,7 @@ namespace spade
                     // Get the method
                     const auto method = cast<ObjMethod>(get_symbol(state.load_const(state.read_short()).to_string()).as_obj());
                     // Get the arg count
-                    const uint8_t count = method->get_args().count();
+                    const uint8_t count = method->get_args_count();
                     // Pop the arguments
                     frame->sc -= count;
                     // Call it
@@ -303,14 +303,14 @@ namespace spade
                     // Call it
                     method->call(null, &frame->stack[frame->sc + 1]);
                     // Set this
-                    state.get_frame()->get_locals().set(0, object);
+                    state.get_frame()->set_local(0, object);
                     break;
                 }
                 case Opcode::LFINVOKE: {
                     // Get the method
-                    const auto method = cast<ObjMethod>(frame->get_locals().get(state.read_byte()).as_obj());
+                    const auto method = cast<ObjMethod>(frame->get_local(state.read_byte()).as_obj());
                     // Get the arg count
-                    const uint8_t count = method->get_args().count();
+                    const uint8_t count = method->get_args_count();
                     // Pop the arguments
                     frame->sc -= count;
                     // Call it
@@ -321,7 +321,7 @@ namespace spade
                     // Get the method
                     const auto method = cast<ObjMethod>(get_symbol(state.load_const(state.read_byte()).to_string()).as_obj());
                     // Get the arg count
-                    const uint8_t count = method->get_args().count();
+                    const uint8_t count = method->get_args_count();
                     // Pop the arguments
                     frame->sc -= count;
                     // Call it
@@ -330,9 +330,9 @@ namespace spade
                 }
                 case Opcode::AINVOKE: {
                     // Get the method
-                    const auto method = cast<ObjMethod>(frame->get_args().get(state.read_byte()).as_obj());
+                    const auto method = cast<ObjMethod>(frame->get_arg(state.read_byte()).as_obj());
                     // Get the arg count
-                    const uint8_t count = method->get_args().count();
+                    const uint8_t count = method->get_args_count();
                     // Pop the arguments
                     frame->sc -= count;
                     // Call it
@@ -616,7 +616,7 @@ namespace spade
                 case Opcode::CLOSURELOAD: {
                     // * Stack layout
                     // Initial  -> [ ... | <method>]
-                    // Final    -> [ ... ]
+                    // Final    -> [ ... | <captured method>]
                     //
                     // * Instruction layout
                     // +---------------------------------------------------------------+
@@ -627,22 +627,21 @@ namespace spade
                     // If capture_type is 0x01 -> capture_from is u16
                     //
                     const uint8_t capture_count = state.read_byte();
-                    const auto method = cast<ObjMethod>(state.pop().as_obj()->copy());
-                    VariableTable &locals = method->get_locals();
+                    const auto method = cast<ObjMethod>(state.pop().as_obj())->force_copy();
                     for (uint8_t i = 0; i < capture_count; i++) {
-                        const uint16_t local_idx = state.read_short();
+                        const uint16_t local_index = state.read_short();
                         ObjCapture *capture;
                         switch (state.read_byte()) {
                         case 0x00:
-                            capture = frame->get_args().ramp_up(state.read_byte());
+                            capture = frame->ramp_up_arg(state.read_byte());
                             break;
                         case 0x01:
-                            capture = frame->get_locals().ramp_up(state.read_short());
+                            capture = frame->ramp_up_local(state.read_short());
                             break;
                         default:
                             throw Unreachable();
                         }
-                        locals.set(i, capture);
+                        method->set_capture(local_index, capture);
                     }
                     state.push(method);
                     break;
@@ -658,9 +657,8 @@ namespace spade
                     // Pop the current frame
                     state.pop_frame();
                     // Return if encountered end of execution
-                    if (top_frame == current_frame) {
+                    if (state.get_call_stack_size() == 0)
                         return val;
-                    }
                     // Push the return value
                     state.get_frame()->push(val);
                     break;
@@ -670,9 +668,8 @@ namespace spade
                     // Pop the current frame
                     state.pop_frame();
                     // Return if encountered end of execution
-                    if (top_frame == current_frame) {
+                    if (state.get_call_stack_size() == 0)
                         return Value();
-                    }
                     break;
                 }
                 case Opcode::PRINTLN:

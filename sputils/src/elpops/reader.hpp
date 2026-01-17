@@ -21,8 +21,6 @@ namespace spade
         MatchInfo read_match_info();
         LineInfo read_line_info();
         ExceptionTableInfo read_exception_info();
-        LocalInfo read_local_info();
-        ArgInfo read_arg_info();
         GlobalInfo read_global_info();
         MetaInfo read_meta_info();
         CpInfo read_cp_info();

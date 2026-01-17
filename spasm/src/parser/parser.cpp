@@ -377,16 +377,11 @@ namespace spasm
             parse_term();
         }
 
-        vector<ArgInfo> args;
-        vector<LocalInfo> locals;
+        size_t args_count = 0;
+        size_t locals_count = 0;
         vector<ExceptionContext> exceptions;
         if (context_stack[context_stack.size() - 2]->get_kind() == ContextType::CLASS) {
-            LocalInfo self;
-            self.kind = 0;
-            self.meta = MetaInfo({
-                    {"name", "self"}
-            });
-            locals.push_back(self);
+            locals_count++;
             ctx->add_local("self");
         }
 
@@ -396,11 +391,13 @@ namespace spasm
             switch (peek()->get_type()) {
             case TokenType::ARG:
                 advance();
-                args.push_back(parse_arg());
+                parse_arg();
+                args_count++;
                 break;
             case TokenType::LOCAL:
                 advance();
-                locals.push_back(parse_local());
+                parse_local();
+                locals_count++;
                 break;
             case TokenType::EXCEPTION:
                 advance();
@@ -444,17 +441,19 @@ namespace spasm
                 goto outside;
             }
         }
-outside:
 
+outside:
         while (peek()->get_type() != TokenType::END) {
             if (peek()->get_type() == TokenType::END_OF_FILE)
                 throw error(std::format("expected {}", make_expected_string(TokenType::END)));
             switch (peek()->get_type()) {
             case TokenType::ARG:
-                args.push_back(parse_arg());
+                parse_arg();
+                args_count++;
                 break;
             case TokenType::LOCAL:
-                locals.push_back(parse_local());
+                parse_local();
+                locals_count++;
                 break;
             case TokenType::EXCEPTION:
                 exceptions.push_back(parse_exception());
@@ -485,17 +484,15 @@ outside:
         method.kind = context_stack[context_stack.size() - 2]->get_kind() == ContextType::MODULE ? 0x00 : 0x01;
         method.name = get_current_module()->get_constant(name);
 
-        if (const auto max = std::numeric_limits<decltype(method.args_count)>::max(); args.size() >= max)
+        if (const auto max = std::numeric_limits<decltype(method.args_count)>::max(); args_count >= max)
             errors.error(error(std::format("args_count cannot be >= {}", max), start));
         else {
-            method.args_count = args.size() & max;
-            method.args = args;
+            method.args_count = args_count & max;
         }
-        if (const auto max = std::numeric_limits<decltype(method.locals_count)>::max(); locals.size() >= max)
+        if (const auto max = std::numeric_limits<decltype(method.locals_count)>::max(); locals_count >= max)
             errors.error(error(std::format("locals_count cannot be >= {}", max), start));
         else {
-            method.locals_count = locals.size() & max;
-            method.locals = locals;
+            method.locals_count = locals_count & max;
         }
         if (const auto max = std::numeric_limits<decltype(method.exception_table_count)>::max(); exceptions.size() >= max)
             errors.error(error(std::format("exception_table_count cannot be >= {}", max), start));
@@ -575,7 +572,7 @@ outside:
         return method;
     }
 
-    ArgInfo Parser::parse_arg() {
+    void Parser::parse_arg() {
         const auto ctx = cast<MethodContext>(get_current_context());
         const auto property = match(TokenType::PROPERTY);
         const auto name = parse_name();
@@ -585,22 +582,13 @@ outside:
         parse_term();
 
         if (!ctx->add_arg(name))
-            throw error(std::format("redefinition of local '{}'", name), name_tok);
+            throw error(std::format("redefinition of arg '{}'", name), name_tok);
 
-        ArgInfo arg;
-        if (property->get_text() == "@var") {
-            arg.kind = 0;
-        } else if (property->get_text() == "@const") {
-            arg.kind = 1;
-        } else
+        if (property->get_text() != "@var" && property->get_text() != "@const")
             throw error("expected '@var', '@const'", property);
-        arg.meta = MetaInfo({
-                {"name", name}
-        });
-        return arg;
     }
 
-    LocalInfo Parser::parse_local() {
+    void Parser::parse_local() {
         const auto ctx = cast<MethodContext>(get_current_context());
         const auto property = expect(TokenType::PROPERTY);
         const auto name = parse_name();
@@ -612,17 +600,8 @@ outside:
         if (!ctx->add_local(name))
             throw error(std::format("redefinition of local '{}'", name), name_tok);
 
-        LocalInfo local;
-        if (property->get_text() == "@var") {
-            local.kind = 0;
-        } else if (property->get_text() == "@const") {
-            local.kind = 1;
-        } else
+        if (property->get_text() != "@var" && property->get_text() != "@const")
             throw error("expected '@var', '@const'", property);
-        local.meta = MetaInfo({
-                {"name", name}
-        });
-        return local;
     }
 
     ExceptionContext Parser::parse_exception() {
