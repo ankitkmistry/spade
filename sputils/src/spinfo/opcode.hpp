@@ -194,6 +194,10 @@
     OPCODE(SHR, 0, false, SHR)                                                                                                                       \
     /* unsigned shift right */                                                                                                                       \
     OPCODE(USHR, 0, false, USHR)                                                                                                                     \
+    /* rotate bits left */                                                                                                                           \
+    OPCODE(ROL, 0, false, ROL)                                                                                                                       \
+    /* rotate bits right */                                                                                                                          \
+    OPCODE(ROR, 0, false, ROR)                                                                                                                       \
     /* bitwise and */                                                                                                                                \
     OPCODE(AND, 0, false, AND)                                                                                                                       \
     /* bitwise or */                                                                                                                                 \

@@ -439,7 +439,7 @@ namespace spade
                 case Opcode::SCAST: {
                     const auto type = cast<Type>(state.pop().as_obj());
                     const auto obj = state.pop().as_obj();
-                    if (check_cast(obj->get_type(), type))
+                    if (check_cast(obj, type))
                         // obj->set_type(type); // Types are dynamic
                         state.push(obj);
                     else
@@ -449,7 +449,7 @@ namespace spade
                 case Opcode::CCAST: {
                     const auto type = cast<Type>(state.pop().as_obj());
                     const auto obj = state.pop().as_obj();
-                    if (check_cast(obj->get_type(), type))
+                    if (check_cast(obj, type))
                         // obj->set_type(type); // Types are dynamic
                         state.push(obj);
                     else
@@ -515,6 +515,18 @@ namespace spade
                     const auto b = state.pop();
                     const auto a = state.pop();
                     state.push(a.unsigned_right_shift(b));
+                    break;
+                }
+                case Opcode::ROL: {
+                    const auto b = state.pop();
+                    const auto a = state.pop();
+                    state.push(a.rotate_left(b));
+                    break;
+                }
+                case Opcode::ROR: {
+                    const auto b = state.pop();
+                    const auto a = state.pop();
+                    state.push(a.rotate_right(b));
                     break;
                 }
                 case Opcode::AND: {

@@ -80,16 +80,17 @@ module hello
     method greet()
         local @const name : basic.string
 
-        # initialize name
-        const ""
+        lfload name
+        nisnull
+        jt $print
+        const "Ankit"
         plfstore name
-        # concatenate name and hello
+
+    $print:
         const "Hello, "
         lfload name
         concat
-        # print to output
         println
-        # return without a value
         vret
     end
 

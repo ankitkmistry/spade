@@ -101,6 +101,8 @@ namespace spade
         Value operator|(const Value &n) const;
         Value operator^(const Value &n) const;
         Value unsigned_right_shift(const Value &n) const;
+        Value rotate_left(const Value &n) const;
+        Value rotate_right(const Value &n) const;
 
         /**
          * Performs a complete deep copy on the value.

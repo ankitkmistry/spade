@@ -1,6 +1,7 @@
 #include "value.hpp"
 #include "ee/obj.hpp"
 #include "spimp/error.hpp"
+#include <bit>
 #include <cmath>
 #include <string>
 
@@ -238,6 +239,18 @@ namespace spade
         if (is_int())
             return Value(static_cast<int64_t>(static_cast<uint64_t>(as.i) >> n.as.i));
         throw Unreachable();
+    }
+
+    Value Value::rotate_left(const Value &n) const {
+        if (tag != VALUE_INT || n.tag != VALUE_INT)
+            throw Unreachable();
+        return Value(static_cast<int64_t>(std::rotl(static_cast<uint64_t>(as.i), n.as.i)));
+    }
+
+    Value Value::rotate_right(const Value &n) const {
+        if (tag != VALUE_INT || n.tag != VALUE_INT)
+            throw Unreachable();
+        return Value(static_cast<int64_t>(std::rotr(static_cast<uint64_t>(as.i), n.as.i)));
     }
 
     Value Value::copy() const {
