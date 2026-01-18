@@ -2,6 +2,7 @@
 
 #include "utils/common.hpp"
 #include <cassert>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 
@@ -21,6 +22,7 @@ namespace spade
         VALUE_BOOL,
         VALUE_CHAR,
         VALUE_INT,
+        VALUE_UINT,
         VALUE_FLOAT,
         VALUE_OBJ,
     };
@@ -46,6 +48,10 @@ namespace spade
             };
 
             struct {
+                uint64_t u;
+            };
+
+            struct {
                 double f;
             };
 
@@ -64,7 +70,9 @@ namespace spade
 
         explicit Value(char c) : tag(VALUE_CHAR), as{.c = c} {}
 
-        explicit Value(int64_t i) : tag(VALUE_INT), as{.i = i} {}
+        explicit Value(std::signed_integral auto i) : tag(VALUE_INT), as{.i = i} {}
+
+        explicit Value(std::unsigned_integral auto u) : tag(VALUE_UINT), as{.u = u} {}
 
         explicit Value(double f) : tag(VALUE_FLOAT), as{.f = f} {}
 
@@ -144,6 +152,10 @@ namespace spade
             return tag == VALUE_INT;
         }
 
+        bool is_uint() const {
+            return tag == VALUE_UINT;
+        }
+
         bool is_float() const {
             return tag == VALUE_FLOAT;
         }
@@ -165,6 +177,11 @@ namespace spade
         int64_t as_int() const {
             assert(tag == VALUE_INT);
             return as.i;
+        }
+
+        uint64_t as_uint() const {
+            assert(tag == VALUE_UINT);
+            return as.u;
         }
 
         double as_float() const {
@@ -191,9 +208,14 @@ namespace spade
             as.c = c;
         }
 
-        void set(int32_t i) {
+        void set(int64_t i) {
             tag = VALUE_INT;
             as.i = i;
+        }
+
+        void set(uint64_t u) {
+            tag = VALUE_UINT;
+            as.u = u;
         }
 
         void set(double f) {

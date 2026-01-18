@@ -31,6 +31,13 @@ namespace spade
                 return Ordering::GREATER;
             else
                 return Ordering::EQUAL;
+        case VALUE_UINT:
+            if (as.u < other.as.u)
+                return Ordering::LESS;
+            else if (as.u > other.as.u)
+                return Ordering::GREATER;
+            else
+                return Ordering::EQUAL;
         case VALUE_FLOAT:
             if (as.f < other.as.f)
                 return Ordering::LESS;
@@ -95,6 +102,8 @@ namespace spade
         switch (tag) {
         case VALUE_INT:
             return Value(-as.i);
+        case VALUE_UINT:
+            return Value(-as.u);
         case VALUE_FLOAT:
             return Value(-as.i);
         default:
@@ -109,6 +118,8 @@ namespace spade
         switch (tag) {
         case VALUE_INT:
             return Value(std::pow(as.i, n.as.i));
+        case VALUE_UINT:
+            return Value(std::pow(as.u, n.as.u));
         case VALUE_FLOAT:
             return Value(std::pow(as.f, n.as.f));
         default:
@@ -123,6 +134,8 @@ namespace spade
         switch (tag) {
         case VALUE_INT:
             return Value(as.i + n.as.i);
+        case VALUE_UINT:
+            return Value(as.u + n.as.u);
         case VALUE_FLOAT:
             return Value(as.f + n.as.f);
         default:
@@ -137,6 +150,8 @@ namespace spade
         switch (tag) {
         case VALUE_INT:
             return Value(as.i - n.as.i);
+        case VALUE_UINT:
+            return Value(as.u - n.as.u);
         case VALUE_FLOAT:
             return Value(as.f - n.as.f);
         default:
@@ -151,6 +166,8 @@ namespace spade
         switch (tag) {
         case VALUE_INT:
             return Value(as.i * n.as.i);
+        case VALUE_UINT:
+            return Value(as.u * n.as.u);
         case VALUE_FLOAT:
             return Value(as.f * n.as.f);
         default:
@@ -165,6 +182,8 @@ namespace spade
         switch (tag) {
         case VALUE_INT:
             return Value(as.i / n.as.i);
+        case VALUE_UINT:
+            return Value(as.u / n.as.u);
         case VALUE_FLOAT:
             return Value(as.f / n.as.f);
         default:
@@ -173,84 +192,170 @@ namespace spade
     }
 
     Value Value::operator~() const {
-        if (is_int())
+        switch (tag) {
+        case VALUE_INT:
             return Value(~as.i);
-        throw Unreachable();
+        case VALUE_UINT:
+            return Value(~as.u);
+        default:
+            throw Unreachable();
+        }
     }
 
     Value Value::operator%(const Value &n) const {
         if (tag != n.tag)
             throw Unreachable();
 
-        if (is_int())
+        switch (tag) {
+        case VALUE_INT:
             return Value(as.i % n.as.i);
-        throw Unreachable();
+        case VALUE_UINT:
+            return Value(as.u % n.as.u);
+        default:
+            throw Unreachable();
+        }
     }
 
     Value Value::operator<<(const Value &n) const {
         if (tag != n.tag)
             throw Unreachable();
 
-        if (is_int())
+        switch (tag) {
+        case VALUE_INT:
             return Value(as.i << n.as.i);
-        throw Unreachable();
+        case VALUE_UINT:
+            return Value(as.u << n.as.u);
+        default:
+            throw Unreachable();
+        }
     }
 
     Value Value::operator>>(const Value &n) const {
         if (tag != n.tag)
             throw Unreachable();
 
-        if (is_int())
+        switch (tag) {
+        case VALUE_INT:
             return Value(as.i >> n.as.i);
-        throw Unreachable();
+        case VALUE_UINT:
+            return Value(as.u >> n.as.u);
+        default:
+            throw Unreachable();
+        }
     }
 
     Value Value::operator&(const Value &n) const {
         if (tag != n.tag)
             throw Unreachable();
 
-        if (is_int())
+        switch (tag) {
+        case VALUE_INT:
             return Value(as.i & n.as.i);
-        throw Unreachable();
+        case VALUE_UINT:
+            return Value(as.u & n.as.u);
+        default:
+            throw Unreachable();
+        }
     }
 
     Value Value::operator|(const Value &n) const {
         if (tag != n.tag)
             throw Unreachable();
 
-        if (is_int())
+        switch (tag) {
+        case VALUE_INT:
             return Value(as.i | n.as.i);
-        throw Unreachable();
+        case VALUE_UINT:
+            return Value(as.u | n.as.u);
+        default:
+            throw Unreachable();
+        }
     }
 
     Value Value::operator^(const Value &n) const {
         if (tag != n.tag)
             throw Unreachable();
 
-        if (is_int())
+        switch (tag) {
+        case VALUE_INT:
             return Value(as.i ^ n.as.i);
-        throw Unreachable();
+        case VALUE_UINT:
+            return Value(as.u ^ n.as.u);
+        default:
+            throw Unreachable();
+        }
     }
 
     Value Value::unsigned_right_shift(const Value &n) const {
         if (tag != n.tag)
             throw Unreachable();
 
-        if (is_int())
+        switch (tag) {
+        case VALUE_INT:
             return Value(static_cast<int64_t>(static_cast<uint64_t>(as.i) >> n.as.i));
-        throw Unreachable();
+        case VALUE_UINT:
+            return Value(as.u >> n.as.u);
+        default:
+            throw Unreachable();
+        }
     }
 
     Value Value::rotate_left(const Value &n) const {
-        if (tag != VALUE_INT || n.tag != VALUE_INT)
+        switch (tag) {
+        case VALUE_INT:
+            switch (n.tag) {
+            case VALUE_INT:
+                return Value(static_cast<int64_t>(std::rotl(static_cast<uint64_t>(as.i), n.as.i)));
+                break;
+            case VALUE_UINT:
+                return Value(static_cast<int64_t>(std::rotl(static_cast<uint64_t>(as.i), n.as.u)));
+                break;
+            default:
+                throw Unreachable();
+            }
+        case VALUE_UINT:
+            switch (n.tag) {
+            case VALUE_INT:
+                return Value(std::rotl(as.u, n.as.i));
+                break;
+            case VALUE_UINT:
+                return Value(std::rotl(as.u, n.as.u));
+                break;
+            default:
+                throw Unreachable();
+            }
+        default:
             throw Unreachable();
-        return Value(static_cast<int64_t>(std::rotl(static_cast<uint64_t>(as.i), n.as.i)));
+        }
     }
 
     Value Value::rotate_right(const Value &n) const {
-        if (tag != VALUE_INT || n.tag != VALUE_INT)
+        switch (tag) {
+        case VALUE_INT:
+            switch (n.tag) {
+            case VALUE_INT:
+                return Value(static_cast<int64_t>(std::rotr(static_cast<uint64_t>(as.i), n.as.i)));
+                break;
+            case VALUE_UINT:
+                return Value(static_cast<int64_t>(std::rotr(static_cast<uint64_t>(as.i), n.as.u)));
+                break;
+            default:
+                throw Unreachable();
+            }
+        case VALUE_UINT:
+            switch (n.tag) {
+            case VALUE_INT:
+                return Value(std::rotr(as.u, n.as.i));
+                break;
+            case VALUE_UINT:
+                return Value(std::rotr(as.u, n.as.u));
+                break;
+            default:
+                throw Unreachable();
+            }
+        default:
             throw Unreachable();
-        return Value(static_cast<int64_t>(std::rotr(static_cast<uint64_t>(as.i), n.as.i)));
+        }
     }
 
     Value Value::copy() const {

@@ -212,8 +212,7 @@ namespace spade
                 }
                 case Opcode::ARRLEN: {
                     const auto array = cast<ObjArray>(state.pop().as_obj());
-                    // TODO: Think about supporting unsigned integer types
-                    state.push(Value(static_cast<int64_t>(array->count())));
+                    state.push(Value(array->count()));
                     break;
                 }
                 case Opcode::INVOKE: {
@@ -343,7 +342,7 @@ namespace spade
                     // Get target offset
                     const int16_t offset = static_cast<int16_t>(state.read_short());
                     // Get current pc
-                    const Value address(static_cast<int64_t>(frame->pc));
+                    const Value address(frame->pc);
                     // Save it on the stack as return address
                     state.push(address);
                     // Now go to the target location
