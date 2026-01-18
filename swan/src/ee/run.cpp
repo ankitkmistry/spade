@@ -439,20 +439,20 @@ namespace spade
                 case Opcode::SCAST: {
                     const auto type = cast<Type>(state.pop().as_obj());
                     const auto obj = state.pop().as_obj();
-                    if (check_cast(obj->get_type(), type)) {
-                        obj->set_type(type);
+                    if (check_cast(obj->get_type(), type))
+                        // obj->set_type(type); // Types are dynamic
                         state.push(obj);
-                    } else
+                    else
                         state.push(Value());
                     break;
                 }
                 case Opcode::CCAST: {
                     const auto type = cast<Type>(state.pop().as_obj());
                     const auto obj = state.pop().as_obj();
-                    if (check_cast(obj->get_type(), type)) {
-                        obj->set_type(type);
+                    if (check_cast(obj->get_type(), type))
+                        // obj->set_type(type); // Types are dynamic
                         state.push(obj);
-                    } else
+                    else
                         runtime_error(std::format("object of type '{}' cannot be cast to object of type '{}'",
                                                   obj->get_type()->get_sign().to_string(), type->get_sign().to_string()));
                     break;

@@ -104,6 +104,11 @@ namespace spade
         member_slots.emplace(name, value);
     }
 
+    bool Obj::has_member(const string &name) const {
+        std::shared_lock member_slots_lk(member_slots_mtx);
+        return member_slots.contains(name);
+    }
+
     Flags Obj::get_flags(const string &name) const {
         if (const auto it = member_slots.find(name); it != member_slots.end()) {
             return it->second.get_flags();

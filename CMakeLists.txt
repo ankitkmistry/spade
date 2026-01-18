@@ -85,7 +85,7 @@ target_link_libraries(swan PUBLIC asmjit::asmjit)
 
 add_executable (swan_test swan/src/main.cpp)
 target_include_directories (swan_test PUBLIC swan/src)
-target_link_libraries(swan_test PUBLIC swan PRIVATE unofficial::libffi::libffi)
+target_link_libraries(swan_test PUBLIC swan)
 
 # Target: pretty
 # It is debugger of spade

@@ -195,6 +195,6 @@ namespace spade
          * @param type2 destination type
          * @return true if casting can be done, false otherwise
          */
-        static bool check_cast(const Type *type1, const Type *type2);
+        static bool check_cast(const Obj *obj, const Type *type);
     };
 }    // namespace spade

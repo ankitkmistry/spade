@@ -500,6 +500,8 @@ namespace spade
         {
             using namespace asmjit;
             using namespace asmjit::x86;
+            /// push rbp
+            /// mov rbp, rsp
             /// sub rsp, 16                 ; Allocate return value on the stack
             /// mov qword ptr [rsp], 0      ; Set return value.tag=0
             /// mov qword ptr [rsp+8], 0    ; Set return value.as=0
@@ -507,14 +509,17 @@ namespace spade
             /// mov rsi, rsp                ; Set rsp to return value
             /// call handle                 ; Call the jit function
             /// add rsp 16                  ; Deallocate the return value
+            /// leave
             /// ret
+            a.push(rbp);
+            a.mov(rbp, rsp);
             a.sub(rsp, imm(16));
             a.mov(qword_ptr(rsp), 0);
             a.mov(qword_ptr(rsp, 8), imm(0));
             a.xor_(rdi, rdi);
             a.mov(rsi, rsp);
             a.call(imm(handle));
-            a.add(rsp, imm(16));
+            a.leave();
             a.ret();
         }
         void (*fn)();

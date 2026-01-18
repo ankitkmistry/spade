@@ -212,7 +212,7 @@ namespace spade
         /// Tag of the object
         ObjTag tag;
         /// Monitor of the object
-        std::recursive_mutex monitor;
+        mutable std::recursive_mutex monitor;
         /// Memory info of the object
         MemoryInfo info;
         /// Type of the object
@@ -311,14 +311,14 @@ namespace spade
          * The user may enter the monitor `n` number of times but he should take 
          * responsibility to exit the monitor exactly `n` number of times. 
          */
-        void enter_monitor() {
+        void enter_monitor() const {
             monitor.lock();
         }
 
         /**
          * Exits the monitor for this object.
          */
-        void exit_monitor() {
+        void exit_monitor() const {
             monitor.unlock();
         }
 
@@ -336,6 +336,13 @@ namespace spade
          * @param value value to be set to
          */
         void set_member(const string &name, Value value);
+
+        /**
+         * Returns whether a specific member is present in the object
+         * @param name the name of the member
+         * @return true if member is present, false otherwise
+         */
+        bool has_member(const string &name) const;
 
         /**
          * @throws IllegalAccessError if the member cannot be found

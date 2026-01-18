@@ -271,11 +271,28 @@ namespace spade
         }
     }
 
-    bool SpadeVM::check_cast(const Type *type1, const Type *type2) {
-        (void) type1;
-        (void) type2;
+    bool SpadeVM::check_cast(const Obj *obj, const Type *type) {
+        if (type == null)
+            // I don't care if type is null
+            return true;
 
-        // TODO: implement this
-        return false;
+        for (const auto &[name, slot]: type->get_member_slots()) {
+            // The members of the dest type must be subset of the member of the object to be cast
+            if (!obj->has_member(name))
+                return false;
+
+            Value value = obj->get_member(name);
+            if (value.get_tag() != slot.get_value().get_tag())
+                // The value.tag of the members must be same
+                return false;
+            if (value.get_tag() == VALUE_OBJ)
+                // If the value is an obj, then check if the member castable or not
+                if (!check_cast(value.as_obj(), slot.get_value().as_obj()->get_type()))
+                    // If a single member is not castable to the corresponding type,
+                    // then call off the entire operation
+                    return false;
+        }
+        // All good here after rigorous checks
+        return true;
     }
 }    // namespace spade
