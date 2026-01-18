@@ -362,7 +362,7 @@ namespace spasm
         parse_term();
 
         std::unordered_map<string, ValueContext> properties{
-                {"@stack_max", 32},
+                {"@stack_max", 8},
         };
         while (match(TokenType::PROPERTY)) {
             const auto property_name = current()->get_text();

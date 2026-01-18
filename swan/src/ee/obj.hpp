@@ -368,6 +368,8 @@ namespace spade
         ObjString(const string &str);
         ObjString(const uint8_t *bytes, uint16_t len);
 
+        ObjString *concat(const ObjString *other);
+
         bool truth() const override {
             return !str.empty();
         }

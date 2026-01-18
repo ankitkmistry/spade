@@ -35,6 +35,7 @@ set (Boost_USE_STATIC_LIBS ON)
 set (Boost_USE_STATIC_RUNTIME OFF)
 
 add_subdirectory(external/nite)
+
 find_package(argparse REQUIRED CONFIG)
 find_package(spdlog REQUIRED CONFIG)
 find_package(unofficial-libffi CONFIG REQUIRED)
@@ -74,17 +75,6 @@ add_library (swan SHARED ${SWAN_SRCS})
 target_include_directories (swan PUBLIC swan/src)
 target_link_libraries (swan PUBLIC sputils spdlog::spdlog PRIVATE unofficial::libffi::libffi)
 
-# # Set up llvm
-# # Reference: https://llvm.org/docs/CMake.html
-# find_package (LLVM REQUIRED CONFIG)
-# target_include_directories (swan PUBLIC swan/src PUBLIC sputils/src PRIVATE ${LLVM_INCLUDE_DIRS})
-# separate_arguments (LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
-# add_definitions (${LLVM_DEFINITIONS_LIST})
-#
-# # Find the libraries that correspond to the LLVM components
-# llvm_map_components_to_libnames (LLVM_LIBS core support orcjit native)
-# target_link_libraries (swan PRIVATE ${LLVM_LIBS})
-
 # Set up asmjit
 # Reference: https://asmjit.com/doc/group__asmjit__build.html#cmake_integration
 set (ASMJIT_DIR "external/asmjit")
@@ -95,7 +85,7 @@ target_link_libraries(swan PUBLIC asmjit::asmjit)
 
 add_executable (swan_test swan/src/main.cpp)
 target_include_directories (swan_test PUBLIC swan/src)
-target_link_libraries(swan_test PUBLIC swan)
+target_link_libraries(swan_test PUBLIC swan PRIVATE unofficial::libffi::libffi)
 
 # Target: pretty
 # It is debugger of spade

@@ -2,6 +2,7 @@
 
 #include "ee/obj.hpp"
 #include "utils/errors.hpp"
+#include "manager.hpp"
 #include <memory>
 
 namespace spade

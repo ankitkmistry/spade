@@ -105,6 +105,14 @@ namespace spade
         void set_metadata(const string &sign, const Table<string> &meta);
 
         /**
+         * This function writes to the output
+         * @param str
+         */
+        void write(const string &str) {
+            out << str;
+        }
+
+        /**
          * Returns the vm standard type for @p tag or null if the type is unspecified
          * @exception IllegalAccessError if the standard types are not loaded yet
          * @param tag the kind of object to get the standard type for
@@ -188,13 +196,5 @@ namespace spade
          * @return true if casting can be done, false otherwise
          */
         static bool check_cast(const Type *type1, const Type *type2);
-
-        /**
-         * This function writes to the output
-         * @param str
-         */
-        void write(const string &str) {
-            out << str;
-        }
     };
 }    // namespace spade

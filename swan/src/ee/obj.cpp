@@ -123,6 +123,10 @@ namespace spade
 
     ObjString::ObjString(const uint8_t *bytes, uint16_t len) : Obj(OBJ_STRING), str(bytes, bytes + len) {}
 
+    ObjString *ObjString::concat(const ObjString *other) {
+        return halloc_mgr<ObjString>(info.manager, str + other->str);
+    }
+
     Ordering ObjString::compare(const Obj *other) const {
         if (other->get_tag() == OBJ_STRING) {
             const auto other_str = cast<const ObjString>(other);

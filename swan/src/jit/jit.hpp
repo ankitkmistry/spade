@@ -13,7 +13,7 @@ namespace spade
 
       public:
         JitCompiler(SpadeVM *vm) : vm(vm), logger(stdout) {
-            logger.set_flags(asmjit::FormatFlags::kMachineCode | asmjit::FormatFlags::kShowAliases | asmjit::FormatFlags::kExplainImms);
+            logger.set_flags(asmjit::FormatFlags::kShowAliases | asmjit::FormatFlags::kExplainImms);
             logger.set_indentation(asmjit::FormatIndentationGroup::kCode, 4);
         }
 
@@ -29,6 +29,6 @@ namespace spade
 
       private:
         void *assemble_symbol(const ObjMethod *method, bool has_self);
-        void generate_body(asmjit::x86::Assembler &a, bool has_self, const asmjit::Label &exit);
+        void test_symbol(void *handle);
     };
 }    // namespace spade
