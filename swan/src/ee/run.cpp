@@ -89,7 +89,7 @@ namespace spade
                 case Opcode::SPFLOAD: {
                     const auto obj = state.pop();
                     const auto sign = state.load_const(state.read_byte()).to_string();
-                    const auto method = cast<ObjMethod>(get_symbol(sign).as_obj()->copy());
+                    const auto method = cast<ObjMethod>(get_symbol(sign).as_obj())->force_copy();
                     method->set_capture(0, halloc_mgr<ObjCapture>(manager, obj));
                     state.push(method);
                     break;
@@ -179,7 +179,7 @@ namespace spade
                     break;
                 }
                 case Opcode::ARRBUILD: {
-                    const uint8_t count = static_cast<uint8_t>(state.read_short());
+                    const auto count = state.read_short();
                     const auto array = halloc_mgr<ObjArray>(manager, count);
                     state.push(array);
                     break;

@@ -210,13 +210,17 @@ namespace spade
         // spdlog::info("JitCompiler: Inserted the symbol to the object: {}", method->get_sign().to_string());
     }
 
-    static Obj *jit_concat(Obj *a, Obj *b) {
-        return cast<ObjString>(a)->concat(cast<ObjString>(b));
+    static ObjString *jit_concat(ObjString *a, ObjString *b) {
+        return a->concat(b);
     }
 
     static void jit_println(SpadeVM *vm, const Value *val) {
         spdlog::trace("jit_println: {}", val->to_string());
         vm->write(val->to_string() + "\n");
+    }
+
+    static bool jit_value_truth(const Value *val) {
+        return val->truth();
     }
 
     class FunctionBodyGen {
@@ -298,6 +302,40 @@ namespace spade
                     a.mov(qword_ptr(rbp, sc), imm(VALUE_OBJ));
                     break;
                 }
+                case Opcode::NISNULL: {
+                    spdlog::trace("FunctionBodyGen: println");
+                    ///             mov rax, [rbp-sc]
+                    ///             test rax, rax
+                    ///             jnz br_else
+                    ///             push(false)
+                    ///             jmp br_end
+                    /// br_else:    push(true)
+                    /// br_end:
+                    auto br_else = a.new_label();
+                    auto br_end = a.new_label();
+
+                    a.mov(rax, qword_ptr(rbp, sc));
+                    a.test(rax, rax);
+                    a.jnz(br_else);
+                    push(Value(false));
+                    a.jmp(br_end);
+                    a.bind(br_else);
+                    push(Value(true));
+                    a.bind(br_end);
+
+                    sc += 16;    // Pop one value
+                    break;
+                }
+                case Opcode::JT: {
+                    spdlog::trace("FunctionBodyGen: jt");
+                    const int16_t offset = read_short();
+                    a.lea(reg_arg0(), qword_ptr(rbp, sc));
+                    a.call(imm((void *) jit_value_truth));
+                    sc += 16;    // Pop one value
+                    a.test(rax, rax);
+                    // TODO: implement jumps
+                    break;
+                }
                 case Opcode::PRINTLN: {
                     spdlog::trace("FunctionBodyGen: println");
                     a.mov(reg_arg0(), imm(vm));
@@ -365,6 +403,9 @@ namespace spade
                 break;
             case VALUE_INT:
                 a.mov(qword_ptr(rbp, sc + 8), imm(value.as_int()));
+                break;
+            case VALUE_UINT:
+                a.mov(qword_ptr(rbp, sc + 8), imm(value.as_uint()));
                 break;
             case VALUE_FLOAT:
                 a.mov(qword_ptr(rbp, sc + 8), imm(value.as_float()));

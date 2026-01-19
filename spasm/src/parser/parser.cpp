@@ -661,15 +661,9 @@ outside:
                 break;
             }
             case 2:
-                if (value >= uint16_max) {
-                    ErrorGroup<ParserError> errors;
-                    errors.error(error(
-                            std::format("opcode '{}' cannot accept a value more than {} (value={})", opcode_token->get_text(), uint16_max, value),
-                            opcode_token));
-                    if (opcode != OpcodeInfo::alternate(opcode))
-                        errors.note(error(std::format("use '{}' instead", OpcodeInfo::to_string(OpcodeInfo::alternate(opcode))), opcode_token));
-                    throw errors;
-                }
+                if (value >= uint16_max)
+                    throw error(std::format("opcode '{}' cannot accept a value more than {} (value={})", opcode_token->get_text(), uint16_max, value),
+                                opcode_token);
                 if constexpr (std::same_as<decltype(value), const uint8_t>) {
                     ctx->emit(0);
                     ctx->emit(value);
@@ -679,15 +673,9 @@ outside:
                 }
                 break;
             default:
-                if (value >= uint16_max) {
-                    ErrorGroup<ParserError> errors;
-                    errors.error(error(
-                            std::format("opcode '{}' cannot accept a value more than {} (value={})", opcode_token->get_text(), uint16_max, value),
-                            opcode_token));
-                    if (opcode != OpcodeInfo::alternate(opcode))
-                        errors.note(error(std::format("use '{}' instead", OpcodeInfo::to_string(OpcodeInfo::alternate(opcode))), opcode_token));
-                    throw errors;
-                }
+                if (value >= uint16_max)
+                    throw error(std::format("opcode '{}' cannot accept a value more than {} (value={})", opcode_token->get_text(), uint16_max, value),
+                                opcode_token);
                 if constexpr (std::same_as<decltype(value), const uint8_t>) {
                     ctx->emit(0);
                     ctx->emit(value);

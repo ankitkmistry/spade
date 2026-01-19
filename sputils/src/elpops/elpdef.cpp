@@ -53,6 +53,10 @@ namespace spade
         return !(rhs == *this);
     }
 
+    CpInfo CpInfo::from_null() {
+        return CpInfo{.tag = 0, .value = {}};
+    }
+
     CpInfo CpInfo::from_bool(bool b) {
         return CpInfo{.tag = static_cast<uint8_t>(b ? 0x01 : 0x02), .value = {}};
     }

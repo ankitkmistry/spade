@@ -57,6 +57,7 @@ namespace spade
 
         std::variant<uint32_t, uint64_t, /* uint64_t, */ _UTF8, _Container> value;
 
+        static CpInfo from_null();
         static CpInfo from_bool(bool b);
         static CpInfo from_char(uint32_t c);
         static CpInfo from_int(int64_t i);
