@@ -3,6 +3,7 @@
 #include <functional>
 #include <variant>
 
+#include "emitter/emitter.hpp"
 #include "spimp/error.hpp"
 #include "utils/common.hpp"
 #include "parser/ast.hpp"
@@ -319,6 +320,7 @@ namespace spadec
 
       public:
         ValueInfo value_info;
+        CodeEmitter code;
 
         TypeInfo &type_info() {
             if (const auto value = std::get_if<TypeInfo>(&variant))

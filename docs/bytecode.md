@@ -158,7 +158,11 @@ This document provides the specification of all the available instructions provi
 
 ### `shr` instruction 
 
-### `ushr` instruction 
+### `ushr` instruction
+
+### `rol` instruction 
+
+### `ror` instruction
 
 ### `and` instruction 
 

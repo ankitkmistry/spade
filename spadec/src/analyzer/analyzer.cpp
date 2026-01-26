@@ -118,7 +118,7 @@ namespace spadec
             if (candidate.starts_with("%"))
                 continue;
 
-            int dist = levenshtein(query, candidate);
+            const int dist = levenshtein(query, candidate);
             if (dist < min_dist) {
                 min_dist = dist;
                 results.clear();
@@ -264,7 +264,7 @@ namespace spadec
                 // Check module open imports
                 for (auto &import: cur_module->get_open_imports()) {
                     if (import.scope->has_variable(name)) {
-                        result = &*cur_module->get_variable(name);
+                        result = &*import.scope->get_variable(name);
                         import.b_used = true;
                         break;
                     }
@@ -343,15 +343,15 @@ namespace spadec
     // This function check whether `scope` is accessible from `cur_scope`
     // It uses the accessor rules to determine accessibilty, the accessor rules are given as follows:
     //
-    // +=======================================================================================================================+
-    // |                                                   ACCESSORS                                                           |
-    // +===================+===================================================================================================+
-    // |   private         | same class                                                                                        |
-    // |   internal        | same class, same module subclass                                                                  |
-    // |   module private  | same class, same module subclass, same module                                                     |
-    // |   protected       | same class, same module subclass, same module, other module subclass                              |
-    // |   public          | same class, same module subclass, same module, other module subclass, other module non-subclass   |
-    // +===================+===================================================================================================+
+    // +==========================================================================================================+
+    // |                                                   ACCESSORS                                              |
+    // +===================+======================================================================================+
+    // |   private         | same class                                                                           |
+    // |   internal        | same class, same module subclass                                                     |
+    // |   module private  | same class, same module subclass, same module                                        |
+    // |   protected       | same class, same module subclass, same module, other module subclass                 |
+    // |   public          | same class, same module subclass, same module, other module subclass, other module   |
+    // +===================+======================================================================================+
     //
     // If no accessor is provided then the default accessor is taken to be `module private`
     void Analyzer::resolve_context(const scope::Scope *from_scope, const scope::Scope *to_scope, const ast::AstNode &node,
@@ -412,10 +412,9 @@ namespace spadec
         case scope::ScopeType::VARIABLE:
         case scope::ScopeType::ENUMERATOR: {
             using namespace std::string_literals;
-            if (!to_scope->get_node() && to_scope->get_enclosing_module()->get_path() == "spade"s) {
+            if (!to_scope->get_node() && to_scope->get_enclosing_module()->get_path() == "spade"s)
                 // if this belongs to internal module then do no context resolution
                 return;
-            }
             modifiers = cast<ast::Declaration>(to_scope->get_node())->get_modifiers();
             break;
         }
@@ -465,9 +464,8 @@ namespace spadec
             }
         }
         // module private here
-        if (cur_mod != scope_mod) {
+        if (cur_mod != scope_mod)
             errors.error(error("cannot access 'module private' member", &node)).note(error("declared here", to_scope));
-        }
     }
 
     void Analyzer::resolve_context(const scope::Scope *scope, const ast::AstNode &node) {
@@ -894,7 +892,7 @@ namespace spadec
         else if (candidates.size() == 1) {
             candidate = candidates[0];
         } else if (candidates.size() > 1) {
-            std::map<size_t, std::vector<scope::Function *>, std::less<size_t>> candidate_table;
+            std::map<size_t, std::vector<scope::Function *>> candidate_table;
             for (const auto &fun: candidates) {
                 size_t priority = 0;
                 if (fun->is_variadic())
@@ -933,8 +931,8 @@ namespace spadec
                 ErrorGroup<AnalyzerError> err_grp;
                 err_grp.error(error(std::format("ambiguous call to '{}'", funs.to_string()), &node));
                 for (const auto &fun: candidates)
-                    err_grp.note(error(std::format("possible candidate declared here: '{}'", fun->to_string()), fun->get_node()))
-                            .note(error("this error should not have occurred, please raise a github issue"));
+                    err_grp.note(error(std::format("possible candidate declared here: '{}'", fun->to_string()), fun->get_node()));
+                err_grp.note(error("this error should not have occurred, please raise a github issue"));
                 throw err_grp;
             }
             candidate = candidates[0];
@@ -1242,41 +1240,12 @@ namespace spadec
 
         ErrorGroup<AnalyzerError> err_grp;
 
-        if (fun_set->get_members().size() < 5) {
-            // sequential algorithm
-            for (auto it1 = fun_set->get_members().begin(); it1 != fun_set->get_members().end(); ++it1) {
-                auto fun1 = cast<scope::Function>(it1->second.second);
-                for (auto it2 = std::next(it1); it2 != fun_set->get_members().end(); ++it2) {
-                    auto fun2 = cast<scope::Function>(it2->second.second);
-                    check_funs(&*fun1, &*fun2, err_grp);
-                }
+        for (auto it1 = fun_set->get_members().begin(); it1 != fun_set->get_members().end(); ++it1) {
+            auto fun1 = cast<scope::Function>(it1->second.second);
+            for (auto it2 = std::next(it1); it2 != fun_set->get_members().end(); ++it2) {
+                auto fun2 = cast<scope::Function>(it2->second.second);
+                check_funs(&*fun1, &*fun2, err_grp);
             }
-        } else {
-            // parallel algorithm
-            using FunOperand = std::pair<std::shared_ptr<scope::Function>, std::shared_ptr<scope::Function>>;
-
-            std::vector<FunOperand> functions;
-            // Reserve space for the number of combinations
-            // Number of combinations = nC2 = n(n-1)/2
-            // where n is the number of functions in the set
-            functions.reserve(fun_set->get_members().size() * (fun_set->get_members().size() - 1) / 2);
-            for (auto it1 = fun_set->get_members().begin(); it1 != fun_set->get_members().end(); ++it1) {
-                auto fun1 = cast<scope::Function>(it1->second.second);
-                for (auto it2 = std::next(it1); it2 != fun_set->get_members().end(); ++it2) {
-                    auto fun2 = cast<scope::Function>(it2->second.second);
-                    functions.emplace_back(fun1, fun2);
-                }
-            }
-
-            std::mutex err_grp_mutex;
-            std::for_each(std::execution::par, functions.begin(), functions.end(), [&](const FunOperand &item) {
-                ErrorGroup<AnalyzerError> errors;
-                check_funs(&*item.first, &*item.second, errors);
-                if (errors) {
-                    std::lock_guard lg(err_grp_mutex);
-                    err_grp.extend(errors);
-                }
-            });
         }
 
         // Set qualified names

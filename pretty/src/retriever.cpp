@@ -43,7 +43,7 @@ namespace pretty
                 node = &it->second;
                 children = &node->children;
             } else {
-                // TODO: implement fuzzy finding
+                // TODO: implement fuzzy finding: apropos command
                 return {};
             }
         }

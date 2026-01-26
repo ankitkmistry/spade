@@ -6,6 +6,24 @@
 
 namespace spadec
 {
+    bool CodeEmitter::append(const CodeEmitter &other) {
+        if (module != other.module)
+            return false;
+
+        for (const auto &[label, patch_list]: other.patches) {
+            for (const auto patch: patch_list) {
+                // Relocate the new label positions
+                // Because the code is going to be appended
+                // at the end of the current code buffer
+                patches[label].push_back(patch + code.size());
+            }
+        }
+
+        code.insert(code.end(), other.code.begin(), other.code.end());
+        lines.insert(lines.end(), other.lines.begin(), other.lines.end());
+        return true;
+    }
+
     static LineInfo encode_lines(const vector<uint32_t> &lines) {
         LineInfo info;
         for (const auto line: lines) {
@@ -87,7 +105,7 @@ namespace spadec
         }
     }
 
-    void CodeEmitter::emit_label(const Label &label, uint32_t line) {
+    void CodeEmitter::emit_label(const std::shared_ptr<Label> &label, uint32_t line) {
         size_t patch_location = code.size();
         emit_short(0, line);
         patches[label].push_back(patch_location);
@@ -122,7 +140,7 @@ namespace spadec
                 // TODO: is there any undefined behaviour in these arithmetic
                 // what if the offset is unable to describe the jump
                 const int32_t from_pos = patch_loc + 2;
-                const int32_t dest_pos = label.get_pos();
+                const int32_t dest_pos = label->get_pos();
                 const int16_t offset = dest_pos - from_pos;
 
                 code[patch_loc] = (offset >> 8) & 0xFF;
@@ -133,8 +151,7 @@ namespace spadec
     }
 
     MethodEmitter::MethodEmitter(ModuleEmitter &module, const string &name, Kind kind, Flags modifiers, uint8_t args_count, uint16_t locals_count)
-        : module(&module) {
-        // info.kind
+        : code_emitter(module) {
         switch (kind) {
         case Kind::FUNCTION:
             info.kind = 0;
@@ -146,13 +163,9 @@ namespace spadec
             info.kind = 2;
             break;
         }
-        // info.access_flags
         info.access_flags = modifiers.get_raw();
-        // info.name
         info.name = module.get_constant(name);
-        // info.args_count
         info.args_count = args_count;
-        // info.locals_count
         info.locals_count = locals_count;
     }
 

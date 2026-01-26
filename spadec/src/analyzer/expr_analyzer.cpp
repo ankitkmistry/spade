@@ -158,7 +158,7 @@ namespace spadec
                 } else {
                     // also supports self(...) syntax
                     // check for call operator
-                    auto member = get_member(caller_info, OV_OP_CALL, node.get_safe() != null, node);
+                    const auto member = get_member(caller_info, OV_OP_CALL, node.get_safe() != null, node);
                     switch (member.tag) {
                     case ExprInfo::Kind::NORMAL:
                     case ExprInfo::Kind::STATIC:

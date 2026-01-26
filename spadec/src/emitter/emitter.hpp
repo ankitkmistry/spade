@@ -173,8 +173,9 @@ namespace spadec
     ///   plfstore    1     | 15 01 | 08 08 => 2 x 05
     /// --------------------+-------+-------------------
     ///
-    /// l0 = 1
-    /// l0 = l1 = l1 + l0
+    /// Equivalent pseudocode:
+    ///     l0 = 1
+    ///     l0 = l1 = l1 + l0
     ///
     /// Each general emit function is of the form:
     ///     emit_OP(params, line)
@@ -186,14 +187,6 @@ namespace spadec
 
       public:
         Label(const string &name) : name(name), pos(0) {}
-
-        bool operator==(const Label &other) const {
-            return name == other.name;
-        }
-
-        bool operator!=(const Label &other) const {
-            return name != other.name;
-        }
 
         string get_name() const {
             return name;
@@ -207,18 +200,7 @@ namespace spadec
             this->pos = pos;
         }
     };
-}    // namespace spadec
 
-template<>
-class std::hash<spadec::Label> {
-  public:
-    size_t operator()(const spadec::Label &label) const {
-        return std::hash<std::string>()(label.get_name());
-    }
-};
-
-namespace spadec
-{
     class CodeEmitter {
         static constexpr const auto uint8_max = std::numeric_limits<uint8_t>::max();
         static constexpr const auto uint16_max = std::numeric_limits<uint16_t>::max();
@@ -226,19 +208,23 @@ namespace spadec
         ModuleEmitter *module;
         vector<uint8_t> code;
         vector<uint32_t> lines;
-        std::unordered_map<Label, vector<size_t>> patches;
+        std::unordered_map<std::shared_ptr<Label>, vector<size_t>> patches;
         size_t label_counter = 0;
 
       public:
-        Label new_label() {
-            Label label(std::format("$label{}", label_counter));
+        CodeEmitter(ModuleEmitter &module) : module(&module) {}
+
+        bool append(const CodeEmitter &other);
+
+        std::shared_ptr<Label> new_label() {
+            const auto label = std::make_shared<Label>(std::format("$label{}", label_counter));
             label_counter++;
             patches.emplace(label, vector<size_t>());
             return label;
         }
 
-        void bind_label(Label &label) {
-            label.set_pos(code.size());
+        void bind_label(const std::shared_ptr<Label> &label) {
+            label->set_pos(code.size());
         }
 
         void emit(MethodInfo &info);
@@ -385,7 +371,7 @@ namespace spadec
             emit_byte(index, line);
         }
 
-        void emit_callsub(const Label &dest, uint32_t line) {
+        void emit_callsub(const std::shared_ptr<Label> &dest, uint32_t line) {
             emit_opcode(Opcode::CALLSUB, line);
             emit_label(dest, line);
         }
@@ -395,47 +381,47 @@ namespace spadec
         }
 
         // Jump ops
-        void emit_jmp(const Label &dest, uint32_t line) {
+        void emit_jmp(const std::shared_ptr<Label> &dest, uint32_t line) {
             emit_opcode(Opcode::JMP, line);
             emit_label(dest, line);
         }
 
-        void emit_jt(const Label &dest, uint32_t line) {
+        void emit_jt(const std::shared_ptr<Label> &dest, uint32_t line) {
             emit_opcode(Opcode::JT, line);
             emit_label(dest, line);
         }
 
-        void emit_jf(const Label &dest, uint32_t line) {
+        void emit_jf(const std::shared_ptr<Label> &dest, uint32_t line) {
             emit_opcode(Opcode::JF, line);
             emit_label(dest, line);
         }
 
-        void emit_jlt(const Label &dest, uint32_t line) {
+        void emit_jlt(const std::shared_ptr<Label> &dest, uint32_t line) {
             emit_opcode(Opcode::JLT, line);
             emit_label(dest, line);
         }
 
-        void emit_jle(const Label &dest, uint32_t line) {
+        void emit_jle(const std::shared_ptr<Label> &dest, uint32_t line) {
             emit_opcode(Opcode::JLE, line);
             emit_label(dest, line);
         }
 
-        void emit_jeq(const Label &dest, uint32_t line) {
+        void emit_jeq(const std::shared_ptr<Label> &dest, uint32_t line) {
             emit_opcode(Opcode::JEQ, line);
             emit_label(dest, line);
         }
 
-        void emit_jne(const Label &dest, uint32_t line) {
+        void emit_jne(const std::shared_ptr<Label> &dest, uint32_t line) {
             emit_opcode(Opcode::JNE, line);
             emit_label(dest, line);
         }
 
-        void emit_jge(const Label &dest, uint32_t line) {
+        void emit_jge(const std::shared_ptr<Label> &dest, uint32_t line) {
             emit_opcode(Opcode::JGE, line);
             emit_label(dest, line);
         }
 
-        void emit_jgt(const Label &dest, uint32_t line) {
+        void emit_jgt(const std::shared_ptr<Label> &dest, uint32_t line) {
             emit_opcode(Opcode::JGT, line);
             emit_label(dest, line);
         }
@@ -629,7 +615,7 @@ namespace spadec
       private:
         void emit_inst(Opcode opcode, string param, uint32_t line);
         void emit_inst(Opcode opcode, uint16_t param, uint32_t line);
-        void emit_label(const Label &label, uint32_t line);
+        void emit_label(const std::shared_ptr<Label> &label, uint32_t line);
         void emit_opcode(Opcode opcode, uint32_t line);
         void emit_byte(uint8_t u8, uint32_t line);
         void emit_short(uint16_t u16, uint32_t line);
@@ -640,13 +626,20 @@ namespace spadec
     class MethodEmitter {
         MethodInfo info;
 
-        ModuleEmitter *module;
         mutable CodeEmitter code_emitter;
 
       public:
         enum class Kind { FUNCTION, METHOD, CONSTRUCTOR };
 
         MethodEmitter(ModuleEmitter &module, const string &name, Kind kind, Flags modifiers, uint8_t args_count, uint16_t locals_count);
+
+        const CodeEmitter &get_code_emitter() const {
+            return code_emitter;
+        }
+
+        CodeEmitter &get_code_emitter() {
+            return code_emitter;
+        }
 
         MethodInfo emit() const {
             MethodInfo method = info;
