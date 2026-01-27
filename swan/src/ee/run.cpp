@@ -625,18 +625,6 @@ namespace spade
                     break;
                 }
                 case Opcode::CLOSURELOAD: {
-                    // * Stack layout
-                    // Initial  -> [ ... | <method>]
-                    // Final    -> [ ... | <captured method>]
-                    //
-                    // * Instruction layout
-                    // +---------------------------------------------------------------+
-                    // | closureload capture_count:u8                                  |
-                    // |     capture_dest:u16 capture_type:u8 capture_from:(u8 or u16) |
-                    // +---------------------------------------------------------------+
-                    // If capture_type is 0x00 -> capture_from is u8
-                    // If capture_type is 0x01 -> capture_from is u16
-                    //
                     const uint8_t capture_count = state.read_byte();
                     const auto method = cast<ObjMethod>(state.pop().as_obj())->force_copy();
                     for (uint8_t i = 0; i < capture_count; i++) {

@@ -212,6 +212,8 @@ namespace spadec
         size_t label_counter = 0;
 
       public:
+        CodeEmitter() : module(null) {}
+
         CodeEmitter(ModuleEmitter &module) : module(&module) {}
 
         bool append(const CodeEmitter &other);
@@ -228,6 +230,14 @@ namespace spadec
         }
 
         void emit(MethodInfo &info);
+
+        ModuleEmitter &get_mod_emitter() const {
+            return *module;
+        }
+
+        void set_mod_emitter(ModuleEmitter &module) {
+            this->module = &module;
+        }
 
         // Stack ops
         void emit_nop(uint32_t line) {

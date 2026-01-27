@@ -362,6 +362,7 @@ namespace spadec
             tag = Kind::NORMAL;
             variant = {};
             value_info.reset();
+            code = CodeEmitter();
         }
 
         bool is_null() const {

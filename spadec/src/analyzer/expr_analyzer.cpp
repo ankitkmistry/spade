@@ -1,4 +1,5 @@
 #include "analyzer.hpp"
+#include "elpops/elpdef.hpp"
 #include "info.hpp"
 #include "lexer/token.hpp"
 #include "parser/ast.hpp"
@@ -14,28 +15,42 @@ namespace spadec
         case TokenType::TRUE:
             _res_expr_info.tag = ExprInfo::Kind::NORMAL;
             _res_expr_info.type_info().basic().type = get_internal<scope::Compound>(Internal::SPADE_BOOL);
+            // EMIT: const true
+            _res_expr_info.code.emit_const(CpInfo::from_bool(true), node.get_line_start());
             break;
         case TokenType::FALSE:
             _res_expr_info.tag = ExprInfo::Kind::NORMAL;
             _res_expr_info.type_info().basic().type = get_internal<scope::Compound>(Internal::SPADE_BOOL);
+            // EMIT: const false
+            _res_expr_info.code.emit_const(CpInfo::from_bool(false), node.get_line_start());
             break;
         case TokenType::NULL_:
             _res_expr_info.tag = ExprInfo::Kind::NORMAL;
             _res_expr_info.type_info().basic().type = get_internal<scope::Compound>(Internal::SPADE_ANY);
             _res_expr_info.type_info().nullable() = true;
             _res_expr_info.value_info.b_null = true;
+            // EMIT: const null
+            _res_expr_info.code.emit_const(CpInfo::from_null(), node.get_line_start());
             break;
         case TokenType::INTEGER:
             _res_expr_info.tag = ExprInfo::Kind::NORMAL;
             _res_expr_info.type_info().basic().type = get_internal<scope::Compound>(Internal::SPADE_INT);
+            // TODO: implement this
+            // EMIT: const <integer>
+            _res_expr_info.code.emit_const(CpInfo::from_int(0), node.get_line_start());
             break;
         case TokenType::FLOAT:
             _res_expr_info.tag = ExprInfo::Kind::NORMAL;
             _res_expr_info.type_info().basic().type = get_internal<scope::Compound>(Internal::SPADE_FLOAT);
+            // TODO: implement this
+            // EMIT: const <float>
+            _res_expr_info.code.emit_const(CpInfo::from_int(0), node.get_line_start());
             break;
         case TokenType::STRING:
             _res_expr_info.tag = ExprInfo::Kind::NORMAL;
             _res_expr_info.type_info().basic().type = get_internal<scope::Compound>(Internal::SPADE_STRING);
+            // TODO: convert escape sequences to actual bytes
+            _res_expr_info.code.emit_const(CpInfo::from_string(node.get_token()->get_text()), node.get_line_start());
             break;
         case TokenType::INIT:
         case TokenType::IDENTIFIER:
@@ -60,6 +75,7 @@ namespace spadec
     }
 
     void Analyzer::visit(ast::expr::Super &node) {
+        // TODO: EMIT
         _res_expr_info.reset();
 
         if (const auto klass = get_current_scope()->get_enclosing_compound()) {
@@ -105,10 +121,13 @@ namespace spadec
         _res_expr_info.value_info.b_lvalue = true;
         _res_expr_info.value_info.b_const = true;
         _res_expr_info.value_info.b_self = true;
+
+        // EMIT: lload 0
+        _res_expr_info.code.emit_lload(0, node.get_line_start());
     }
 
     void Analyzer::visit(ast::expr::DotAccess &node) {
-        auto caller_info = eval_expr(node.get_caller(), node);
+        const auto caller_info = eval_expr(node.get_caller(), node);
         if (caller_info.value_info.b_self) {
             if (last_cf_nodes.size() == 1) {
                 assert(last_cf_nodes.back()->get_infos().back().kind == CFInfo::Kind::USED_SELF);
@@ -116,12 +135,13 @@ namespace spadec
             }
         }
 
-        string member_name = node.get_member()->get_text();
+        const string member_name = node.get_member()->get_text();
         _res_expr_info = get_member(caller_info, member_name, node.get_safe() != null, node);
     }
 
     void Analyzer::visit(ast::expr::Call &node) {
-        auto caller_info = eval_expr(node.get_caller(), node);
+        // TODO: EMIT
+        const auto caller_info = eval_expr(node.get_caller(), node);
 
         std::vector<ArgumentInfo> arg_infos;
         arg_infos.reserve(node.get_args().size());
@@ -279,7 +299,7 @@ namespace spadec
     }
 
     void Analyzer::visit(ast::expr::Index &node) {
-        auto caller_info = eval_expr(node.get_caller(), node);
+        const auto caller_info = eval_expr(node.get_caller(), node);
 
         std::vector<ArgumentInfo> arg_infos;
         arg_infos.reserve(node.get_slices().size());

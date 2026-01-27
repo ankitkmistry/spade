@@ -133,6 +133,7 @@ namespace spadec
     }
 
     ExprInfo Analyzer::resolve_name(const string &name, const ast::AstNode &node) {
+        // TODO: EMIT
         const auto cur_module = get_current_module();
         const auto cur_compound = get_current_scope()->get_enclosing_compound();
 
@@ -1269,6 +1270,7 @@ namespace spadec
 
     ExprInfo Analyzer::get_member(const ExprInfo &caller_info, const string &member_name, bool safe, const ast::AstNode &node,
                                   ErrorGroup<AnalyzerError> &errors) {
+        // TODO: EMIT
         ExprInfo expr_info;
 
         switch (caller_info.tag) {
