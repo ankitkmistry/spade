@@ -427,12 +427,13 @@ namespace spade
                     state.push(!state.pop());
                     break;
                 case Opcode::INV:
-                    state.push(~(state.pop()));
+                    state.push(~state.pop());
                     break;
                 case Opcode::NEG:
                     state.push(-state.pop());
                     break;
                 case Opcode::GETTYPE:
+                    // TODO: What about primitive types
                     state.push(state.pop().as_obj()->get_type());
                     break;
                 case Opcode::SCAST: {
@@ -459,7 +460,7 @@ namespace spade
                 case Opcode::CONCAT: {
                     const auto b = cast<ObjString>(state.pop().as_obj());
                     const auto a = cast<ObjString>(state.pop().as_obj());
-                    state.push(halloc_mgr<ObjString>(manager, a->to_string() + b->to_string()));
+                    state.push(a->concat(b));
                     break;
                 }
                 case Opcode::POW: {

@@ -1,5 +1,9 @@
 # Spade Bytecode Specification
 
+[ ] - Create a separate section for truth values
+[ ] - Show what castable means
+[ ] - Elaborate about erroneous behaviour
+
 This document provides the specification of all the available instructions provided by the Spade Virtual Machine
 
 ## Instructions
@@ -23,9 +27,54 @@ nop
 
 ### `const_null` instruction
 
+`const_null` pushes `null` onto the stack.
+
+#### Instruction layout
+
+```text
+const_null
+```
+
+#### Stack layout
+
+|         |     | 0      |
+| --:     | :-: | :--    |
+| Initial | ... |        |
+| Final   | ... | _null_ |
+
 ### `const_true` instruction
 
+`const_true` pushes `true` onto the stack.
+
+#### Instruction layout
+
+```text
+const_true
+```
+
+#### Stack layout
+
+|         |     | 0      |
+| --:     | :-: | :--    |
+| Initial | ... |        |
+| Final   | ... | _true_ |
+
 ### `const_false` instruction
+
+`const_false` pushes `false` onto the stack.
+
+#### Instruction layout
+
+```text
+const_false
+```
+
+#### Stack layout
+
+|         |     | 0       |
+| --:     | :-: | :--     |
+| Initial | ... |         |
+| Final   | ... | _false_ |
 
 ### `const` instruction
 
@@ -50,7 +99,7 @@ the constant in the current constant pool.
 
 ### `constl` instruction
 
-Same as `const` but `index` is two bytes.
+Same as [`const`](#const-instruction) but `index` is two bytes.
 
 #### Instruction layout
 
@@ -245,45 +294,603 @@ the value will be duplicated.
 
 ### `not` instruction
 
+`not` pops the stack to get a object, then it pushes the opposite truth object of the object.
+Truth value of an object is defined as follows:
+
+| Popped value     | Truth value                        |
+| ---              | ---                                |
+| `null`           | `false`                            |
+| `true`           | `true`                             |
+| `false`          | `false`                            |
+| `int`            | `if num is 0 then false else true` |
+| `float`          | `if num is 0 then false else true` |
+| any other object | `true`                             |
+
+#### Instruction layout
+
+```text
+not
+```
+
+#### Stack layout
+
+|         |     | 0        |
+| --:     | :-: | :--      |
+| Initial | ... | _value_  |
+| Final   | ... | _result_ |
+
+#### Pseudocode
+
+```c
+result = !value.truth(); // result is bool
+```
+
 ### `inv` instruction
+
+`inv` pops the stack to get an integer, then it flips all the bits of the integer and pushes the value.
+
+#### Instruction layout
+
+```text
+inv
+```
+
+#### Stack layout
+
+|         |     | 0        |
+| --:     | :-: | :--      |
+| Initial | ... | _value_  |
+| Final   | ... | _result_ |
+
+#### Pseudocode
+
+```c
+if (value.is_int())
+    result = ~value.as_int();
+else if (value.is_uint())
+    result = ~value.as_uint();
+else
+    trigger_erroneous_behaviour();
+```
 
 ### `neg` instruction
 
+`neg` pops the stack to get a number, then it negates the number and pushes the value.
+
+#### Instruction layout
+
+```text
+neg
+```
+
+#### Stack layout
+
+|         |     | 0        |
+| --:     | :-: | :--      |
+| Initial | ... | _value_  |
+| Final   | ... | _result_ |
+
+#### Pseudocode
+
+```c
+if (value.is_int())
+    result = -value.as_int();       // Basic negation // result is int
+else if (value.is_uint())
+    result = -value.as_uint();      // Get two's complement // result is uint
+else if (value.is_float())
+    result = -value.as_float();     // Basic negation // result is float
+else
+    trigger_erroneous_behaviour();
+```
+
 ### `gettype` instruction
+
+`gettype` pops the stack to get an object, then it pushes the type of the object.
+
+#### Instruction layout
+
+```text
+gettype
+```
+
+#### Stack layout
+
+|         |     | 0        |
+| --:     | :-: | :--      |
+| Initial | ... | _value_  |
+| Final   | ... | _result_ |
+
+#### Pseudocode
+
+```c
+result = value.get_type(); // result is type
+```
 
 ### `scast` instruction
 
+`scast` pops the stack to get an type and an object, then it checks whether the object
+can be cast to the type or not. If the object is castable, then it pushes the object.
+If the object is not castable then it pushes `null`.
+
+#### Instruction layout
+
+```text
+scast
+```
+
+#### Stack layout
+
+|         |     | 0        | 1        |
+| --:     | :-: | :--      | :--      |
+| Initial | ... | _value_  | _type_   |
+| Final   | ... | _result_ |          |
+
+#### Pseudocode
+
+```c
+if (value can be cast to type)
+    result = value;
+else
+    result = null;
+```
+
 ### `ccast` instruction
+
+`ccast` pops the stack to get an type and an object, then it checks whether the object
+can be cast to the type or not. If the object is castable, then it pushes the object.
+If the object is not castable then it throws a runtime error.
+
+#### Instruction layout
+
+```text
+ccast
+```
+
+#### Stack layout
+
+|         |     | 0        | 1      |
+| --:     | :-: | :--      | :--    |
+| Initial | ... | _value_  | _type_ |
+| Final   | ... | _result_ |        |
+
+#### Pseudocode
+
+```c
+if (value can be cast to type)
+    result = value;
+else
+    runtime_error();
+```
 
 ### `concat` instruction
 
+`concat` pops the stack to get two strings and pushes the concatenated result of the two strings.
+
+#### Instruction layout
+
+```text
+concat
+```
+
+#### Stack layout
+
+|         |     | 0        | 1        |
+| --:     | :-: | :--      | :--      |
+| Initial | ... | _value1_ | _value2_ |
+| Final   | ... | _result_ |          |
+
+#### Pseudocode
+
+```c
+if (value1.is_string() && value2.is_string())
+    result = value1.as_string().concat(value2.as_string()); // result is string
+else
+    trigger_erroneous_behaviour();
+```
+
 ### `pow` instruction
+
+`pow` pops the stack to get two numbers and pushes their exponent result.
+
+#### Instruction layout
+
+```text
+pow
+```
+
+#### Stack layout
+
+|         |     | 0        | 1        |
+| --:     | :-: | :--      | :--      |
+| Initial | ... | _value1_ | _value2_ |
+| Final   | ... | _result_ |          |
+
+#### Pseudocode
+
+```c
+if (value1.is_int() && value2.is_int())
+    result = value1.as_int().power(value2.as_int()); // result is float
+else if (value1.is_uint() && value2.is_uint())
+    result = value1.as_uint().power(value2.as_uint()); // result is float
+else if (value1.is_float() && value2.is_float())
+    result = value1.as_float().power(value2.as_float()); // result is float
+else
+    trigger_erroneous_behaviour();
+```
 
 ### `mul` instruction
 
+`mul` pops the stack to get two numbers and pushes their product.
+
+#### Instruction layout
+
+```text
+mul
+```
+
+#### Stack layout
+
+|         |     | 0        | 1        |
+| --:     | :-: | :--      | :--      |
+| Initial | ... | _value1_ | _value2_ |
+| Final   | ... | _result_ |          |
+
+#### Pseudocode
+
+```c
+if (value1.is_int() && value2.is_int())
+    result = value1.as_int() * value2.as_int(); // result is int
+else if (value1.is_uint() && value2.is_uint())
+    result = value1.as_uint() * value2.as_uint(); // result is uint
+else if (value1.is_float() && value2.is_float())
+    result = value1.as_float() * value2.as_float(); // result is float
+else
+    trigger_erroneous_behaviour();
+```
+
 ### `div` instruction
+
+`div` pops the stack to get two numbers and pushes their division result.
+
+#### Instruction layout
+
+```text
+div
+```
+
+#### Stack layout
+
+|         |     | 0        | 1        |
+| --:     | :-: | :--      | :--      |
+| Initial | ... | _value1_ | _value2_ |
+| Final   | ... | _result_ |          |
+
+#### Pseudocode
+
+```c
+if (value1.is_int() && value2.is_int())
+    result = value1.as_int() / value2.as_int(); // result is int
+else if (value1.is_uint() && value2.is_uint())
+    result = value1.as_uint() / value2.as_uint(); // result is uint
+else if (value1.is_float() && value2.is_float())
+    result = value1.as_float() / value2.as_float(); // result is float
+else
+    trigger_erroneous_behaviour();
+```
 
 ### `rem` instruction
 
+`rem` pops the stack to get two numbers and pushes their remainder.
+
+#### Instruction layout
+
+```text
+rem
+```
+
+#### Stack layout
+
+|         |     | 0        | 1        |
+| --:     | :-: | :--      | :--      |
+| Initial | ... | _value1_ | _value2_ |
+| Final   | ... | _result_ |          |
+
+#### Pseudocode
+
+```c
+if (value1.is_int() && value2.is_int())
+    result = value1.as_int() % value2.as_int(); // result is int
+else if (value1.is_uint() && value2.is_uint())
+    result = value1.as_uint() % value2.as_uint(); // result is uint
+else
+    trigger_erroneous_behaviour();
+```
+
 ### `add` instruction
+
+`add` pops the stack to get two numbers and pushes their sum.
+
+#### Instruction layout
+
+```text
+add
+```
+
+#### Stack layout
+
+|         |     | 0        | 1        |
+| --:     | :-: | :--      | :--      |
+| Initial | ... | _value1_ | _value2_ |
+| Final   | ... | _result_ |          |
+
+#### Pseudocode
+
+```c
+if (value1.is_int() && value2.is_int())
+    result = value1.as_int() + value2.as_int(); // result is int
+else if (value1.is_uint() && value2.is_uint())
+    result = value1.as_uint() + value2.as_uint(); // result is uint
+else if (value1.is_float() && value2.is_float())
+    result = value1.as_float() + value2.as_float(); // result is float
+else
+    trigger_erroneous_behaviour();
+```
 
 ### `sub` instruction
 
+`sub` pops the stack to get two numbers and pushes their subtraction result.
+
+#### Instruction layout
+
+```text
+sub
+```
+
+#### Stack layout
+
+|         |     | 0        | 1        |
+| --:     | :-: | :--      | :--      |
+| Initial | ... | _value1_ | _value2_ |
+| Final   | ... | _result_ |          |
+
+#### Pseudocode
+
+```c
+if (value1.is_int() && value2.is_int())
+    result = value1.as_int() - value2.as_int(); // result is int
+else if (value1.is_uint() && value2.is_uint())
+    result = value1.as_uint() - value2.as_uint(); // result is uint
+else if (value1.is_float() && value2.is_float())
+    result = value1.as_float() - value2.as_float(); // result is float
+else
+    trigger_erroneous_behaviour();
+```
+
 ### `shl` instruction
+
+`shl` pops the stack to get two numbers, performs bitwise shift left operation and pushes the result.
+
+#### Instruction layout
+
+```text
+shl
+```
+
+#### Stack layout
+
+|         |     | 0        | 1        |
+| --:     | :-: | :--      | :--      |
+| Initial | ... | _value1_ | _value2_ |
+| Final   | ... | _result_ |          |
+
+#### Pseudocode
+
+```c
+if (value1.is_int() && value2.is_int())
+    result = value1.as_int() << value2.as_int(); // result is int
+else if (value1.is_uint() && value2.is_uint())
+    result = value1.as_uint() << value2.as_uint(); // result is uint
+else
+    trigger_erroneous_behaviour();
+```
 
 ### `shr` instruction
 
+`shr` pops the stack to get two numbers, performs bitwise shift right operation and pushes the result.
+
+#### Instruction layout
+
+```text
+shr
+```
+
+#### Stack layout
+
+|         |     | 0        | 1        |
+| --:     | :-: | :--      | :--      |
+| Initial | ... | _value1_ | _value2_ |
+| Final   | ... | _result_ |          |
+
+#### Pseudocode
+
+```c
+if (value1.is_int() && value2.is_int())
+    // sign extension happens here
+    result = value1.as_int() >> value2.as_int(); // result is int
+else if (value1.is_uint() && value2.is_uint())
+    result = value1.as_uint() >> value2.as_uint(); // result is uint
+else
+    trigger_erroneous_behaviour();
+```
+
 ### `ushr` instruction
+
+`ushr` pops the stack to get two numbers, performs bitwise unsigned shift right operation and pushes the result.
+
+#### Instruction layout
+
+```text
+ushr
+```
+
+#### Stack layout
+
+|         |     | 0        | 1        |
+| --:     | :-: | :--      | :--      |
+| Initial | ... | _value1_ | _value2_ |
+| Final   | ... | _result_ |          |
+
+#### Pseudocode
+
+```c
+if (value1.is_int() && value2.is_int())
+    // no sign extension happens here
+    result = (uint64_t)value1.as_int() >> value2.as_int(); // result is int
+else if (value1.is_uint() && value2.is_uint())
+    result = value1.as_uint() >> value2.as_uint(); // result is uint
+else
+    trigger_erroneous_behaviour();
+```
 
 ### `rol` instruction
 
+`rol` pops the stack to get two numbers, performs bitwise left rotation and pushes the result.
+
+#### Instruction layout
+
+```text
+rol
+```
+
+#### Stack layout
+
+|         |     | 0        | 1        |
+| --:     | :-: | :--      | :--      |
+| Initial | ... | _value1_ | _value2_ |
+| Final   | ... | _result_ |          |
+
+#### Pseudocode
+
+```c
+if (value1.is_int() && value2.is_int())
+    result = value1.as_int().rotate_left(value2.as_int()); // result is int
+else if (value1.is_uint() && value2.is_uint())
+    result = value1.as_uint().rotate_left(value2.as_uint()); // result is uint
+else
+    trigger_erroneous_behaviour();
+```
+
 ### `ror` instruction
+
+`rol` pops the stack to get two numbers, performs bitwise right rotation and pushes the result.
+
+#### Instruction layout
+
+```text
+rol
+```
+
+#### Stack layout
+
+|         |     | 0        | 1        |
+| --:     | :-: | :--      | :--      |
+| Initial | ... | _value1_ | _value2_ |
+| Final   | ... | _result_ |          |
+
+#### Pseudocode
+
+```c
+if (value1.is_int() && value2.is_int())
+    result = value1.as_int().rotate_right(value2.as_int()); // result is int
+else if (value1.is_uint() && value2.is_uint())
+    result = value1.as_uint().rotate_right(value2.as_uint()); // result is uint
+else
+    trigger_erroneous_behaviour();
+```
 
 ### `and` instruction
 
+`and` pops the stack to get two numbers, performs bitwise and operation and pushes the result.
+
+#### Instruction layout
+
+```text
+and
+```
+
+#### Stack layout
+
+|         |     | 0        | 1        |
+| --:     | :-: | :--      | :--      |
+| Initial | ... | _value1_ | _value2_ |
+| Final   | ... | _result_ |          |
+
+#### Pseudocode
+
+```c
+if (value1.is_int() && value2.is_int())
+    result = value1.as_int() & value2.as_int(); // result is int
+else if (value1.is_uint() && value2.is_uint())
+    result = value1.as_uint() & value2.as_uint(); // result is uint
+else
+    trigger_erroneous_behaviour();
+```
+
 ### `or` instruction
 
+`or` pops the stack to get two numbers, performs bitwise or operation and pushes the result.
+
+#### Instruction layout
+
+```text
+or
+```
+
+#### Stack layout
+
+|         |     | 0        | 1        |
+| --:     | :-: | :--      | :--      |
+| Initial | ... | _value1_ | _value2_ |
+| Final   | ... | _result_ |          |
+
+#### Pseudocode
+
+```c
+if (value1.is_int() && value2.is_int())
+    result = value1.as_int() | value2.as_int(); // result is int
+else if (value1.is_uint() && value2.is_uint())
+    result = value1.as_uint() | value2.as_uint(); // result is uint
+else
+    trigger_erroneous_behaviour();
+```
+
 ### `xor` instruction
+
+`xor` pops the stack to get two numbers, performs bitwise xor operation and pushes the result.
+
+#### Instruction layout
+
+```text
+xor
+```
+
+#### Stack layout
+
+|         |     | 0        | 1        |
+| --:     | :-: | :--      | :--      |
+| Initial | ... | _value1_ | _value2_ |
+| Final   | ... | _result_ |          |
+
+#### Pseudocode
+
+```c
+if (value1.is_int() && value2.is_int())
+    result = value1.as_int() ^ value2.as_int(); // result is int
+else if (value1.is_uint() && value2.is_uint())
+    result = value1.as_uint() ^ value2.as_uint(); // result is uint
+else
+    trigger_erroneous_behaviour();
+```
 
 ### `lt` instruction
 
@@ -358,7 +965,7 @@ is encoded from the byte after `capture_count` as follows:
 
 #### Stack layout
 
-|         |     |                   |
+|         |     | 0                 |
 | --:     | :-: | :--               |
 | Initial | ... | _method_          |
 | Final   | ... | _captured method_ |
