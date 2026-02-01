@@ -675,6 +675,15 @@ namespace spade
                 case Opcode::PRINTLN:
                     write(state.pop().to_string() + "\n");
                     break;
+                case Opcode::I2U:
+                    state.push(Value(static_cast<uint64_t>(state.pop().as_int())));
+                    break;
+                case Opcode::U2I:
+                    state.push(Value(static_cast<int64_t>(state.pop().as_uint())));
+                    break;
+                case Opcode::U2F:
+                    state.push(Value(static_cast<double>(state.pop().as_uint())));
+                    break;
                 case Opcode::I2F:
                     state.push(Value(static_cast<double>(state.pop().as_int())));
                     break;

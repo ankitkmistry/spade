@@ -227,6 +227,12 @@
     /* ----------------------------------------------------- */                                                                                      \
     /* cast op */                                                                                                                                    \
     /* ----------------------------------------------------- */                                                                                      \
+    /* int to uint */                                                                                                                                \
+    OPCODE(I2U, 0, false, I2F)                                                                                                                       \
+    /* uint to int */                                                                                                                                \
+    OPCODE(U2I, 0, false, F2I)                                                                                                                       \
+    /* uint to float */                                                                                                                                \
+    OPCODE(U2F, 0, false, F2I)                                                                                                                       \
     /* int to float */                                                                                                                               \
     OPCODE(I2F, 0, false, I2F)                                                                                                                       \
     /* float to int */                                                                                                                               \

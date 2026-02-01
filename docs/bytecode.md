@@ -1,5 +1,6 @@
 # Spade Bytecode Specification
 
+[ ] - What if int overflows during add, sub, mul and casting operations?
 [ ] - Create a separate section for truth values
 [ ] - Show what castable means
 [ ] - Elaborate about erroneous behaviour
@@ -192,25 +193,115 @@ the value will be duplicated.
 
 ### `gfload` instruction
 
+Same as [`gload`](#gload-instruction) but `index` is one byte.
+
+#### Instruction layout
+
+```text
+gfload index:u8
+```
+
+#### Stack layout
+
+|         |     | 0        |
+| --:     | :-: | :--      |
+| Initial | ... |          |
+| Final   | ... | _result_ |
+
 ### `gstore` instruction
 
 ### `gfstore` instruction
+
+Same as [`gstore`](#gstore-instruction) but `index` is one byte.
+
+#### Instruction layout
+
+```text
+gfstore index:u8
+```
+
+#### Stack layout
+
+|         |     | 0       |
+| --:     | :-: | :--     |
+| Initial | ... | _value_ |
+| Final   | ... | _value_ |
 
 ### `pgstore` instruction
 
 ### `pgfstore` instruction
 
+Same as [`pgstore`](#pgstore-instruction) but `index` is one byte.
+
+#### Instruction layout
+
+```text
+pgfstore index:u8
+```
+
+#### Stack layout
+
+|         |     | 0       |
+| --:     | :-: | :--     |
+| Initial | ... | _value_ |
+| Final   | ... |         |
+
 ### `lload` instruction
 
 ### `lfload` instruction
+
+Same as [`lload`](#lload-instruction) but `index` is one byte.
+
+#### Instruction layout
+
+```text
+lfload index:u8
+```
+
+#### Stack layout
+
+|         |     | 0        |
+| --:     | :-: | :--      |
+| Initial | ... |          |
+| Final   | ... | _result_ |
 
 ### `lstore` instruction
 
 ### `lfstore` instruction
 
+Same as [`lstore`](#lstore-instruction) but `index` is one byte.
+
+#### Instruction layout
+
+```text
+lfstore index:u8
+```
+
+#### Stack layout
+
+|         |     | 0       |
+| --:     | :-: | :--     |
+| Initial | ... | _value_ |
+| Final   | ... | _value_ |
+
 ### `plstore` instruction
 
 ### `plfstore` instruction
+
+Same as [`plstore`](#plstore-instruction) but `index` is one byte.
+
+#### Instruction layout
+
+```text
+plfstore index:u8
+```
+
+#### Stack layout
+
+|         |     | 0       |
+| --:     | :-: | :--     |
+| Initial | ... | _value_ |
+| Final   | ... |         |
 
 ### `aload` instruction
 
@@ -222,13 +313,58 @@ the value will be duplicated.
 
 ### `mfload` instruction
 
+Same as [`mload`](#mload-instruction) but `index` is one byte.
+
+#### Instruction layout
+
+```text
+mfload index:u8
+```
+
+#### Stack layout
+
+|         |     | 0        |
+| --:     | :-: | :--      |
+| Initial | ... | _object_ |
+| Final   | ... | _result_ |
+
 ### `mstore` instruction
 
 ### `mfstore` instruction
 
+Same as [`mstore`](#mstore-instruction) but `index` is one byte.
+
+#### Instruction layout
+
+```text
+mfstore index:u8
+```
+
+#### Stack layout
+
+|         |     | 0       | 0        |
+| --:     | :-: | :--     | :--      |
+| Initial | ... | _value_ | _object_ |
+| Final   | ... | _value_ |          |
+
 ### `pmstore` instruction
 
 ### `pmfstore` instruction
+
+Same as [`pmstore`](#pmstore-instruction) but `index` is one byte.
+
+#### Instruction layout
+
+```text
+pmfstore index:u8
+```
+
+#### Stack layout
+
+|         |     | 0       | 0        |
+| --:     | :-: | :--     | :--      |
+| Initial | ... | _value_ | _object_ |
+| Final   | ... |         |          |
 
 ### `spload` instruction
 
@@ -294,7 +430,9 @@ the value will be duplicated.
 
 ### `not` instruction
 
-`not` pops the stack to get a object, then it pushes the opposite truth object of the object.
+`not` pops the stack to get a object, then it pushes the opposite truth value of the object.
+
+
 Truth value of an object is defined as follows:
 
 | Popped value     | Truth value                        |
@@ -374,11 +512,11 @@ neg
 
 ```c
 if (value.is_int())
-    result = -value.as_int();       // Basic negation // result is int
+    result = -value.as_int();       // result is int // Basic negation
 else if (value.is_uint())
-    result = -value.as_uint();      // Get two's complement // result is uint
+    result = -value.as_uint();      // result is uint // Get two's complement
 else if (value.is_float())
-    result = -value.as_float();     // Basic negation // result is float
+    result = -value.as_float();     // result is float // Basic negation
 else
     trigger_erroneous_behaviour();
 ```
@@ -906,23 +1044,349 @@ else
 
 ### `is` instruction
 
+`is` pops two objects from the stack and checks whether both the objects 
+are located at the same memory location. It pushes `true` if the objects
+are located at the same memory location and `false` otherwise.
+
+#### Instruction layout
+
+```text
+is
+```
+
+#### Stack layout
+
+|         |     | 0        | 1        |
+| --:     | :-: | :--      | :--      |
+| Initial | ... | _value1_ | _value2_ |
+| Final   | ... | _result_ |          |
+
+#### Pseudocode
+
+```c
+if (value1.is_obj() && value2.is_obj())
+    result = value1.as_obj() == value2.as_obj(); // result is bool
+else
+    trigger_erroneous_behaviour();
+```
+
 ### `nis` instruction
+
+`nis` pops two objects from the stack and checks whether both the objects 
+are located at the same memory location. It pushes `false` if the objects
+are located at the same memory location and `true` otherwise.
+
+#### Instruction layout
+
+```text
+nis
+```
+
+#### Stack layout
+
+|         |     | 0        | 1        |
+| --:     | :-: | :--      | :--      |
+| Initial | ... | _value1_ | _value2_ |
+| Final   | ... | _result_ |          |
+
+#### Pseudocode
+
+```c
+if (value1.is_obj() && value2.is_obj())
+    result = value1.as_obj() != value2.as_obj(); // result is bool
+else
+    trigger_erroneous_behaviour();
+```
 
 ### `isnull` instruction
 
+`isnull` pops a object from the stack and checks whether the object is null
+It pushes `true` if the object is null, and `false` otherwise. 
+
+#### Instruction layout
+
+```text
+isnull
+```
+
+#### Stack layout
+
+|         |     | 0        |
+| --:     | :-: | :--      |
+| Initial | ... | _value_  |
+| Final   | ... | _result_ |
+
+#### Pseudocode
+
+```c
+result = value.is_null(); // result is bool
+```
+
 ### `nisnull` instruction
+
+`nisnull` pops a object from the stack and checks whether the object is null
+It pushes `false` if the object is null, and `true` otherwise. 
+
+#### Instruction layout
+
+```text
+nisnull
+```
+
+#### Stack layout
+
+|         |     | 0        |
+| --:     | :-: | :--      |
+| Initial | ... | _value_  |
+| Final   | ... | _result_ |
+
+#### Pseudocode
+
+```c
+result = !value.is_null(); // result is bool
+```
+
+### `i2u` instruction
+
+`i2u` pops an integer, converts it into an unsigned integer, and pushes the converted
+value onto the stack. The conversion is just bitwise casting and no operations are
+done other than changing the value's type.
+
+#### Instruction layout
+
+```text
+i2u
+```
+
+#### Stack layout
+
+|         |     | 0        |
+| --:     | :-: | :--      |
+| Initial | ... | _value_  |
+| Final   | ... | _result_ |
+
+#### Pseudocode
+
+```c
+if (value.is_int())
+    result = convert_int_to_uint(value); // result is uint
+else 
+    trigger_erroneous_behaviour();
+```
+
+### `u2i` instruction
+
+`u2i` pops an unsigned integer, converts it into an integer, and pushes the converted
+value onto the stack. The conversion is just bitwise casting and no operations are
+done other than changing the value's type.
+
+#### Instruction layout
+
+```text
+u2i
+```
+
+#### Stack layout
+
+|         |     | 0        |
+| --:     | :-: | :--      |
+| Initial | ... | _value_  |
+| Final   | ... | _result_ |
+
+#### Pseudocode
+
+```c
+if (value.is_uint())
+    result = convert_uint_to_int(value); // result is int
+else 
+    trigger_erroneous_behaviour();
+```
+
+### `u2f` instruction
+
+`u2f` pops an unsigned integer, converts it into a float, and pushes the converted
+value onto the stack.
+
+#### Instruction layout
+
+```text
+u2f
+```
+
+#### Stack layout
+
+|         |     | 0        |
+| --:     | :-: | :--      |
+| Initial | ... | _value_  |
+| Final   | ... | _result_ |
+
+#### Pseudocode
+
+```c
+if (value.is_uint())
+    result = convert_uint_to_float(value); // result is float
+else 
+    trigger_erroneous_behaviour();
+```
 
 ### `i2f` instruction
 
+`i2f` pops an integer, converts it into a float, and pushes the converted
+value onto the stack.
+
+#### Instruction layout
+
+```text
+i2f
+```
+
+#### Stack layout
+
+|         |     | 0        |
+| --:     | :-: | :--      |
+| Initial | ... | _value_  |
+| Final   | ... | _result_ |
+
+#### Pseudocode
+
+```c
+if (value.is_int())
+    result = convert_int_to_float(value); // result is float
+else 
+    trigger_erroneous_behaviour();
+```
+
 ### `f2i` instruction
+
+`f2i` pops a float, converts it into an integer, and pushes the converted
+value onto the stack. Conversion happens by truncating all the digits after the
+decimal point.
+
+#### Instruction layout
+
+```text
+f2i
+```
+
+#### Stack layout
+
+|         |     | 0        |
+| --:     | :-: | :--      |
+| Initial | ... | _value_  |
+| Final   | ... | _result_ |
+
+#### Pseudocode
+
+```c
+if (value.is_int())
+    result = convert_float_to_int(value); // result is int
+else 
+    trigger_erroneous_behaviour();
+```
 
 ### `i2b` instruction
 
+`i2b` pops an integer, converts it into a bool, and pushes the converted
+value onto the stack. Conversion happens by pushing the truth value of the integer.
+
+#### Instruction layout
+
+```text
+i2b
+```
+
+#### Stack layout
+
+|         |     | 0        |
+| --:     | :-: | :--      |
+| Initial | ... | _value_  |
+| Final   | ... | _result_ |
+
+#### Pseudocode
+
+```c
+if (value.is_int())
+    result = value.truth(); // result is bool
+else 
+    trigger_erroneous_behaviour();
+```
+
 ### `b2i` instruction
+
+`b2i` pops a bool, converts it into an integer, and pushes the converted
+value onto the stack. Conversion happens by pushing 1 if bool is true and pushing
+0 if bool is false.
+
+#### Instruction layout
+
+```text
+b2i
+```
+
+#### Stack layout
+
+|         |     | 0        |
+| --:     | :-: | :--      |
+| Initial | ... | _value_  |
+| Final   | ... | _result_ |
+
+#### Pseudocode
+
+```c
+if (value.is_bool())
+    result = value.as_bool() ? 1 : 0; // result is int
+else 
+    trigger_erroneous_behaviour();
+```
 
 ### `o2b` instruction
 
+`o2b` pops an object, converts it into a bool, and pushes the converted
+value onto the stack. Conversion happens by pushing the truth value of the object.
+
+#### Instruction layout
+
+```text
+o2b
+```
+
+#### Stack layout
+
+|         |     | 0        |
+| --:     | :-: | :--      |
+| Initial | ... | _value_  |
+| Final   | ... | _result_ |
+
+#### Pseudocode
+
+```c
+result = value.truth(); // result is bool
+```
+
 ### `o2s` instruction
+
+`o2s` pops an object, converts it into a string, and pushes the converted
+value onto the stack. Conversion happens by pushing the vm-specific string 
+representation of the object.
+
+#### Instruction layout
+
+```text
+o2s
+```
+
+#### Stack layout
+
+|         |     | 0        |
+| --:     | :-: | :--      |
+| Initial | ... | _value_  |
+| Final   | ... | _result_ |
+
+#### Pseudocode
+
+```c
+result = value.to_string(); // result is string
+```
 
 ### `entermonitor` instruction
 

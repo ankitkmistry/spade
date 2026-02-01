@@ -74,7 +74,7 @@ namespace spade
 
         explicit Value(std::unsigned_integral auto u) : tag(VALUE_UINT), as{.u = u} {}
 
-        explicit Value(double f) : tag(VALUE_FLOAT), as{.f = f} {}
+        explicit Value(std::floating_point auto f) : tag(VALUE_FLOAT), as{.f = f} {}
 
         Value(Obj *obj) : tag(VALUE_OBJ), as{.obj = obj} {}
 
