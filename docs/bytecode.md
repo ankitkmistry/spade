@@ -1,15 +1,9 @@
 # Spade Bytecode Specification
 
-<<<<<<< HEAD
-[ ] - What if int overflows during add, sub, mul and casting operations?
-[ ] - Create a separate section for truth values
-[ ] - Show what castable means
-[ ] - Elaborate about erroneous behaviour
-=======
+- [ ] What if int overflows during add, sub, mul and casting operations?
 - [ ] Create a separate section for truth values
 - [ ] Show what castable means
 - [ ] Elaborate about erroneous behaviour
->>>>>>> refs/remotes/origin/master
 
 This document provides the specification of all the available instructions provided by the Spade Virtual Machine
 
