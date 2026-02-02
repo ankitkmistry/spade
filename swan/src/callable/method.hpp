@@ -47,7 +47,7 @@ namespace spade
             return stack_max;
         }
 
-        size_t get_args_count() const {
+        size_t get_args_count() const override {
             return args_count;
         }
 

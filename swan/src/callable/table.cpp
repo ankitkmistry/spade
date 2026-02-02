@@ -41,6 +41,8 @@ namespace spade
             return lhs.as_char() == rhs.as_char();
         case VALUE_INT:
             return lhs.as_int() == rhs.as_int();
+        case VALUE_UINT:
+            return lhs.as_uint() == rhs.as_uint();
         case VALUE_FLOAT:
             return lhs.as_float() == rhs.as_float();
         case VALUE_OBJ: {
@@ -89,6 +91,9 @@ namespace spade
             break;
         case VALUE_INT:
             boost::hash_combine(seed, value.as_int());
+            break;
+        case VALUE_UINT:
+            boost::hash_combine(seed, value.as_uint());
             break;
         case VALUE_FLOAT:
             boost::hash_combine(seed, value.as_float());

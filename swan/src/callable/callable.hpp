@@ -33,6 +33,8 @@ namespace spade
             return true;
         }
 
+        virtual size_t get_args_count() const;
+
         /**
          * Calls this method with @p args on the current thread
          * @throws IllegalAccessError if the function is called outside a vm thread

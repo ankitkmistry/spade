@@ -1,4 +1,5 @@
 #include "ee/obj.hpp"
+#include "spimp/error.hpp"
 #include "spimp/utils.hpp"
 #include "vm.hpp"
 #include "memory/memory.hpp"
@@ -147,11 +148,6 @@ namespace spade
                     state.push(object);
                     break;
                 }
-                case Opcode::ARRUNPACK: {
-                    const auto array = cast<ObjArray>(state.pop().as_obj());
-                    array->for_each([&state](const auto item) { state.push(item); });
-                    break;
-                }
                 case Opcode::ARRPACK: {
                     const uint8_t count = state.read_byte();
                     const auto array = halloc_mgr<ObjArray>(manager, count);
@@ -162,6 +158,11 @@ namespace spade
                     state.push(array);
                     break;
                 }
+                case Opcode::ARRUNPACK: {
+                    const auto array = cast<ObjArray>(state.pop().as_obj());
+                    array->for_each([&state](const auto item) { state.push(item); });
+                    break;
+                }
                 case Opcode::ARRBUILD: {
                     const auto count = state.read_short();
                     const auto array = halloc_mgr<ObjArray>(manager, count);
@@ -169,29 +170,44 @@ namespace spade
                     break;
                 }
                 case Opcode::ARRFBUILD: {
-                    const uint8_t count = state.read_byte();
+                    const auto count = state.read_byte();
                     const auto array = halloc_mgr<ObjArray>(manager, count);
                     state.push(array);
                     break;
                 }
                 case Opcode::ILOAD: {
+                    const auto index = state.pop();
                     const auto array = cast<ObjArray>(state.pop().as_obj());
-                    const auto index = state.pop().as_int();
-                    state.push(array->get(index));
+                    if (index.is_uint())
+                        state.push(array->get(index.as_uint()));
+                    else if (index.is_int())
+                        state.push(array->get(index.as_int()));
+                    else
+                        throw Unreachable();
                     break;
                 }
                 case Opcode::ISTORE: {
+                    const auto index = state.pop();
                     const auto array = cast<ObjArray>(state.pop().as_obj());
-                    const auto index = state.pop().as_int();
                     const auto value = state.peek();
-                    array->set(index, value);
+                    if (index.is_uint())
+                        array->set(index.as_uint(), value);
+                    else if (index.is_int())
+                        array->set(index.as_int(), value);
+                    else
+                        throw Unreachable();
                     break;
                 }
                 case Opcode::PISTORE: {
+                    const auto index = state.pop();
                     const auto array = cast<ObjArray>(state.pop().as_obj());
-                    const auto index = state.pop().as_int();
                     const auto value = state.pop();
-                    array->set(index, value);
+                    if (index.is_uint())
+                        array->set(index.as_uint(), value);
+                    else if (index.is_int())
+                        array->set(index.as_int(), value);
+                    else
+                        throw Unreachable();
                     break;
                 }
                 case Opcode::ARRLEN: {
@@ -205,7 +221,7 @@ namespace spade
                     // Pop the arguments
                     frame->sc -= count;
                     // Get the method
-                    const auto method = cast<ObjMethod>(state.pop().as_obj());
+                    const auto method = cast<ObjCallable>(state.pop().as_obj());
                     // Call it
                     method->call(null, &frame->stack[frame->sc + 1]);
                     break;
@@ -223,33 +239,30 @@ namespace spade
                     // Get the object
                     const auto object = state.pop().as_obj();
                     // Get the method
-                    const auto method = cast<ObjMethod>(object->get_member(name).as_obj());
+                    const auto method = cast<ObjCallable>(object->get_member(name).as_obj());
                     // Call it
                     method->call(null, &frame->stack[frame->sc + 1]);
-                    // Set this
                     break;
                 }
                 case Opcode::SPINVOKE: {
-                    const auto method = cast<ObjMethod>(get_symbol(state.load_const(state.read_short()).to_string()).as_obj());
+                    const auto method = cast<ObjCallable>(get_symbol(state.load_const(state.read_short()).to_string()).as_obj());
                     const uint8_t count = method->get_args_count();
                     frame->sc -= count;
-                    Obj *obj = state.pop().as_obj();
-                    method->call(null, &frame->stack[frame->sc + 1]);
-                    state.get_frame()->set_local(0, obj);
+                    Obj *object = state.pop().as_obj();
+                    method->call(object, &frame->stack[frame->sc + 1]);
                     break;
                 }
                 case Opcode::SPFINVOKE: {
-                    const auto method = cast<ObjMethod>(get_symbol(state.load_const(state.read_byte()).to_string()).as_obj());
+                    const auto method = cast<ObjCallable>(get_symbol(state.load_const(state.read_byte()).to_string()).as_obj());
                     const uint8_t count = method->get_args_count();
                     frame->sc -= count;
-                    Obj *obj = state.pop().as_obj();
-                    method->call(null, &frame->stack[frame->sc + 1]);
-                    state.get_frame()->set_local(0, obj);
+                    Obj *object = state.pop().as_obj();
+                    method->call(object, &frame->stack[frame->sc + 1]);
                     break;
                 }
                 case Opcode::LINVOKE: {
                     // Get the method
-                    const auto method = cast<ObjMethod>(frame->get_local(state.read_short()).as_obj());
+                    const auto method = cast<ObjCallable>(frame->get_local(state.read_short()).as_obj());
                     // Get the arg count
                     const uint8_t count = method->get_args_count();
                     // Pop the arguments
@@ -260,7 +273,7 @@ namespace spade
                 }
                 case Opcode::GINVOKE: {
                     // Get the method
-                    const auto method = cast<ObjMethod>(get_symbol(state.load_const(state.read_short()).to_string()).as_obj());
+                    const auto method = cast<ObjCallable>(get_symbol(state.load_const(state.read_short()).to_string()).as_obj());
                     // Get the arg count
                     const uint8_t count = method->get_args_count();
                     // Pop the arguments
@@ -282,16 +295,14 @@ namespace spade
                     // Get the object
                     const auto object = state.pop().as_obj();
                     // Get the method
-                    const auto method = cast<ObjMethod>(object->get_member(name).as_obj());
+                    const auto method = cast<ObjCallable>(object->get_member(name).as_obj());
                     // Call it
-                    method->call(null, &frame->stack[frame->sc + 1]);
-                    // Set this
-                    state.get_frame()->set_local(0, object);
+                    method->call(object, &frame->stack[frame->sc + 1]);
                     break;
                 }
                 case Opcode::LFINVOKE: {
                     // Get the method
-                    const auto method = cast<ObjMethod>(frame->get_local(state.read_byte()).as_obj());
+                    const auto method = cast<ObjCallable>(frame->get_local(state.read_byte()).as_obj());
                     // Get the arg count
                     const uint8_t count = method->get_args_count();
                     // Pop the arguments
@@ -302,7 +313,7 @@ namespace spade
                 }
                 case Opcode::GFINVOKE: {
                     // Get the method
-                    const auto method = cast<ObjMethod>(get_symbol(state.load_const(state.read_byte()).to_string()).as_obj());
+                    const auto method = cast<ObjCallable>(get_symbol(state.load_const(state.read_byte()).to_string()).as_obj());
                     // Get the arg count
                     const uint8_t count = method->get_args_count();
                     // Pop the arguments
@@ -313,7 +324,7 @@ namespace spade
                 }
                 case Opcode::AINVOKE: {
                     // Get the method
-                    const auto method = cast<ObjMethod>(frame->get_arg(state.read_byte()).as_obj());
+                    const auto method = cast<ObjCallable>(frame->get_arg(state.read_byte()).as_obj());
                     // Get the arg count
                     const uint8_t count = method->get_args_count();
                     // Pop the arguments

@@ -3,13 +3,10 @@
 #include "elpops/elpdef.hpp"
 #include "spinfo/opcode.hpp"
 #include "utils/common.hpp"
-#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
-#include <type_traits>
 #include <unordered_map>
-#include <variant>
 
 namespace spadec
 {
@@ -317,11 +314,6 @@ namespace spadec
 
         void emit_pmstore(const string &name, uint32_t line) {
             emit_inst(Opcode::PMSTORE, name, line);
-        }
-
-        // Superclass ops
-        void emit_spload(const string &sign, uint32_t line) {
-            emit_inst(Opcode::SPLOAD, sign, line);
         }
 
         // Array ops

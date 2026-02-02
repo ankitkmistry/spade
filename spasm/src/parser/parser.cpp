@@ -759,10 +759,6 @@ outside:
         case Opcode::PMFSTORE:
             emit_value(module->get_constant(parse_signature().to_string()));
             break;
-        case Opcode::SPLOAD:
-        case Opcode::SPFLOAD:
-            emit_value(module->get_constant(parse_signature().to_string()));
-            break;
         case Opcode::ARRBUILD:
         case Opcode::ARRFBUILD:
             emit_value(static_cast<uint64_t>(str2int(expect(TokenType::INTEGER))));

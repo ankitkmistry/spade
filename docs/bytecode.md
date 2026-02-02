@@ -3,6 +3,7 @@
 > [!TODO]
 > - [ ] What if int overflows during add, sub, mul and casting operations?
 > - [ ] Specify signatures used for referring names.
+> - [ ] What kind of runtime errors thrown at which situations.
 > - [ ] Elaborate on global variables or global symbols.
 > - [ ] Create a separate section for truth values.
 > - [ ] Show what castable means.
@@ -651,19 +652,169 @@ pmfstore index:u8
 
 ### `arrpack` instruction
 
+`arrpack` packs last `count` values from the stack into an array.
+It then pops all `count` values pushes the packed array.
+
+#### Instruction layout
+
+```text
+arrpack count:u8
+```
+
+#### Stack layout
+
+|         |     | 0        |     | `count`  |
+| --:     | :-: | :--      | :-- | :--      |
+| Initial | ... | _value1_ | ... | _valueN_ |
+| Final   | ... | _array_  | ... |          |
+
+#### Pseudocode
+
+```text
+array = [value1, ..., valueN]
+```
+
 ### `arrunpack` instruction
+
+`arrunpack` pops an array from the stack and unpacks all the values
+and pops them onto the stack.
+
+#### Instruction layout
+
+```text
+arrunpack
+```
+
+#### Stack layout
+
+|         |     | 0          |     | `array.len`  |
+| --:     | :-: | :--        | :-- | :--          |
+| Initial | ... | _array_    | ... |              |
+| Final   | ... | _array[0]_ | ... | _array[N-1]_ |
 
 ### `arrbuild` instruction
 
+`arrbuild` build an array of length `count` and pushes it onto the stack.
+All the elements of the array are initialized to `null`.
+
+#### Instruction layout
+
+```text
+arrbuild count:u16
+```
+
+#### Stack layout
+
+|         |     | 0       |
+| --:     | :-: | :--     |
+| Initial | ... |         |
+| Final   | ... | _array_ |
+
 ### `arrfbuild` instruction
+
+Same as [`arrbuild`](#arrbuild-instruction) but `count` is one byte.
+
+#### Instruction layout
+
+```text
+arrfbuild count:u8
+```
+
+#### Stack layout
+
+|         |     | 0       |
+| --:     | :-: | :--     |
+| Initial | ... |         |
+| Final   | ... | _array_ |
 
 ### `iload` instruction
 
+`iload` pops the stack to get `index` and pops the stack again to get an `array`.
+It then pushes the `index`<sup>th</sup> element of `array`.
+
+
+If `index` is out of bounds, a runtime error is thrown.
+
+#### Instruction layout
+
+```text
+iload
+```
+
+#### Stack layout
+
+|         |     | 0       | 1       |
+| --:     | :-: | :--     | :--     |
+| Initial | ... | _array_ | _index_ |
+| Final   | ... | _value_ |         |
+
+If `index` is `int`, then it can use negative indexing (just like python).
+`index` can also be `uint`.
+
 ### `istore` instruction
+
+`istore` pops the stack to get `index` and pops the stack again to get an `array`.
+It then stores the topmost value of the stack as the `index`<sup>th</sup> element of `array`.
+
+
+If `index` is out of bounds, a runtime error is thrown.
+
+#### Instruction layout
+
+```text
+istore
+```
+
+#### Stack layout
+
+|         |      | 0       | 1       | 2       |
+| --:     | :-:  | :--     | :--     | :--     |
+| Initial | ...  | _value_ | _array_ | _index_ |
+| Final   | ...  | _value_ |         |         |
+
+If `index` is `int`, then it can use negative indexing (just like python).
+`index` can also be `uint`.
 
 ### `pistore` instruction
 
+`pistore` pops the stack to get `index` and pops the stack again to get an `array`.
+It then pops the stack and stores it as the `index`<sup>th</sup> element of `array`.
+
+
+If `index` is out of bounds, a runtime error is thrown.
+
+#### Instruction layout
+
+```text
+pistore
+```
+
+#### Stack layout
+
+|         |      | 0       | 1       | 2       |
+| --:     | :-:  | :--     | :--     | :--     |
+| Initial | ...  | _value_ | _array_ | _index_ |
+| Final   | ...  |         |         |         |
+
+If `index` is `int`, then it can use negative indexing (just like python).
+`index` can also be `uint`.
+
 ### `arrlen` instruction
+
+`arrlen` pops an array from the stack and pushes its length as `uint`.
+
+#### Instruction layout
+
+```text
+arrlen
+```
+
+#### Stack layout
+
+|         |      | 0        |
+| --:     | :-:  | :--      |
+| Initial | ...  | _array_  |
+| Final   | ...  | _length_ |
 
 ### `invoke` instruction
 
@@ -679,11 +830,71 @@ pmfstore index:u8
 
 ### `vfinvoke` instruction
 
+Same as [`vinvoke`](#vinvoke-instruction) but `index` is one byte.
+
+#### Instruction layout
+
+```text
+vfinvoke index:u8
+```
+
+#### Stack layout
+
+|         |     | 0        | 1      |     | N      |
+| --:     | :-: | :--      | :--    | :-: | :--    |
+| Initial | ... | _object_ | _arg1_ | ... | _argN_ |
+| Final   | ... |          |        | ... |        |
+
 ### `spfinvoke` instruction
+
+Same as [`spinvoke`](#spinvoke-instruction) but `index` is one byte.
+
+#### Instruction layout
+
+```text
+spfinvoke index:u8
+```
+
+#### Stack layout
+
+|         |     | 0        | 1      |     | N      |
+| --:     | :-: | :--      | :--    | :-: | :--    |
+| Initial | ... | _object_ | _arg1_ | ... | _argN_ |
+| Final   | ... |          |        | ... |        |
 
 ### `lfinvoke` instruction
 
+Same as [`linvoke`](#linvoke-instruction) but `index` is one byte.
+
+#### Instruction layout
+
+```text
+lfinvoke index:u8
+```
+
+#### Stack layout
+
+|         |     | 0      |     | N-1    |
+| --:     | :-: | :--    | :-: | :--    |
+| Initial | ... | _arg1_ | ... | _argN_ |
+| Final   | ... |        | ... |        |
+
 ### `gfinvoke` instruction
+
+Same as [`ginvoke`](#ginvoke-instruction) but `index` is one byte.
+
+#### Instruction layout
+
+```text
+gfinvoke index:u8
+```
+
+#### Stack layout
+
+|         |     | 0      |     | N-1    |
+| --:     | :-: | :--    | :-: | :--    |
+| Initial | ... | _arg1_ | ... | _argN_ |
+| Final   | ... |        | ... |        |
 
 ### `callsub` instruction
 
