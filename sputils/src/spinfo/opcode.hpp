@@ -88,11 +88,6 @@
     /* pop store member fast */                                                                                                                      \
     OPCODE(PMFSTORE, 1, true, PMSTORE)                                                                                                               \
     /* ----------------------------------------------------- */                                                                                      \
-    /* super class method load */                                                                                                                    \
-    OPCODE(SPLOAD, 2, true, SPFLOAD)                                                                                                                 \
-    /* super class method load fast */                                                                                                               \
-    OPCODE(SPFLOAD, 1, true, SPLOAD)                                                                                                                 \
-    /* ----------------------------------------------------- */                                                                                      \
     /* array op */                                                                                                                                   \
     /* ----------------------------------------------------- */                                                                                      \
     /* pack array */                                                                                                                                 \

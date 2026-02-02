@@ -2,9 +2,11 @@
 
 > [!TODO]
 > - [ ] What if int overflows during add, sub, mul and casting operations?
-> - [ ] Create a separate section for truth values
-> - [ ] Show what castable means
-> - [ ] Elaborate about erroneous behaviour
+> - [ ] Specify signatures used for referring names.
+> - [ ] Elaborate on global variables or global symbols.
+> - [ ] Create a separate section for truth values.
+> - [ ] Show what castable means.
+> - [ ] Elaborate about erroneous behaviour.
 
 This document provides the specification of all the available instructions provided by the Spade Virtual Machine
 
@@ -192,6 +194,28 @@ the value will be duplicated.
 
 ### `gload` instruction
 
+`gload` loads a global variable specified by its signature and pushes the object
+onto the stack.
+
+
+If the specifed global is not found then a runtime error is thrown.
+
+#### Instruction layout
+
+```text
+gload index:u16
+```
+
+`index` specifies the index of the signature in the current constant pool. The
+signature is stored in `string` form.
+
+#### Stack layout
+
+|         |     | 0        |
+| --:     | :-: | :--      |
+| Initial | ... |          |
+| Final   | ... | _result_ |
+
 ### `gfload` instruction
 
 Same as [`gload`](#gload-instruction) but `index` is one byte.
@@ -210,6 +234,29 @@ gfload index:u8
 | Final   | ... | _result_ |
 
 ### `gstore` instruction
+
+`gstore` takes the topmost value of the stack and stores it in a global
+variable specified by its signature.
+
+
+If the global of the specified signature is not found then a new global
+of that signature is created and the value is saved in that global.
+
+#### Instruction layout
+
+```text
+gstore index:u16
+```
+
+`index` specifies the index of the signature in the current constant pool. The
+signature is stored in `string` form.
+
+#### Stack layout
+
+|         |     | 0       |
+| --:     | :-: | :--     |
+| Initial | ... | _value_ |
+| Final   | ... | _value_ |
 
 ### `gfstore` instruction
 
@@ -230,6 +277,24 @@ gfstore index:u8
 
 ### `pgstore` instruction
 
+`pgstore` pops the stack and stores it in a global variable specified by its signature.
+
+#### Instruction layout
+
+```text
+pgstore index:u16
+```
+
+`index` specifies the index of the signature in the current constant pool. The
+signature is stored in `string` form.
+
+#### Stack layout
+
+|         |     | 0       |
+| --:     | :-: | :--     |
+| Initial | ... | _value_ |
+| Final   | ... |         |
+
 ### `pgfstore` instruction
 
 Same as [`pgstore`](#pgstore-instruction) but `index` is one byte.
@@ -248,6 +313,27 @@ pgfstore index:u8
 | Final   | ... |         |
 
 ### `lload` instruction
+
+`lload` loads a local variable specified by its index and pushes the object
+onto the stack.
+
+
+If the member of the specified index is not present in the object then a runtime error is thrown.
+
+#### Instruction layout
+
+```text
+lload index:u16
+```
+
+`index` specifies the index of the local in the current method.
+
+#### Stack layout
+
+|         |     | 0        |
+| --:     | :-: | :--      |
+| Initial | ... |          |
+| Final   | ... | _result_ |
 
 ### `lfload` instruction
 
@@ -268,6 +354,27 @@ lfload index:u8
 
 ### `lstore` instruction
 
+`lstore` takes the topmost value of the stack and stores it in a local variable
+specified by its index.
+
+
+If the specified index is greater than locals count then a runtime error is thrown.
+
+#### Instruction layout
+
+```text
+lstore index:u16
+```
+
+`index` specifies the index of the local in the current method.
+
+#### Stack layout
+
+|         |     | 0       |
+| --:     | :-: | :--     |
+| Initial | ... | _value_ |
+| Final   | ... | _value_ |
+
 ### `lfstore` instruction
 
 Same as [`lstore`](#lstore-instruction) but `index` is one byte.
@@ -286,6 +393,23 @@ lfstore index:u8
 | Final   | ... | _value_ |
 
 ### `plstore` instruction
+
+`plstore` pops the stack and stores it in a local variable specified by its index.
+
+#### Instruction layout
+
+```text
+plstore index:u16
+```
+
+`index` specifies the index of the local in the current method.
+
+#### Stack layout
+
+|         |     | 0       |
+| --:     | :-: | :--     |
+| Initial | ... | _value_ |
+| Final   | ... |         |
 
 ### `plfstore` instruction
 
@@ -306,11 +430,95 @@ plfstore index:u8
 
 ### `aload` instruction
 
+`aload` loads a argument specified by its index and pushes the object
+onto the stack.
+
+
+If the specified index is greater than args count then a runtime error is thrown.
+
+#### Instruction layout
+
+```text
+aload index:u8
+```
+
+`index` specifies the index of the argument in the current method.
+
+#### Stack layout
+
+|         |     | 0        |
+| --:     | :-: | :--      |
+| Initial | ... |          |
+| Final   | ... | _result_ |
+
 ### `astore` instruction
+
+`astore` takes the topmost value of the stack and stores it in a argument
+specified by its index.
+
+
+If the specified index is greater than args count then a runtime error is thrown.
+
+#### Instruction layout
+
+```text
+astore index:u8
+```
+
+`index` specifies the index of the argument in the current method.
+
+#### Stack layout
+
+|         |     | 0       |
+| --:     | :-: | :--     |
+| Initial | ... | _value_ |
+| Final   | ... | _value_ |
 
 ### `pastore` instruction
 
+`astore` pops the stack and stores it in a argument specified by its index.
+
+
+If the specified index is greater than args count then a runtime error is thrown.
+
+#### Instruction layout
+
+```text
+pastore index:u8
+```
+
+`index` specifies the index of the argument in the current method.
+
+#### Stack layout
+
+|         |     | 0       |
+| --:     | :-: | :--     |
+| Initial | ... | _value_ |
+| Final   | ... |         |
+
 ### `mload` instruction
+
+`mload` pops an object from the stack and loads a member of the object 
+specified by its name and pushes the member onto the stack.
+
+
+If the member of the specified name is not present in the object then a runtime error is thrown.
+
+#### Instruction layout
+
+```text
+mload index:u16
+```
+
+`index` specifies the index of the member name in the current constant pool. The
+member name is stored in `string` form.
+
+#### Stack layout
+
+|         |     | 0        |
+| --:     | :-: | :--      |
+| Initial | ... | _object_ |
+| Final   | ... | _result_ |
 
 ### `mfload` instruction
 
@@ -331,6 +539,43 @@ mfload index:u8
 
 ### `mstore` instruction
 
+`mstore` pops an object from the stack and then takes the topmost value
+of the stack and stores it as the member of the object (i.e. the popped value).
+The member is specified by its name. 
+
+
+If the member of the specified name is not present in the object then a new member
+of that name is created and the value is saved in that member.
+
+#### Instruction layout
+
+```text
+mstore index:u16
+```
+
+`index` specifies the index of the member name in the current constant pool. The
+member name is stored in `string` form.
+
+#### Stack layout
+
+|         |     | 0       | 1        |
+| --:     | :-: | :--     | :--      |
+| Initial | ... | _value_ | _object_ |
+| Final   | ... | _value_ |          |
+
+#### Pseudocode
+
+```cpp
+if (object.is_object()) { 
+    const auto member_name = load_constant(index);
+    if (member_name.is_string())
+        object.as_object().set_member(member_name, value); 
+    else
+        trigger_erroneous_behaviour();
+} else
+    trigger_erroneous_behaviour();
+```
+
 ### `mfstore` instruction
 
 Same as [`mstore`](#mstore-instruction) but `index` is one byte.
@@ -343,12 +588,49 @@ mfstore index:u8
 
 #### Stack layout
 
-|         |     | 0       | 0        |
+|         |     | 0       | 1        |
 | --:     | :-: | :--     | :--      |
 | Initial | ... | _value_ | _object_ |
 | Final   | ... | _value_ |          |
 
 ### `pmstore` instruction
+
+`pmstore` pops an object from the stack and then pops the stack again 
+to get the value and stores it as the member of the object.
+The member is specified by its name. 
+
+
+If the member of the specified name is not present in the object then a new member
+of that name is created and the value is saved in that member.
+
+#### Instruction layout
+
+```text
+pmstore index:u16
+```
+
+`index` specifies the index of the member name in the current constant pool. The
+member name is stored in `string` form.
+
+#### Stack layout
+
+|         |     | 0       | 1        |
+| --:     | :-: | :--     | :--      |
+| Initial | ... | _value_ | _object_ |
+| Final   | ... |         |          |
+
+#### Pseudocode
+
+```cpp
+if (object.is_object()) { 
+    const auto member_name = load_constant(index);
+    if (member_name.is_string())
+        object.as_object().set_member(member_name, value); 
+    else
+        trigger_erroneous_behaviour();
+} else
+    trigger_erroneous_behaviour();
+```
 
 ### `pmfstore` instruction
 
@@ -362,14 +644,10 @@ pmfstore index:u8
 
 #### Stack layout
 
-|         |     | 0       | 0        |
+|         |     | 0       | 1        |
 | --:     | :-: | :--     | :--      |
 | Initial | ... | _value_ | _object_ |
 | Final   | ... |         |          |
-
-### `spload` instruction
-
-### `spfload` instruction
 
 ### `arrpack` instruction
 
@@ -460,7 +738,7 @@ not
 
 #### Pseudocode
 
-```c
+```cpp
 result = !value.truth(); // result is bool
 ```
 
@@ -483,7 +761,7 @@ inv
 
 #### Pseudocode
 
-```c
+```cpp
 if (value.is_int())
     result = ~value.as_int();
 else if (value.is_uint())
@@ -511,7 +789,7 @@ neg
 
 #### Pseudocode
 
-```c
+```cpp
 if (value.is_int())
     result = -value.as_int();       // result is int // Basic negation
 else if (value.is_uint())
@@ -541,7 +819,7 @@ gettype
 
 #### Pseudocode
 
-```c
+```cpp
 result = value.get_type(); // result is type
 ```
 
@@ -566,7 +844,7 @@ scast
 
 #### Pseudocode
 
-```c
+```cpp
 if (value can be cast to type)
     result = value;
 else
@@ -594,7 +872,7 @@ ccast
 
 #### Pseudocode
 
-```c
+```cpp
 if (value can be cast to type)
     result = value;
 else
@@ -620,7 +898,7 @@ concat
 
 #### Pseudocode
 
-```c
+```cpp
 if (value1.is_string() && value2.is_string())
     result = value1.as_string().concat(value2.as_string()); // result is string
 else
@@ -646,7 +924,7 @@ pow
 
 #### Pseudocode
 
-```c
+```cpp
 if (value1.is_int() && value2.is_int())
     result = value1.as_int().power(value2.as_int()); // result is float
 else if (value1.is_uint() && value2.is_uint())
@@ -676,7 +954,7 @@ mul
 
 #### Pseudocode
 
-```c
+```cpp
 if (value1.is_int() && value2.is_int())
     result = value1.as_int() * value2.as_int(); // result is int
 else if (value1.is_uint() && value2.is_uint())
@@ -706,7 +984,7 @@ div
 
 #### Pseudocode
 
-```c
+```cpp
 if (value1.is_int() && value2.is_int())
     result = value1.as_int() / value2.as_int(); // result is int
 else if (value1.is_uint() && value2.is_uint())
@@ -736,7 +1014,7 @@ rem
 
 #### Pseudocode
 
-```c
+```cpp
 if (value1.is_int() && value2.is_int())
     result = value1.as_int() % value2.as_int(); // result is int
 else if (value1.is_uint() && value2.is_uint())
@@ -764,7 +1042,7 @@ add
 
 #### Pseudocode
 
-```c
+```cpp
 if (value1.is_int() && value2.is_int())
     result = value1.as_int() + value2.as_int(); // result is int
 else if (value1.is_uint() && value2.is_uint())
@@ -794,7 +1072,7 @@ sub
 
 #### Pseudocode
 
-```c
+```cpp
 if (value1.is_int() && value2.is_int())
     result = value1.as_int() - value2.as_int(); // result is int
 else if (value1.is_uint() && value2.is_uint())
@@ -824,7 +1102,7 @@ shl
 
 #### Pseudocode
 
-```c
+```cpp
 if (value1.is_int() && value2.is_int())
     result = value1.as_int() << value2.as_int(); // result is int
 else if (value1.is_uint() && value2.is_uint())
@@ -852,7 +1130,7 @@ shr
 
 #### Pseudocode
 
-```c
+```cpp
 if (value1.is_int() && value2.is_int())
     // sign extension happens here
     result = value1.as_int() >> value2.as_int(); // result is int
@@ -881,7 +1159,7 @@ ushr
 
 #### Pseudocode
 
-```c
+```cpp
 if (value1.is_int() && value2.is_int())
     // no sign extension happens here
     result = (uint64_t)value1.as_int() >> value2.as_int(); // result is int
@@ -910,7 +1188,7 @@ rol
 
 #### Pseudocode
 
-```c
+```cpp
 if (value1.is_int() && value2.is_int())
     result = value1.as_int().rotate_left(value2.as_int()); // result is int
 else if (value1.is_uint() && value2.is_uint())
@@ -938,7 +1216,7 @@ rol
 
 #### Pseudocode
 
-```c
+```cpp
 if (value1.is_int() && value2.is_int())
     result = value1.as_int().rotate_right(value2.as_int()); // result is int
 else if (value1.is_uint() && value2.is_uint())
@@ -966,7 +1244,7 @@ and
 
 #### Pseudocode
 
-```c
+```cpp
 if (value1.is_int() && value2.is_int())
     result = value1.as_int() & value2.as_int(); // result is int
 else if (value1.is_uint() && value2.is_uint())
@@ -994,7 +1272,7 @@ or
 
 #### Pseudocode
 
-```c
+```cpp
 if (value1.is_int() && value2.is_int())
     result = value1.as_int() | value2.as_int(); // result is int
 else if (value1.is_uint() && value2.is_uint())
@@ -1022,7 +1300,7 @@ xor
 
 #### Pseudocode
 
-```c
+```cpp
 if (value1.is_int() && value2.is_int())
     result = value1.as_int() ^ value2.as_int(); // result is int
 else if (value1.is_uint() && value2.is_uint())
@@ -1064,7 +1342,7 @@ is
 
 #### Pseudocode
 
-```c
+```cpp
 if (value1.is_obj() && value2.is_obj())
     result = value1.as_obj() == value2.as_obj(); // result is bool
 else
@@ -1092,7 +1370,7 @@ nis
 
 #### Pseudocode
 
-```c
+```cpp
 if (value1.is_obj() && value2.is_obj())
     result = value1.as_obj() != value2.as_obj(); // result is bool
 else
@@ -1119,7 +1397,7 @@ isnull
 
 #### Pseudocode
 
-```c
+```cpp
 result = value.is_null(); // result is bool
 ```
 
@@ -1143,7 +1421,7 @@ nisnull
 
 #### Pseudocode
 
-```c
+```cpp
 result = !value.is_null(); // result is bool
 ```
 
@@ -1168,7 +1446,7 @@ i2u
 
 #### Pseudocode
 
-```c
+```cpp
 if (value.is_int())
     result = convert_int_to_uint(value); // result is uint
 else 
@@ -1196,7 +1474,7 @@ u2i
 
 #### Pseudocode
 
-```c
+```cpp
 if (value.is_uint())
     result = convert_uint_to_int(value); // result is int
 else 
@@ -1223,7 +1501,7 @@ u2f
 
 #### Pseudocode
 
-```c
+```cpp
 if (value.is_uint())
     result = convert_uint_to_float(value); // result is float
 else 
@@ -1250,7 +1528,7 @@ i2f
 
 #### Pseudocode
 
-```c
+```cpp
 if (value.is_int())
     result = convert_int_to_float(value); // result is float
 else 
@@ -1278,7 +1556,7 @@ f2i
 
 #### Pseudocode
 
-```c
+```cpp
 if (value.is_int())
     result = convert_float_to_int(value); // result is int
 else 
@@ -1305,7 +1583,7 @@ i2b
 
 #### Pseudocode
 
-```c
+```cpp
 if (value.is_int())
     result = value.truth(); // result is bool
 else 
@@ -1333,7 +1611,7 @@ b2i
 
 #### Pseudocode
 
-```c
+```cpp
 if (value.is_bool())
     result = value.as_bool() ? 1 : 0; // result is int
 else 
@@ -1360,7 +1638,7 @@ o2b
 
 #### Pseudocode
 
-```c
+```cpp
 result = value.truth(); // result is bool
 ```
 
@@ -1385,7 +1663,7 @@ o2s
 
 #### Pseudocode
 
-```c
+```cpp
 result = value.to_string(); // result is string
 ```
 

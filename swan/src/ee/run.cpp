@@ -66,14 +66,6 @@ namespace spade
                 case Opcode::LSTORE:
                     frame->set_local(state.read_short(), state.peek());
                     break;
-                case Opcode::SPLOAD: {
-                    const auto obj = state.pop();
-                    const auto sign = state.load_const(state.read_short()).to_string();
-                    const auto method = cast<ObjMethod>(get_symbol(sign).as_obj())->force_copy();
-                    method->set_capture(0, halloc_mgr<ObjCapture>(manager, obj));
-                    state.push(method);
-                    break;
-                }
                 case Opcode::GFLOAD:
                     state.push(get_symbol(state.load_const(state.read_byte()).to_string()));
                     break;
@@ -86,14 +78,6 @@ namespace spade
                 case Opcode::LFSTORE:
                     frame->set_local(state.read_byte(), state.peek());
                     break;
-                case Opcode::SPFLOAD: {
-                    const auto obj = state.pop();
-                    const auto sign = state.load_const(state.read_byte()).to_string();
-                    const auto method = cast<ObjMethod>(get_symbol(sign).as_obj())->force_copy();
-                    method->set_capture(0, halloc_mgr<ObjCapture>(manager, obj));
-                    state.push(method);
-                    break;
-                }
                 case Opcode::PGSTORE:
                     set_symbol(state.load_const(state.read_short()).to_string(), state.pop());
                     break;
